@@ -5,6 +5,7 @@ const MAP_W := 22
 const MAP_H := 13
 const MAP_ORIGIN := Vector2(50, 70)
 const PLAYER_SPEED := 190.0
+const SAVE_PATH := "user://guanghan_outpost_save.json"
 
 var day := 1
 var is_moon_night := false
@@ -145,8 +146,7 @@ var collectables: Array[Dictionary] = []
 
 func _ready() -> void:
 	_setup_input_map()
-	_setup_starting_base()
-	_setup_collectables()
+	_reset_game_state()
 	_setup_ui()
 	add_log("广寒前哨上线。玉兔工程车完成自动部署，但系统仍需人工调试。")
 	add_log("V0.5：新增舱段连通和漏气事故。新模块必须贴近已有基地。")
@@ -161,6 +161,9 @@ func _setup_input_map() -> void:
 	_add_key_action("advance_day", [KEY_N])
 	_add_key_action("toggle_build", [KEY_B])
 	_add_key_action("cancel", [KEY_ESCAPE])
+	_add_key_action("save_game", [KEY_F5])
+	_add_key_action("load_game", [KEY_F9])
+	_add_key_action("new_game", [KEY_F10])
 
 func _add_key_action(action_name: String, keys: Array[int]) -> void:
 	if not InputMap.has_action(action_name):
@@ -169,6 +172,48 @@ func _add_key_action(action_name: String, keys: Array[int]) -> void:
 		var event := InputEventKey.new()
 		event.keycode = key
 		InputMap.action_add_event(action_name, event)
+
+func _reset_game_state() -> void:
+	day = 1
+	is_moon_night = false
+	game_over = false
+	supply_waiting = false
+	supply_order = {}
+	next_supply_request_day = 1
+	supply_travel_days = 3
+	player_pos = Vector2(300, 420)
+	player_facing = Vector2.DOWN
+	walk_phase = 0.0
+	interact_target = {}
+	selected_crop = "potato"
+	selected_tool = "sampler"
+	build_mode = false
+	selected_build = ""
+	solar_dust = 0.12
+	oxygen_wear = 0.08
+	next_module_uid = 1
+	next_collectable_uid = 1
+	resources = _default_resources()
+	modules.clear()
+	collectables.clear()
+	log_lines.clear()
+	_setup_starting_base()
+	_setup_collectables()
+	if has_node("UI/Root/SupplyPanel"):
+		$UI/Root/SupplyPanel.visible = false
+
+func _default_resources() -> Dictionary:
+	return {
+		"power": 76.0,
+		"oxygen": 82.0,
+		"water": 68.0,
+		"food": 50.0,
+		"parts": 8.0,
+		"integrity": 88.0,
+		"regolith": 0.0,
+		"ice": 0.0,
+		"samples": 0.0,
+	}
 
 func _setup_starting_base() -> void:
 	modules.clear()
@@ -192,6 +237,12 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("save_game"):
+		_save_game()
+	if event.is_action_pressed("load_game"):
+		_load_game()
+	if event.is_action_pressed("new_game"):
+		_start_new_game()
 	if event.is_action_pressed("toggle_build") and not game_over:
 		_toggle_build_mode()
 	if event.is_action_pressed("cancel") and not game_over:
@@ -634,6 +685,182 @@ func _receive_supply() -> void:
 	supply_waiting = false
 	_update_ui()
 
+func _save_game() -> void:
+	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	if file == null:
+		add_log("保存失败：无法写入存档文件。")
+		_update_ui()
+		return
+	var save_data := {
+		"version": 1,
+		"day": day,
+		"is_moon_night": is_moon_night,
+		"game_over": game_over,
+		"supply_waiting": supply_waiting,
+		"supply_order": supply_order,
+		"next_supply_request_day": next_supply_request_day,
+		"supply_travel_days": supply_travel_days,
+		"player_pos": _vector2_to_dict(player_pos),
+		"player_facing": _vector2_to_dict(player_facing),
+		"selected_crop": selected_crop,
+		"selected_tool": selected_tool,
+		"build_mode": build_mode,
+		"selected_build": selected_build,
+		"solar_dust": solar_dust,
+		"oxygen_wear": oxygen_wear,
+		"next_module_uid": next_module_uid,
+		"next_collectable_uid": next_collectable_uid,
+		"resources": resources,
+		"modules": _serialize_modules(),
+		"collectables": _serialize_collectables(),
+		"log_lines": log_lines,
+	}
+	file.store_string(JSON.stringify(save_data, "\t"))
+	add_log("已保存到 %s。" % SAVE_PATH)
+	_update_ui()
+
+func _load_game() -> void:
+	if not FileAccess.file_exists(SAVE_PATH):
+		add_log("没有找到存档。")
+		_update_ui()
+		return
+	var file := FileAccess.open(SAVE_PATH, FileAccess.READ)
+	if file == null:
+		add_log("读取失败：无法打开存档文件。")
+		_update_ui()
+		return
+	var parsed = JSON.parse_string(file.get_as_text())
+	if typeof(parsed) != TYPE_DICTIONARY:
+		add_log("读取失败：存档格式无效。")
+		_update_ui()
+		return
+	_apply_save_data(parsed)
+	add_log("已读取存档。")
+	_update_ui()
+	queue_redraw()
+
+func _start_new_game() -> void:
+	_reset_game_state()
+	add_log("新一轮广寒前哨任务开始。")
+	add_log("按 F5 保存，F9 读取，F10 重新开始。")
+	_update_ui()
+	queue_redraw()
+
+func _apply_save_data(data: Dictionary) -> void:
+	day = int(data.get("day", 1))
+	is_moon_night = bool(data.get("is_moon_night", false))
+	game_over = bool(data.get("game_over", false))
+	supply_waiting = bool(data.get("supply_waiting", false))
+	supply_order = _copy_dictionary(data.get("supply_order", {}))
+	next_supply_request_day = int(data.get("next_supply_request_day", 1))
+	supply_travel_days = int(data.get("supply_travel_days", 3))
+	player_pos = _dict_to_vector2(data.get("player_pos", _vector2_to_dict(Vector2(300, 420))))
+	player_facing = _dict_to_vector2(data.get("player_facing", _vector2_to_dict(Vector2.DOWN)))
+	selected_crop = String(data.get("selected_crop", "potato"))
+	selected_tool = String(data.get("selected_tool", "sampler"))
+	build_mode = bool(data.get("build_mode", false))
+	selected_build = String(data.get("selected_build", ""))
+	solar_dust = float(data.get("solar_dust", 0.12))
+	oxygen_wear = float(data.get("oxygen_wear", 0.08))
+	next_module_uid = int(data.get("next_module_uid", 1))
+	next_collectable_uid = int(data.get("next_collectable_uid", 1))
+	resources = _default_resources()
+	var saved_resources: Dictionary = data.get("resources", {})
+	for key: String in saved_resources.keys():
+		resources[key] = float(saved_resources[key])
+	modules = _deserialize_modules(data.get("modules", []))
+	collectables = _deserialize_collectables(data.get("collectables", []))
+	log_lines.clear()
+	var saved_logs: Array = data.get("log_lines", [])
+	for entry in saved_logs:
+		log_lines.append(String(entry))
+	if has_node("UI/Root/SupplyPanel"):
+		$UI/Root/SupplyPanel.visible = false
+
+func _serialize_modules() -> Array:
+	var result: Array = []
+	for module: Dictionary in modules:
+		result.append({
+			"uid": int(module["uid"]),
+			"type": String(module["type"]),
+			"cell": _vector2i_to_dict(module["cell"]),
+			"fixed": bool(module["fixed"]),
+			"crop": String(module.get("crop", "")),
+			"age": int(module.get("age", 0)),
+			"leaking": bool(module.get("leaking", false)),
+		})
+	return result
+
+func _deserialize_modules(values: Array) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for value in values:
+		if typeof(value) != TYPE_DICTIONARY:
+			continue
+		var data: Dictionary = value
+		result.append({
+			"uid": int(data.get("uid", 0)),
+			"type": String(data.get("type", "hab")),
+			"cell": _dict_to_vector2i(data.get("cell", {"x": 0, "y": 0})),
+			"fixed": bool(data.get("fixed", false)),
+			"crop": String(data.get("crop", "")),
+			"age": int(data.get("age", 0)),
+			"leaking": bool(data.get("leaking", false)),
+		})
+	return result
+
+func _serialize_collectables() -> Array:
+	var result: Array = []
+	for item: Dictionary in collectables:
+		result.append({
+			"uid": int(item["uid"]),
+			"kind": String(item["kind"]),
+			"type": String(item["type"]),
+			"pos": _vector2_to_dict(item["pos"]),
+			"amount": float(item["amount"]),
+			"depleted": bool(item["depleted"]),
+		})
+	return result
+
+func _deserialize_collectables(values: Array) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for value in values:
+		if typeof(value) != TYPE_DICTIONARY:
+			continue
+		var data: Dictionary = value
+		result.append({
+			"uid": int(data.get("uid", 0)),
+			"kind": String(data.get("kind", "collectable")),
+			"type": String(data.get("type", "regolith")),
+			"pos": _dict_to_vector2(data.get("pos", {"x": 0.0, "y": 0.0})),
+			"amount": float(data.get("amount", 0.0)),
+			"depleted": bool(data.get("depleted", false)),
+		})
+	return result
+
+func _vector2_to_dict(value: Vector2) -> Dictionary:
+	return {"x": value.x, "y": value.y}
+
+func _dict_to_vector2(value) -> Vector2:
+	if typeof(value) != TYPE_DICTIONARY:
+		return Vector2.ZERO
+	return Vector2(float(value.get("x", 0.0)), float(value.get("y", 0.0)))
+
+func _vector2i_to_dict(value: Vector2i) -> Dictionary:
+	return {"x": value.x, "y": value.y}
+
+func _dict_to_vector2i(value) -> Vector2i:
+	if typeof(value) != TYPE_DICTIONARY:
+		return Vector2i.ZERO
+	return Vector2i(int(value.get("x", 0)), int(value.get("y", 0)))
+
+func _copy_dictionary(value) -> Dictionary:
+	if typeof(value) != TYPE_DICTIONARY:
+		return {}
+	var result := {}
+	for key in value.keys():
+		result[key] = value[key]
+	return result
+
 func _check_game_state() -> void:
 	var failed: Array[String] = []
 	for key: String in ["power", "oxygen", "water", "food"]:
@@ -770,7 +997,7 @@ func _setup_ui() -> void:
 	controls.name = "Controls"
 	controls.position = Vector2(905, 340)
 	controls.size = Vector2(350, 120)
-	controls.text = "WASD/方向键：移动\nE：交互/采集/建造\nN：进入下一天\nB：建造模式\nEsc：取消建造"
+	controls.text = "WASD/方向键：移动\nE：交互/采集/建造\nN：进入下一天\nB：建造模式\nF5/F9/F10：保存/读取/新局"
 	root.add_child(controls)
 
 	var supply_status := Label.new()
@@ -846,6 +1073,24 @@ func _setup_ui() -> void:
 	b3.text = "申请农业包：水培耗材 + 温室备件"
 	b3.pressed.connect(func(): _choose_supply("farm"))
 	box.add_child(b3)
+
+	var save_panel := HBoxContainer.new()
+	save_panel.name = "SavePanel"
+	save_panel.position = Vector2(905, 535)
+	save_panel.size = Vector2(330, 38)
+	root.add_child(save_panel)
+	var save_button := Button.new()
+	save_button.text = "保存"
+	save_button.pressed.connect(_save_game)
+	save_panel.add_child(save_button)
+	var load_button := Button.new()
+	load_button.text = "读取"
+	load_button.pressed.connect(_load_game)
+	save_panel.add_child(load_button)
+	var new_button := Button.new()
+	new_button.text = "新开局"
+	new_button.pressed.connect(_start_new_game)
+	save_panel.add_child(new_button)
 
 func _select_crop(crop_name: String) -> void:
 	selected_crop = crop_name
