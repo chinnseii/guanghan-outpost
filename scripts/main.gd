@@ -13,9 +13,12 @@ var supply_waiting := false
 
 var player_pos := Vector2(300, 420)
 var player_radius := 14.0
+var player_facing := Vector2.DOWN
+var walk_phase := 0.0
 var interact_target: Dictionary = {}
 
 var selected_crop := "potato"
+var selected_tool := "sampler"
 var build_mode := false
 var selected_build := ""
 var log_lines: Array[String] = []
@@ -23,6 +26,7 @@ var log_lines: Array[String] = []
 var solar_dust := 0.12
 var oxygen_wear := 0.08
 var next_module_uid := 1
+var next_collectable_uid := 1
 
 var resources := {
 	"power": 76.0,
@@ -31,6 +35,9 @@ var resources := {
 	"food": 50.0,
 	"parts": 8.0,
 	"integrity": 88.0,
+	"regolith": 0.0,
+	"ice": 0.0,
+	"samples": 0.0,
 }
 
 var resource_names := {
@@ -40,6 +47,15 @@ var resource_names := {
 	"food": "食物",
 	"parts": "维修件",
 	"integrity": "完整度",
+	"regolith": "月壤",
+	"ice": "水冰",
+	"samples": "样本",
+}
+
+var tool_defs := {
+	"sampler": {"name": "采样铲", "hint": "采集月壤、冰样本和陨石碎片"},
+	"brush": {"name": "除尘刷", "hint": "清理太阳能阵列月尘"},
+	"repair": {"name": "维修枪", "hint": "维护生命维持设备"},
 }
 
 var crop_defs := {
@@ -101,13 +117,15 @@ var module_defs := {
 }
 
 var modules: Array[Dictionary] = []
+var collectables: Array[Dictionary] = []
 
 func _ready() -> void:
 	_setup_input_map()
 	_setup_starting_base()
+	_setup_collectables()
 	_setup_ui()
 	add_log("广寒前哨上线。玉兔工程车完成自动部署，但系统仍需人工调试。")
-	add_log("V0.2：按 B 打开建造模式，选择模块后靠近空地按 E 建造。")
+	add_log("V0.3：新增工具、朝向和月面采集点。靠近样本按 E 采集。")
 	_update_ui()
 
 func _setup_input_map() -> void:
@@ -141,6 +159,9 @@ func _process(delta: float) -> void:
 		return
 	var input := Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	player_pos += input * PLAYER_SPEED * delta
+	if input.length() > 0.01:
+		player_facing = input.normalized()
+		walk_phase += delta * 10.0
 	player_pos.x = clamp(player_pos.x, MAP_ORIGIN.x + 5.0, MAP_ORIGIN.x + MAP_W * TILE - 5.0)
 	player_pos.y = clamp(player_pos.y, MAP_ORIGIN.y + 5.0, MAP_ORIGIN.y + MAP_H * TILE - 5.0)
 	_find_interaction()
@@ -160,6 +181,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _draw() -> void:
 	_draw_moon_surface()
+	_draw_collectables()
 	_draw_modules()
 	_draw_build_ghost()
 	_draw_player()
@@ -175,6 +197,23 @@ func _draw_moon_surface() -> void:
 		var cx := 90 + (i * 157) % 980
 		var cy := 95 + (i * 83) % 510
 		draw_circle(Vector2(cx, cy), 10 + (i % 4) * 5, Color(0.08, 0.085, 0.095, 0.45))
+
+func _draw_collectables() -> void:
+	for item: Dictionary in collectables:
+		if item["depleted"]:
+			continue
+		var pos: Vector2 = item["pos"]
+		var color := Color("#b8b2a2")
+		if item["type"] == "ice":
+			color = Color("#9fd7ff")
+		elif item["type"] == "meteor":
+			color = Color("#d1a15b")
+		elif item["type"] == "sample":
+			color = Color("#c9c3a5")
+		if interact_target == item:
+			draw_circle(pos, 20, Color("#e7c66b"))
+		draw_circle(pos, 13, color)
+		draw_circle(pos + Vector2(-4, -4), 4, Color(1, 1, 1, 0.28))
 
 func _draw_modules() -> void:
 	for module: Dictionary in modules:
@@ -239,9 +278,14 @@ func _draw_build_ghost() -> void:
 	draw_rect(rect, Color("#f2f0da"), false, 2)
 
 func _draw_player() -> void:
+	var foot_offset := sin(walk_phase) * 3.0
+	var side := Vector2(-player_facing.y, player_facing.x)
+	draw_circle(player_pos - side * 7 + Vector2(0, foot_offset), 5, Color("#303846"))
+	draw_circle(player_pos + side * 7 - Vector2(0, foot_offset), 5, Color("#303846"))
 	draw_circle(player_pos, player_radius + 4, Color("#1b222d"))
 	draw_circle(player_pos, player_radius, Color("#f2f0da"))
-	draw_circle(player_pos + Vector2(4, -3), 5, Color("#7fb8ff"))
+	draw_circle(player_pos + player_facing * 6, 5, Color("#7fb8ff"))
+	draw_line(player_pos, player_pos + player_facing * 22, Color("#e7c66b"), 2)
 
 func _find_interaction() -> void:
 	interact_target = {}
@@ -250,6 +294,13 @@ func _find_interaction() -> void:
 		if rect.has_point(player_pos):
 			interact_target = module
 			return
+	for item: Dictionary in collectables:
+		if item["depleted"]:
+			continue
+		var pos: Vector2 = item["pos"]
+		if player_pos.distance_to(pos) <= 34.0:
+			interact_target = item
+			return
 
 func _interact() -> void:
 	if build_mode and selected_build != "":
@@ -257,6 +308,10 @@ func _interact() -> void:
 		return
 	if interact_target.is_empty():
 		add_log("附近没有可操作目标。")
+		return
+	if interact_target.has("kind") and interact_target["kind"] == "collectable":
+		_collect_surface_item(interact_target)
+		_update_ui()
 		return
 	match String(interact_target["type"]):
 		"greenhouse":
@@ -289,6 +344,9 @@ func _use_greenhouse(module: Dictionary) -> void:
 		add_log("%s 生长进度 %d/%d 天。" % [crop_def["name"], module["age"], crop_def["days"]])
 
 func _clean_solar() -> void:
+	if selected_tool != "brush":
+		add_log("需要先选择除尘刷。")
+		return
 	if resources["parts"] < 1:
 		add_log("缺少维修件，无法进行除尘维护。")
 		return
@@ -297,6 +355,9 @@ func _clean_solar() -> void:
 	add_log("清理太阳能阵列。月尘覆盖降至 %d%%。" % int(solar_dust * 100))
 
 func _repair_life_support() -> void:
+	if selected_tool != "repair":
+		add_log("需要先选择维修枪。")
+		return
 	if resources["parts"] < 1:
 		add_log("维修件不足，生命维持系统只能继续带病运行。")
 		return
@@ -333,6 +394,13 @@ func _select_build(module_type: String) -> void:
 	add_log("已选择建造：%s。靠近空地按 E 放置。" % def["name"])
 	_update_ui()
 
+func _select_tool(tool_name: String) -> void:
+	selected_tool = tool_name
+	build_mode = false
+	selected_build = ""
+	add_log("已切换工具：%s。" % tool_defs[tool_name]["name"])
+	_update_ui()
+
 func _try_build_selected() -> void:
 	var cell: Vector2i = _player_build_cell()
 	if not _can_place(selected_build, cell):
@@ -360,6 +428,47 @@ func _add_module(module_type: String, cell: Vector2i, fixed: bool) -> void:
 	}
 	next_module_uid += 1
 	modules.append(module)
+
+func _setup_collectables() -> void:
+	collectables.clear()
+	_add_collectable("regolith", Vector2(155, 525), 4.0)
+	_add_collectable("regolith", Vector2(730, 520), 4.0)
+	_add_collectable("ice", Vector2(1010, 170), 3.0)
+	_add_collectable("meteor", Vector2(860, 130), 2.0)
+	_add_collectable("sample", Vector2(515, 140), 1.0)
+
+func _add_collectable(item_type: String, pos: Vector2, amount: float) -> void:
+	collectables.append({
+		"uid": next_collectable_uid,
+		"kind": "collectable",
+		"type": item_type,
+		"pos": pos,
+		"amount": amount,
+		"depleted": false,
+	})
+	next_collectable_uid += 1
+
+func _collect_surface_item(item: Dictionary) -> void:
+	if selected_tool != "sampler":
+		add_log("需要先选择采样铲。")
+		return
+	var amount: float = item["amount"]
+	match String(item["type"]):
+		"regolith":
+			resources["regolith"] += amount
+			add_log("采集月壤 +%.0f。未来可用于月壤提氧和防辐射覆盖。" % amount)
+		"ice":
+			resources["ice"] += amount
+			resources["water"] += amount * 2.0
+			add_log("采集水冰样本 +%.0f，水 +%.0f。" % [amount, amount * 2.0])
+		"meteor":
+			resources["parts"] += amount
+			resources["samples"] += 1.0
+			add_log("回收陨石金属：维修件 +%.0f，科研样本 +1。" % amount)
+		"sample":
+			resources["samples"] += amount
+			add_log("采集特殊月壤样本 +%.0f。嫦娥样本数据库可用于后续科技线。" % amount)
+	item["depleted"] = true
 
 func _advance_day() -> void:
 	day += 1
@@ -535,12 +644,12 @@ func _setup_ui() -> void:
 	controls.name = "Controls"
 	controls.position = Vector2(905, 340)
 	controls.size = Vector2(350, 120)
-	controls.text = "WASD/方向键：移动\nE：交互/建造\nN：进入下一天\nB：建造模式\nEsc：取消建造"
+	controls.text = "WASD/方向键：移动\nE：交互/采集/建造\nN：进入下一天\nB：建造模式\nEsc：取消建造"
 	root.add_child(controls)
 
 	var crop_panel := HBoxContainer.new()
 	crop_panel.name = "CropPanel"
-	crop_panel.position = Vector2(18, 590)
+	crop_panel.position = Vector2(18, 550)
 	crop_panel.size = Vector2(330, 38)
 	root.add_child(crop_panel)
 	for crop_name: String in crop_defs.keys():
@@ -548,6 +657,17 @@ func _setup_ui() -> void:
 		button.text = crop_defs[crop_name]["name"]
 		button.pressed.connect(_select_crop.bind(crop_name))
 		crop_panel.add_child(button)
+
+	var tool_panel := HBoxContainer.new()
+	tool_panel.name = "ToolPanel"
+	tool_panel.position = Vector2(18, 590)
+	tool_panel.size = Vector2(330, 38)
+	root.add_child(tool_panel)
+	for tool_name: String in ["sampler", "brush", "repair"]:
+		var button := Button.new()
+		button.text = tool_defs[tool_name]["name"]
+		button.pressed.connect(_select_tool.bind(tool_name))
+		tool_panel.add_child(button)
 
 	var build_panel := HBoxContainer.new()
 	build_panel.name = "BuildPanel"
@@ -609,14 +729,20 @@ func _update_ui() -> void:
 		day, phase, resources["power"], power_cap, resources["oxygen"], resources["water"], resources["food"],
 		resources["parts"], resources["integrity"], int(solar_dust * 100)
 	]
-	var hint := "靠近设施按 E 交互。当前作物：%s。" % crop_defs[selected_crop]["name"]
+	var hint := "工具：%s | 作物：%s | 月壤 %.0f 水冰 %.0f 样本 %.0f。" % [
+		tool_defs[selected_tool]["name"], crop_defs[selected_crop]["name"],
+		resources["regolith"], resources["ice"], resources["samples"]
+	]
 	if build_mode and selected_build != "":
 		var def: Dictionary = module_defs[selected_build]
 		var cost: Dictionary = def["cost"]
 		hint = "建造模式：%s | 成本：维修件 %.0f、电力 %.0f | 靠近空地按 E，Esc 取消。" % [def["name"], cost["parts"], cost["power"]]
 	elif not interact_target.is_empty():
-		var def: Dictionary = module_defs[interact_target["type"]]
-		hint = "%s：%s" % [def["name"], def["hint"]]
+		if interact_target.has("kind") and interact_target["kind"] == "collectable":
+			hint = "月面采集点：按 E 使用 %s。%s" % [tool_defs[selected_tool]["name"], tool_defs[selected_tool]["hint"]]
+		else:
+			var def: Dictionary = module_defs[interact_target["type"]]
+			hint = "%s：%s" % [def["name"], def["hint"]]
 	$UI/Root/Hint.text = hint
 	$UI/Root/Log.text = _join_strings(log_lines, "\n")
 
