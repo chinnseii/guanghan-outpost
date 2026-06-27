@@ -5,7 +5,12 @@ const MAP_W := 22
 const MAP_H := 13
 const MAP_ORIGIN := Vector2(50, 70)
 const PLAYER_SPEED := 190.0
-const SAVE_PATH := "user://guanghan_outpost_save.json"
+const SAVE_SLOTS := 3
+const SAVE_DIR := "user://saves"
+
+const PLAYER_SCENE := preload("res://scenes/player.tscn")
+const MODULE_SCENE := preload("res://scenes/module_visual.tscn")
+const COLLECTABLE_SCENE := preload("res://scenes/collectable_visual.tscn")
 
 var day := 1
 var is_moon_night := false
@@ -14,6 +19,8 @@ var supply_waiting := false
 var supply_order: Dictionary = {}
 var next_supply_request_day := 1
 var supply_travel_days := 3
+var current_save_slot := 1
+var pending_main_menu := true
 
 var player_pos := Vector2(300, 420)
 var player_radius := 14.0
@@ -27,6 +34,7 @@ var selected_tool := "sampler"
 var build_mode := false
 var selected_build := ""
 var unlocked_techs: Array[String] = []
+var completed_missions: Array[String] = []
 var log_lines: Array[String] = []
 
 var solar_dust := 0.12
@@ -188,20 +196,51 @@ var tech_defs := {
 		"cost": {"parts": 6.0, "regolith": 6.0},
 		"desc": "自动巡视：每天少量采样，并缓慢清理太阳能板月尘。",
 	},
+	"closed_ecology": {
+		"name": "闭环生态控制",
+		"cost": {"samples": 3.0, "water": 8.0, "co2": 10.0},
+		"desc": "温室湿度和 CO2 调节更稳定，船员健康下降减缓。",
+	},
+	"precision_landing": {
+		"name": "精确着陆雷达",
+		"cost": {"samples": 2.0, "parts": 5.0},
+		"desc": "补给舱落点偏差降低，鹊桥链路可辅助修正弹道。",
+	},
+	"crew_rotation": {
+		"name": "岗位轮换制度",
+		"cost": {"food": 10.0, "samples": 2.0},
+		"desc": "每日士气恢复提高，岗位疲劳降低。",
+	},
+}
+
+var mission_defs := {
+	"survive_7": {"name": "稳住第一周", "desc": "生存到第 7 天。"},
+	"first_greenhouse": {"name": "第一座温室", "desc": "建造或保有 1 座温室。"},
+	"local_oxygen": {"name": "原位制氧", "desc": "让基地氧气储备达到 100。"},
+	"supply_recovery": {"name": "出舱取货", "desc": "成功回收 1 个偏差落点补给舱。"},
+	"crew_stable": {"name": "船员稳定", "desc": "全员健康和士气都保持在 60 以上。"},
 }
 
 var modules: Array[Dictionary] = []
 var collectables: Array[Dictionary] = []
+var crew: Array[Dictionary] = []
 var moon_tile_map: TileMapLayer
 var moon_tile_source_id := 0
+var entity_root: Node2D
+var module_nodes: Dictionary = {}
+var collectable_nodes: Dictionary = {}
+var player_node: Node2D
 
 func _ready() -> void:
 	_setup_input_map()
 	_reset_game_state()
 	_setup_moon_tile_map()
+	_setup_entity_root()
 	_setup_ui()
+	_setup_main_menu()
 	add_log("广寒前哨上线。玉兔工程车完成自动部署，但系统仍需人工调试。")
-	add_log("V0.9：气闸、舱压、舱外氧气、CO2、湿度与原位资源处理上线。")
+	add_log("V0.10：多存档、任务、船员、补给落点偏差与独立场景素材上线。")
+	_sync_scene_instances()
 	_update_ui()
 
 func _setup_input_map() -> void:
@@ -233,6 +272,7 @@ func _reset_game_state() -> void:
 	supply_order = {}
 	next_supply_request_day = 1
 	supply_travel_days = 3
+	current_save_slot = clamp(current_save_slot, 1, SAVE_SLOTS)
 	player_pos = Vector2(300, 420)
 	player_facing = Vector2.DOWN
 	was_inside = false
@@ -243,6 +283,7 @@ func _reset_game_state() -> void:
 	build_mode = false
 	selected_build = ""
 	unlocked_techs.clear()
+	completed_missions.clear()
 	solar_dust = 0.12
 	oxygen_wear = 0.08
 	next_module_uid = 1
@@ -250,11 +291,20 @@ func _reset_game_state() -> void:
 	resources = _default_resources()
 	modules.clear()
 	collectables.clear()
+	crew = _default_crew()
 	log_lines.clear()
 	_setup_starting_base()
 	_setup_collectables()
 	if has_node("UI/Root/SupplyPanel"):
 		$UI/Root/SupplyPanel.visible = false
+	_sync_scene_instances()
+
+func _default_crew() -> Array[Dictionary]:
+	return [
+		{"name": "林舟", "role": "指挥", "health": 92.0, "morale": 78.0},
+		{"name": "沈禾", "role": "工程", "health": 90.0, "morale": 76.0},
+		{"name": "周岚", "role": "农艺", "health": 91.0, "morale": 80.0},
+	]
 
 func _default_resources() -> Dictionary:
 	return {
@@ -283,7 +333,7 @@ func _setup_starting_base() -> void:
 	_add_module("supply", Vector2i(17, 7), true)
 
 func _process(delta: float) -> void:
-	if game_over:
+	if game_over or pending_main_menu:
 		return
 	var input := Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	player_pos += input * PLAYER_SPEED * delta
@@ -294,6 +344,7 @@ func _process(delta: float) -> void:
 	player_pos.y = clamp(player_pos.y, MAP_ORIGIN.y + 5.0, MAP_ORIGIN.y + MAP_H * TILE - 5.0)
 	_process_suit_oxygen(delta)
 	_find_interaction()
+	_sync_scene_instances()
 	queue_redraw()
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -315,10 +366,62 @@ func _unhandled_input(event: InputEvent) -> void:
 		_advance_day()
 
 func _draw() -> void:
-	_draw_collectables()
-	_draw_modules()
 	_draw_build_ghost()
-	_draw_player()
+
+func _setup_entity_root() -> void:
+	entity_root = Node2D.new()
+	entity_root.name = "Entities"
+	add_child(entity_root)
+	player_node = PLAYER_SCENE.instantiate()
+	player_node.name = "Player"
+	entity_root.add_child(player_node)
+	_sync_scene_instances()
+
+func _sync_scene_instances() -> void:
+	if not is_instance_valid(entity_root):
+		return
+	if is_instance_valid(player_node):
+		player_node.position = player_pos
+		if player_node.has_method("setup"):
+			player_node.call("setup", player_facing, _is_player_inside_pressurized_module(), resources["suit_o2"])
+	for module: Dictionary in modules:
+		var uid := int(module["uid"])
+		if not module_nodes.has(uid) or not is_instance_valid(module_nodes[uid]):
+			var node := MODULE_SCENE.instantiate()
+			entity_root.add_child(node)
+			module_nodes[uid] = node
+		var module_node: Node2D = module_nodes[uid]
+		module_node.position = _module_rect(module).position
+		if module_node.has_method("setup"):
+			module_node.call("setup", module, module_defs[module["type"]], interact_target == module)
+	for uid in module_nodes.keys():
+		var still_exists := false
+		for module: Dictionary in modules:
+			if int(module["uid"]) == int(uid):
+				still_exists = true
+				break
+		if not still_exists and is_instance_valid(module_nodes[uid]):
+			module_nodes[uid].queue_free()
+			module_nodes.erase(uid)
+	for item: Dictionary in collectables:
+		var uid := int(item["uid"])
+		if not collectable_nodes.has(uid) or not is_instance_valid(collectable_nodes[uid]):
+			var node := COLLECTABLE_SCENE.instantiate()
+			entity_root.add_child(node)
+			collectable_nodes[uid] = node
+		var item_node: Node2D = collectable_nodes[uid]
+		item_node.position = item["pos"]
+		if item_node.has_method("setup"):
+			item_node.call("setup", item, interact_target == item)
+	for uid in collectable_nodes.keys():
+		var still_exists := false
+		for item: Dictionary in collectables:
+			if int(item["uid"]) == int(uid):
+				still_exists = true
+				break
+		if not still_exists and is_instance_valid(collectable_nodes[uid]):
+			collectable_nodes[uid].queue_free()
+			collectable_nodes.erase(uid)
 
 func _setup_moon_tile_map() -> void:
 	if is_instance_valid(moon_tile_map):
@@ -638,7 +741,8 @@ func _use_ice_processor() -> void:
 
 func _collect_supply() -> void:
 	if supply_waiting:
-		_receive_supply()
+		var pos := _dict_to_vector2(supply_order.get("landing_pos", _vector2_to_dict(_cell_to_world(Vector2i(17, 7)))))
+		add_log("补给舱等待回收。信标坐标：%.0f, %.0f；请检查航天服氧气后出舱取货。" % [pos.x, pos.y])
 		return
 	if not supply_order.is_empty():
 		add_log("补给 %s 在途，预计第 %d 天抵达。" % [supply_order["name"], supply_order["arrival_day"]])
@@ -728,6 +832,7 @@ func _add_module(module_type: String, cell: Vector2i, fixed: bool) -> void:
 	}
 	next_module_uid += 1
 	modules.append(module)
+	_sync_scene_instances()
 
 func _setup_collectables() -> void:
 	collectables.clear()
@@ -747,8 +852,18 @@ func _add_collectable(item_type: String, pos: Vector2, amount: float) -> void:
 		"depleted": false,
 	})
 	next_collectable_uid += 1
+	_sync_scene_instances()
 
 func _collect_surface_item(item: Dictionary) -> void:
+	if item["type"] == "supply_pod":
+		if not supply_waiting:
+			add_log("补给舱信标异常：当前没有待回收补给。")
+			return
+		_receive_supply()
+		item["depleted"] = true
+		_complete_mission("supply_recovery")
+		_sync_scene_instances()
+		return
 	if selected_tool != "sampler":
 		add_log("需要先选择采样铲。")
 		return
@@ -771,6 +886,7 @@ func _collect_surface_item(item: Dictionary) -> void:
 			resources["samples"] += amount
 			add_log("采集特殊月壤样本 +%.0f。嫦娥样本数据库可用于后续科技线。" % amount)
 	item["depleted"] = true
+	_sync_scene_instances()
 
 func _advance_day() -> void:
 	day += 1
@@ -812,6 +928,7 @@ func _advance_day() -> void:
 		resources["power"] -= 2
 		resources["water"] += 3.0 * float(counts["ice_processor"])
 		resources["humidity"] += 1.5
+	_process_crew_day(counts)
 	_process_tech_daily_effects()
 	solar_dust = min(0.65, solar_dust + randf_range(0.02, 0.06))
 	oxygen_wear = min(0.45, oxygen_wear + randf_range(0.01, 0.04))
@@ -821,9 +938,46 @@ func _advance_day() -> void:
 	for key: String in ["power", "oxygen", "water", "food", "integrity", "co2", "humidity", "pressure", "suit_o2"]:
 		resources[key] = clamp(resources[key], 0.0, power_cap if key == "power" else 120.0)
 	add_log("第 %d 天开始。%s" % [day, "月夜中，太阳能归零。" if is_moon_night else "月昼，太阳能可用。"])
+	_check_missions()
 	_check_game_state()
 	_update_ui()
 	queue_redraw()
+
+func _process_crew_day(counts: Dictionary) -> void:
+	var pressure_penalty: float = 0.0 if resources["pressure"] >= 70.0 else 3.0
+	var co2_penalty: float = 0.0 if resources["co2"] <= 85.0 else 2.5
+	var supply_penalty: float = 0.0
+	if resources["food"] < 18.0 or resources["water"] < 18.0 or resources["oxygen"] < 18.0:
+		supply_penalty = 2.0
+	var ecology_bonus: float = 1.0 if _has_tech("closed_ecology") else 0.0
+	var rotation_bonus: float = 1.2 if _has_tech("crew_rotation") else 0.0
+	for member: Dictionary in crew:
+		var health_delta := -0.7 - pressure_penalty - co2_penalty - supply_penalty + ecology_bonus
+		var morale_delta := -0.4 - supply_penalty + rotation_bonus
+		match String(member["role"]):
+			"工程":
+				resources["integrity"] = min(100.0, resources["integrity"] + 0.8)
+				health_delta -= 0.2
+			"农艺":
+				if counts["greenhouse"] > 0:
+					resources["humidity"] = clamp(resources["humidity"] + 0.5, 0.0, 100.0)
+					morale_delta += 0.3
+			"指挥":
+				morale_delta += 0.6
+		member["health"] = clamp(float(member["health"]) + health_delta, 0.0, 100.0)
+		member["morale"] = clamp(float(member["morale"]) + morale_delta, 0.0, 100.0)
+	if _crew_average("health") < 45.0:
+		resources["integrity"] -= 1.5
+	if _crew_average("morale") < 40.0:
+		resources["power"] -= 2.0
+
+func _crew_average(key: String) -> float:
+	if crew.is_empty():
+		return 0.0
+	var total := 0.0
+	for member: Dictionary in crew:
+		total += float(member.get(key, 0.0))
+	return total / float(crew.size())
 
 func _process_crop_day() -> void:
 	for module: Dictionary in modules:
@@ -850,10 +1004,37 @@ func _process_crop_day() -> void:
 			module["crop"] = ""
 			module["age"] = 0
 
+func _check_missions() -> void:
+	var counts := _module_counts()
+	if day >= 7:
+		_complete_mission("survive_7")
+	if int(counts["greenhouse"]) >= 1:
+		_complete_mission("first_greenhouse")
+	if resources["oxygen"] >= 100.0:
+		_complete_mission("local_oxygen")
+	if _crew_average("health") >= 60.0 and _crew_average("morale") >= 60.0:
+		_complete_mission("crew_stable")
+
+func _complete_mission(mission_id: String) -> void:
+	if completed_missions.has(mission_id):
+		return
+	if not mission_defs.has(mission_id):
+		return
+	completed_missions.append(mission_id)
+	resources["samples"] += 0.5
+	resources["parts"] += 1.0
+	var mission: Dictionary = mission_defs[mission_id]
+	add_log("任务完成：%s。奖励：样本 +0.5，维修件 +1。" % mission["name"])
+
 func _process_supply_window() -> void:
-	if not supply_order.is_empty() and day >= int(supply_order["arrival_day"]):
+	if not supply_order.is_empty() and day >= int(supply_order["arrival_day"]) and not bool(supply_order.get("landed", false)):
 		supply_waiting = true
-		add_log("%s 已抵达补给降落区。前往降落区接收。" % supply_order["name"])
+		supply_order["landed"] = true
+		var landing_pos := _random_supply_landing_pos()
+		supply_order["landing_pos"] = _vector2_to_dict(landing_pos)
+		_add_collectable("supply_pod", landing_pos, 1.0)
+		add_log("%s 已着陆，但落点出现偏差。信标坐标：%.0f, %.0f；需要出舱取货。" % [supply_order["name"], landing_pos.x, landing_pos.y])
+		_sync_scene_instances()
 	if day >= next_supply_request_day and supply_order.is_empty() and not supply_waiting:
 		add_log("地球通信窗口开放：可在补给降落区申请下一批补给。")
 
@@ -889,6 +1070,7 @@ func _choose_supply(kind: String) -> void:
 		"name": def["name"],
 		"arrival_day": day + delay,
 		"requested_day": day,
+		"landed": false,
 	}
 	next_supply_request_day = day + 7
 	add_log("已申请 %s（%s），预计第 %d 天抵达。" % [def["name"], def["desc"], supply_order["arrival_day"]])
@@ -912,8 +1094,22 @@ func _receive_supply() -> void:
 	supply_waiting = false
 	_update_ui()
 
+func _random_supply_landing_pos() -> Vector2:
+	var base := _cell_to_world(Vector2i(17, 7)) + Vector2(96, 72)
+	var deviation := 150.0
+	if _has_tech("precision_landing"):
+		deviation = 70.0
+	if _has_tech("queqiao_relay"):
+		deviation *= 0.8
+	var offset := Vector2(randf_range(-deviation, deviation), randf_range(-deviation * 0.7, deviation * 0.7))
+	var pos := base + offset
+	pos.x = clamp(pos.x, MAP_ORIGIN.x + 30.0, MAP_ORIGIN.x + MAP_W * TILE - 30.0)
+	pos.y = clamp(pos.y, MAP_ORIGIN.y + 30.0, MAP_ORIGIN.y + MAP_H * TILE - 30.0)
+	return pos
+
 func _save_game() -> void:
-	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(SAVE_DIR))
+	var file := FileAccess.open(_save_path(current_save_slot), FileAccess.WRITE)
 	if file == null:
 		add_log("保存失败：无法写入存档文件。")
 		_update_ui()
@@ -934,6 +1130,8 @@ func _save_game() -> void:
 		"build_mode": build_mode,
 		"selected_build": selected_build,
 		"unlocked_techs": unlocked_techs,
+		"completed_missions": completed_missions,
+		"crew": _serialize_crew(),
 		"solar_dust": solar_dust,
 		"oxygen_wear": oxygen_wear,
 		"next_module_uid": next_module_uid,
@@ -944,15 +1142,16 @@ func _save_game() -> void:
 		"log_lines": log_lines,
 	}
 	file.store_string(JSON.stringify(save_data, "\t"))
-	add_log("已保存到 %s。" % SAVE_PATH)
+	add_log("已保存到存档槽 %d。" % current_save_slot)
+	_refresh_main_menu()
 	_update_ui()
 
 func _load_game() -> void:
-	if not FileAccess.file_exists(SAVE_PATH):
-		add_log("没有找到存档。")
+	if not FileAccess.file_exists(_save_path(current_save_slot)):
+		add_log("存档槽 %d 为空。" % current_save_slot)
 		_update_ui()
 		return
-	var file := FileAccess.open(SAVE_PATH, FileAccess.READ)
+	var file := FileAccess.open(_save_path(current_save_slot), FileAccess.READ)
 	if file == null:
 		add_log("读取失败：无法打开存档文件。")
 		_update_ui()
@@ -963,12 +1162,19 @@ func _load_game() -> void:
 		_update_ui()
 		return
 	_apply_save_data(parsed)
-	add_log("已读取存档。")
+	pending_main_menu = false
+	if has_node("UI/Root/MainMenu"):
+		$UI/Root/MainMenu.visible = false
+	add_log("已读取存档槽 %d。" % current_save_slot)
+	_sync_scene_instances()
 	_update_ui()
 	queue_redraw()
 
 func _start_new_game() -> void:
 	_reset_game_state()
+	pending_main_menu = false
+	if has_node("UI/Root/MainMenu"):
+		$UI/Root/MainMenu.visible = false
 	add_log("新一轮广寒前哨任务开始。")
 	add_log("按 F5 保存，F9 读取，F10 重新开始。")
 	_update_ui()
@@ -992,6 +1198,11 @@ func _apply_save_data(data: Dictionary) -> void:
 	var saved_techs: Array = data.get("unlocked_techs", [])
 	for tech_id in saved_techs:
 		unlocked_techs.append(String(tech_id))
+	completed_missions.clear()
+	var saved_missions: Array = data.get("completed_missions", [])
+	for mission_id in saved_missions:
+		completed_missions.append(String(mission_id))
+	crew = _deserialize_crew(data.get("crew", _serialize_crew()))
 	solar_dust = float(data.get("solar_dust", 0.12))
 	oxygen_wear = float(data.get("oxygen_wear", 0.08))
 	next_module_uid = int(data.get("next_module_uid", 1))
@@ -1008,6 +1219,7 @@ func _apply_save_data(data: Dictionary) -> void:
 		log_lines.append(String(entry))
 	if has_node("UI/Root/SupplyPanel"):
 		$UI/Root/SupplyPanel.visible = false
+	_sync_scene_instances()
 
 func _serialize_modules() -> Array:
 	var result: Array = []
@@ -1068,6 +1280,60 @@ func _deserialize_collectables(values: Array) -> Array[Dictionary]:
 			"depleted": bool(data.get("depleted", false)),
 		})
 	return result
+
+func _serialize_crew() -> Array:
+	var result: Array = []
+	for member: Dictionary in crew:
+		result.append({
+			"name": String(member.get("name", "")),
+			"role": String(member.get("role", "")),
+			"health": float(member.get("health", 100.0)),
+			"morale": float(member.get("morale", 100.0)),
+		})
+	return result
+
+func _deserialize_crew(values: Array) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for value in values:
+		if typeof(value) != TYPE_DICTIONARY:
+			continue
+		var data: Dictionary = value
+		result.append({
+			"name": String(data.get("name", "队员")),
+			"role": String(data.get("role", "通用")),
+			"health": float(data.get("health", 100.0)),
+			"morale": float(data.get("morale", 100.0)),
+		})
+	if result.is_empty():
+		return _default_crew()
+	return result
+
+func _save_path(slot: int) -> String:
+	return "%s/slot_%d.json" % [SAVE_DIR, clamp(slot, 1, SAVE_SLOTS)]
+
+func _select_save_slot(slot: int) -> void:
+	current_save_slot = clamp(slot, 1, SAVE_SLOTS)
+	add_log("当前存档槽：%d。" % current_save_slot)
+	_refresh_main_menu()
+	_update_ui()
+
+func _slot_summary(slot: int) -> String:
+	var path := _save_path(slot)
+	if not FileAccess.file_exists(path):
+		return "空槽"
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		return "无法读取"
+	var parsed = JSON.parse_string(file.get_as_text())
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return "损坏"
+	var data: Dictionary = parsed
+	var saved_resources: Dictionary = data.get("resources", {})
+	return "第 %d 天 | 氧 %.0f | 食 %.0f" % [
+		int(data.get("day", 1)),
+		float(saved_resources.get("oxygen", 0.0)),
+		float(saved_resources.get("food", 0.0)),
+	]
 
 func _vector2_to_dict(value: Vector2) -> Dictionary:
 	return {"x": value.x, "y": value.y}
@@ -1251,12 +1517,26 @@ func _setup_ui() -> void:
 	life_status.add_theme_font_size_override("font_size", 16)
 	root.add_child(life_status)
 
-	var tech_panel := VBoxContainer.new()
+	var crew_status := Label.new()
+	crew_status.name = "CrewStatus"
+	crew_status.position = Vector2(905, 542)
+	crew_status.size = Vector2(350, 76)
+	crew_status.add_theme_font_size_override("font_size", 15)
+	root.add_child(crew_status)
+
+	var mission_status := Label.new()
+	mission_status.name = "MissionStatus"
+	mission_status.position = Vector2(905, 615)
+	mission_status.size = Vector2(350, 44)
+	mission_status.add_theme_font_size_override("font_size", 15)
+	root.add_child(mission_status)
+
+	var tech_panel := HBoxContainer.new()
 	tech_panel.name = "TechPanel"
-	tech_panel.position = Vector2(905, 545)
-	tech_panel.size = Vector2(350, 110)
+	tech_panel.position = Vector2(18, 504)
+	tech_panel.size = Vector2(850, 38)
 	root.add_child(tech_panel)
-	for tech_id: String in ["change_samples", "queqiao_relay", "yutu_robot"]:
+	for tech_id: String in _tech_order():
 		var button := Button.new()
 		button.text = _tech_button_text(tech_id)
 		button.pressed.connect(_research_tech.bind(tech_id))
@@ -1334,6 +1614,11 @@ func _setup_ui() -> void:
 	save_panel.position = Vector2(905, 655)
 	save_panel.size = Vector2(330, 38)
 	root.add_child(save_panel)
+	for slot in range(1, SAVE_SLOTS + 1):
+		var slot_button := Button.new()
+		slot_button.text = "槽 %d" % slot
+		slot_button.pressed.connect(_select_save_slot.bind(slot))
+		save_panel.add_child(slot_button)
 	var save_button := Button.new()
 	save_button.text = "保存"
 	save_button.pressed.connect(_save_game)
@@ -1346,6 +1631,56 @@ func _setup_ui() -> void:
 	new_button.text = "新开局"
 	new_button.pressed.connect(_start_new_game)
 	save_panel.add_child(new_button)
+
+func _setup_main_menu() -> void:
+	var menu := PanelContainer.new()
+	menu.name = "MainMenu"
+	menu.position = Vector2(340, 110)
+	menu.size = Vector2(600, 430)
+	$UI/Root.add_child(menu)
+	var box := VBoxContainer.new()
+	box.name = "Box"
+	box.add_theme_constant_override("separation", 10)
+	menu.add_child(box)
+	var title := Label.new()
+	title.text = "广寒前哨"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 34)
+	box.add_child(title)
+	var subtitle := Label.new()
+	subtitle.text = "月球生存、温室种植与基地扩建模拟"
+	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(subtitle)
+	for slot in range(1, SAVE_SLOTS + 1):
+		var row := HBoxContainer.new()
+		row.name = "SlotRow%d" % slot
+		box.add_child(row)
+		var choose := Button.new()
+		choose.name = "Slot%d" % slot
+		choose.custom_minimum_size = Vector2(380, 40)
+		choose.pressed.connect(_select_save_slot.bind(slot))
+		row.add_child(choose)
+		var load := Button.new()
+		load.text = "读取"
+		load.pressed.connect(func():
+			current_save_slot = slot
+			_load_game()
+		)
+		row.add_child(load)
+	var start := Button.new()
+	start.text = "从当前槽开始新任务"
+	start.custom_minimum_size = Vector2(0, 44)
+	start.pressed.connect(_start_new_game)
+	box.add_child(start)
+	var close := Button.new()
+	close.text = "继续当前模拟"
+	close.pressed.connect(func():
+		pending_main_menu = false
+		menu.visible = false
+		_update_ui()
+	)
+	box.add_child(close)
+	_refresh_main_menu()
 
 func _select_crop(crop_name: String) -> void:
 	selected_crop = crop_name
@@ -1367,7 +1702,10 @@ func _update_ui() -> void:
 		resources["pressure"], resources["co2"], resources["humidity"], resources["suit_o2"],
 		"舱内" if _is_player_inside_pressurized_module() else "舱外"
 	]
+	$UI/Root/CrewStatus.text = _crew_status_text()
+	$UI/Root/MissionStatus.text = _mission_status_text()
 	_update_tech_buttons()
+	_refresh_main_menu()
 	var hint := "工具：%s | 作物：%s | 月壤 %.0f 水冰 %.0f 样本 %.0f。" % [
 		tool_defs[selected_tool]["name"], crop_defs[selected_crop]["name"],
 		resources["regolith"], resources["ice"], resources["samples"]
@@ -1391,12 +1729,44 @@ func _update_ui() -> void:
 func _update_tech_buttons() -> void:
 	if not has_node("UI/Root/TechPanel"):
 		return
-	var tech_ids := ["change_samples", "queqiao_relay", "yutu_robot"]
+	var tech_ids := _tech_order()
 	var buttons := $UI/Root/TechPanel.get_children()
 	for i in range(min(tech_ids.size(), buttons.size())):
 		var button: Button = buttons[i]
 		button.text = _tech_button_text(tech_ids[i])
 		button.disabled = _has_tech(tech_ids[i])
+
+func _tech_order() -> Array[String]:
+	return ["change_samples", "queqiao_relay", "yutu_robot", "closed_ecology", "precision_landing", "crew_rotation"]
+
+func _crew_status_text() -> String:
+	var parts: Array[String] = []
+	for member: Dictionary in crew:
+		parts.append("%s/%s H%.0f M%.0f" % [
+			member["name"], member["role"], member["health"], member["morale"]
+		])
+	return "船员：%s" % _join_strings(parts, "\n")
+
+func _mission_status_text() -> String:
+	var active := ""
+	for mission_id: String in mission_defs.keys():
+		if not completed_missions.has(mission_id):
+			var mission: Dictionary = mission_defs[mission_id]
+			active = "%s：%s" % [mission["name"], mission["desc"]]
+			break
+	if active == "":
+		active = "阶段任务全部完成。"
+	return "任务 %d/%d：%s" % [completed_missions.size(), mission_defs.size(), active]
+
+func _refresh_main_menu() -> void:
+	if not has_node("UI/Root/MainMenu/Box"):
+		return
+	for slot in range(1, SAVE_SLOTS + 1):
+		var button_path := "UI/Root/MainMenu/Box/SlotRow%d/Slot%d" % [slot, slot]
+		if has_node(button_path):
+			var button: Button = get_node(button_path)
+			var marker := ">" if slot == current_save_slot else " "
+			button.text = "%s 存档槽 %d：%s" % [marker, slot, _slot_summary(slot)]
 
 func _tech_button_text(tech_id: String) -> String:
 	var tech: Dictionary = tech_defs[tech_id]
@@ -1410,7 +1780,8 @@ func _tech_button_text(tech_id: String) -> String:
 
 func _supply_status_text() -> String:
 	if supply_waiting:
-		return "补给状态：%s 已抵达\n前往降落区按 E 接收。" % supply_order.get("name", "补给舱")
+		var pos := _dict_to_vector2(supply_order.get("landing_pos", _vector2_to_dict(Vector2.ZERO)))
+		return "补给状态：%s 已着陆\n信标：%.0f, %.0f；出舱取货。" % [supply_order.get("name", "补给舱"), pos.x, pos.y]
 	if not supply_order.is_empty():
 		var eta: int = max(0, int(supply_order["arrival_day"]) - day)
 		return "补给状态：%s 在途\nETA：%d 天（第 %d 天抵达）" % [supply_order["name"], eta, supply_order["arrival_day"]]
