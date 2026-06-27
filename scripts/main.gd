@@ -234,6 +234,7 @@ var interior_tile_map: TileMapLayer
 var moon_tile_source_id := 0
 var interior_tile_source_id := 0
 var entity_root: Node2D
+var audio_player: AudioStreamPlayer
 var module_nodes: Dictionary = {}
 var collectable_nodes: Dictionary = {}
 var player_node: Node2D
@@ -244,6 +245,7 @@ func _ready() -> void:
 	_setup_moon_tile_map()
 	_setup_interior_tile_map()
 	_setup_entity_root()
+	_setup_audio()
 	_setup_ui()
 	_setup_main_menu()
 	add_log("广寒前哨上线。玉兔工程车完成自动部署，但系统仍需人工调试。")
@@ -388,6 +390,31 @@ func _setup_entity_root() -> void:
 	player_node.z_index = 30
 	entity_root.add_child(player_node)
 	_sync_scene_instances()
+
+func _setup_audio() -> void:
+	audio_player = AudioStreamPlayer.new()
+	audio_player.name = "ActionTonePlayer"
+	add_child(audio_player)
+
+func _play_ui_tone(frequency: float = 660.0, duration: float = 0.08, volume: float = 0.08) -> void:
+	if not is_instance_valid(audio_player):
+		return
+	var stream := AudioStreamGenerator.new()
+	stream.mix_rate = 22050.0
+	stream.buffer_length = max(0.05, duration + 0.03)
+	audio_player.stream = stream
+	audio_player.play()
+	var playback: AudioStreamGeneratorPlayback = audio_player.get_stream_playback()
+	if playback == null:
+		return
+	var frames := int(stream.mix_rate * duration)
+	var phase := 0.0
+	var increment := TAU * frequency / stream.mix_rate
+	for i in range(frames):
+		var fade: float = 1.0 - float(i) / float(max(1, frames))
+		var sample := sin(phase) * volume * fade
+		playback.push_frame(Vector2(sample, sample))
+		phase += increment
 
 func _sync_scene_instances() -> void:
 	if not is_instance_valid(entity_root):
@@ -751,6 +778,7 @@ func _clean_solar() -> void:
 	resources["parts"] -= 1
 	solar_dust = max(0.0, solar_dust - 0.28)
 	resources["suit_dust"] = min(100.0, resources["suit_dust"] + 3.0)
+	_play_ui_tone(740.0, 0.07, 0.07)
 	add_log("清理太阳能阵列。月尘覆盖降至 %d%%。" % int(solar_dust * 100))
 
 func _repair_life_support() -> void:
@@ -763,6 +791,7 @@ func _repair_life_support() -> void:
 	resources["parts"] -= 1
 	resources["integrity"] = min(100.0, resources["integrity"] + 12.0)
 	oxygen_wear = max(0.0, oxygen_wear - 0.12)
+	_play_ui_tone(620.0, 0.08, 0.08)
 	add_log("完成一次生命维持系统维护。")
 
 func _repair_module_leak(module: Dictionary) -> void:
@@ -776,6 +805,7 @@ func _repair_module_leak(module: Dictionary) -> void:
 	module["leaking"] = false
 	resources["integrity"] = min(100.0, resources["integrity"] + 6.0)
 	var def: Dictionary = module_defs[module["type"]]
+	_play_ui_tone(520.0, 0.1, 0.08)
 	add_log("已封堵 %s 漏点，舱压恢复稳定。" % def["name"])
 
 func _repair_external_equipment(module: Dictionary) -> void:
@@ -789,6 +819,7 @@ func _repair_external_equipment(module: Dictionary) -> void:
 	resources["integrity"] = min(100.0, resources["integrity"] + 8.0)
 	resources["suit_dust"] = min(100.0, resources["suit_dust"] + 4.0)
 	var def: Dictionary = module_defs[module["type"]]
+	_play_ui_tone(560.0, 0.08, 0.08)
 	add_log("完成 %s 外部维护：完整度 +8，宇航服月尘污染上升。" % def["name"])
 
 func _use_workshop() -> void:
@@ -809,6 +840,7 @@ func _cycle_airlock() -> void:
 	resources["suit_dust"] = max(0.0, resources["suit_dust"] - 55.0)
 	resources["suit_integrity"] = min(100.0, resources["suit_integrity"] + 8.0)
 	resources["pressure"] = min(100.0, resources["pressure"] + 3.0)
+	_play_ui_tone(880.0, 0.1, 0.08)
 	add_log("气闸循环完成：宇航服补氧、复压、除尘，耐久检查通过。")
 
 func _use_regolith_plant() -> void:
@@ -980,6 +1012,7 @@ func _collect_surface_item(item: Dictionary) -> void:
 			resources["samples"] += amount
 			add_log("采集特殊月壤样本 +%.0f。嫦娥样本数据库可用于后续科技线。" % amount)
 	item["depleted"] = true
+	_play_ui_tone(680.0, 0.08, 0.07)
 	_sync_scene_instances()
 
 func _advance_day() -> void:
@@ -1174,6 +1207,7 @@ func _receive_supply() -> void:
 		else:
 			resources[key] += float(payload[key])
 	resources["suit_dust"] = min(100.0, resources["suit_dust"] + 6.0)
+	_play_ui_tone(720.0, 0.12, 0.08)
 	add_log("接收 %s：%s。" % [def["name"], def["desc"]])
 	supply_order.clear()
 	supply_waiting = false
@@ -1227,6 +1261,7 @@ func _save_game() -> void:
 		"log_lines": log_lines,
 	}
 	file.store_string(JSON.stringify(save_data, "\t"))
+	_play_ui_tone(900.0, 0.06, 0.07)
 	add_log("已保存到存档槽 %d。" % current_save_slot)
 	_refresh_main_menu()
 	_update_ui()
@@ -1250,6 +1285,7 @@ func _load_game() -> void:
 	pending_main_menu = false
 	if has_node("UI/Root/MainMenu"):
 		$UI/Root/MainMenu.visible = false
+	_play_ui_tone(760.0, 0.08, 0.07)
 	add_log("已读取存档槽 %d。" % current_save_slot)
 	_sync_scene_instances()
 	_update_ui()

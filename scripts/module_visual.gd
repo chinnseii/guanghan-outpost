@@ -5,6 +5,14 @@ const TILE := 48
 var module_data: Dictionary = {}
 var module_def: Dictionary = {}
 var highlighted := false
+var anim_time := 0.0
+
+func _ready() -> void:
+	set_process(true)
+
+func _process(delta: float) -> void:
+	anim_time += delta
+	queue_redraw()
 
 func setup(data: Dictionary, definition: Dictionary, is_highlighted: bool) -> void:
 	module_data = data
@@ -33,13 +41,20 @@ func _draw_hull(rect: Rect2, fill: Color) -> void:
 		return
 	var inner := rect.grow(-12.0)
 	draw_rect(rect, Color("#202833"))
-	draw_rect(inner, fill.lightened(0.15))
+	_draw_pixel_floor(inner, fill.lightened(0.15))
 	draw_line(Vector2(rect.position.x + 22, rect.position.y), Vector2(rect.end.x - 22, rect.position.y), Color("#a7b3c5"), 3)
 	draw_line(Vector2(rect.position.x + 22, rect.end.y), Vector2(rect.end.x - 22, rect.end.y), Color("#a7b3c5"), 3)
 	draw_line(Vector2(rect.position.x, rect.position.y + 22), Vector2(rect.position.x, rect.end.y - 22), Color("#a7b3c5"), 3)
 	draw_line(Vector2(rect.end.x, rect.position.y + 22), Vector2(rect.end.x, rect.end.y - 22), Color("#a7b3c5"), 3)
 	draw_rect(inner, Color("#d7dee8"), false, 2)
 	_draw_door_markers(rect)
+
+func _draw_pixel_floor(rect: Rect2, color: Color) -> void:
+	draw_rect(rect, color)
+	for x in range(0, int(rect.size.x), 16):
+		draw_line(rect.position + Vector2(x, 0), rect.position + Vector2(x, rect.size.y), Color(0, 0, 0, 0.08), 1)
+	for y in range(0, int(rect.size.y), 16):
+		draw_line(rect.position + Vector2(0, y), rect.position + Vector2(rect.size.x, y), Color(1, 1, 1, 0.06), 1)
 
 func _draw_door_markers(rect: Rect2) -> void:
 	var center := rect.get_center()
@@ -60,18 +75,15 @@ func _draw_details(module_type: String, rect: Rect2) -> void:
 	elif module_type == "solar":
 		_draw_solar(rect)
 	elif module_type == "battery":
-		for i in range(2):
-			draw_rect(Rect2(rect.position + Vector2(20 + i * 38, 28), Vector2(24, 42)), Color("#a8c7ff"))
+		_draw_battery_bank(rect)
 	elif module_type == "hab":
-		draw_circle(rect.get_center(), min(rect.size.x, rect.size.y) * 0.35, Color("#717d8f"))
+		_draw_hab_interior(rect)
 	elif module_type == "life_support":
-		draw_circle(rect.get_center() + Vector2(-22, 0), 18, Color("#98d5ff"))
-		draw_circle(rect.get_center() + Vector2(22, 0), 18, Color("#b8f0d0"))
+		_draw_life_support_interior(rect)
 	elif module_type == "workshop":
-		draw_rect(Rect2(rect.position + Vector2(24, 28), Vector2(48, 34)), Color("#c0a36c"))
+		_draw_workshop_interior(rect)
 	elif module_type == "airlock":
-		draw_rect(Rect2(rect.position + Vector2(22, 18), Vector2(52, 58)), Color("#8892a3"), false, 4)
-		draw_line(rect.position + Vector2(48, 20), rect.position + Vector2(48, 74), Color("#d8e0eb"), 2)
+		_draw_airlock_interior(rect)
 	elif module_type == "regolith_plant":
 		draw_circle(rect.get_center() + Vector2(-26, 0), 18, Color("#b3a18e"))
 		draw_line(rect.get_center() + Vector2(-8, 0), rect.get_center() + Vector2(32, -18), Color("#d8e0eb"), 3)
@@ -91,6 +103,80 @@ func _draw_greenhouse(rect: Rect2) -> void:
 		if String(module_data.get("crop", "")) != "":
 			var growth: float = clamp(float(module_data.get("age", 0)) / 4.0, 0.2, 1.0)
 			draw_circle(bed.get_center(), 7 + 13 * growth, Color("#71d46f"))
+
+func _draw_hab_interior(rect: Rect2) -> void:
+	_draw_bed(rect.position + Vector2(24, 24))
+	_draw_bed(rect.position + Vector2(24, 58))
+	_draw_storage(rect.position + Vector2(rect.size.x - 50, 24))
+	_draw_console(rect.position + Vector2(rect.size.x - 58, rect.size.y - 46), true)
+	draw_circle(rect.get_center(), 12, Color("#717d8f"))
+	draw_circle(rect.get_center(), 6, Color("#9fb0c5"))
+
+func _draw_life_support_interior(rect: Rect2) -> void:
+	_draw_tank(rect.get_center() + Vector2(-34, -4), Color("#98d5ff"))
+	_draw_tank(rect.get_center() + Vector2(0, -4), Color("#b8f0d0"))
+	_draw_tank(rect.get_center() + Vector2(34, -4), Color("#d8e0eb"))
+	_draw_console(rect.position + Vector2(22, rect.size.y - 44), true)
+	draw_line(rect.get_center() + Vector2(-48, 22), rect.get_center() + Vector2(48, 22), Color("#6f7d8f"), 4)
+
+func _draw_workshop_interior(rect: Rect2) -> void:
+	draw_rect(Rect2(rect.position + Vector2(22, 26), Vector2(58, 34)), Color("#c0a36c"))
+	draw_rect(Rect2(rect.position + Vector2(28, 32), Vector2(46, 10)), Color("#6d5b3b"))
+	_draw_robot_charger(rect.position + Vector2(rect.size.x - 58, 24))
+	_draw_storage(rect.position + Vector2(24, rect.size.y - 48))
+
+func _draw_airlock_interior(rect: Rect2) -> void:
+	var chamber := Rect2(rect.position + Vector2(22, 18), Vector2(52, 58))
+	draw_rect(chamber, Color("#8892a3"), false, 4)
+	draw_line(rect.position + Vector2(48, 20), rect.position + Vector2(48, 74), Color("#d8e0eb"), 2)
+	draw_line(rect.position + Vector2(62, 22), rect.position + Vector2(62, 72), Color("#7fd5ff", 0.8), 2)
+	_draw_suit_rack(rect.position + Vector2(rect.size.x - 40, 24))
+
+func _draw_battery_bank(rect: Rect2) -> void:
+	for i in range(3):
+		var battery := Rect2(rect.position + Vector2(18 + i * 30, 26), Vector2(20, 44))
+		draw_rect(battery, Color("#2f4059"))
+		draw_rect(battery.grow(-3), Color("#a8c7ff"))
+		_draw_status_light(battery.position + Vector2(10, -6), i % 2 == 0)
+
+func _draw_bed(pos: Vector2) -> void:
+	draw_rect(Rect2(pos, Vector2(48, 22)), Color("#38475e"))
+	draw_rect(Rect2(pos + Vector2(4, 4), Vector2(14, 14)), Color("#d8e0eb"))
+	draw_rect(Rect2(pos + Vector2(20, 4), Vector2(24, 14)), Color("#6fa0d8"))
+
+func _draw_storage(pos: Vector2) -> void:
+	draw_rect(Rect2(pos, Vector2(30, 44)), Color("#3f4b5f"))
+	draw_rect(Rect2(pos + Vector2(4, 5), Vector2(22, 12)), Color("#6d7c91"))
+	draw_rect(Rect2(pos + Vector2(4, 25), Vector2(22, 12)), Color("#6d7c91"))
+	draw_circle(pos + Vector2(24, 22), 2, Color("#e7c66b"))
+
+func _draw_console(pos: Vector2, animated: bool) -> void:
+	draw_rect(Rect2(pos, Vector2(46, 28)), Color("#263242"))
+	draw_rect(Rect2(pos + Vector2(5, 5), Vector2(22, 10)), Color("#79b8ff"))
+	_draw_status_light(pos + Vector2(35, 9), animated)
+	_draw_status_light(pos + Vector2(35, 20), not animated)
+
+func _draw_tank(center: Vector2, color: Color) -> void:
+	draw_circle(center, 16, Color("#263242"))
+	draw_circle(center, 12, color)
+	draw_rect(Rect2(center + Vector2(-8, 13), Vector2(16, 8)), Color("#6f7d8f"))
+
+func _draw_robot_charger(pos: Vector2) -> void:
+	draw_rect(Rect2(pos, Vector2(38, 48)), Color("#263242"))
+	draw_rect(Rect2(pos + Vector2(7, 8), Vector2(24, 24)), Color("#4d5f75"))
+	draw_line(pos + Vector2(12, 40), pos + Vector2(30, 40), Color("#e7c66b"), 3)
+	_draw_status_light(pos + Vector2(30, 8), true)
+
+func _draw_suit_rack(pos: Vector2) -> void:
+	draw_line(pos + Vector2(10, 0), pos + Vector2(10, 44), Color("#d8e0eb"), 2)
+	draw_circle(pos + Vector2(10, 12), 8, Color("#f2f0da"))
+	draw_rect(Rect2(pos + Vector2(2, 20), Vector2(16, 18)), Color("#f2f0da"))
+	draw_circle(pos + Vector2(10, 12), 4, Color("#7fb8ff"))
+
+func _draw_status_light(pos: Vector2, animated: bool) -> void:
+	var blink: float = 0.35 + 0.65 * abs(sin(anim_time * 4.0))
+	var color := Color("#7dff9d") if not animated else Color(0.4, 1.0, 0.6, blink)
+	draw_circle(pos, 4, color)
 
 func _draw_solar(rect: Rect2) -> void:
 	for i in range(4):
