@@ -149,7 +149,7 @@ func _ready() -> void:
 	_setup_collectables()
 	_setup_ui()
 	add_log("广寒前哨上线。玉兔工程车完成自动部署，但系统仍需人工调试。")
-	add_log("V0.4：补给需要提前申请，货单约 3 天后抵达。")
+	add_log("V0.5：新增舱段连通和漏气事故。新模块必须贴近已有基地。")
 	_update_ui()
 
 func _setup_input_map() -> void:
@@ -246,6 +246,8 @@ func _draw_modules() -> void:
 		var fill: Color = def["color"]
 		if interact_target == module:
 			draw_rect(rect.grow(5), Color("#e7c66b"), false, 3)
+		if module.get("leaking", false):
+			draw_rect(rect.grow(7), Color("#ff5a5a"), false, 4)
 		draw_rect(rect, fill)
 		draw_rect(rect, Color("#a7b3c5"), false, 2)
 		_draw_module_details(module, rect)
@@ -296,7 +298,7 @@ func _draw_build_ghost() -> void:
 	var def: Dictionary = module_defs[selected_build]
 	var size: Vector2i = def["size"]
 	var rect: Rect2 = Rect2(_cell_to_world(cell), Vector2(size.x * TILE - 2, size.y * TILE - 2))
-	var can_build := _can_place(selected_build, cell)
+	var can_build := _can_place(selected_build, cell) and _is_connected_placement(selected_build, cell)
 	var color := Color(0.3, 0.9, 0.5, 0.38) if can_build else Color(1.0, 0.25, 0.25, 0.38)
 	draw_rect(rect, color)
 	draw_rect(rect, Color("#f2f0da"), false, 2)
@@ -335,6 +337,10 @@ func _interact() -> void:
 		return
 	if interact_target.has("kind") and interact_target["kind"] == "collectable":
 		_collect_surface_item(interact_target)
+		_update_ui()
+		return
+	if interact_target.get("leaking", false):
+		_repair_module_leak(interact_target)
 		_update_ui()
 		return
 	match String(interact_target["type"]):
@@ -390,6 +396,19 @@ func _repair_life_support() -> void:
 	oxygen_wear = max(0.0, oxygen_wear - 0.12)
 	add_log("完成一次生命维持系统维护。")
 
+func _repair_module_leak(module: Dictionary) -> void:
+	if selected_tool != "repair":
+		add_log("该舱段正在漏气，需要先选择维修枪。")
+		return
+	if resources["parts"] < 2:
+		add_log("封堵漏气需要 2 个维修件。")
+		return
+	resources["parts"] -= 2
+	module["leaking"] = false
+	resources["integrity"] = min(100.0, resources["integrity"] + 6.0)
+	var def: Dictionary = module_defs[module["type"]]
+	add_log("已封堵 %s 漏点，舱压恢复稳定。" % def["name"])
+
 func _use_workshop() -> void:
 	if resources["power"] < 4:
 		add_log("电力不足，维修工作台无法打印零件。")
@@ -437,6 +456,9 @@ func _try_build_selected() -> void:
 	if not _can_place(selected_build, cell):
 		add_log("这里空间不足或超出基地网格，无法建造。")
 		return
+	if not _is_connected_placement(selected_build, cell):
+		add_log("新模块必须贴近已有基地舱段或能源节点。")
+		return
 	var def: Dictionary = module_defs[selected_build]
 	var cost: Dictionary = def["cost"]
 	if resources["parts"] < cost["parts"] or resources["power"] < cost["power"]:
@@ -456,6 +478,7 @@ func _add_module(module_type: String, cell: Vector2i, fixed: bool) -> void:
 		"fixed": fixed,
 		"crop": "",
 		"age": 0,
+		"leaking": false,
 	}
 	next_module_uid += 1
 	modules.append(module)
@@ -520,6 +543,11 @@ func _advance_day() -> void:
 	resources["water"] -= crew_water
 	resources["food"] -= crew_food
 	resources["integrity"] -= 1.0 + solar_dust * 1.8 + float(modules.size()) * 0.04
+	var leaking_count := _leaking_module_count()
+	if leaking_count > 0:
+		resources["oxygen"] -= float(leaking_count) * 8.0
+		resources["integrity"] -= float(leaking_count) * 2.0
+		add_log("警报：%d 个舱段漏气，氧气正在流失。" % leaking_count)
 	if counts["workshop"] > 0:
 		resources["parts"] = min(99.0, resources["parts"] + 0.25 * float(counts["workshop"]))
 	solar_dust = min(0.65, solar_dust + randf_range(0.02, 0.06))
@@ -560,8 +588,15 @@ func _process_random_event() -> void:
 	if day == 11:
 		add_log("地面控制提醒：月夜将在第 14 天开始，请提前储电。")
 	if randf() < 0.12:
-		resources["integrity"] -= 5.0
-		add_log("微小冲击触发舱体巡检，设备完整度下降。")
+		var hit_module := _pick_pressurized_module()
+		if not hit_module.is_empty() and not hit_module.get("leaking", false):
+			hit_module["leaking"] = true
+			resources["integrity"] -= 4.0
+			var def: Dictionary = module_defs[hit_module["type"]]
+			add_log("微陨石击中 %s，舱段开始漏气。" % def["name"])
+		else:
+			resources["integrity"] -= 5.0
+			add_log("微小冲击触发舱体巡检，设备完整度下降。")
 
 func _choose_supply(kind: String) -> void:
 	if day < next_supply_request_day or not supply_order.is_empty() or supply_waiting:
@@ -631,6 +666,25 @@ func _module_counts() -> Dictionary:
 		counts[module["type"]] += 1
 	return counts
 
+func _leaking_module_count() -> int:
+	var count := 0
+	for module: Dictionary in modules:
+		if module.get("leaking", false):
+			count += 1
+	return count
+
+func _pick_pressurized_module() -> Dictionary:
+	var candidates: Array[Dictionary] = []
+	for module: Dictionary in modules:
+		if _is_pressurized_module(module["type"]):
+			candidates.append(module)
+	if candidates.is_empty():
+		return {}
+	return candidates[randi() % candidates.size()]
+
+func _is_pressurized_module(module_type: String) -> bool:
+	return module_type in ["hab", "greenhouse", "battery", "life_support", "workshop"]
+
 func _player_build_cell() -> Vector2i:
 	var local := player_pos - MAP_ORIGIN
 	var x := int(floor(local.x / TILE))
@@ -660,6 +714,26 @@ func _can_place(module_type: String, cell: Vector2i) -> bool:
 		if candidate.intersects(other):
 			return false
 	return true
+
+func _is_connected_placement(module_type: String, cell: Vector2i) -> bool:
+	var def: Dictionary = module_defs[module_type]
+	var size: Vector2i = def["size"]
+	var candidate: Rect2i = Rect2i(cell, size)
+	for module: Dictionary in modules:
+		var other_def: Dictionary = module_defs[module["type"]]
+		var other_cell: Vector2i = module["cell"]
+		var other_size: Vector2i = other_def["size"]
+		var other: Rect2i = Rect2i(other_cell, other_size)
+		if _rects_touch(candidate, other):
+			return true
+	return false
+
+func _rects_touch(a: Rect2i, b: Rect2i) -> bool:
+	var horizontal_touch := (a.position.x + a.size.x == b.position.x or b.position.x + b.size.x == a.position.x)
+	var vertical_overlap := a.position.y < b.position.y + b.size.y and b.position.y < a.position.y + a.size.y
+	var vertical_touch := (a.position.y + a.size.y == b.position.y or b.position.y + b.size.y == a.position.y)
+	var horizontal_overlap := a.position.x < b.position.x + b.size.x and b.position.x < a.position.x + a.size.x
+	return (horizontal_touch and vertical_overlap) or (vertical_touch and horizontal_overlap)
 
 func _setup_ui() -> void:
 	var ui := CanvasLayer.new()
@@ -802,7 +876,10 @@ func _update_ui() -> void:
 			hint = "月面采集点：按 E 使用 %s。%s" % [tool_defs[selected_tool]["name"], tool_defs[selected_tool]["hint"]]
 		else:
 			var def: Dictionary = module_defs[interact_target["type"]]
-			hint = "%s：%s" % [def["name"], def["hint"]]
+			if interact_target.get("leaking", false):
+				hint = "%s：舱段漏气。切换维修枪并按 E 封堵，消耗 2 维修件。" % def["name"]
+			else:
+				hint = "%s：%s" % [def["name"], def["hint"]]
 	$UI/Root/Hint.text = hint
 	$UI/Root/Log.text = _join_strings(log_lines, "\n")
 
