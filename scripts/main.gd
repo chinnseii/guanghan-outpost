@@ -37,6 +37,14 @@ var selected_build := ""
 var unlocked_techs: Array[String] = []
 var completed_missions: Array[String] = []
 var log_lines: Array[String] = []
+var robot_task := "idle"
+var backpack := {
+	"regolith": 0.0,
+	"ice": 0.0,
+	"samples": 0.0,
+	"parts": 0.0,
+}
+var backpack_capacity := 12.0
 
 var solar_dust := 0.12
 var oxygen_wear := 0.08
@@ -295,6 +303,8 @@ func _reset_game_state() -> void:
 	selected_build = ""
 	unlocked_techs.clear()
 	completed_missions.clear()
+	robot_task = "idle"
+	backpack = _default_backpack()
 	solar_dust = 0.12
 	oxygen_wear = 0.08
 	next_module_uid = 1
@@ -330,6 +340,14 @@ func _default_resources() -> Dictionary:
 		"suit_o2": 100.0,
 		"suit_integrity": 100.0,
 		"suit_dust": 0.0,
+	}
+
+func _default_backpack() -> Dictionary:
+	return {
+		"regolith": 0.0,
+		"ice": 0.0,
+		"samples": 0.0,
+		"parts": 0.0,
 	}
 
 func _setup_starting_base() -> void:
@@ -668,6 +686,10 @@ func _draw_player() -> void:
 func _find_interaction() -> void:
 	interact_target = {}
 	for module: Dictionary in modules:
+		var facility := _facility_at_player(module)
+		if not facility.is_empty():
+			interact_target = facility
+			return
 		var rect := _module_rect(module).grow(24)
 		if rect.has_point(player_pos):
 			interact_target = module
@@ -679,6 +701,40 @@ func _find_interaction() -> void:
 		if player_pos.distance_to(pos) <= 34.0:
 			interact_target = item
 			return
+
+func _facility_at_player(module: Dictionary) -> Dictionary:
+	if not _module_has_interior(module["type"]):
+		return {}
+	if not _module_rect(module).has_point(player_pos):
+		return {}
+	var local := player_pos - _module_rect(module).position
+	var module_type: String = module["type"]
+	var zones: Array[Dictionary] = []
+	if module_type == "hab":
+		zones = [
+			{"facility": "bed", "rect": Rect2(Vector2(18, 18), Vector2(62, 76))},
+			{"facility": "storage", "rect": Rect2(Vector2(92, 16), Vector2(42, 68))},
+			{"facility": "console", "rect": Rect2(Vector2(84, 48), Vector2(54, 44))},
+		]
+	elif module_type == "life_support":
+		zones = [
+			{"facility": "console", "rect": Rect2(Vector2(18, 48), Vector2(70, 42))},
+		]
+	elif module_type == "workshop":
+		zones = [
+			{"facility": "storage", "rect": Rect2(Vector2(18, 52), Vector2(50, 42))},
+			{"facility": "robot_charger", "rect": Rect2(Vector2(54, 14), Vector2(48, 64))},
+		]
+	for zone: Dictionary in zones:
+		var rect: Rect2 = zone["rect"]
+		if rect.grow(14).has_point(local):
+			return {
+				"kind": "facility",
+				"facility": zone["facility"],
+				"module_uid": module["uid"],
+				"module_type": module_type,
+			}
+	return {}
 
 func _process_suit_oxygen(delta: float) -> void:
 	var inside := _is_player_inside_pressurized_module()
@@ -719,6 +775,10 @@ func _interact() -> void:
 		_collect_surface_item(interact_target)
 		_update_ui()
 		return
+	if interact_target.has("kind") and interact_target["kind"] == "facility":
+		_use_facility(interact_target)
+		_update_ui()
+		return
 	if interact_target.get("leaking", false):
 		_repair_module_leak(interact_target)
 		_update_ui()
@@ -753,6 +813,61 @@ func _interact() -> void:
 			var def: Dictionary = module_defs[interact_target["type"]]
 			add_log("%s 运转正常。" % def["name"])
 	_update_ui()
+
+func _use_facility(facility: Dictionary) -> void:
+	match String(facility["facility"]):
+		"bed":
+			_use_bed()
+		"console":
+			_use_console()
+		"storage":
+			_use_storage()
+		"robot_charger":
+			_use_robot_charger()
+		_:
+			add_log("该舱内设施还没有接入操作。")
+
+func _use_bed() -> void:
+	var old_fatigue := float(operator.get("fatigue", 0.0))
+	operator["fatigue"] = max(0.0, old_fatigue - 35.0)
+	operator["health"] = min(100.0, float(operator.get("health", 100.0)) + 4.0)
+	operator["morale"] = min(100.0, float(operator.get("morale", 100.0)) + 3.0)
+	resources["food"] = max(0.0, resources["food"] - 1.0)
+	resources["water"] = max(0.0, resources["water"] - 1.0)
+	_play_ui_tone(520.0, 0.12, 0.07)
+	add_log("在床铺休整一轮：疲劳 %.0f -> %.0f，消耗食物 1、水 1。" % [old_fatigue, operator["fatigue"]])
+
+func _use_console() -> void:
+	var counts: Dictionary = _module_counts()
+	var pod_count := _active_collectable_count("supply_pod")
+	var leak_count := _leaking_module_count()
+	_play_ui_tone(840.0, 0.08, 0.07)
+	add_log("控制台：电力 %.0f，氧 %.0f，水 %.0f，舱压 %.0f%%，模块 %d，漏气 %d，补给信标 %d。" % [
+		resources["power"], resources["oxygen"], resources["water"], resources["pressure"], modules.size(), leak_count, pod_count
+	])
+	add_log("控制台：机器人任务=%s，背包 %.0f/%.0f。" % [_robot_task_name(robot_task), _backpack_load(), backpack_capacity])
+
+func _use_storage() -> void:
+	if _backpack_load() <= 0.0:
+		add_log("储物柜：出舱背包为空。可出舱采集后回到这里入库。")
+		_play_ui_tone(420.0, 0.06, 0.05)
+		return
+	for key: String in backpack.keys():
+		resources[key] += float(backpack[key])
+		backpack[key] = 0.0
+	_play_ui_tone(680.0, 0.1, 0.07)
+	add_log("储物柜：出舱背包已入库。基地库存已更新。")
+
+func _use_robot_charger() -> void:
+	if not _has_tech("robot_assist") and not _has_tech("yutu_robot"):
+		add_log("机器人充电桩待机：需要先解锁玉兔机器人或机器人协作协议。")
+		_play_ui_tone(260.0, 0.08, 0.06)
+		return
+	var order := ["idle", "sample", "maintenance", "haul"]
+	var index := order.find(robot_task)
+	robot_task = order[(index + 1) % order.size()]
+	_play_ui_tone(960.0, 0.08, 0.07)
+	add_log("机器人充电桩：已派发任务 -> %s。" % _robot_task_name(robot_task))
 
 func _use_greenhouse(module: Dictionary) -> void:
 	if module["crop"] == "":
@@ -924,6 +1039,71 @@ func _process_tech_daily_effects() -> void:
 		if day % 3 == 0:
 			resources["samples"] += 0.5
 			add_log("玉兔机器人完成巡视：科研样本 +0.5。")
+	_process_robot_task()
+
+func _process_robot_task() -> void:
+	if robot_task == "idle":
+		return
+	if not _has_tech("robot_assist") and not _has_tech("yutu_robot"):
+		return
+	if resources["power"] < 3.0:
+		add_log("机器人任务暂停：充电桩电力不足。")
+		return
+	resources["power"] -= 3.0
+	match robot_task:
+		"sample":
+			resources["regolith"] += 0.8
+			if day % 4 == 0:
+				resources["samples"] += 0.5
+			add_log("机器人采样任务完成：月壤 +0.8。")
+		"maintenance":
+			solar_dust = max(0.0, solar_dust - 0.06)
+			resources["integrity"] = min(100.0, resources["integrity"] + 1.2)
+			add_log("机器人巡检任务完成：月尘下降，设备完整度小幅恢复。")
+		"haul":
+			if _active_collectable_count("supply_pod") > 0:
+				resources["suit_dust"] = max(0.0, resources["suit_dust"] - 2.0)
+				add_log("机器人搬运任务：已标记补给舱路径，玩家回收风险降低。")
+			else:
+				resources["parts"] += 0.2
+				add_log("机器人搬运任务：整理备件，维修件 +0.2。")
+
+func _robot_task_name(task: String) -> String:
+	match task:
+		"sample":
+			return "自动采样"
+		"maintenance":
+			return "自动巡检"
+		"haul":
+			return "补给搬运"
+		_:
+			return "待机"
+
+func _facility_name(facility: String) -> String:
+	match facility:
+		"bed":
+			return "床铺"
+		"console":
+			return "控制台"
+		"storage":
+			return "储物柜"
+		"robot_charger":
+			return "机器人充电桩"
+		_:
+			return "舱内设施"
+
+func _facility_hint(facility: String) -> String:
+	match facility:
+		"bed":
+			return "按 E 休整，恢复疲劳、健康和精神，消耗少量食物与水。"
+		"console":
+			return "按 E 查看基地状态、任务和机器人任务。"
+		"storage":
+			return "按 E 将出舱背包资源入库。"
+		"robot_charger":
+			return "按 E 切换机器人任务：待机/采样/巡检/搬运。"
+		_:
+			return "按 E 操作。"
 
 func _try_build_selected() -> void:
 	var cell: Vector2i = _player_build_cell()
@@ -997,23 +1177,50 @@ func _collect_surface_item(item: Dictionary) -> void:
 		amount += 1.0
 	match String(item["type"]):
 		"regolith":
-			resources["regolith"] += amount
-			add_log("采集月壤 +%.0f。未来可用于月壤提氧和防辐射覆盖。" % amount)
+			if not _add_to_backpack("regolith", amount):
+				return
+			add_log("采集月壤 +%.0f，已装入出舱背包。" % amount)
 		"ice":
-			resources["ice"] += amount
-			resources["water"] += amount * 2.0
+			if not _add_to_backpack("ice", amount):
+				return
 			resources["suit_dust"] = min(100.0, resources["suit_dust"] + 2.0)
-			add_log("采集水冰样本 +%.0f，水 +%.0f。" % [amount, amount * 2.0])
+			add_log("采集水冰样本 +%.0f，已装入出舱背包。" % amount)
 		"meteor":
-			resources["parts"] += amount
-			resources["samples"] += 1.0
-			add_log("回收陨石金属：维修件 +%.0f，科研样本 +1。" % amount)
+			if not _add_to_backpack("parts", amount):
+				return
+			if not _add_to_backpack("samples", 1.0):
+				return
+			add_log("回收陨石金属：维修件 +%.0f，科研样本 +1，已装入背包。" % amount)
 		"sample":
-			resources["samples"] += amount
-			add_log("采集特殊月壤样本 +%.0f。嫦娥样本数据库可用于后续科技线。" % amount)
+			if not _add_to_backpack("samples", amount):
+				return
+			add_log("采集特殊月壤样本 +%.0f，已装入出舱背包。" % amount)
 	item["depleted"] = true
 	_play_ui_tone(680.0, 0.08, 0.07)
 	_sync_scene_instances()
+
+func _add_to_backpack(key: String, amount: float) -> bool:
+	if _backpack_load() + amount > backpack_capacity:
+		add_log("出舱背包容量不足：%.0f/%.0f。请回储物柜入库。" % [_backpack_load(), backpack_capacity])
+		_play_ui_tone(220.0, 0.08, 0.06)
+		return false
+	backpack[key] = float(backpack.get(key, 0.0)) + amount
+	return true
+
+func _backpack_load() -> float:
+	var total := 0.0
+	for key: String in backpack.keys():
+		total += float(backpack[key])
+	return total
+
+func _backpack_summary() -> String:
+	var parts: Array[String] = []
+	for key: String in backpack.keys():
+		if float(backpack[key]) > 0.0:
+			parts.append("%s %.0f" % [resource_names.get(key, key), float(backpack[key])])
+	if parts.is_empty():
+		return "空"
+	return _join_strings(parts, " / ")
 
 func _advance_day() -> void:
 	day += 1
@@ -1251,6 +1458,8 @@ func _save_game() -> void:
 		"unlocked_techs": unlocked_techs,
 		"completed_missions": completed_missions,
 		"operator": _serialize_operator(),
+		"backpack": backpack,
+		"robot_task": robot_task,
 		"solar_dust": solar_dust,
 		"oxygen_wear": oxygen_wear,
 		"next_module_uid": next_module_uid,
@@ -1324,6 +1533,8 @@ func _apply_save_data(data: Dictionary) -> void:
 	for mission_id in saved_missions:
 		completed_missions.append(String(mission_id))
 	operator = _deserialize_operator(data.get("operator", data.get("crew", _serialize_operator())))
+	backpack = _copy_float_dictionary(data.get("backpack", _default_backpack()), _default_backpack())
+	robot_task = String(data.get("robot_task", "idle"))
 	solar_dust = float(data.get("solar_dust", 0.12))
 	oxygen_wear = float(data.get("oxygen_wear", 0.08))
 	next_module_uid = int(data.get("next_module_uid", 1))
@@ -1481,6 +1692,15 @@ func _copy_dictionary(value) -> Dictionary:
 	var result := {}
 	for key in value.keys():
 		result[key] = value[key]
+	return result
+
+func _copy_float_dictionary(value, defaults: Dictionary) -> Dictionary:
+	var result := defaults.duplicate(true)
+	if typeof(value) != TYPE_DICTIONARY:
+		return result
+	var data: Dictionary = value
+	for key: String in data.keys():
+		result[key] = float(data[key])
 	return result
 
 func _check_game_state() -> void:
@@ -1943,8 +2163,9 @@ func _update_ui() -> void:
 	$UI/Root/EvaTasks.text = _eva_tasks_text()
 	_update_tech_buttons()
 	_refresh_main_menu()
-	var hint := "工具：%s | 作物：%s | 月壤 %.0f 水冰 %.0f 样本 %.0f。" % [
+	var hint := "工具：%s | 作物：%s | 背包 %.0f/%.0f：%s | 月壤 %.0f 水冰 %.0f 样本 %.0f。" % [
 		tool_defs[selected_tool]["name"], crop_defs[selected_crop]["name"],
+		_backpack_load(), backpack_capacity, _backpack_summary(),
 		resources["regolith"], resources["ice"], resources["samples"]
 	]
 	if build_mode and selected_build != "":
@@ -1954,6 +2175,8 @@ func _update_ui() -> void:
 	elif not interact_target.is_empty():
 		if interact_target.has("kind") and interact_target["kind"] == "collectable":
 			hint = "月面采集点：按 E 使用 %s。%s" % [tool_defs[selected_tool]["name"], tool_defs[selected_tool]["hint"]]
+		elif interact_target.has("kind") and interact_target["kind"] == "facility":
+			hint = "%s：%s" % [_facility_name(interact_target["facility"]), _facility_hint(interact_target["facility"])]
 		else:
 			var def: Dictionary = module_defs[interact_target["type"]]
 			if interact_target.get("leaking", false):
@@ -1977,12 +2200,12 @@ func _tech_order() -> Array[String]:
 	return ["change_samples", "queqiao_relay", "yutu_robot", "closed_ecology", "precision_landing", "robot_assist"]
 
 func _operator_status_text() -> String:
-	return "前哨员：%s\n健康 %.0f  精神 %.0f  疲劳 %.0f\n机器人劳动力：%s" % [
+	return "前哨员：%s\n健康 %.0f  精神 %.0f  疲劳 %.0f\n机器人：%s" % [
 		operator.get("name", "林舟"),
 		float(operator.get("health", 100.0)),
 		float(operator.get("morale", 100.0)),
 		float(operator.get("fatigue", 0.0)),
-		"在线" if _has_tech("robot_assist") else "待解锁"
+		_robot_task_name(robot_task) if (_has_tech("robot_assist") or _has_tech("yutu_robot")) else "待解锁"
 	]
 
 func _mission_status_text() -> String:
