@@ -22,9 +22,32 @@ func _draw() -> void:
 		draw_rect(rect.grow(5), Color("#e7c66b"), false, 3)
 	if module_data.get("leaking", false):
 		draw_rect(rect.grow(7), Color("#ff5a5a"), false, 4)
-	draw_rect(rect, fill)
-	draw_rect(rect, Color("#a7b3c5"), false, 2)
+	_draw_hull(rect, fill)
 	_draw_details(String(module_data["type"]), rect)
+
+func _draw_hull(rect: Rect2, fill: Color) -> void:
+	var module_type := String(module_data["type"])
+	if module_type in ["solar", "supply", "regolith_plant", "ice_processor"]:
+		draw_rect(rect, fill)
+		draw_rect(rect, Color("#a7b3c5"), false, 2)
+		return
+	var inner := rect.grow(-12.0)
+	draw_rect(rect, Color("#202833"))
+	draw_rect(inner, fill.lightened(0.15))
+	draw_line(Vector2(rect.position.x + 22, rect.position.y), Vector2(rect.end.x - 22, rect.position.y), Color("#a7b3c5"), 3)
+	draw_line(Vector2(rect.position.x + 22, rect.end.y), Vector2(rect.end.x - 22, rect.end.y), Color("#a7b3c5"), 3)
+	draw_line(Vector2(rect.position.x, rect.position.y + 22), Vector2(rect.position.x, rect.end.y - 22), Color("#a7b3c5"), 3)
+	draw_line(Vector2(rect.end.x, rect.position.y + 22), Vector2(rect.end.x, rect.end.y - 22), Color("#a7b3c5"), 3)
+	draw_rect(inner, Color("#d7dee8"), false, 2)
+	_draw_door_markers(rect)
+
+func _draw_door_markers(rect: Rect2) -> void:
+	var center := rect.get_center()
+	var door := Color("#e7c66b")
+	draw_line(Vector2(center.x - 18, rect.position.y + 2), Vector2(center.x + 18, rect.position.y + 2), door, 4)
+	draw_line(Vector2(center.x - 18, rect.end.y - 2), Vector2(center.x + 18, rect.end.y - 2), door, 4)
+	draw_line(Vector2(rect.position.x + 2, center.y - 18), Vector2(rect.position.x + 2, center.y + 18), door, 4)
+	draw_line(Vector2(rect.end.x - 2, center.y - 18), Vector2(rect.end.x - 2, center.y + 18), door, 4)
 
 func _draw_details(module_type: String, rect: Rect2) -> void:
 	if module_type == "greenhouse":

@@ -199,17 +199,17 @@ var tech_defs := {
 	"closed_ecology": {
 		"name": "闭环生态控制",
 		"cost": {"samples": 3.0, "water": 8.0, "co2": 10.0},
-		"desc": "温室湿度和 CO2 调节更稳定，船员健康下降减缓。",
+		"desc": "温室湿度和 CO2 调节更稳定，前哨员健康下降减缓。",
 	},
 	"precision_landing": {
 		"name": "精确着陆雷达",
 		"cost": {"samples": 2.0, "parts": 5.0},
 		"desc": "补给舱落点偏差降低，鹊桥链路可辅助修正弹道。",
 	},
-	"crew_rotation": {
-		"name": "岗位轮换制度",
-		"cost": {"food": 10.0, "samples": 2.0},
-		"desc": "每日士气恢复提高，岗位疲劳降低。",
+	"robot_assist": {
+		"name": "机器人协作协议",
+		"cost": {"parts": 5.0, "samples": 2.0},
+		"desc": "玉兔和维护机器人分担重复劳动，降低前哨员压力。",
 	},
 }
 
@@ -218,14 +218,16 @@ var mission_defs := {
 	"first_greenhouse": {"name": "第一座温室", "desc": "建造或保有 1 座温室。"},
 	"local_oxygen": {"name": "原位制氧", "desc": "让基地氧气储备达到 100。"},
 	"supply_recovery": {"name": "出舱取货", "desc": "成功回收 1 个偏差落点补给舱。"},
-	"crew_stable": {"name": "船员稳定", "desc": "全员健康和士气都保持在 60 以上。"},
+	"operator_stable": {"name": "前哨员稳定", "desc": "健康和精神状态都保持在 60 以上。"},
 }
 
 var modules: Array[Dictionary] = []
 var collectables: Array[Dictionary] = []
-var crew: Array[Dictionary] = []
+var operator := {}
 var moon_tile_map: TileMapLayer
+var interior_tile_map: TileMapLayer
 var moon_tile_source_id := 0
+var interior_tile_source_id := 0
 var entity_root: Node2D
 var module_nodes: Dictionary = {}
 var collectable_nodes: Dictionary = {}
@@ -235,11 +237,12 @@ func _ready() -> void:
 	_setup_input_map()
 	_reset_game_state()
 	_setup_moon_tile_map()
+	_setup_interior_tile_map()
 	_setup_entity_root()
 	_setup_ui()
 	_setup_main_menu()
 	add_log("广寒前哨上线。玉兔工程车完成自动部署，但系统仍需人工调试。")
-	add_log("V0.10：多存档、任务、船员、补给落点偏差与独立场景素材上线。")
+	add_log("V0.11：舱内/舱外分层、碰撞、正式模块素材与单人前哨员设定上线。")
 	_sync_scene_instances()
 	_update_ui()
 
@@ -291,7 +294,7 @@ func _reset_game_state() -> void:
 	resources = _default_resources()
 	modules.clear()
 	collectables.clear()
-	crew = _default_crew()
+	operator = _default_operator()
 	log_lines.clear()
 	_setup_starting_base()
 	_setup_collectables()
@@ -299,12 +302,8 @@ func _reset_game_state() -> void:
 		$UI/Root/SupplyPanel.visible = false
 	_sync_scene_instances()
 
-func _default_crew() -> Array[Dictionary]:
-	return [
-		{"name": "林舟", "role": "指挥", "health": 92.0, "morale": 78.0},
-		{"name": "沈禾", "role": "工程", "health": 90.0, "morale": 76.0},
-		{"name": "周岚", "role": "农艺", "health": 91.0, "morale": 80.0},
-	]
+func _default_operator() -> Dictionary:
+	return {"name": "林舟", "health": 92.0, "morale": 78.0, "fatigue": 12.0}
 
 func _default_resources() -> Dictionary:
 	return {
@@ -336,7 +335,9 @@ func _process(delta: float) -> void:
 	if game_over or pending_main_menu:
 		return
 	var input := Input.get_vector("move_left", "move_right", "move_up", "move_down")
-	player_pos += input * PLAYER_SPEED * delta
+	var target_pos := player_pos + input * PLAYER_SPEED * delta
+	if _can_player_move_to(target_pos):
+		player_pos = target_pos
 	if input.length() > 0.01:
 		player_facing = input.normalized()
 		walk_phase += delta * 10.0
@@ -374,6 +375,7 @@ func _setup_entity_root() -> void:
 	add_child(entity_root)
 	player_node = PLAYER_SCENE.instantiate()
 	player_node.name = "Player"
+	player_node.z_index = 30
 	entity_root.add_child(player_node)
 	_sync_scene_instances()
 
@@ -388,6 +390,7 @@ func _sync_scene_instances() -> void:
 		var uid := int(module["uid"])
 		if not module_nodes.has(uid) or not is_instance_valid(module_nodes[uid]):
 			var node := MODULE_SCENE.instantiate()
+			node.z_index = 5
 			entity_root.add_child(node)
 			module_nodes[uid] = node
 		var module_node: Node2D = module_nodes[uid]
@@ -407,6 +410,7 @@ func _sync_scene_instances() -> void:
 		var uid := int(item["uid"])
 		if not collectable_nodes.has(uid) or not is_instance_valid(collectable_nodes[uid]):
 			var node := COLLECTABLE_SCENE.instantiate()
+			node.z_index = 8
 			entity_root.add_child(node)
 			collectable_nodes[uid] = node
 		var item_node: Node2D = collectable_nodes[uid]
@@ -434,6 +438,17 @@ func _setup_moon_tile_map() -> void:
 	add_child(moon_tile_map)
 	_paint_moon_surface_tiles()
 
+func _setup_interior_tile_map() -> void:
+	if is_instance_valid(interior_tile_map):
+		interior_tile_map.queue_free()
+	interior_tile_map = TileMapLayer.new()
+	interior_tile_map.name = "InteriorFloorTileMap"
+	interior_tile_map.position = MAP_ORIGIN
+	interior_tile_map.z_index = -10
+	interior_tile_map.tile_set = _create_interior_tile_set()
+	add_child(interior_tile_map)
+	_paint_interior_tiles()
+
 func _create_moon_tile_set() -> TileSet:
 	var tile_set: TileSet = TileSet.new()
 	tile_set.tile_size = Vector2i(TILE, TILE)
@@ -455,6 +470,26 @@ func _create_moon_tile_set() -> TileSet:
 	moon_tile_source_id = tile_set.add_source(source)
 	return tile_set
 
+func _create_interior_tile_set() -> TileSet:
+	var tile_set: TileSet = TileSet.new()
+	tile_set.tile_size = Vector2i(TILE, TILE)
+	var image: Image = Image.create(TILE * 3, TILE, false, Image.FORMAT_RGBA8)
+	for tile_x in range(3):
+		for px in range(TILE):
+			for py in range(TILE):
+				var seam := 0.055 if px < 2 or py < 2 else 0.0
+				var stripe := 0.035 if (px + tile_x * 9) % 16 < 3 else 0.0
+				var base := 0.24 + float(tile_x) * 0.035 + seam + stripe
+				image.set_pixel(tile_x * TILE + px, py, Color(base, base + 0.025, base + 0.045, 1.0))
+	var texture: ImageTexture = ImageTexture.create_from_image(image)
+	var source: TileSetAtlasSource = TileSetAtlasSource.new()
+	source.texture = texture
+	source.texture_region_size = Vector2i(TILE, TILE)
+	for tile_x in range(3):
+		source.create_tile(Vector2i(tile_x, 0))
+	interior_tile_source_id = tile_set.add_source(source)
+	return tile_set
+
 func _tile_crater_shadow(tile_x: int, px: int, py: int) -> float:
 	if tile_x == 0:
 		return 0.0
@@ -474,6 +509,21 @@ func _paint_moon_surface_tiles() -> void:
 		for y in range(MAP_H):
 			var atlas_x := int((x * 17 + y * 11) % 4)
 			moon_tile_map.set_cell(Vector2i(x, y), moon_tile_source_id, Vector2i(atlas_x, 0))
+
+func _paint_interior_tiles() -> void:
+	if not is_instance_valid(interior_tile_map):
+		return
+	interior_tile_map.clear()
+	for module: Dictionary in modules:
+		if not _module_has_interior(module["type"]):
+			continue
+		var def: Dictionary = module_defs[module["type"]]
+		var cell: Vector2i = module["cell"]
+		var size: Vector2i = def["size"]
+		for x in range(size.x):
+			for y in range(size.y):
+				var atlas_x := int((x + y + int(module["uid"])) % 3)
+				interior_tile_map.set_cell(cell + Vector2i(x, y), interior_tile_source_id, Vector2i(atlas_x, 0))
 
 func _draw_collectables() -> void:
 	for item: Dictionary in collectables:
@@ -832,6 +882,7 @@ func _add_module(module_type: String, cell: Vector2i, fixed: bool) -> void:
 	}
 	next_module_uid += 1
 	modules.append(module)
+	_paint_interior_tiles()
 	_sync_scene_instances()
 
 func _setup_collectables() -> void:
@@ -899,15 +950,15 @@ func _advance_day() -> void:
 	var base_power_use: float = 16.0 + float(counts["greenhouse"]) * 2.0 + float(counts["life_support"]) * 2.5
 	if is_moon_night:
 		base_power_use += 14.0 + float(counts["greenhouse"]) * 3.0
-	var crew_food: float = 7.0
-	var crew_water: float = max(2.5, 5.0 - float(counts["life_support"]) * 0.8)
-	var crew_oxygen: float = max(3.5, 6.0 - float(counts["life_support"]) * 0.7)
-	var crew_co2: float = 7.5
+	var operator_food: float = 3.0
+	var operator_water: float = max(1.4, 2.4 - float(counts["life_support"]) * 0.35)
+	var operator_oxygen: float = max(1.6, 3.0 - float(counts["life_support"]) * 0.35)
+	var operator_co2: float = 3.2
 	resources["power"] += solar_gain - base_power_use
-	resources["oxygen"] -= crew_oxygen + oxygen_wear * 8.0
-	resources["co2"] += crew_co2
-	resources["water"] -= crew_water
-	resources["food"] -= crew_food
+	resources["oxygen"] -= operator_oxygen + oxygen_wear * 8.0
+	resources["co2"] += operator_co2
+	resources["water"] -= operator_water
+	resources["food"] -= operator_food
 	resources["integrity"] -= 1.0 + solar_dust * 1.8 + float(modules.size()) * 0.04
 	resources["pressure"] += float(counts["life_support"]) * 1.5 - 0.8
 	resources["humidity"] += float(counts["greenhouse"]) * 2.2 - float(counts["life_support"]) * 1.4
@@ -928,7 +979,7 @@ func _advance_day() -> void:
 		resources["power"] -= 2
 		resources["water"] += 3.0 * float(counts["ice_processor"])
 		resources["humidity"] += 1.5
-	_process_crew_day(counts)
+	_process_operator_day(counts)
 	_process_tech_daily_effects()
 	solar_dust = min(0.65, solar_dust + randf_range(0.02, 0.06))
 	oxygen_wear = min(0.45, oxygen_wear + randf_range(0.01, 0.04))
@@ -943,41 +994,31 @@ func _advance_day() -> void:
 	_update_ui()
 	queue_redraw()
 
-func _process_crew_day(counts: Dictionary) -> void:
+func _process_operator_day(counts: Dictionary) -> void:
 	var pressure_penalty: float = 0.0 if resources["pressure"] >= 70.0 else 3.0
 	var co2_penalty: float = 0.0 if resources["co2"] <= 85.0 else 2.5
 	var supply_penalty: float = 0.0
 	if resources["food"] < 18.0 or resources["water"] < 18.0 or resources["oxygen"] < 18.0:
 		supply_penalty = 2.0
 	var ecology_bonus: float = 1.0 if _has_tech("closed_ecology") else 0.0
-	var rotation_bonus: float = 1.2 if _has_tech("crew_rotation") else 0.0
-	for member: Dictionary in crew:
-		var health_delta := -0.7 - pressure_penalty - co2_penalty - supply_penalty + ecology_bonus
-		var morale_delta := -0.4 - supply_penalty + rotation_bonus
-		match String(member["role"]):
-			"工程":
-				resources["integrity"] = min(100.0, resources["integrity"] + 0.8)
-				health_delta -= 0.2
-			"农艺":
-				if counts["greenhouse"] > 0:
-					resources["humidity"] = clamp(resources["humidity"] + 0.5, 0.0, 100.0)
-					morale_delta += 0.3
-			"指挥":
-				morale_delta += 0.6
-		member["health"] = clamp(float(member["health"]) + health_delta, 0.0, 100.0)
-		member["morale"] = clamp(float(member["morale"]) + morale_delta, 0.0, 100.0)
-	if _crew_average("health") < 45.0:
+	var robot_bonus: float = 1.2 if _has_tech("robot_assist") else 0.0
+	var health_delta: float = -0.7 - pressure_penalty - co2_penalty - supply_penalty + ecology_bonus
+	var morale_delta: float = -0.5 - supply_penalty + robot_bonus
+	var fatigue_delta: float = 1.4 + supply_penalty - robot_bonus
+	if counts["greenhouse"] > 0:
+		resources["humidity"] = clamp(resources["humidity"] + 0.3, 0.0, 100.0)
+	if _has_tech("yutu_robot"):
+		resources["integrity"] = min(100.0, resources["integrity"] + 0.4)
+	operator["health"] = clamp(float(operator.get("health", 100.0)) + health_delta, 0.0, 100.0)
+	operator["morale"] = clamp(float(operator.get("morale", 100.0)) + morale_delta, 0.0, 100.0)
+	operator["fatigue"] = clamp(float(operator.get("fatigue", 0.0)) + fatigue_delta, 0.0, 100.0)
+	if float(operator["fatigue"]) > 70.0:
+		operator["health"] = max(0.0, float(operator["health"]) - 1.0)
+		operator["morale"] = max(0.0, float(operator["morale"]) - 1.0)
+	if float(operator["health"]) < 45.0:
 		resources["integrity"] -= 1.5
-	if _crew_average("morale") < 40.0:
+	if float(operator["morale"]) < 40.0:
 		resources["power"] -= 2.0
-
-func _crew_average(key: String) -> float:
-	if crew.is_empty():
-		return 0.0
-	var total := 0.0
-	for member: Dictionary in crew:
-		total += float(member.get(key, 0.0))
-	return total / float(crew.size())
 
 func _process_crop_day() -> void:
 	for module: Dictionary in modules:
@@ -1012,8 +1053,8 @@ func _check_missions() -> void:
 		_complete_mission("first_greenhouse")
 	if resources["oxygen"] >= 100.0:
 		_complete_mission("local_oxygen")
-	if _crew_average("health") >= 60.0 and _crew_average("morale") >= 60.0:
-		_complete_mission("crew_stable")
+	if float(operator.get("health", 0.0)) >= 60.0 and float(operator.get("morale", 0.0)) >= 60.0:
+		_complete_mission("operator_stable")
 
 func _complete_mission(mission_id: String) -> void:
 	if completed_missions.has(mission_id):
@@ -1131,7 +1172,7 @@ func _save_game() -> void:
 		"selected_build": selected_build,
 		"unlocked_techs": unlocked_techs,
 		"completed_missions": completed_missions,
-		"crew": _serialize_crew(),
+		"operator": _serialize_operator(),
 		"solar_dust": solar_dust,
 		"oxygen_wear": oxygen_wear,
 		"next_module_uid": next_module_uid,
@@ -1202,7 +1243,7 @@ func _apply_save_data(data: Dictionary) -> void:
 	var saved_missions: Array = data.get("completed_missions", [])
 	for mission_id in saved_missions:
 		completed_missions.append(String(mission_id))
-	crew = _deserialize_crew(data.get("crew", _serialize_crew()))
+	operator = _deserialize_operator(data.get("operator", data.get("crew", _serialize_operator())))
 	solar_dust = float(data.get("solar_dust", 0.12))
 	oxygen_wear = float(data.get("oxygen_wear", 0.08))
 	next_module_uid = int(data.get("next_module_uid", 1))
@@ -1213,6 +1254,7 @@ func _apply_save_data(data: Dictionary) -> void:
 		resources[key] = float(saved_resources[key])
 	modules = _deserialize_modules(data.get("modules", []))
 	collectables = _deserialize_collectables(data.get("collectables", []))
+	_paint_interior_tiles()
 	log_lines.clear()
 	var saved_logs: Array = data.get("log_lines", [])
 	for entry in saved_logs:
@@ -1281,32 +1323,34 @@ func _deserialize_collectables(values: Array) -> Array[Dictionary]:
 		})
 	return result
 
-func _serialize_crew() -> Array:
-	var result: Array = []
-	for member: Dictionary in crew:
-		result.append({
-			"name": String(member.get("name", "")),
-			"role": String(member.get("role", "")),
-			"health": float(member.get("health", 100.0)),
-			"morale": float(member.get("morale", 100.0)),
-		})
-	return result
+func _serialize_operator() -> Dictionary:
+	return {
+		"name": String(operator.get("name", "林舟")),
+		"health": float(operator.get("health", 100.0)),
+		"morale": float(operator.get("morale", 100.0)),
+		"fatigue": float(operator.get("fatigue", 0.0)),
+	}
 
-func _deserialize_crew(values: Array) -> Array[Dictionary]:
-	var result: Array[Dictionary] = []
-	for value in values:
-		if typeof(value) != TYPE_DICTIONARY:
-			continue
-		var data: Dictionary = value
-		result.append({
-			"name": String(data.get("name", "队员")),
-			"role": String(data.get("role", "通用")),
-			"health": float(data.get("health", 100.0)),
-			"morale": float(data.get("morale", 100.0)),
-		})
-	if result.is_empty():
-		return _default_crew()
-	return result
+func _deserialize_operator(value) -> Dictionary:
+	if typeof(value) == TYPE_ARRAY:
+		var legacy_values: Array = value
+		if not legacy_values.is_empty() and typeof(legacy_values[0]) == TYPE_DICTIONARY:
+			var legacy: Dictionary = legacy_values[0]
+			return {
+				"name": String(legacy.get("name", "林舟")),
+				"health": float(legacy.get("health", 100.0)),
+				"morale": float(legacy.get("morale", 100.0)),
+				"fatigue": 12.0,
+			}
+	if typeof(value) != TYPE_DICTIONARY:
+		return _default_operator()
+	var data: Dictionary = value
+	return {
+		"name": String(data.get("name", "林舟")),
+		"health": float(data.get("health", 100.0)),
+		"morale": float(data.get("morale", 100.0)),
+		"fatigue": float(data.get("fatigue", 0.0)),
+	}
 
 func _save_path(slot: int) -> String:
 	return "%s/slot_%d.json" % [SAVE_DIR, clamp(slot, 1, SAVE_SLOTS)]
@@ -1370,7 +1414,7 @@ func _check_game_state() -> void:
 		game_over = true
 		add_log("基地失守：%s 归零。请调整补给和维护优先级后重试。" % _join_strings(failed, ", "))
 	if day > 30 and not game_over:
-		add_log("30 天生存目标完成。下一步可以加入船员、月壤提氧和外出采集。")
+		add_log("30 天生存目标完成。下一步可以扩展机器人劳动力、舱外任务和本地工业链。")
 
 func _next_supply_day() -> int:
 	if supply_waiting:
@@ -1414,6 +1458,52 @@ func _pick_pressurized_module() -> Dictionary:
 
 func _is_pressurized_module(module_type: String) -> bool:
 	return module_type in ["hab", "greenhouse", "battery", "life_support", "workshop", "airlock"]
+
+func _module_has_interior(module_type: String) -> bool:
+	return module_type in ["hab", "greenhouse", "battery", "life_support", "workshop", "airlock"]
+
+func _can_player_move_to(pos: Vector2) -> bool:
+	var min_pos := MAP_ORIGIN + Vector2(5, 5)
+	var max_pos := MAP_ORIGIN + Vector2(MAP_W * TILE - 5, MAP_H * TILE - 5)
+	if pos.x < min_pos.x or pos.y < min_pos.y or pos.x > max_pos.x or pos.y > max_pos.y:
+		return false
+	var samples := [
+		pos,
+		pos + Vector2(player_radius * 0.7, 0),
+		pos + Vector2(-player_radius * 0.7, 0),
+		pos + Vector2(0, player_radius * 0.7),
+		pos + Vector2(0, -player_radius * 0.7),
+	]
+	for sample: Vector2 in samples:
+		if not _is_walkable_point(sample):
+			return false
+	return true
+
+func _is_walkable_point(pos: Vector2) -> bool:
+	for module: Dictionary in modules:
+		var rect := _module_rect(module)
+		if not rect.has_point(pos):
+			continue
+		if not _module_has_interior(module["type"]):
+			return false
+		if _module_inner_rect(module).has_point(pos):
+			return true
+		return _is_module_door_gap(pos, module)
+	return true
+
+func _module_inner_rect(module: Dictionary) -> Rect2:
+	return _module_rect(module).grow(-12.0)
+
+func _is_module_door_gap(pos: Vector2, module: Dictionary) -> bool:
+	var rect := _module_rect(module)
+	var door_half := 20.0
+	var edge := 14.0
+	var center := rect.get_center()
+	var on_left: bool = abs(pos.x - rect.position.x) <= edge and abs(pos.y - center.y) <= door_half
+	var on_right: bool = abs(pos.x - rect.end.x) <= edge and abs(pos.y - center.y) <= door_half
+	var on_top: bool = abs(pos.y - rect.position.y) <= edge and abs(pos.x - center.x) <= door_half
+	var on_bottom: bool = abs(pos.y - rect.end.y) <= edge and abs(pos.x - center.x) <= door_half
+	return on_left or on_right or on_top or on_bottom
 
 func _player_build_cell() -> Vector2i:
 	var local := player_pos - MAP_ORIGIN
@@ -1517,12 +1607,12 @@ func _setup_ui() -> void:
 	life_status.add_theme_font_size_override("font_size", 16)
 	root.add_child(life_status)
 
-	var crew_status := Label.new()
-	crew_status.name = "CrewStatus"
-	crew_status.position = Vector2(905, 542)
-	crew_status.size = Vector2(350, 76)
-	crew_status.add_theme_font_size_override("font_size", 15)
-	root.add_child(crew_status)
+	var operator_status := Label.new()
+	operator_status.name = "OperatorStatus"
+	operator_status.position = Vector2(905, 542)
+	operator_status.size = Vector2(350, 76)
+	operator_status.add_theme_font_size_override("font_size", 15)
+	root.add_child(operator_status)
 
 	var mission_status := Label.new()
 	mission_status.name = "MissionStatus"
@@ -1702,7 +1792,7 @@ func _update_ui() -> void:
 		resources["pressure"], resources["co2"], resources["humidity"], resources["suit_o2"],
 		"舱内" if _is_player_inside_pressurized_module() else "舱外"
 	]
-	$UI/Root/CrewStatus.text = _crew_status_text()
+	$UI/Root/OperatorStatus.text = _operator_status_text()
 	$UI/Root/MissionStatus.text = _mission_status_text()
 	_update_tech_buttons()
 	_refresh_main_menu()
@@ -1737,15 +1827,16 @@ func _update_tech_buttons() -> void:
 		button.disabled = _has_tech(tech_ids[i])
 
 func _tech_order() -> Array[String]:
-	return ["change_samples", "queqiao_relay", "yutu_robot", "closed_ecology", "precision_landing", "crew_rotation"]
+	return ["change_samples", "queqiao_relay", "yutu_robot", "closed_ecology", "precision_landing", "robot_assist"]
 
-func _crew_status_text() -> String:
-	var parts: Array[String] = []
-	for member: Dictionary in crew:
-		parts.append("%s/%s H%.0f M%.0f" % [
-			member["name"], member["role"], member["health"], member["morale"]
-		])
-	return "船员：%s" % _join_strings(parts, "\n")
+func _operator_status_text() -> String:
+	return "前哨员：%s\n健康 %.0f  精神 %.0f  疲劳 %.0f\n机器人劳动力：%s" % [
+		operator.get("name", "林舟"),
+		float(operator.get("health", 100.0)),
+		float(operator.get("morale", 100.0)),
+		float(operator.get("fatigue", 0.0)),
+		"在线" if _has_tech("robot_assist") else "待解锁"
+	]
 
 func _mission_status_text() -> String:
 	var active := ""
