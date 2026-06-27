@@ -25,6 +25,7 @@ var selected_crop := "potato"
 var selected_tool := "sampler"
 var build_mode := false
 var selected_build := ""
+var unlocked_techs: Array[String] = []
 var log_lines: Array[String] = []
 
 var solar_dust := 0.12
@@ -141,6 +142,24 @@ var supply_defs := {
 	},
 }
 
+var tech_defs := {
+	"change_samples": {
+		"name": "嫦娥样本数据库",
+		"cost": {"samples": 2.0, "regolith": 4.0},
+		"desc": "样本分析与月壤农业参数库：采样收益提高，作物收获额外 +15%。",
+	},
+	"queqiao_relay": {
+		"name": "鹊桥中继",
+		"cost": {"samples": 1.0, "parts": 4.0},
+		"desc": "通信链路升级：补给运输缩短 1 天，并降低发射延迟概率。",
+	},
+	"yutu_robot": {
+		"name": "玉兔机器人",
+		"cost": {"parts": 6.0, "regolith": 6.0},
+		"desc": "自动巡视：每天少量采样，并缓慢清理太阳能板月尘。",
+	},
+}
+
 var modules: Array[Dictionary] = []
 var collectables: Array[Dictionary] = []
 var moon_tile_map: TileMapLayer
@@ -192,6 +211,7 @@ func _reset_game_state() -> void:
 	selected_tool = "sampler"
 	build_mode = false
 	selected_build = ""
+	unlocked_techs.clear()
 	solar_dust = 0.12
 	oxygen_wear = 0.08
 	next_module_uid = 1
@@ -544,6 +564,33 @@ func _select_tool(tool_name: String) -> void:
 	add_log("已切换工具：%s。" % tool_defs[tool_name]["name"])
 	_update_ui()
 
+func _research_tech(tech_id: String) -> void:
+	if _has_tech(tech_id):
+		add_log("%s 已经解锁。" % tech_defs[tech_id]["name"])
+		return
+	var tech: Dictionary = tech_defs[tech_id]
+	var cost: Dictionary = tech["cost"]
+	for key: String in cost.keys():
+		if resources.get(key, 0.0) < float(cost[key]):
+			add_log("研究 %s 资源不足：需要 %s %.0f。" % [tech["name"], resource_names.get(key, key), float(cost[key])])
+			return
+	for key: String in cost.keys():
+		resources[key] -= float(cost[key])
+	unlocked_techs.append(tech_id)
+	add_log("科技解锁：%s。%s" % [tech["name"], tech["desc"]])
+	_update_ui()
+
+func _has_tech(tech_id: String) -> bool:
+	return unlocked_techs.has(tech_id)
+
+func _process_tech_daily_effects() -> void:
+	if _has_tech("yutu_robot"):
+		solar_dust = max(0.0, solar_dust - 0.04)
+		resources["regolith"] += 0.35
+		if day % 3 == 0:
+			resources["samples"] += 0.5
+			add_log("玉兔机器人完成巡视：科研样本 +0.5。")
+
 func _try_build_selected() -> void:
 	var cell: Vector2i = _player_build_cell()
 	if not _can_place(selected_build, cell):
@@ -600,6 +647,8 @@ func _collect_surface_item(item: Dictionary) -> void:
 		add_log("需要先选择采样铲。")
 		return
 	var amount: float = item["amount"]
+	if _has_tech("change_samples"):
+		amount += 1.0
 	match String(item["type"]):
 		"regolith":
 			resources["regolith"] += amount
@@ -643,6 +692,7 @@ func _advance_day() -> void:
 		add_log("警报：%d 个舱段漏气，氧气正在流失。" % leaking_count)
 	if counts["workshop"] > 0:
 		resources["parts"] = min(99.0, resources["parts"] + 0.25 * float(counts["workshop"]))
+	_process_tech_daily_effects()
 	solar_dust = min(0.65, solar_dust + randf_range(0.02, 0.06))
 	oxygen_wear = min(0.45, oxygen_wear + randf_range(0.01, 0.04))
 	_process_crop_day()
@@ -663,8 +713,11 @@ func _process_crop_day() -> void:
 		var crop_def: Dictionary = crop_defs[module["crop"]]
 		resources["oxygen"] += crop_def["oxygen"] if not is_moon_night else crop_def["oxygen"] * 0.35
 		if module["age"] >= crop_def["days"]:
-			resources["food"] += crop_def["food"]
-			add_log("%s 成熟收获：食物 +%d。" % [crop_def["name"], int(crop_def["food"])])
+			var food_gain: float = crop_def["food"]
+			if _has_tech("change_samples"):
+				food_gain *= 1.15
+			resources["food"] += food_gain
+			add_log("%s 成熟收获：食物 +%d。" % [crop_def["name"], int(food_gain)])
 			module["crop"] = ""
 			module["age"] = 0
 
@@ -696,7 +749,10 @@ func _choose_supply(kind: String) -> void:
 		return
 	var def: Dictionary = supply_defs[kind]
 	var delay: int = supply_travel_days
-	if randf() < 0.15:
+	if _has_tech("queqiao_relay"):
+		delay = max(1, delay - 1)
+	var delay_chance: float = 0.06 if _has_tech("queqiao_relay") else 0.15
+	if randf() < delay_chance:
 		delay += 1
 		add_log("地面发射排程拥堵，本批补给延迟 1 天。")
 	supply_order = {
@@ -748,6 +804,7 @@ func _save_game() -> void:
 		"selected_tool": selected_tool,
 		"build_mode": build_mode,
 		"selected_build": selected_build,
+		"unlocked_techs": unlocked_techs,
 		"solar_dust": solar_dust,
 		"oxygen_wear": oxygen_wear,
 		"next_module_uid": next_module_uid,
@@ -802,6 +859,10 @@ func _apply_save_data(data: Dictionary) -> void:
 	selected_tool = String(data.get("selected_tool", "sampler"))
 	build_mode = bool(data.get("build_mode", false))
 	selected_build = String(data.get("selected_build", ""))
+	unlocked_techs.clear()
+	var saved_techs: Array = data.get("unlocked_techs", [])
+	for tech_id in saved_techs:
+		unlocked_techs.append(String(tech_id))
 	solar_dust = float(data.get("solar_dust", 0.12))
 	oxygen_wear = float(data.get("oxygen_wear", 0.08))
 	next_module_uid = int(data.get("next_module_uid", 1))
@@ -1038,16 +1099,27 @@ func _setup_ui() -> void:
 	var controls := Label.new()
 	controls.name = "Controls"
 	controls.position = Vector2(905, 340)
-	controls.size = Vector2(350, 120)
+	controls.size = Vector2(350, 86)
 	controls.text = "WASD/方向键：移动\nE：交互/采集/建造\nN：进入下一天\nB：建造模式\nF5/F9/F10：保存/读取/新局"
 	root.add_child(controls)
 
 	var supply_status := Label.new()
 	supply_status.name = "SupplyStatus"
-	supply_status.position = Vector2(905, 455)
-	supply_status.size = Vector2(350, 74)
+	supply_status.position = Vector2(905, 430)
+	supply_status.size = Vector2(350, 70)
 	supply_status.add_theme_font_size_override("font_size", 16)
 	root.add_child(supply_status)
+
+	var tech_panel := VBoxContainer.new()
+	tech_panel.name = "TechPanel"
+	tech_panel.position = Vector2(905, 500)
+	tech_panel.size = Vector2(350, 110)
+	root.add_child(tech_panel)
+	for tech_id: String in ["change_samples", "queqiao_relay", "yutu_robot"]:
+		var button := Button.new()
+		button.text = _tech_button_text(tech_id)
+		button.pressed.connect(_research_tech.bind(tech_id))
+		tech_panel.add_child(button)
 
 	var crop_panel := HBoxContainer.new()
 	crop_panel.name = "CropPanel"
@@ -1118,7 +1190,7 @@ func _setup_ui() -> void:
 
 	var save_panel := HBoxContainer.new()
 	save_panel.name = "SavePanel"
-	save_panel.position = Vector2(905, 535)
+	save_panel.position = Vector2(905, 615)
 	save_panel.size = Vector2(330, 38)
 	root.add_child(save_panel)
 	var save_button := Button.new()
@@ -1150,6 +1222,7 @@ func _update_ui() -> void:
 		resources["parts"], resources["integrity"], int(solar_dust * 100)
 	]
 	$UI/Root/SupplyStatus.text = _supply_status_text()
+	_update_tech_buttons()
 	var hint := "工具：%s | 作物：%s | 月壤 %.0f 水冰 %.0f 样本 %.0f。" % [
 		tool_defs[selected_tool]["name"], crop_defs[selected_crop]["name"],
 		resources["regolith"], resources["ice"], resources["samples"]
@@ -1169,6 +1242,26 @@ func _update_ui() -> void:
 				hint = "%s：%s" % [def["name"], def["hint"]]
 	$UI/Root/Hint.text = hint
 	$UI/Root/Log.text = _join_strings(log_lines, "\n")
+
+func _update_tech_buttons() -> void:
+	if not has_node("UI/Root/TechPanel"):
+		return
+	var tech_ids := ["change_samples", "queqiao_relay", "yutu_robot"]
+	var buttons := $UI/Root/TechPanel.get_children()
+	for i in range(min(tech_ids.size(), buttons.size())):
+		var button: Button = buttons[i]
+		button.text = _tech_button_text(tech_ids[i])
+		button.disabled = _has_tech(tech_ids[i])
+
+func _tech_button_text(tech_id: String) -> String:
+	var tech: Dictionary = tech_defs[tech_id]
+	if _has_tech(tech_id):
+		return "%s 已解锁" % tech["name"]
+	var cost: Dictionary = tech["cost"]
+	var parts: Array[String] = []
+	for key: String in cost.keys():
+		parts.append("%s %.0f" % [resource_names.get(key, key), float(cost[key])])
+	return "%s（%s）" % [tech["name"], _join_strings(parts, " / ")]
 
 func _supply_status_text() -> String:
 	if supply_waiting:
