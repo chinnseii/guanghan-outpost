@@ -1,0 +1,21 @@
+# Godot generated files
+.godot/
+.import/
+*.translation
+
+# Export/build output
+builds/
+exports/
+*.pck
+*.zip
+*.exe
+*.app
+
+# OS/editor clutter
+.DS_Store
+Thumbs.db
+*.tmp
+*.log
+
+# Local-only launch tweaks can stay tracked if useful, but keep backups out.
+*.bak
