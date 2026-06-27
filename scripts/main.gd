@@ -1,54 +1,113 @@
 extends Node2D
 
 const TILE := 48
-const PLAYER_SPEED := 190.0
 const MAP_W := 22
 const MAP_H := 13
+const MAP_ORIGIN := Vector2(50, 70)
+const PLAYER_SPEED := 190.0
 
 var day := 1
 var is_moon_night := false
-var selected_crop := "土豆"
-var greenhouse_crop := ""
-var crop_age := 0
-var greenhouse_slots := 2
-var supply_waiting := false
 var game_over := false
+var supply_waiting := false
 
-var resources := {
-	"电力": 76.0,
-	"氧气": 82.0,
-	"水": 68.0,
-	"食物": 50.0,
-	"维修件": 5.0,
-	"完整度": 88.0,
-}
+var player_pos := Vector2(300, 420)
+var player_radius := 14.0
+var interact_target: Dictionary = {}
+
+var selected_crop := "potato"
+var build_mode := false
+var selected_build := ""
+var log_lines: Array[String] = []
 
 var solar_dust := 0.12
 var oxygen_wear := 0.08
-var player_pos := Vector2(300, 420)
-var player_radius := 14.0
-var interact_target := {}
-var log_lines: Array[String] = []
+var next_module_uid := 1
 
-var stations := [
-	{"id": "greenhouse", "name": "小型温室", "rect": Rect2(560, 205, 185, 120), "hint": "E：播种/查看作物"},
-	{"id": "solar", "name": "太阳能阵列", "rect": Rect2(150, 130, 210, 95), "hint": "E：清理月尘"},
-	{"id": "oxygen", "name": "制氧与水回收", "rect": Rect2(410, 380, 170, 110), "hint": "E：维修设备"},
-	{"id": "supply", "name": "补给降落区", "rect": Rect2(850, 395, 190, 125), "hint": "E：接收地球补给"},
-	{"id": "hab", "name": "居住舱", "rect": Rect2(250, 310, 145, 105), "hint": "广寒前哨核心舱"},
-]
+var resources := {
+	"power": 76.0,
+	"oxygen": 82.0,
+	"water": 68.0,
+	"food": 50.0,
+	"parts": 8.0,
+	"integrity": 88.0,
+}
+
+var resource_names := {
+	"power": "电力",
+	"oxygen": "氧气",
+	"water": "水",
+	"food": "食物",
+	"parts": "维修件",
+	"integrity": "完整度",
+}
 
 var crop_defs := {
-	"土豆": {"days": 4, "water": 5.0, "oxygen": 2.0, "food": 22.0, "note": "可靠主粮"},
-	"藻类": {"days": 2, "water": 3.0, "oxygen": 10.0, "food": 7.0, "note": "产氧强，口感差"},
-	"菌菇": {"days": 3, "water": 2.0, "oxygen": 0.0, "food": 13.0, "note": "低光照可生产"},
+	"potato": {"name": "土豆", "days": 4, "water": 5.0, "oxygen": 2.0, "food": 22.0, "note": "可靠主粮"},
+	"algae": {"name": "藻类", "days": 2, "water": 3.0, "oxygen": 10.0, "food": 7.0, "note": "产氧强，口感差"},
+	"mushroom": {"name": "菌菇", "days": 3, "water": 2.0, "oxygen": 0.0, "food": 13.0, "note": "低光照也能生产"},
 }
+
+var module_defs := {
+	"hab": {
+		"name": "居住舱",
+		"size": Vector2i(3, 2),
+		"cost": {"parts": 0.0, "power": 0.0},
+		"color": Color("#596575"),
+		"hint": "广寒前哨核心舱",
+	},
+	"greenhouse": {
+		"name": "小型温室",
+		"size": Vector2i(4, 2),
+		"cost": {"parts": 4.0, "power": 8.0},
+		"color": Color("#244638"),
+		"hint": "E：播种/查看作物",
+	},
+	"solar": {
+		"name": "太阳能阵列",
+		"size": Vector2i(4, 2),
+		"cost": {"parts": 3.0, "power": 4.0},
+		"color": Color("#263b57"),
+		"hint": "E：清理月尘",
+	},
+	"battery": {
+		"name": "电池舱",
+		"size": Vector2i(2, 2),
+		"cost": {"parts": 3.0, "power": 6.0},
+		"color": Color("#363d55"),
+		"hint": "储能模块：提高电力上限",
+	},
+	"life_support": {
+		"name": "制氧与水回收",
+		"size": Vector2i(3, 2),
+		"cost": {"parts": 5.0, "power": 8.0},
+		"color": Color("#30384a"),
+		"hint": "E：维修设备",
+	},
+	"workshop": {
+		"name": "维修工作台",
+		"size": Vector2i(2, 2),
+		"cost": {"parts": 5.0, "power": 5.0},
+		"color": Color("#514937"),
+		"hint": "E：制造 1 个维修件",
+	},
+	"supply": {
+		"name": "补给降落区",
+		"size": Vector2i(4, 3),
+		"cost": {"parts": 0.0, "power": 0.0},
+		"color": Color("#3d3530"),
+		"hint": "E：接收地球补给",
+	},
+}
+
+var modules: Array[Dictionary] = []
 
 func _ready() -> void:
 	_setup_input_map()
+	_setup_starting_base()
 	_setup_ui()
 	add_log("广寒前哨上线。玉兔工程车完成自动部署，但系统仍需人工调试。")
-	add_log("目标：撑过 30 天，并让温室开始稳定产出。")
+	add_log("V0.2：按 B 打开建造模式，选择模块后靠近空地按 E 建造。")
 	_update_ui()
 
 func _setup_input_map() -> void:
@@ -58,6 +117,8 @@ func _setup_input_map() -> void:
 	_add_key_action("move_right", [KEY_D, KEY_RIGHT])
 	_add_key_action("interact", [KEY_E])
 	_add_key_action("advance_day", [KEY_N])
+	_add_key_action("toggle_build", [KEY_B])
+	_add_key_action("cancel", [KEY_ESCAPE])
 
 func _add_key_action(action_name: String, keys: Array[int]) -> void:
 	if not InputMap.has_action(action_name):
@@ -67,17 +128,31 @@ func _add_key_action(action_name: String, keys: Array[int]) -> void:
 		event.keycode = key
 		InputMap.action_add_event(action_name, event)
 
+func _setup_starting_base() -> void:
+	modules.clear()
+	_add_module("solar", Vector2i(2, 1), true)
+	_add_module("hab", Vector2i(4, 5), true)
+	_add_module("life_support", Vector2i(8, 6), true)
+	_add_module("greenhouse", Vector2i(11, 3), true)
+	_add_module("supply", Vector2i(17, 7), true)
+
 func _process(delta: float) -> void:
 	if game_over:
 		return
 	var input := Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	player_pos += input * PLAYER_SPEED * delta
-	player_pos.x = clamp(player_pos.x, 55.0, 1095.0)
-	player_pos.y = clamp(player_pos.y, 90.0, 625.0)
+	player_pos.x = clamp(player_pos.x, MAP_ORIGIN.x + 5.0, MAP_ORIGIN.x + MAP_W * TILE - 5.0)
+	player_pos.y = clamp(player_pos.y, MAP_ORIGIN.y + 5.0, MAP_ORIGIN.y + MAP_H * TILE - 5.0)
 	_find_interaction()
 	queue_redraw()
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("toggle_build") and not game_over:
+		_toggle_build_mode()
+	if event.is_action_pressed("cancel") and not game_over:
+		build_mode = false
+		selected_build = ""
+		_update_ui()
 	if event.is_action_pressed("interact") and not game_over:
 		_interact()
 	if event.is_action_pressed("advance_day") and not game_over:
@@ -85,14 +160,15 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _draw() -> void:
 	_draw_moon_surface()
-	_draw_base()
+	_draw_modules()
+	_draw_build_ghost()
 	_draw_player()
 
 func _draw_moon_surface() -> void:
 	draw_rect(Rect2(0, 0, 1150, 720), Color("#17191f"))
 	for x in range(MAP_W):
 		for y in range(MAP_H):
-			var p := Vector2(50 + x * TILE, 70 + y * TILE)
+			var p := MAP_ORIGIN + Vector2(x * TILE, y * TILE)
 			var shade := 0.18 + float((x * 17 + y * 11) % 7) * 0.012
 			draw_rect(Rect2(p, Vector2(TILE - 2, TILE - 2)), Color(shade, shade, shade + 0.02))
 	for i in range(18):
@@ -100,49 +176,67 @@ func _draw_moon_surface() -> void:
 		var cy := 95 + (i * 83) % 510
 		draw_circle(Vector2(cx, cy), 10 + (i % 4) * 5, Color(0.08, 0.085, 0.095, 0.45))
 
-func _draw_base() -> void:
-	for station: Dictionary in stations:
-		var rect: Rect2 = station["rect"]
-		var fill := Color("#28313f")
-		if station["id"] == "greenhouse":
-			fill = Color("#244638")
-		elif station["id"] == "solar":
-			fill = Color("#263b57")
-		elif station["id"] == "supply":
-			fill = Color("#3d3530")
-		elif station["id"] == "oxygen":
-			fill = Color("#30384a")
-		if interact_target == station:
+func _draw_modules() -> void:
+	for module: Dictionary in modules:
+		var rect := _module_rect(module)
+		var def: Dictionary = module_defs[module["type"]]
+		var fill: Color = def["color"]
+		if interact_target == module:
 			draw_rect(rect.grow(5), Color("#e7c66b"), false, 3)
 		draw_rect(rect, fill)
 		draw_rect(rect, Color("#a7b3c5"), false, 2)
-		if station["id"] == "greenhouse":
-			_draw_greenhouse(rect)
-		elif station["id"] == "solar":
-			_draw_solar(rect)
-		elif station["id"] == "supply":
-			draw_circle(rect.get_center(), 32, Color("#a76f45"))
-			draw_rect(Rect2(rect.position + Vector2(68, 25), Vector2(54, 74)), Color("#d0d6df"), false, 3)
-		elif station["id"] == "hab":
-			draw_circle(rect.get_center(), 42, Color("#596575"))
-			draw_rect(rect, Color("#d8e0eb"), false, 2)
+		_draw_module_details(module, rect)
 
-func _draw_greenhouse(rect: Rect2) -> void:
-	for i in range(greenhouse_slots):
-		var bed := Rect2(rect.position + Vector2(20 + i * 72, 35), Vector2(52, 48))
+func _draw_module_details(module: Dictionary, rect: Rect2) -> void:
+	var module_type: String = module["type"]
+	if module_type == "greenhouse":
+		_draw_greenhouse(module, rect)
+	elif module_type == "solar":
+		_draw_solar(rect)
+	elif module_type == "battery":
+		for i in range(2):
+			draw_rect(Rect2(rect.position + Vector2(20 + i * 38, 28), Vector2(24, 42)), Color("#a8c7ff"))
+	elif module_type == "hab":
+		draw_circle(rect.get_center(), min(rect.size.x, rect.size.y) * 0.35, Color("#717d8f"))
+	elif module_type == "life_support":
+		draw_circle(rect.get_center() + Vector2(-22, 0), 18, Color("#98d5ff"))
+		draw_circle(rect.get_center() + Vector2(22, 0), 18, Color("#b8f0d0"))
+	elif module_type == "workshop":
+		draw_rect(Rect2(rect.position + Vector2(24, 28), Vector2(48, 34)), Color("#c0a36c"))
+	elif module_type == "supply":
+		draw_circle(rect.get_center(), 32, Color("#a76f45"))
+		draw_rect(Rect2(rect.position + Vector2(68, 35), Vector2(54, 74)), Color("#d0d6df"), false, 3)
+
+func _draw_greenhouse(module: Dictionary, rect: Rect2) -> void:
+	var slots := 2
+	for i in range(slots):
+		var bed: Rect2 = Rect2(rect.position + Vector2(22 + i * 72, 28), Vector2(52, 48))
 		draw_rect(bed, Color("#223026"))
 		draw_rect(bed, Color("#74b77a"), false, 2)
-		if greenhouse_crop != "":
-			var growth: float = min(1.0, float(crop_age + 1) / float(crop_defs[greenhouse_crop]["days"]))
+		if module["crop"] != "":
+			var crop_def: Dictionary = crop_defs[module["crop"]]
+			var growth: float = min(1.0, float(module["age"] + 1) / float(crop_def["days"]))
 			draw_circle(bed.get_center(), 7 + 13 * growth, Color("#71d46f"))
 
 func _draw_solar(rect: Rect2) -> void:
 	for i in range(4):
-		var panel := Rect2(rect.position + Vector2(14 + i * 48, 18), Vector2(38, 58))
+		var panel: Rect2 = Rect2(rect.position + Vector2(14 + i * 40, 18), Vector2(30, 58))
 		draw_rect(panel, Color("#365f95"))
 		draw_rect(panel, Color("#94bdeb"), false, 1)
 	var dust_alpha: float = clamp(solar_dust, 0.0, 0.7)
 	draw_rect(rect, Color(0.72, 0.72, 0.66, dust_alpha))
+
+func _draw_build_ghost() -> void:
+	if not build_mode or selected_build == "":
+		return
+	var cell: Vector2i = _player_build_cell()
+	var def: Dictionary = module_defs[selected_build]
+	var size: Vector2i = def["size"]
+	var rect: Rect2 = Rect2(_cell_to_world(cell), Vector2(size.x * TILE - 2, size.y * TILE - 2))
+	var can_build := _can_place(selected_build, cell)
+	var color := Color(0.3, 0.9, 0.5, 0.38) if can_build else Color(1.0, 0.25, 0.25, 0.38)
+	draw_rect(rect, color)
+	draw_rect(rect, Color("#f2f0da"), false, 2)
 
 func _draw_player() -> void:
 	draw_circle(player_pos, player_radius + 4, Color("#1b222d"))
@@ -151,111 +245,167 @@ func _draw_player() -> void:
 
 func _find_interaction() -> void:
 	interact_target = {}
-	for station: Dictionary in stations:
-		var rect: Rect2 = station["rect"].grow(24)
+	for module: Dictionary in modules:
+		var rect := _module_rect(module).grow(24)
 		if rect.has_point(player_pos):
-			interact_target = station
+			interact_target = module
 			return
 
 func _interact() -> void:
+	if build_mode and selected_build != "":
+		_try_build_selected()
+		return
 	if interact_target.is_empty():
 		add_log("附近没有可操作目标。")
 		return
-	match interact_target["id"]:
+	match String(interact_target["type"]):
 		"greenhouse":
-			_use_greenhouse()
+			_use_greenhouse(interact_target)
 		"solar":
 			_clean_solar()
-		"oxygen":
+		"life_support":
 			_repair_life_support()
 		"supply":
 			_collect_supply()
+		"workshop":
+			_use_workshop()
 		_:
-			add_log("%s 运转正常。" % interact_target["name"])
+			var def: Dictionary = module_defs[interact_target["type"]]
+			add_log("%s 运转正常。" % def["name"])
 	_update_ui()
 
-func _use_greenhouse() -> void:
-	if greenhouse_crop == "":
-		var def: Dictionary = crop_defs[selected_crop]
-		if resources["水"] < def["water"]:
-			add_log("水不足，无法种植 %s。" % selected_crop)
+func _use_greenhouse(module: Dictionary) -> void:
+	if module["crop"] == "":
+		var crop_def: Dictionary = crop_defs[selected_crop]
+		if resources["water"] < crop_def["water"]:
+			add_log("水不足，无法种植 %s。" % crop_def["name"])
 			return
-		resources["水"] -= def["water"]
-		greenhouse_crop = selected_crop
-		crop_age = 0
-		add_log("在小型温室种下 %s。%s。" % [selected_crop, def["note"]])
+		resources["water"] -= crop_def["water"]
+		module["crop"] = selected_crop
+		module["age"] = 0
+		add_log("在温室种下 %s。%s。" % [crop_def["name"], crop_def["note"]])
 	else:
-		var def: Dictionary = crop_defs[greenhouse_crop]
-		add_log("%s 生长进度 %d/%d 天。" % [greenhouse_crop, crop_age, def["days"]])
+		var crop_def: Dictionary = crop_defs[module["crop"]]
+		add_log("%s 生长进度 %d/%d 天。" % [crop_def["name"], module["age"], crop_def["days"]])
 
 func _clean_solar() -> void:
-	if resources["维修件"] < 1:
+	if resources["parts"] < 1:
 		add_log("缺少维修件，无法进行除尘维护。")
 		return
-	resources["维修件"] -= 1
+	resources["parts"] -= 1
 	solar_dust = max(0.0, solar_dust - 0.28)
 	add_log("清理太阳能阵列。月尘覆盖降至 %d%%。" % int(solar_dust * 100))
 
 func _repair_life_support() -> void:
-	if resources["维修件"] < 1:
-		add_log("维修件不足，制氧与水回收系统只能继续带病运行。")
+	if resources["parts"] < 1:
+		add_log("维修件不足，生命维持系统只能继续带病运行。")
 		return
-	resources["维修件"] -= 1
-	resources["完整度"] = min(100.0, resources["完整度"] + 12.0)
+	resources["parts"] -= 1
+	resources["integrity"] = min(100.0, resources["integrity"] + 12.0)
 	oxygen_wear = max(0.0, oxygen_wear - 0.12)
 	add_log("完成一次生命维持系统维护。")
+
+func _use_workshop() -> void:
+	if resources["power"] < 4:
+		add_log("电力不足，维修工作台无法打印零件。")
+		return
+	resources["power"] -= 4
+	resources["parts"] = min(99.0, resources["parts"] + 1)
+	add_log("维修工作台打印了 1 个维修件。")
 
 func _collect_supply() -> void:
 	if not supply_waiting:
 		add_log("降落区暂无补给。下一次窗口：第 %d 天。" % _next_supply_day())
 		return
-	_show_supply_choices()
+	$UI/Root/SupplyPanel.visible = true
+
+func _toggle_build_mode() -> void:
+	build_mode = not build_mode
+	if build_mode and selected_build == "":
+		selected_build = "solar"
+	add_log("建造模式：%s。" % ("开启" if build_mode else "关闭"))
+	_update_ui()
+
+func _select_build(module_type: String) -> void:
+	selected_build = module_type
+	build_mode = true
+	var def: Dictionary = module_defs[module_type]
+	add_log("已选择建造：%s。靠近空地按 E 放置。" % def["name"])
+	_update_ui()
+
+func _try_build_selected() -> void:
+	var cell: Vector2i = _player_build_cell()
+	if not _can_place(selected_build, cell):
+		add_log("这里空间不足或超出基地网格，无法建造。")
+		return
+	var def: Dictionary = module_defs[selected_build]
+	var cost: Dictionary = def["cost"]
+	if resources["parts"] < cost["parts"] or resources["power"] < cost["power"]:
+		add_log("资源不足：需要维修件 %.0f、电力 %.0f。" % [cost["parts"], cost["power"]])
+		return
+	resources["parts"] -= cost["parts"]
+	resources["power"] -= cost["power"]
+	_add_module(selected_build, cell, false)
+	add_log("建成 %s。基地自给能力提升。" % def["name"])
+	_update_ui()
+
+func _add_module(module_type: String, cell: Vector2i, fixed: bool) -> void:
+	var module := {
+		"uid": next_module_uid,
+		"type": module_type,
+		"cell": cell,
+		"fixed": fixed,
+		"crop": "",
+		"age": 0,
+	}
+	next_module_uid += 1
+	modules.append(module)
 
 func _advance_day() -> void:
 	day += 1
 	is_moon_night = day >= 14 and day < 22
-	var crew_food := 7.0
-	var crew_water := 5.0
-	var crew_oxygen := 6.0
-	var solar_gain := 24.0 * (1.0 - solar_dust)
+	var counts: Dictionary = _module_counts()
+	var power_cap: float = 120.0 + float(counts["battery"]) * 35.0
+	var solar_gain: float = float(counts["solar"]) * 22.0 * (1.0 - solar_dust)
 	if is_moon_night:
 		solar_gain = 0.0
-	var power_use := 18.0
+	var base_power_use: float = 16.0 + float(counts["greenhouse"]) * 2.0 + float(counts["life_support"]) * 2.5
 	if is_moon_night:
-		power_use += 14.0
-	resources["电力"] += solar_gain - power_use
-	resources["氧气"] -= crew_oxygen + oxygen_wear * 8.0
-	resources["水"] -= crew_water
-	resources["食物"] -= crew_food
-	resources["完整度"] -= 1.0 + solar_dust * 1.8
+		base_power_use += 14.0 + float(counts["greenhouse"]) * 3.0
+	var crew_food: float = 7.0
+	var crew_water: float = max(2.5, 5.0 - float(counts["life_support"]) * 0.8)
+	var crew_oxygen: float = max(3.5, 6.0 - float(counts["life_support"]) * 0.7)
+	resources["power"] += solar_gain - base_power_use
+	resources["oxygen"] -= crew_oxygen + oxygen_wear * 8.0
+	resources["water"] -= crew_water
+	resources["food"] -= crew_food
+	resources["integrity"] -= 1.0 + solar_dust * 1.8 + float(modules.size()) * 0.04
+	if counts["workshop"] > 0:
+		resources["parts"] = min(99.0, resources["parts"] + 0.25 * float(counts["workshop"]))
 	solar_dust = min(0.65, solar_dust + randf_range(0.02, 0.06))
 	oxygen_wear = min(0.45, oxygen_wear + randf_range(0.01, 0.04))
 	_process_crop_day()
 	_process_supply_window()
 	_process_random_event()
-	for key: String in ["电力", "氧气", "水", "食物", "完整度"]:
-		resources[key] = clamp(resources[key], 0.0, 120.0)
-	if resources["维修件"] > 99:
-		resources["维修件"] = 99
+	for key: String in ["power", "oxygen", "water", "food", "integrity"]:
+		resources[key] = clamp(resources[key], 0.0, power_cap if key == "power" else 120.0)
 	add_log("第 %d 天开始。%s" % [day, "月夜中，太阳能归零。" if is_moon_night else "月昼，太阳能可用。"])
 	_check_game_state()
 	_update_ui()
 	queue_redraw()
 
 func _process_crop_day() -> void:
-	if greenhouse_crop == "":
-		return
-	crop_age += 1
-	var def: Dictionary = crop_defs[greenhouse_crop]
-	if not is_moon_night:
-		resources["氧气"] += def["oxygen"]
-	else:
-		resources["氧气"] += def["oxygen"] * 0.35
-	if crop_age >= def["days"]:
-		resources["食物"] += def["food"]
-		add_log("%s 成熟收获：食物 +%d。" % [greenhouse_crop, int(def["food"])])
-		greenhouse_crop = ""
-		crop_age = 0
+	for module: Dictionary in modules:
+		if module["type"] != "greenhouse" or module["crop"] == "":
+			continue
+		module["age"] += 1
+		var crop_def: Dictionary = crop_defs[module["crop"]]
+		resources["oxygen"] += crop_def["oxygen"] if not is_moon_night else crop_def["oxygen"] * 0.35
+		if module["age"] >= crop_def["days"]:
+			resources["food"] += crop_def["food"]
+			add_log("%s 成熟收获：食物 +%d。" % [crop_def["name"], int(crop_def["food"])])
+			module["crop"] = ""
+			module["age"] = 0
 
 func _process_supply_window() -> void:
 	if day % 7 == 0:
@@ -268,46 +418,87 @@ func _process_random_event() -> void:
 	if day == 11:
 		add_log("地面控制提醒：月夜将在第 14 天开始，请提前储电。")
 	if randf() < 0.12:
-		resources["完整度"] -= 5.0
+		resources["integrity"] -= 5.0
 		add_log("微小冲击触发舱体巡检，设备完整度下降。")
-
-func _show_supply_choices() -> void:
-	$UI/SupplyPanel.visible = true
 
 func _choose_supply(kind: String) -> void:
 	if not supply_waiting:
 		return
 	if kind == "survival":
-		resources["食物"] += 28
-		resources["水"] += 20
-		resources["氧气"] += 22
+		resources["food"] += 28
+		resources["water"] += 20
+		resources["oxygen"] += 22
 		add_log("接收生存补给：食物、水、氧气增加。")
 	elif kind == "build":
-		resources["维修件"] += 6
-		resources["电力"] += 18
+		resources["parts"] += 7
+		resources["power"] += 18
 		solar_dust = max(0.0, solar_dust - 0.12)
 		add_log("接收建设补给：维修件、电池单元和除尘耗材到位。")
 	elif kind == "farm":
-		resources["水"] += 10
-		greenhouse_slots = min(4, greenhouse_slots + 1)
-		add_log("接收农业补给：温室耗材到位，种植槽 +1。")
+		resources["water"] += 10
+		resources["parts"] += 3
+		add_log("接收农业补给：水培耗材和温室备件到位。")
 	supply_waiting = false
-	$UI/SupplyPanel.visible = false
+	$UI/Root/SupplyPanel.visible = false
 	_update_ui()
 
 func _check_game_state() -> void:
 	var failed: Array[String] = []
-	for key: String in ["电力", "氧气", "水", "食物"]:
+	for key: String in ["power", "oxygen", "water", "food"]:
 		if resources[key] <= 0.0:
-			failed.append(key)
+			failed.append(resource_names[key])
 	if failed.size() > 0:
 		game_over = true
 		add_log("基地失守：%s 归零。请调整补给和维护优先级后重试。" % _join_strings(failed, ", "))
 	if day > 30 and not game_over:
-		add_log("30 天生存目标完成。下一步可以加入基地扩建、船员和月壤提氧。")
+		add_log("30 天生存目标完成。下一步可以加入船员、月壤提氧和外出采集。")
 
 func _next_supply_day() -> int:
 	return day + (7 - day % 7)
+
+func _module_counts() -> Dictionary:
+	var counts := {
+		"hab": 0,
+		"greenhouse": 0,
+		"solar": 0,
+		"battery": 0,
+		"life_support": 0,
+		"workshop": 0,
+		"supply": 0,
+	}
+	for module: Dictionary in modules:
+		counts[module["type"]] += 1
+	return counts
+
+func _player_build_cell() -> Vector2i:
+	var local := player_pos - MAP_ORIGIN
+	var x := int(floor(local.x / TILE))
+	var y := int(floor(local.y / TILE))
+	return Vector2i(clamp(x, 0, MAP_W - 1), clamp(y, 0, MAP_H - 1))
+
+func _cell_to_world(cell: Vector2i) -> Vector2:
+	return MAP_ORIGIN + Vector2(cell.x * TILE, cell.y * TILE)
+
+func _module_rect(module: Dictionary) -> Rect2:
+	var def: Dictionary = module_defs[module["type"]]
+	var cell: Vector2i = module["cell"]
+	var size: Vector2i = def["size"]
+	return Rect2(_cell_to_world(cell), Vector2(size.x * TILE - 2, size.y * TILE - 2))
+
+func _can_place(module_type: String, cell: Vector2i) -> bool:
+	var def: Dictionary = module_defs[module_type]
+	var size: Vector2i = def["size"]
+	if cell.x < 0 or cell.y < 0 or cell.x + size.x > MAP_W or cell.y + size.y > MAP_H:
+		return false
+	var candidate: Rect2i = Rect2i(cell, size)
+	for module: Dictionary in modules:
+		var other_def: Dictionary = module_defs[module["type"]]
+		var other_cell: Vector2i = module["cell"]
+		var other_size: Vector2i = other_def["size"]
+		var other: Rect2i = Rect2i(other_cell, other_size)
+		if candidate.intersects(other):
+			return false
+	return true
 
 func _setup_ui() -> void:
 	var ui := CanvasLayer.new()
@@ -317,48 +508,66 @@ func _setup_ui() -> void:
 	root.name = "Root"
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	ui.add_child(root)
+
 	var top := Label.new()
 	top.name = "Top"
 	top.position = Vector2(18, 12)
-	top.size = Vector2(1040, 56)
-	top.add_theme_font_size_override("font_size", 22)
+	top.size = Vector2(1050, 60)
+	top.add_theme_font_size_override("font_size", 20)
 	root.add_child(top)
+
 	var hint := Label.new()
 	hint.name = "Hint"
 	hint.position = Vector2(18, 646)
-	hint.size = Vector2(760, 42)
+	hint.size = Vector2(820, 42)
 	hint.add_theme_font_size_override("font_size", 18)
 	root.add_child(hint)
+
 	var log := RichTextLabel.new()
 	log.name = "Log"
 	log.position = Vector2(905, 20)
-	log.size = Vector2(350, 320)
+	log.size = Vector2(350, 310)
 	log.fit_content = false
 	log.scroll_following = true
 	root.add_child(log)
+
 	var controls := Label.new()
 	controls.name = "Controls"
-	controls.position = Vector2(905, 350)
+	controls.position = Vector2(905, 340)
 	controls.size = Vector2(350, 120)
-	controls.text = "WASD/方向键：移动\nE：交互\nN：进入下一天\n按钮：选择下一批补给/作物"
+	controls.text = "WASD/方向键：移动\nE：交互/建造\nN：进入下一天\nB：建造模式\nEsc：取消建造"
 	root.add_child(controls)
+
 	var crop_panel := HBoxContainer.new()
 	crop_panel.name = "CropPanel"
 	crop_panel.position = Vector2(18, 590)
-	crop_panel.size = Vector2(520, 38)
+	crop_panel.size = Vector2(330, 38)
 	root.add_child(crop_panel)
 	for crop_name: String in crop_defs.keys():
 		var button := Button.new()
-		button.text = crop_name
+		button.text = crop_defs[crop_name]["name"]
 		button.pressed.connect(_select_crop.bind(crop_name))
 		crop_panel.add_child(button)
+
+	var build_panel := HBoxContainer.new()
+	build_panel.name = "BuildPanel"
+	build_panel.position = Vector2(360, 590)
+	build_panel.size = Vector2(430, 38)
+	root.add_child(build_panel)
+	for module_type: String in ["solar", "battery", "greenhouse", "life_support", "workshop"]:
+		var button := Button.new()
+		button.text = module_defs[module_type]["name"]
+		button.pressed.connect(_select_build.bind(module_type))
+		build_panel.add_child(button)
+
 	var next_day := Button.new()
 	next_day.name = "NextDay"
 	next_day.text = "进入下一天"
-	next_day.position = Vector2(650, 588)
-	next_day.size = Vector2(130, 40)
+	next_day.position = Vector2(790, 588)
+	next_day.size = Vector2(110, 40)
 	next_day.pressed.connect(_advance_day)
 	root.add_child(next_day)
+
 	var supply_panel := PanelContainer.new()
 	supply_panel.name = "SupplyPanel"
 	supply_panel.position = Vector2(390, 130)
@@ -381,26 +590,33 @@ func _setup_ui() -> void:
 	b2.pressed.connect(func(): _choose_supply("build"))
 	box.add_child(b2)
 	var b3 := Button.new()
-	b3.text = "农业包：温室耗材 + 种植槽"
+	b3.text = "农业包：水培耗材 + 温室备件"
 	b3.pressed.connect(func(): _choose_supply("farm"))
 	box.add_child(b3)
 
 func _select_crop(crop_name: String) -> void:
 	selected_crop = crop_name
-	add_log("已选择作物：%s。" % crop_name)
+	add_log("已选择作物：%s。" % crop_defs[crop_name]["name"])
 	_update_ui()
 
 func _update_ui() -> void:
 	if not has_node("UI/Root"):
 		return
 	var phase := "月夜" if is_moon_night else "月昼"
-	$UI/Root/Top.text = "广寒前哨 | 第 %d 天 | %s | 电力 %.0f  氧气 %.0f  水 %.0f  食物 %.0f  维修件 %.0f  完整度 %.0f%%  月尘 %d%%" % [
-		day, phase, resources["电力"], resources["氧气"], resources["水"], resources["食物"],
-		resources["维修件"], resources["完整度"], int(solar_dust * 100)
+	var counts: Dictionary = _module_counts()
+	var power_cap: float = 120.0 + float(counts["battery"]) * 35.0
+	$UI/Root/Top.text = "广寒前哨 | 第 %d 天 | %s | 电力 %.0f/%.0f  氧气 %.0f  水 %.0f  食物 %.0f  维修件 %.0f  完整度 %.0f%%  月尘 %d%%" % [
+		day, phase, resources["power"], power_cap, resources["oxygen"], resources["water"], resources["food"],
+		resources["parts"], resources["integrity"], int(solar_dust * 100)
 	]
-	var hint := "靠近设施按 E 交互。当前作物：%s。" % selected_crop
-	if not interact_target.is_empty():
-		hint = "%s：%s" % [interact_target["name"], interact_target["hint"]]
+	var hint := "靠近设施按 E 交互。当前作物：%s。" % crop_defs[selected_crop]["name"]
+	if build_mode and selected_build != "":
+		var def: Dictionary = module_defs[selected_build]
+		var cost: Dictionary = def["cost"]
+		hint = "建造模式：%s | 成本：维修件 %.0f、电力 %.0f | 靠近空地按 E，Esc 取消。" % [def["name"], cost["parts"], cost["power"]]
+	elif not interact_target.is_empty():
+		var def: Dictionary = module_defs[interact_target["type"]]
+		hint = "%s：%s" % [def["name"], def["hint"]]
 	$UI/Root/Hint.text = hint
 	$UI/Root/Log.text = _join_strings(log_lines, "\n")
 
