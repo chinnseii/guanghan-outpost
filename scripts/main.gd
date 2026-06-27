@@ -10,6 +10,9 @@ var day := 1
 var is_moon_night := false
 var game_over := false
 var supply_waiting := false
+var supply_order: Dictionary = {}
+var next_supply_request_day := 1
+var supply_travel_days := 3
 
 var player_pos := Vector2(300, 420)
 var player_radius := 14.0
@@ -112,7 +115,28 @@ var module_defs := {
 		"size": Vector2i(4, 3),
 		"cost": {"parts": 0.0, "power": 0.0},
 		"color": Color("#3d3530"),
-		"hint": "E：接收地球补给",
+		"hint": "E：申请/领取地球补给",
+	},
+}
+
+var supply_defs := {
+	"survival": {
+		"name": "生存包",
+		"mass": 300,
+		"desc": "食物 + 水 + 氧气",
+		"payload": {"food": 28.0, "water": 20.0, "oxygen": 22.0},
+	},
+	"build": {
+		"name": "建设包",
+		"mass": 300,
+		"desc": "维修件 + 电池 + 除尘耗材",
+		"payload": {"parts": 7.0, "power": 18.0, "dust": -0.12},
+	},
+	"farm": {
+		"name": "农业包",
+		"mass": 300,
+		"desc": "水培耗材 + 温室备件",
+		"payload": {"water": 10.0, "parts": 3.0},
 	},
 }
 
@@ -125,7 +149,7 @@ func _ready() -> void:
 	_setup_collectables()
 	_setup_ui()
 	add_log("广寒前哨上线。玉兔工程车完成自动部署，但系统仍需人工调试。")
-	add_log("V0.3：新增工具、朝向和月面采集点。靠近样本按 E 采集。")
+	add_log("V0.4：补给需要提前申请，货单约 3 天后抵达。")
 	_update_ui()
 
 func _setup_input_map() -> void:
@@ -375,10 +399,17 @@ func _use_workshop() -> void:
 	add_log("维修工作台打印了 1 个维修件。")
 
 func _collect_supply() -> void:
-	if not supply_waiting:
-		add_log("降落区暂无补给。下一次窗口：第 %d 天。" % _next_supply_day())
+	if supply_waiting:
+		_receive_supply()
+		return
+	if not supply_order.is_empty():
+		add_log("补给 %s 在途，预计第 %d 天抵达。" % [supply_order["name"], supply_order["arrival_day"]])
+		return
+	if day < next_supply_request_day:
+		add_log("补给申请窗口未开放。下一次窗口：第 %d 天。" % next_supply_request_day)
 		return
 	$UI/Root/SupplyPanel.visible = true
+	add_log("地球通信窗口开放：请选择下一批补给货单。")
 
 func _toggle_build_mode() -> void:
 	build_mode = not build_mode
@@ -517,9 +548,11 @@ func _process_crop_day() -> void:
 			module["age"] = 0
 
 func _process_supply_window() -> void:
-	if day % 7 == 0:
+	if not supply_order.is_empty() and day >= int(supply_order["arrival_day"]):
 		supply_waiting = true
-		add_log("地球补给舱进入降落窗口。前往降落区接收。")
+		add_log("%s 已抵达补给降落区。前往降落区接收。" % supply_order["name"])
+	if day >= next_supply_request_day and supply_order.is_empty() and not supply_waiting:
+		add_log("地球通信窗口开放：可在补给降落区申请下一批补给。")
 
 func _process_random_event() -> void:
 	if day == 5:
@@ -531,24 +564,39 @@ func _process_random_event() -> void:
 		add_log("微小冲击触发舱体巡检，设备完整度下降。")
 
 func _choose_supply(kind: String) -> void:
-	if not supply_waiting:
+	if day < next_supply_request_day or not supply_order.is_empty() or supply_waiting:
 		return
-	if kind == "survival":
-		resources["food"] += 28
-		resources["water"] += 20
-		resources["oxygen"] += 22
-		add_log("接收生存补给：食物、水、氧气增加。")
-	elif kind == "build":
-		resources["parts"] += 7
-		resources["power"] += 18
-		solar_dust = max(0.0, solar_dust - 0.12)
-		add_log("接收建设补给：维修件、电池单元和除尘耗材到位。")
-	elif kind == "farm":
-		resources["water"] += 10
-		resources["parts"] += 3
-		add_log("接收农业补给：水培耗材和温室备件到位。")
-	supply_waiting = false
+	var def: Dictionary = supply_defs[kind]
+	var delay: int = supply_travel_days
+	if randf() < 0.15:
+		delay += 1
+		add_log("地面发射排程拥堵，本批补给延迟 1 天。")
+	supply_order = {
+		"kind": kind,
+		"name": def["name"],
+		"arrival_day": day + delay,
+		"requested_day": day,
+	}
+	next_supply_request_day = day + 7
+	add_log("已申请 %s（%s），预计第 %d 天抵达。" % [def["name"], def["desc"], supply_order["arrival_day"]])
 	$UI/Root/SupplyPanel.visible = false
+	_update_ui()
+
+func _receive_supply() -> void:
+	if supply_order.is_empty():
+		supply_waiting = false
+		return
+	var kind: String = supply_order["kind"]
+	var def: Dictionary = supply_defs[kind]
+	var payload: Dictionary = def["payload"]
+	for key: String in payload.keys():
+		if key == "dust":
+			solar_dust = max(0.0, solar_dust + float(payload[key]))
+		else:
+			resources[key] += float(payload[key])
+	add_log("接收 %s：%s。" % [def["name"], def["desc"]])
+	supply_order.clear()
+	supply_waiting = false
 	_update_ui()
 
 func _check_game_state() -> void:
@@ -563,7 +611,11 @@ func _check_game_state() -> void:
 		add_log("30 天生存目标完成。下一步可以加入船员、月壤提氧和外出采集。")
 
 func _next_supply_day() -> int:
-	return day + (7 - day % 7)
+	if supply_waiting:
+		return day
+	if not supply_order.is_empty():
+		return int(supply_order["arrival_day"])
+	return next_supply_request_day
 
 func _module_counts() -> Dictionary:
 	var counts := {
@@ -647,6 +699,13 @@ func _setup_ui() -> void:
 	controls.text = "WASD/方向键：移动\nE：交互/采集/建造\nN：进入下一天\nB：建造模式\nEsc：取消建造"
 	root.add_child(controls)
 
+	var supply_status := Label.new()
+	supply_status.name = "SupplyStatus"
+	supply_status.position = Vector2(905, 455)
+	supply_status.size = Vector2(350, 74)
+	supply_status.add_theme_font_size_override("font_size", 16)
+	root.add_child(supply_status)
+
 	var crop_panel := HBoxContainer.new()
 	crop_panel.name = "CropPanel"
 	crop_panel.position = Vector2(18, 550)
@@ -698,19 +757,19 @@ func _setup_ui() -> void:
 	box.name = "Box"
 	supply_panel.add_child(box)
 	var title := Label.new()
-	title.text = "地球补给到达：选择本次 300kg 货单"
+	title.text = "地球补给申请：选择本次 300kg 货单"
 	title.add_theme_font_size_override("font_size", 20)
 	box.add_child(title)
 	var b1 := Button.new()
-	b1.text = "生存包：食物 + 水 + 氧气"
+	b1.text = "申请生存包：食物 + 水 + 氧气"
 	b1.pressed.connect(func(): _choose_supply("survival"))
 	box.add_child(b1)
 	var b2 := Button.new()
-	b2.text = "建设包：维修件 + 电池 + 除尘耗材"
+	b2.text = "申请建设包：维修件 + 电池 + 除尘耗材"
 	b2.pressed.connect(func(): _choose_supply("build"))
 	box.add_child(b2)
 	var b3 := Button.new()
-	b3.text = "农业包：水培耗材 + 温室备件"
+	b3.text = "申请农业包：水培耗材 + 温室备件"
 	b3.pressed.connect(func(): _choose_supply("farm"))
 	box.add_child(b3)
 
@@ -729,6 +788,7 @@ func _update_ui() -> void:
 		day, phase, resources["power"], power_cap, resources["oxygen"], resources["water"], resources["food"],
 		resources["parts"], resources["integrity"], int(solar_dust * 100)
 	]
+	$UI/Root/SupplyStatus.text = _supply_status_text()
 	var hint := "工具：%s | 作物：%s | 月壤 %.0f 水冰 %.0f 样本 %.0f。" % [
 		tool_defs[selected_tool]["name"], crop_defs[selected_crop]["name"],
 		resources["regolith"], resources["ice"], resources["samples"]
@@ -745,6 +805,16 @@ func _update_ui() -> void:
 			hint = "%s：%s" % [def["name"], def["hint"]]
 	$UI/Root/Hint.text = hint
 	$UI/Root/Log.text = _join_strings(log_lines, "\n")
+
+func _supply_status_text() -> String:
+	if supply_waiting:
+		return "补给状态：%s 已抵达\n前往降落区按 E 接收。" % supply_order.get("name", "补给舱")
+	if not supply_order.is_empty():
+		var eta: int = max(0, int(supply_order["arrival_day"]) - day)
+		return "补给状态：%s 在途\nETA：%d 天（第 %d 天抵达）" % [supply_order["name"], eta, supply_order["arrival_day"]]
+	if day >= next_supply_request_day:
+		return "补给状态：可申请\n前往降落区按 E 提交货单。"
+	return "补给状态：等待通信窗口\n下一次申请：第 %d 天" % next_supply_request_day
 
 func add_log(text: String) -> void:
 	log_lines.append("D%d  %s" % [day, text])
