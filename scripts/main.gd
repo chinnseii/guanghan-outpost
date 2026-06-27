@@ -27,6 +27,7 @@ var player_radius := 14.0
 var player_facing := Vector2.DOWN
 var walk_phase := 0.0
 var was_inside := false
+var eva_warning_cooldown := 0.0
 var interact_target: Dictionary = {}
 
 var selected_crop := "potato"
@@ -56,6 +57,8 @@ var resources := {
 	"humidity": 52.0,
 	"pressure": 100.0,
 	"suit_o2": 100.0,
+	"suit_integrity": 100.0,
+	"suit_dust": 0.0,
 }
 
 var resource_names := {
@@ -72,6 +75,8 @@ var resource_names := {
 	"humidity": "湿度",
 	"pressure": "舱压",
 	"suit_o2": "宇航服氧气",
+	"suit_integrity": "宇航服耐久",
+	"suit_dust": "月尘污染",
 }
 
 var tool_defs := {
@@ -279,6 +284,7 @@ func _reset_game_state() -> void:
 	player_pos = Vector2(300, 420)
 	player_facing = Vector2.DOWN
 	was_inside = false
+	eva_warning_cooldown = 0.0
 	walk_phase = 0.0
 	interact_target = {}
 	selected_crop = "potato"
@@ -320,6 +326,8 @@ func _default_resources() -> Dictionary:
 		"humidity": 52.0,
 		"pressure": 100.0,
 		"suit_o2": 100.0,
+		"suit_integrity": 100.0,
+		"suit_dust": 0.0,
 	}
 
 func _setup_starting_base() -> void:
@@ -335,6 +343,7 @@ func _setup_starting_base() -> void:
 func _process(delta: float) -> void:
 	if game_over or pending_main_menu:
 		return
+	eva_warning_cooldown = max(0.0, eva_warning_cooldown - delta)
 	var input := Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	var target_pos := player_pos + input * PLAYER_SPEED * delta
 	if _can_player_move_to(target_pos):
@@ -650,11 +659,16 @@ func _process_suit_oxygen(delta: float) -> void:
 		if not was_inside:
 			resources["suit_o2"] = min(100.0, resources["suit_o2"] + 25.0)
 			resources["pressure"] = min(100.0, resources["pressure"] + 0.5)
+			add_log("返舱完成：舱压稳定，宇航服开始复压检查。")
 		resources["suit_o2"] = min(100.0, resources["suit_o2"] + delta * 10.0)
 	else:
 		resources["suit_o2"] = max(0.0, resources["suit_o2"] - delta * 1.8)
+		resources["suit_dust"] = min(100.0, resources["suit_dust"] + delta * (0.18 + solar_dust * 0.25))
+		resources["suit_integrity"] = max(0.0, resources["suit_integrity"] - delta * 0.035)
 		if resources["suit_o2"] <= 0.0:
 			resources["oxygen"] = max(0.0, resources["oxygen"] - delta * 2.5)
+		if resources["suit_integrity"] <= 0.0:
+			resources["oxygen"] = max(0.0, resources["oxygen"] - delta * 1.8)
 	was_inside = inside
 
 func _is_player_inside_pressurized_module() -> bool:
@@ -686,7 +700,10 @@ func _interact() -> void:
 		"greenhouse":
 			_use_greenhouse(interact_target)
 		"solar":
-			_clean_solar()
+			if selected_tool == "repair" and resources["integrity"] < 70.0:
+				_repair_external_equipment(interact_target)
+			else:
+				_clean_solar()
 		"life_support":
 			_repair_life_support()
 		"supply":
@@ -696,9 +713,15 @@ func _interact() -> void:
 		"airlock":
 			_cycle_airlock()
 		"regolith_plant":
-			_use_regolith_plant()
+			if selected_tool == "repair" and resources["integrity"] < 70.0:
+				_repair_external_equipment(interact_target)
+			else:
+				_use_regolith_plant()
 		"ice_processor":
-			_use_ice_processor()
+			if selected_tool == "repair" and resources["integrity"] < 70.0:
+				_repair_external_equipment(interact_target)
+			else:
+				_use_ice_processor()
 		_:
 			var def: Dictionary = module_defs[interact_target["type"]]
 			add_log("%s 运转正常。" % def["name"])
@@ -727,6 +750,7 @@ func _clean_solar() -> void:
 		return
 	resources["parts"] -= 1
 	solar_dust = max(0.0, solar_dust - 0.28)
+	resources["suit_dust"] = min(100.0, resources["suit_dust"] + 3.0)
 	add_log("清理太阳能阵列。月尘覆盖降至 %d%%。" % int(solar_dust * 100))
 
 func _repair_life_support() -> void:
@@ -754,6 +778,19 @@ func _repair_module_leak(module: Dictionary) -> void:
 	var def: Dictionary = module_defs[module["type"]]
 	add_log("已封堵 %s 漏点，舱压恢复稳定。" % def["name"])
 
+func _repair_external_equipment(module: Dictionary) -> void:
+	if selected_tool != "repair":
+		add_log("外部设备维护需要先选择维修枪。")
+		return
+	if resources["parts"] < 1:
+		add_log("缺少维修件，无法维护外部设备。")
+		return
+	resources["parts"] -= 1
+	resources["integrity"] = min(100.0, resources["integrity"] + 8.0)
+	resources["suit_dust"] = min(100.0, resources["suit_dust"] + 4.0)
+	var def: Dictionary = module_defs[module["type"]]
+	add_log("完成 %s 外部维护：完整度 +8，宇航服月尘污染上升。" % def["name"])
+
 func _use_workshop() -> void:
 	if resources["power"] < 4:
 		add_log("电力不足，维修工作台无法打印零件。")
@@ -769,8 +806,10 @@ func _cycle_airlock() -> void:
 	resources["power"] -= 2
 	resources["oxygen"] -= 1
 	resources["suit_o2"] = 100.0
+	resources["suit_dust"] = max(0.0, resources["suit_dust"] - 55.0)
+	resources["suit_integrity"] = min(100.0, resources["suit_integrity"] + 8.0)
 	resources["pressure"] = min(100.0, resources["pressure"] + 3.0)
-	add_log("气闸循环完成，宇航服氧气已补满。")
+	add_log("气闸循环完成：宇航服补氧、复压、除尘，耐久检查通过。")
 
 func _use_regolith_plant() -> void:
 	if resources["regolith"] < 2 or resources["power"] < 6:
@@ -931,6 +970,7 @@ func _collect_surface_item(item: Dictionary) -> void:
 		"ice":
 			resources["ice"] += amount
 			resources["water"] += amount * 2.0
+			resources["suit_dust"] = min(100.0, resources["suit_dust"] + 2.0)
 			add_log("采集水冰样本 +%.0f，水 +%.0f。" % [amount, amount * 2.0])
 		"meteor":
 			resources["parts"] += amount
@@ -989,7 +1029,7 @@ func _advance_day() -> void:
 	_process_crop_day()
 	_process_supply_window()
 	_process_random_event()
-	for key: String in ["power", "oxygen", "water", "food", "integrity", "co2", "humidity", "pressure", "suit_o2"]:
+	for key: String in ["power", "oxygen", "water", "food", "integrity", "co2", "humidity", "pressure", "suit_o2", "suit_integrity", "suit_dust"]:
 		resources[key] = clamp(resources[key], 0.0, power_cap if key == "power" else 120.0)
 	add_log("第 %d 天开始。%s" % [day, "月夜中，太阳能归零。" if is_moon_night else "月昼，太阳能可用。"])
 	_check_missions()
@@ -1133,6 +1173,7 @@ func _receive_supply() -> void:
 			solar_dust = max(0.0, solar_dust + float(payload[key]))
 		else:
 			resources[key] += float(payload[key])
+	resources["suit_dust"] = min(100.0, resources["suit_dust"] + 6.0)
 	add_log("接收 %s：%s。" % [def["name"], def["desc"]])
 	supply_order.clear()
 	supply_waiting = false
@@ -1470,6 +1511,10 @@ func _can_player_move_to(pos: Vector2) -> bool:
 	var max_pos := MAP_ORIGIN + Vector2(MAP_W * TILE - 5, MAP_H * TILE - 5)
 	if pos.x < min_pos.x or pos.y < min_pos.y or pos.x > max_pos.x or pos.y > max_pos.y:
 		return false
+	var currently_inside := _is_player_inside_pressurized_module()
+	var target_inside := _is_pressurized_point(pos)
+	if currently_inside and not target_inside and not _eva_precheck_ok():
+		return false
 	var samples := [
 		pos,
 		pos + Vector2(player_radius * 0.7, 0),
@@ -1481,6 +1526,24 @@ func _can_player_move_to(pos: Vector2) -> bool:
 		if not _is_walkable_point(sample):
 			return false
 	return true
+
+func _is_pressurized_point(pos: Vector2) -> bool:
+	for module: Dictionary in modules:
+		if not _is_pressurized_module(module["type"]):
+			continue
+		if module.get("leaking", false):
+			continue
+		if _module_rect(module).has_point(pos):
+			return true
+	return false
+
+func _eva_precheck_ok() -> bool:
+	if resources["suit_o2"] >= 35.0 and resources["suit_integrity"] >= 25.0:
+		return true
+	if eva_warning_cooldown <= 0.0:
+		add_log("出舱检查未通过：宇航服氧气至少 35%，耐久至少 25%。请先到气闸复压、补氧、除尘。")
+		eva_warning_cooldown = 3.0
+	return false
 
 func _is_walkable_point(pos: Vector2) -> bool:
 	for module: Dictionary in modules:
@@ -1658,6 +1721,15 @@ func _setup_ui() -> void:
 	mission_status.add_theme_font_size_override("font_size", 15)
 	root.add_child(mission_status)
 
+	var eva_tasks := RichTextLabel.new()
+	eva_tasks.name = "EvaTasks"
+	eva_tasks.position = Vector2(360, 390)
+	eva_tasks.size = Vector2(500, 104)
+	eva_tasks.fit_content = false
+	eva_tasks.scroll_active = false
+	eva_tasks.add_theme_font_size_override("normal_font_size", 14)
+	root.add_child(eva_tasks)
+
 	var tech_panel := HBoxContainer.new()
 	tech_panel.name = "TechPanel"
 	tech_panel.position = Vector2(18, 504)
@@ -1825,12 +1897,14 @@ func _update_ui() -> void:
 		resources["parts"], resources["integrity"], int(solar_dust * 100)
 	]
 	$UI/Root/SupplyStatus.text = _supply_status_text()
-	$UI/Root/LifeStatus.text = "舱压 %.0f%%  CO2 %.0f  湿度 %.0f%%\n宇航服氧气 %.0f%%  %s" % [
-		resources["pressure"], resources["co2"], resources["humidity"], resources["suit_o2"],
+	$UI/Root/LifeStatus.text = "舱压 %.0f%%  CO2 %.0f  湿度 %.0f%%\n宇航服 O2 %.0f%% 耐久 %.0f%% 月尘 %.0f%%  %s" % [
+		resources["pressure"], resources["co2"], resources["humidity"],
+		resources["suit_o2"], resources["suit_integrity"], resources["suit_dust"],
 		"舱内" if _is_player_inside_pressurized_module() else "舱外"
 	]
 	$UI/Root/OperatorStatus.text = _operator_status_text()
 	$UI/Root/MissionStatus.text = _mission_status_text()
+	$UI/Root/EvaTasks.text = _eva_tasks_text()
 	_update_tech_buttons()
 	_refresh_main_menu()
 	var hint := "工具：%s | 作物：%s | 月壤 %.0f 水冰 %.0f 样本 %.0f。" % [
@@ -1885,6 +1959,45 @@ func _mission_status_text() -> String:
 	if active == "":
 		active = "阶段任务全部完成。"
 	return "任务 %d/%d：%s" % [completed_missions.size(), mission_defs.size(), active]
+
+func _eva_tasks_text() -> String:
+	var tasks: Array[String] = []
+	var supply_pods := _active_collectable_count("supply_pod")
+	var ice_nodes := _active_collectable_count("ice")
+	var external_repairs := _external_repair_count()
+	if supply_pods > 0:
+		tasks.append("回收补给舱：%d 个信标，氧气>35%%" % supply_pods)
+	if ice_nodes > 0:
+		tasks.append("采集水冰：%d 处，工具：采样铲" % ice_nodes)
+	if solar_dust >= 0.22:
+		tasks.append("清理太阳能板：月尘 %d%%，工具：除尘刷" % int(solar_dust * 100))
+	if external_repairs > 0:
+		tasks.append("维修外部设备：%d 个目标，工具：维修枪" % external_repairs)
+	if tasks.is_empty():
+		tasks.append("暂无紧急出舱任务。可巡检水冰、太阳能板和补给信标。")
+	var suit_line := "宇航服：氧 %.0f%% 耐久 %.0f%% 月尘 %.0f%%" % [
+		resources["suit_o2"], resources["suit_integrity"], resources["suit_dust"]
+	]
+	return "出舱任务 V1\n%s\n%s" % [_join_strings(tasks.slice(0, 3), "\n"), suit_line]
+
+func _active_collectable_count(item_type: String) -> int:
+	var count := 0
+	for item: Dictionary in collectables:
+		if item["depleted"]:
+			continue
+		if item["type"] == item_type:
+			count += 1
+	return count
+
+func _external_repair_count() -> int:
+	var count := 0
+	for module: Dictionary in modules:
+		if module.get("leaking", false):
+			count += 1
+			continue
+		if module["type"] in ["regolith_plant", "ice_processor"] and resources["integrity"] < 70.0:
+			count += 1
+	return count
 
 func _refresh_main_menu() -> void:
 	if not has_node("UI/Root/MainMenu/Box"):
