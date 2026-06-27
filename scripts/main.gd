@@ -19,6 +19,7 @@ var player_pos := Vector2(300, 420)
 var player_radius := 14.0
 var player_facing := Vector2.DOWN
 var walk_phase := 0.0
+var was_inside := false
 var interact_target: Dictionary = {}
 
 var selected_crop := "potato"
@@ -43,6 +44,10 @@ var resources := {
 	"regolith": 0.0,
 	"ice": 0.0,
 	"samples": 0.0,
+	"co2": 34.0,
+	"humidity": 52.0,
+	"pressure": 100.0,
+	"suit_o2": 100.0,
 }
 
 var resource_names := {
@@ -55,6 +60,10 @@ var resource_names := {
 	"regolith": "月壤",
 	"ice": "水冰",
 	"samples": "样本",
+	"co2": "二氧化碳",
+	"humidity": "湿度",
+	"pressure": "舱压",
+	"suit_o2": "宇航服氧气",
 }
 
 var tool_defs := {
@@ -111,6 +120,27 @@ var module_defs := {
 		"cost": {"parts": 5.0, "power": 5.0},
 		"color": Color("#514937"),
 		"hint": "E：制造 1 个维修件",
+	},
+	"airlock": {
+		"name": "气闸舱",
+		"size": Vector2i(2, 2),
+		"cost": {"parts": 4.0, "power": 6.0},
+		"color": Color("#4a5364"),
+		"hint": "E：气闸循环，补满宇航服氧气",
+	},
+	"regolith_plant": {
+		"name": "月壤提氧机",
+		"size": Vector2i(3, 2),
+		"cost": {"parts": 6.0, "power": 10.0},
+		"color": Color("#4b4650"),
+		"hint": "E：消耗月壤和电力提取氧气",
+	},
+	"ice_processor": {
+		"name": "冰矿处理器",
+		"size": Vector2i(3, 2),
+		"cost": {"parts": 5.0, "power": 8.0},
+		"color": Color("#355566"),
+		"hint": "E：消耗水冰和电力产水",
 	},
 	"supply": {
 		"name": "补给降落区",
@@ -171,7 +201,7 @@ func _ready() -> void:
 	_setup_moon_tile_map()
 	_setup_ui()
 	add_log("广寒前哨上线。玉兔工程车完成自动部署，但系统仍需人工调试。")
-	add_log("V0.7：月面地表已切换为 Godot TileMapLayer。")
+	add_log("V0.9：气闸、舱压、舱外氧气、CO2、湿度与原位资源处理上线。")
 	_update_ui()
 
 func _setup_input_map() -> void:
@@ -205,6 +235,7 @@ func _reset_game_state() -> void:
 	supply_travel_days = 3
 	player_pos = Vector2(300, 420)
 	player_facing = Vector2.DOWN
+	was_inside = false
 	walk_phase = 0.0
 	interact_target = {}
 	selected_crop = "potato"
@@ -236,12 +267,17 @@ func _default_resources() -> Dictionary:
 		"regolith": 0.0,
 		"ice": 0.0,
 		"samples": 0.0,
+		"co2": 34.0,
+		"humidity": 52.0,
+		"pressure": 100.0,
+		"suit_o2": 100.0,
 	}
 
 func _setup_starting_base() -> void:
 	modules.clear()
 	_add_module("solar", Vector2i(2, 1), true)
 	_add_module("hab", Vector2i(4, 5), true)
+	_add_module("airlock", Vector2i(7, 5), true)
 	_add_module("life_support", Vector2i(8, 6), true)
 	_add_module("greenhouse", Vector2i(11, 3), true)
 	_add_module("supply", Vector2i(17, 7), true)
@@ -256,6 +292,7 @@ func _process(delta: float) -> void:
 		walk_phase += delta * 10.0
 	player_pos.x = clamp(player_pos.x, MAP_ORIGIN.x + 5.0, MAP_ORIGIN.x + MAP_W * TILE - 5.0)
 	player_pos.y = clamp(player_pos.y, MAP_ORIGIN.y + 5.0, MAP_ORIGIN.y + MAP_H * TILE - 5.0)
+	_process_suit_oxygen(delta)
 	_find_interaction()
 	queue_redraw()
 
@@ -381,6 +418,16 @@ func _draw_module_details(module: Dictionary, rect: Rect2) -> void:
 		draw_circle(rect.get_center() + Vector2(22, 0), 18, Color("#b8f0d0"))
 	elif module_type == "workshop":
 		draw_rect(Rect2(rect.position + Vector2(24, 28), Vector2(48, 34)), Color("#c0a36c"))
+	elif module_type == "airlock":
+		draw_rect(Rect2(rect.position + Vector2(22, 18), Vector2(52, 58)), Color("#8892a3"), false, 4)
+		draw_line(rect.position + Vector2(48, 20), rect.position + Vector2(48, 74), Color("#d8e0eb"), 2)
+	elif module_type == "regolith_plant":
+		draw_circle(rect.get_center() + Vector2(-26, 0), 18, Color("#b3a18e"))
+		draw_line(rect.get_center() + Vector2(-8, 0), rect.get_center() + Vector2(32, -18), Color("#d8e0eb"), 3)
+		draw_circle(rect.get_center() + Vector2(36, -20), 8, Color("#98d5ff"))
+	elif module_type == "ice_processor":
+		draw_circle(rect.get_center() + Vector2(-20, 0), 18, Color("#9fd7ff"))
+		draw_rect(Rect2(rect.get_center() + Vector2(8, -18), Vector2(34, 36)), Color("#b8f0ff"), false, 3)
 	elif module_type == "supply":
 		draw_circle(rect.get_center(), 32, Color("#a76f45"))
 		draw_rect(Rect2(rect.position + Vector2(68, 35), Vector2(54, 74)), Color("#d0d6df"), false, 3)
@@ -441,6 +488,29 @@ func _find_interaction() -> void:
 			interact_target = item
 			return
 
+func _process_suit_oxygen(delta: float) -> void:
+	var inside := _is_player_inside_pressurized_module()
+	if inside:
+		if not was_inside:
+			resources["suit_o2"] = min(100.0, resources["suit_o2"] + 25.0)
+			resources["pressure"] = min(100.0, resources["pressure"] + 0.5)
+		resources["suit_o2"] = min(100.0, resources["suit_o2"] + delta * 10.0)
+	else:
+		resources["suit_o2"] = max(0.0, resources["suit_o2"] - delta * 1.8)
+		if resources["suit_o2"] <= 0.0:
+			resources["oxygen"] = max(0.0, resources["oxygen"] - delta * 2.5)
+	was_inside = inside
+
+func _is_player_inside_pressurized_module() -> bool:
+	for module: Dictionary in modules:
+		if not _is_pressurized_module(module["type"]):
+			continue
+		if module.get("leaking", false):
+			continue
+		if _module_rect(module).has_point(player_pos):
+			return true
+	return false
+
 func _interact() -> void:
 	if build_mode and selected_build != "":
 		_try_build_selected()
@@ -467,6 +537,12 @@ func _interact() -> void:
 			_collect_supply()
 		"workshop":
 			_use_workshop()
+		"airlock":
+			_cycle_airlock()
+		"regolith_plant":
+			_use_regolith_plant()
+		"ice_processor":
+			_use_ice_processor()
 		_:
 			var def: Dictionary = module_defs[interact_target["type"]]
 			add_log("%s 运转正常。" % def["name"])
@@ -529,6 +605,36 @@ func _use_workshop() -> void:
 	resources["power"] -= 4
 	resources["parts"] = min(99.0, resources["parts"] + 1)
 	add_log("维修工作台打印了 1 个维修件。")
+
+func _cycle_airlock() -> void:
+	if resources["power"] < 2 or resources["oxygen"] < 1:
+		add_log("气闸循环需要电力 2、氧气 1。")
+		return
+	resources["power"] -= 2
+	resources["oxygen"] -= 1
+	resources["suit_o2"] = 100.0
+	resources["pressure"] = min(100.0, resources["pressure"] + 3.0)
+	add_log("气闸循环完成，宇航服氧气已补满。")
+
+func _use_regolith_plant() -> void:
+	if resources["regolith"] < 2 or resources["power"] < 6:
+		add_log("月壤提氧需要月壤 2、电力 6。")
+		return
+	resources["regolith"] -= 2
+	resources["power"] -= 6
+	resources["oxygen"] += 12
+	resources["co2"] = max(0.0, resources["co2"] - 2.0)
+	add_log("月壤提氧完成：氧气 +12。")
+
+func _use_ice_processor() -> void:
+	if resources["ice"] < 1 or resources["power"] < 4:
+		add_log("冰矿处理需要水冰 1、电力 4。")
+		return
+	resources["ice"] -= 1
+	resources["power"] -= 4
+	resources["water"] += 8
+	resources["humidity"] = min(100.0, resources["humidity"] + 4.0)
+	add_log("冰矿处理完成：水 +8，温室湿度上升。")
 
 func _collect_supply() -> void:
 	if supply_waiting:
@@ -680,25 +786,39 @@ func _advance_day() -> void:
 	var crew_food: float = 7.0
 	var crew_water: float = max(2.5, 5.0 - float(counts["life_support"]) * 0.8)
 	var crew_oxygen: float = max(3.5, 6.0 - float(counts["life_support"]) * 0.7)
+	var crew_co2: float = 7.5
 	resources["power"] += solar_gain - base_power_use
 	resources["oxygen"] -= crew_oxygen + oxygen_wear * 8.0
+	resources["co2"] += crew_co2
 	resources["water"] -= crew_water
 	resources["food"] -= crew_food
 	resources["integrity"] -= 1.0 + solar_dust * 1.8 + float(modules.size()) * 0.04
+	resources["pressure"] += float(counts["life_support"]) * 1.5 - 0.8
+	resources["humidity"] += float(counts["greenhouse"]) * 2.2 - float(counts["life_support"]) * 1.4
 	var leaking_count := _leaking_module_count()
 	if leaking_count > 0:
 		resources["oxygen"] -= float(leaking_count) * 8.0
 		resources["integrity"] -= float(leaking_count) * 2.0
+		resources["pressure"] -= float(leaking_count) * 9.0
 		add_log("警报：%d 个舱段漏气，氧气正在流失。" % leaking_count)
 	if counts["workshop"] > 0:
 		resources["parts"] = min(99.0, resources["parts"] + 0.25 * float(counts["workshop"]))
+	if counts["regolith_plant"] > 0 and resources["regolith"] >= 1 and resources["power"] >= 3:
+		resources["regolith"] -= 1
+		resources["power"] -= 3
+		resources["oxygen"] += 5.0 * float(counts["regolith_plant"])
+	if counts["ice_processor"] > 0 and resources["ice"] >= 0.5 and resources["power"] >= 2:
+		resources["ice"] -= 0.5
+		resources["power"] -= 2
+		resources["water"] += 3.0 * float(counts["ice_processor"])
+		resources["humidity"] += 1.5
 	_process_tech_daily_effects()
 	solar_dust = min(0.65, solar_dust + randf_range(0.02, 0.06))
 	oxygen_wear = min(0.45, oxygen_wear + randf_range(0.01, 0.04))
 	_process_crop_day()
 	_process_supply_window()
 	_process_random_event()
-	for key: String in ["power", "oxygen", "water", "food", "integrity"]:
+	for key: String in ["power", "oxygen", "water", "food", "integrity", "co2", "humidity", "pressure", "suit_o2"]:
 		resources[key] = clamp(resources[key], 0.0, power_cap if key == "power" else 120.0)
 	add_log("第 %d 天开始。%s" % [day, "月夜中，太阳能归零。" if is_moon_night else "月昼，太阳能可用。"])
 	_check_game_state()
@@ -709,7 +829,16 @@ func _process_crop_day() -> void:
 	for module: Dictionary in modules:
 		if module["type"] != "greenhouse" or module["crop"] == "":
 			continue
-		module["age"] += 1
+		var humidity_ok: bool = resources["humidity"] >= 35.0 and resources["humidity"] <= 85.0
+		var co2_available: bool = resources["co2"] >= 3.0
+		if not humidity_ok:
+			add_log("温室湿度异常，%s 生长放缓。" % crop_defs[module["crop"]]["name"])
+		if not co2_available:
+			add_log("二氧化碳不足，%s 光合作用受限。" % crop_defs[module["crop"]]["name"])
+		if humidity_ok and co2_available:
+			module["age"] += 1
+			resources["co2"] = max(0.0, resources["co2"] - 3.0)
+			resources["humidity"] = max(0.0, resources["humidity"] - 1.0)
 		var crop_def: Dictionary = crop_defs[module["crop"]]
 		resources["oxygen"] += crop_def["oxygen"] if not is_moon_night else crop_def["oxygen"] * 0.35
 		if module["age"] >= crop_def["days"]:
@@ -966,9 +1095,11 @@ func _copy_dictionary(value) -> Dictionary:
 
 func _check_game_state() -> void:
 	var failed: Array[String] = []
-	for key: String in ["power", "oxygen", "water", "food"]:
+	for key: String in ["power", "oxygen", "water", "food", "pressure"]:
 		if resources[key] <= 0.0:
 			failed.append(resource_names[key])
+	if resources["co2"] >= 115.0:
+		failed.append("二氧化碳过量")
 	if failed.size() > 0:
 		game_over = true
 		add_log("基地失守：%s 归零。请调整补给和维护优先级后重试。" % _join_strings(failed, ", "))
@@ -990,6 +1121,9 @@ func _module_counts() -> Dictionary:
 		"battery": 0,
 		"life_support": 0,
 		"workshop": 0,
+		"airlock": 0,
+		"regolith_plant": 0,
+		"ice_processor": 0,
 		"supply": 0,
 	}
 	for module: Dictionary in modules:
@@ -1013,7 +1147,7 @@ func _pick_pressurized_module() -> Dictionary:
 	return candidates[randi() % candidates.size()]
 
 func _is_pressurized_module(module_type: String) -> bool:
-	return module_type in ["hab", "greenhouse", "battery", "life_support", "workshop"]
+	return module_type in ["hab", "greenhouse", "battery", "life_support", "workshop", "airlock"]
 
 func _player_build_cell() -> Vector2i:
 	var local := player_pos - MAP_ORIGIN
@@ -1110,9 +1244,16 @@ func _setup_ui() -> void:
 	supply_status.add_theme_font_size_override("font_size", 16)
 	root.add_child(supply_status)
 
+	var life_status := Label.new()
+	life_status.name = "LifeStatus"
+	life_status.position = Vector2(905, 485)
+	life_status.size = Vector2(350, 62)
+	life_status.add_theme_font_size_override("font_size", 16)
+	root.add_child(life_status)
+
 	var tech_panel := VBoxContainer.new()
 	tech_panel.name = "TechPanel"
-	tech_panel.position = Vector2(905, 500)
+	tech_panel.position = Vector2(905, 545)
 	tech_panel.size = Vector2(350, 110)
 	root.add_child(tech_panel)
 	for tech_id: String in ["change_samples", "queqiao_relay", "yutu_robot"]:
@@ -1148,7 +1289,7 @@ func _setup_ui() -> void:
 	build_panel.position = Vector2(360, 590)
 	build_panel.size = Vector2(430, 38)
 	root.add_child(build_panel)
-	for module_type: String in ["solar", "battery", "greenhouse", "life_support", "workshop"]:
+	for module_type: String in ["solar", "battery", "greenhouse", "life_support", "workshop", "airlock", "regolith_plant", "ice_processor"]:
 		var button := Button.new()
 		button.text = module_defs[module_type]["name"]
 		button.pressed.connect(_select_build.bind(module_type))
@@ -1190,7 +1331,7 @@ func _setup_ui() -> void:
 
 	var save_panel := HBoxContainer.new()
 	save_panel.name = "SavePanel"
-	save_panel.position = Vector2(905, 615)
+	save_panel.position = Vector2(905, 655)
 	save_panel.size = Vector2(330, 38)
 	root.add_child(save_panel)
 	var save_button := Button.new()
@@ -1222,6 +1363,10 @@ func _update_ui() -> void:
 		resources["parts"], resources["integrity"], int(solar_dust * 100)
 	]
 	$UI/Root/SupplyStatus.text = _supply_status_text()
+	$UI/Root/LifeStatus.text = "舱压 %.0f%%  CO2 %.0f  湿度 %.0f%%\n宇航服氧气 %.0f%%  %s" % [
+		resources["pressure"], resources["co2"], resources["humidity"], resources["suit_o2"],
+		"舱内" if _is_player_inside_pressurized_module() else "舱外"
+	]
 	_update_tech_buttons()
 	var hint := "工具：%s | 作物：%s | 月壤 %.0f 水冰 %.0f 样本 %.0f。" % [
 		tool_defs[selected_tool]["name"], crop_defs[selected_crop]["name"],
