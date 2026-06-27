@@ -327,9 +327,10 @@ func _setup_starting_base() -> void:
 	_add_module("solar", Vector2i(2, 1), true)
 	_add_module("hab", Vector2i(4, 5), true)
 	_add_module("airlock", Vector2i(7, 5), true)
-	_add_module("life_support", Vector2i(8, 6), true)
-	_add_module("greenhouse", Vector2i(11, 3), true)
+	_add_module("life_support", Vector2i(9, 5), true)
+	_add_module("greenhouse", Vector2i(12, 5), true)
 	_add_module("supply", Vector2i(17, 7), true)
+	player_pos = _cell_to_world(Vector2i(5, 5)) + Vector2(TILE * 0.5, TILE * 0.5)
 
 func _process(delta: float) -> void:
 	if game_over or pending_main_menu:
@@ -396,7 +397,9 @@ func _sync_scene_instances() -> void:
 		var module_node: Node2D = module_nodes[uid]
 		module_node.position = _module_rect(module).position
 		if module_node.has_method("setup"):
-			module_node.call("setup", module, module_defs[module["type"]], interact_target == module)
+			var visual_data: Dictionary = module.duplicate(true)
+			visual_data["doors"] = _module_door_sides(module)
+			module_node.call("setup", visual_data, module_defs[module["type"]], interact_target == module)
 	for uid in module_nodes.keys():
 		var still_exists := false
 		for module: Dictionary in modules:
@@ -1499,11 +1502,45 @@ func _is_module_door_gap(pos: Vector2, module: Dictionary) -> bool:
 	var door_half := 20.0
 	var edge := 14.0
 	var center := rect.get_center()
-	var on_left: bool = abs(pos.x - rect.position.x) <= edge and abs(pos.y - center.y) <= door_half
-	var on_right: bool = abs(pos.x - rect.end.x) <= edge and abs(pos.y - center.y) <= door_half
-	var on_top: bool = abs(pos.y - rect.position.y) <= edge and abs(pos.x - center.x) <= door_half
-	var on_bottom: bool = abs(pos.y - rect.end.y) <= edge and abs(pos.x - center.x) <= door_half
+	var doors: Array[String] = _module_door_sides(module)
+	var on_left: bool = doors.has("left") and abs(pos.x - rect.position.x) <= edge and abs(pos.y - center.y) <= door_half
+	var on_right: bool = doors.has("right") and abs(pos.x - rect.end.x) <= edge and abs(pos.y - center.y) <= door_half
+	var on_top: bool = doors.has("top") and abs(pos.y - rect.position.y) <= edge and abs(pos.x - center.x) <= door_half
+	var on_bottom: bool = doors.has("bottom") and abs(pos.y - rect.end.y) <= edge and abs(pos.x - center.x) <= door_half
 	return on_left or on_right or on_top or on_bottom
+
+func _module_door_sides(module: Dictionary) -> Array[String]:
+	if not _module_has_interior(module["type"]):
+		return []
+	if module["type"] == "airlock":
+		return ["left", "right", "top", "bottom"]
+	var sides: Array[String] = []
+	var def: Dictionary = module_defs[module["type"]]
+	var cell: Vector2i = module["cell"]
+	var size: Vector2i = def["size"]
+	var current := Rect2i(cell, size)
+	for other: Dictionary in modules:
+		if int(other["uid"]) == int(module["uid"]):
+			continue
+		if not _module_has_interior(other["type"]):
+			continue
+		var other_def: Dictionary = module_defs[other["type"]]
+		var other_rect := Rect2i(other["cell"], other_def["size"])
+		if current.position.x == other_rect.position.x + other_rect.size.x and _vertical_overlap(current, other_rect):
+			sides.append("left")
+		if current.position.x + current.size.x == other_rect.position.x and _vertical_overlap(current, other_rect):
+			sides.append("right")
+		if current.position.y == other_rect.position.y + other_rect.size.y and _horizontal_overlap(current, other_rect):
+			sides.append("top")
+		if current.position.y + current.size.y == other_rect.position.y and _horizontal_overlap(current, other_rect):
+			sides.append("bottom")
+	return sides
+
+func _vertical_overlap(a: Rect2i, b: Rect2i) -> bool:
+	return a.position.y < b.position.y + b.size.y and b.position.y < a.position.y + a.size.y
+
+func _horizontal_overlap(a: Rect2i, b: Rect2i) -> bool:
+	return a.position.x < b.position.x + b.size.x and b.position.x < a.position.x + a.size.x
 
 func _player_build_cell() -> Vector2i:
 	var local := player_pos - MAP_ORIGIN

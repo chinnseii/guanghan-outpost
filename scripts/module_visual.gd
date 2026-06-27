@@ -44,10 +44,15 @@ func _draw_hull(rect: Rect2, fill: Color) -> void:
 func _draw_door_markers(rect: Rect2) -> void:
 	var center := rect.get_center()
 	var door := Color("#e7c66b")
-	draw_line(Vector2(center.x - 18, rect.position.y + 2), Vector2(center.x + 18, rect.position.y + 2), door, 4)
-	draw_line(Vector2(center.x - 18, rect.end.y - 2), Vector2(center.x + 18, rect.end.y - 2), door, 4)
-	draw_line(Vector2(rect.position.x + 2, center.y - 18), Vector2(rect.position.x + 2, center.y + 18), door, 4)
-	draw_line(Vector2(rect.end.x - 2, center.y - 18), Vector2(rect.end.x - 2, center.y + 18), door, 4)
+	var doors: Array = module_data.get("doors", [])
+	if doors.has("top"):
+		draw_line(Vector2(center.x - 18, rect.position.y + 2), Vector2(center.x + 18, rect.position.y + 2), door, 4)
+	if doors.has("bottom"):
+		draw_line(Vector2(center.x - 18, rect.end.y - 2), Vector2(center.x + 18, rect.end.y - 2), door, 4)
+	if doors.has("left"):
+		draw_line(Vector2(rect.position.x + 2, center.y - 18), Vector2(rect.position.x + 2, center.y + 18), door, 4)
+	if doors.has("right"):
+		draw_line(Vector2(rect.end.x - 2, center.y - 18), Vector2(rect.end.x - 2, center.y + 18), door, 4)
 
 func _draw_details(module_type: String, rect: Rect2) -> void:
 	if module_type == "greenhouse":
