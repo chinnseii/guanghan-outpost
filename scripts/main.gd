@@ -143,13 +143,16 @@ var supply_defs := {
 
 var modules: Array[Dictionary] = []
 var collectables: Array[Dictionary] = []
+var moon_tile_map: TileMapLayer
+var moon_tile_source_id := 0
 
 func _ready() -> void:
 	_setup_input_map()
 	_reset_game_state()
+	_setup_moon_tile_map()
 	_setup_ui()
 	add_log("广寒前哨上线。玉兔工程车完成自动部署，但系统仍需人工调试。")
-	add_log("V0.5：新增舱段连通和漏气事故。新模块必须贴近已有基地。")
+	add_log("V0.7：月面地表已切换为 Godot TileMapLayer。")
 	_update_ui()
 
 func _setup_input_map() -> void:
@@ -255,23 +258,62 @@ func _unhandled_input(event: InputEvent) -> void:
 		_advance_day()
 
 func _draw() -> void:
-	_draw_moon_surface()
 	_draw_collectables()
 	_draw_modules()
 	_draw_build_ghost()
 	_draw_player()
 
-func _draw_moon_surface() -> void:
-	draw_rect(Rect2(0, 0, 1150, 720), Color("#17191f"))
+func _setup_moon_tile_map() -> void:
+	if is_instance_valid(moon_tile_map):
+		moon_tile_map.queue_free()
+	moon_tile_map = TileMapLayer.new()
+	moon_tile_map.name = "MoonSurfaceTileMap"
+	moon_tile_map.position = MAP_ORIGIN
+	moon_tile_map.z_index = -20
+	moon_tile_map.tile_set = _create_moon_tile_set()
+	add_child(moon_tile_map)
+	_paint_moon_surface_tiles()
+
+func _create_moon_tile_set() -> TileSet:
+	var tile_set: TileSet = TileSet.new()
+	tile_set.tile_size = Vector2i(TILE, TILE)
+	var image: Image = Image.create(TILE * 4, TILE, false, Image.FORMAT_RGBA8)
+	for tile_x in range(4):
+		for px in range(TILE):
+			for py in range(TILE):
+				var base: float = 0.17 + float(tile_x) * 0.025
+				var grain: float = float((px * 13 + py * 7 + tile_x * 19) % 11) * 0.004
+				var crater: float = _tile_crater_shadow(tile_x, px, py)
+				var shade: float = clamp(base + grain + crater, 0.06, 0.34)
+				image.set_pixel(tile_x * TILE + px, py, Color(shade, shade, shade + 0.018, 1.0))
+	var texture: ImageTexture = ImageTexture.create_from_image(image)
+	var source: TileSetAtlasSource = TileSetAtlasSource.new()
+	source.texture = texture
+	source.texture_region_size = Vector2i(TILE, TILE)
+	for tile_x in range(4):
+		source.create_tile(Vector2i(tile_x, 0))
+	moon_tile_source_id = tile_set.add_source(source)
+	return tile_set
+
+func _tile_crater_shadow(tile_x: int, px: int, py: int) -> float:
+	if tile_x == 0:
+		return 0.0
+	var center := Vector2(18 + tile_x * 3, 23 + tile_x * 2)
+	var dist := Vector2(px, py).distance_to(center)
+	if tile_x == 1 and dist < 13.0:
+		return -0.055 + dist * 0.002
+	if tile_x == 2 and dist < 18.0:
+		return -0.04 + dist * 0.0015
+	if tile_x == 3 and (px + py) % 17 < 2:
+		return 0.035
+	return 0.0
+
+func _paint_moon_surface_tiles() -> void:
+	moon_tile_map.clear()
 	for x in range(MAP_W):
 		for y in range(MAP_H):
-			var p := MAP_ORIGIN + Vector2(x * TILE, y * TILE)
-			var shade := 0.18 + float((x * 17 + y * 11) % 7) * 0.012
-			draw_rect(Rect2(p, Vector2(TILE - 2, TILE - 2)), Color(shade, shade, shade + 0.02))
-	for i in range(18):
-		var cx := 90 + (i * 157) % 980
-		var cy := 95 + (i * 83) % 510
-		draw_circle(Vector2(cx, cy), 10 + (i % 4) * 5, Color(0.08, 0.085, 0.095, 0.45))
+			var atlas_x := int((x * 17 + y * 11) % 4)
+			moon_tile_map.set_cell(Vector2i(x, y), moon_tile_source_id, Vector2i(atlas_x, 0))
 
 func _draw_collectables() -> void:
 	for item: Dictionary in collectables:
