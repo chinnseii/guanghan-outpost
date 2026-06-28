@@ -51,6 +51,7 @@ var robot_active := false
 var robot_path_pulse := 0.0
 var robot_battery := 100.0
 var robot_charging := false
+var robot_failure_note := ""
 var backpack := {
 	"regolith": 0.0,
 	"ice": 0.0,
@@ -343,6 +344,7 @@ func _reset_game_state() -> void:
 	robot_path_pulse = 0.0
 	robot_battery = 100.0
 	robot_charging = false
+	robot_failure_note = ""
 	backpack = _default_backpack()
 	solar_storm_days = 0
 	micrometeor_alert_days = 0
@@ -509,9 +511,15 @@ func _try_start_robot_task() -> void:
 		robot_task = String(robot_queue[0])
 		_start_robot_charging(false)
 		return
+	var next_task := String(robot_queue[0])
+	var skip_reason := _robot_task_skip_reason(next_task)
+	if not skip_reason.is_empty():
+		robot_queue.pop_front()
+		_skip_robot_task(next_task, skip_reason)
+		return
 	robot_task = String(robot_queue.pop_front())
 	_set_robot_target_for_task(robot_task)
-	add_log("Robot task started: %s." % _robot_task_name(robot_task))
+	add_log("%s 启动：%s。" % [_robot_type_name(robot_task), _robot_task_name(robot_task)])
 	_play_audio_event("robot")
 
 func _start_robot_charging(requeue_current: bool) -> void:
@@ -556,11 +564,13 @@ func _set_robot_target_for_task(task: String) -> void:
 	robot_active = true
 	match task:
 		"sample":
-			robot_target = _nearest_collectable_pos(["regolith", "ice", "sample"])
+			var sample_target: Dictionary = _nearest_collectable_item(["regolith", "ice", "sample"])
+			robot_target = sample_target["pos"] if not sample_target.is_empty() else robot_pos
 		"maintenance":
 			robot_target = _nearest_module_pos(["solar", "regolith_plant", "ice_processor"])
 		"haul":
-			robot_target = _nearest_collectable_pos(["supply_pod"])
+			var haul_target: Dictionary = _nearest_collectable_item(["supply_pod"])
+			robot_target = haul_target["pos"] if not haul_target.is_empty() else robot_pos
 		_:
 			robot_target = _robot_home_pos()
 
@@ -573,32 +583,105 @@ func _robot_home_pos() -> Vector2:
 func _complete_robot_task(task: String) -> void:
 	match task:
 		"sample":
-			resources["regolith"] += 0.8
-			if randi() % 4 == 0:
-				resources["samples"] += 0.5
-			add_log("Robot sample task complete: regolith +0.8.")
-			_play_audio_event("tool")
+			if not _complete_robot_sample_task():
+				return
 		"maintenance":
 			solar_dust = max(0.0, solar_dust - 0.06)
 			resources["integrity"] = min(100.0, resources["integrity"] + 1.2)
-			add_log("Robot patrol complete: dust reduced and integrity restored.")
+			add_log("维护机器人巡检完成：月尘降低，基地完整度 +1.2。")
 			_play_audio_event("tool")
 		"haul":
 			if _robot_haul_supply():
-				add_log("Robot haul complete: one cargo batch moved from supply pod.")
+				add_log("搬运机器人完成：从补给舱转运一批货物。")
 				_play_audio_event("cargo")
 			else:
-				resources["parts"] += 0.2
-				add_log("Robot haul complete: spare parts sorted, parts +0.2.")
-				_play_audio_event("cargo")
+				_skip_robot_task(task, "搬运机器人没有找到可搬运补给舱或剩余货物，任务已跳过。")
+				return
 	robot_task = String(robot_queue[0]) if not robot_queue.is_empty() else "idle"
 	_update_ui()
 
-func _nearest_collectable_pos(types: Array[String]) -> Vector2:
-	var best: Vector2 = robot_pos
+func _complete_robot_sample_task() -> bool:
+	var target: Dictionary = _collectable_item_near(robot_target, ["regolith", "ice", "sample"], 34.0)
+	if target.is_empty():
+		var replacement: Dictionary = _nearest_collectable_item(["regolith", "ice", "sample"])
+		if replacement.is_empty():
+			_skip_robot_task("sample", "玉兔采样没有找到可用资源点，任务已跳过。")
+			return false
+		robot_target = replacement["pos"]
+		robot_active = true
+		robot_task = "sample"
+		robot_failure_note = "玉兔采样目标已耗尽，已重新选择最近资源点。"
+		add_log(robot_failure_note)
+		_play_audio_event("robot")
+		return false
+	var item_type := String(target["type"])
+	var amount := float(target.get("amount", 1.0))
+	target["depleted"] = true
+	match item_type:
+		"ice":
+			resources["ice"] += max(0.6, amount)
+			add_log("玉兔采样完成：水冰 +%.1f。" % max(0.6, amount))
+		"sample":
+			resources["samples"] += max(0.5, amount)
+			add_log("玉兔采样完成：科研样本 +%.1f。" % max(0.5, amount))
+		_:
+			resources["regolith"] += max(0.8, amount)
+			add_log("玉兔采样完成：月壤 +%.1f。" % max(0.8, amount))
+	robot_failure_note = ""
+	_sync_scene_instances()
+	_play_audio_event("tool")
+	return true
+
+func _skip_robot_task(task: String, reason: String) -> void:
+	robot_failure_note = reason
+	robot_task = String(robot_queue[0]) if not robot_queue.is_empty() else "idle"
+	robot_active = false
+	robot_target = robot_pos
+	add_log("%s：%s" % [_robot_task_name(task), reason])
+	_play_audio_event("robot")
+	_update_ui()
+
+func _robot_task_skip_reason(task: String) -> String:
+	match task:
+		"haul":
+			if _nearest_collectable_item(["supply_pod"]).is_empty():
+				return "没有落地补给舱，搬运任务自动跳过。"
+			if not _has_supply_cargo_remaining():
+				return "补给舱货物已经搬空，搬运任务自动跳过。"
+		"sample":
+			if _nearest_collectable_item(["regolith", "ice", "sample"]).is_empty():
+				return "没有可用月壤、水冰或科研样本点，玉兔采样自动跳过。"
+	return ""
+
+func _has_supply_cargo_remaining() -> bool:
+	if supply_order.is_empty() or not supply_order.has("cargo_remaining"):
+		return false
+	var cargo: Dictionary = supply_order["cargo_remaining"]
+	for key: String in cargo.keys():
+		if float(cargo[key]) > 0.0:
+			return true
+	return false
+
+func _collectable_item_near(pos: Vector2, types: Array[String], radius: float) -> Dictionary:
+	var best: Dictionary = {}
+	var best_dist := radius
+	for item: Dictionary in collectables:
+		if bool(item["depleted"]):
+			continue
+		if not types.has(String(item["type"])):
+			continue
+		var item_pos: Vector2 = item["pos"]
+		var dist := pos.distance_to(item_pos)
+		if dist <= best_dist:
+			best_dist = dist
+			best = item
+	return best
+
+func _nearest_collectable_item(types: Array[String]) -> Dictionary:
+	var best: Dictionary = {}
 	var best_dist: float = INF
 	for item: Dictionary in collectables:
-		if item["depleted"]:
+		if bool(item["depleted"]):
 			continue
 		if not types.has(String(item["type"])):
 			continue
@@ -606,8 +689,12 @@ func _nearest_collectable_pos(types: Array[String]) -> Vector2:
 		var dist: float = robot_pos.distance_to(pos)
 		if dist < best_dist:
 			best_dist = dist
-			best = pos
+			best = item
 	return best
+
+func _nearest_collectable_pos(types: Array[String]) -> Vector2:
+	var target: Dictionary = _nearest_collectable_item(types)
+	return target["pos"] if not target.is_empty() else robot_pos
 
 func _nearest_module_pos(types: Array[String]) -> Vector2:
 	var best: Vector2 = robot_pos
@@ -1422,13 +1509,30 @@ func _robot_task_name(task: String) -> String:
 		return String(robot_task_manager.call("task_name", task))
 	match task:
 		"sample":
-			return "自动采样"
+			return "玉兔采样"
 		"maintenance":
-			return "自动巡检"
+			return "维护巡检"
 		"haul":
-			return "补给搬运"
+			return "搬运补给"
+		"charging":
+			return "返回充电"
 		_:
 			return "待机"
+
+func _robot_type_name(task: String) -> String:
+	if is_instance_valid(robot_task_manager) and robot_task_manager.has_method("task_robot_type"):
+		return String(robot_task_manager.call("task_robot_type", task))
+	match task:
+		"sample":
+			return "玉兔采样车"
+		"maintenance":
+			return "维护机器人"
+		"haul":
+			return "搬运机器人"
+		"charging":
+			return "充电桩"
+		_:
+			return "机器人"
 
 func _robot_queue_text() -> String:
 	if robot_queue.is_empty():
@@ -1457,12 +1561,15 @@ func _robot_target_text() -> String:
 	return "无"
 
 func _robot_panel_text() -> String:
-	return "状态：%s\n当前：%s\n电量：%.0f%%\n目标：%s\n队列：%s\n\n取消：停止当前任务并清空移动目标。\n优先：把指定任务提到队首；若队列里没有，会新增一个。" % [
+	var note := robot_failure_note if not robot_failure_note.is_empty() else "无"
+	return "状态：%s\n类型：%s\n当前：%s\n电量：%.0f%%\n目标：%s\n队列：%s\n最近问题：%s\n\n取消：停止当前任务并清空移动目标。\n优先：把指定任务提到队首；若队列里没有，会新增一个。" % [
 		_robot_status_text(),
+		_robot_type_name(robot_task),
 		_robot_task_name(robot_task),
 		robot_battery,
 		_robot_target_text(),
 		_robot_queue_text(),
+		note,
 	]
 
 func _cancel_robot_task() -> void:
@@ -1986,6 +2093,7 @@ func _save_game() -> void:
 		"robot_active": robot_active,
 		"robot_battery": robot_battery,
 		"robot_charging": robot_charging,
+		"robot_failure_note": robot_failure_note,
 		"solar_storm_days": solar_storm_days,
 		"micrometeor_alert_days": micrometeor_alert_days,
 		"camera_zoom": camera_zoom,
@@ -2078,6 +2186,7 @@ func _apply_save_data(data: Dictionary) -> void:
 	robot_active = bool(data.get("robot_active", false))
 	robot_battery = float(data.get("robot_battery", 100.0))
 	robot_charging = bool(data.get("robot_charging", false))
+	robot_failure_note = String(data.get("robot_failure_note", ""))
 	solar_storm_days = int(data.get("solar_storm_days", 0))
 	micrometeor_alert_days = int(data.get("micrometeor_alert_days", 0))
 	camera_zoom = float(data.get("camera_zoom", 1.0))
