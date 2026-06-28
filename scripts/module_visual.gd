@@ -1,14 +1,35 @@
 extends Node2D
 
 const TILE := 56
+const BED_TEXTURE_PATH := "res://assets/sprites/facilities/bed.png"
+const STORAGE_TEXTURE_PATH := "res://assets/sprites/facilities/storage.png"
+const CONSOLE_TEXTURE_PATH := "res://assets/sprites/facilities/console.png"
+const ROBOT_CHARGER_TEXTURE_PATH := "res://assets/sprites/facilities/robot_charger.png"
 
 var module_data: Dictionary = {}
 var module_def: Dictionary = {}
 var highlighted := false
 var anim_time := 0.0
+var bed_texture: Texture2D
+var storage_texture: Texture2D
+var console_texture: Texture2D
+var robot_charger_texture: Texture2D
 
 func _ready() -> void:
+	_load_facility_textures()
 	set_process(true)
+
+func _load_facility_textures() -> void:
+	bed_texture = _load_png_texture(BED_TEXTURE_PATH)
+	storage_texture = _load_png_texture(STORAGE_TEXTURE_PATH)
+	console_texture = _load_png_texture(CONSOLE_TEXTURE_PATH)
+	robot_charger_texture = _load_png_texture(ROBOT_CHARGER_TEXTURE_PATH)
+
+func _load_png_texture(path: String) -> Texture2D:
+	var image: Image = Image.load_from_file(path)
+	if image == null or image.is_empty():
+		return null
+	return ImageTexture.create_from_image(image)
 
 func _process(delta: float) -> void:
 	anim_time += delta
@@ -154,7 +175,11 @@ func _draw_battery_bank(rect: Rect2) -> void:
 		_draw_status_light(battery.position + Vector2(10, -6), i % 2 == 0)
 
 func _draw_bed(pos: Vector2) -> void:
-	draw_rect(Rect2(pos, Vector2(48, 22)), Color("#38475e"))
+	var rect := Rect2(pos, Vector2(48, 22))
+	if bed_texture != null:
+		draw_texture_rect(bed_texture, rect, false)
+		return
+	draw_rect(rect, Color("#38475e"))
 	draw_rect(Rect2(pos + Vector2(4, 4), Vector2(14, 14)), Color("#d8e0eb"))
 	draw_rect(Rect2(pos + Vector2(20, 4), Vector2(24, 14)), Color("#6fa0d8"))
 
@@ -165,14 +190,22 @@ func _highlight_facility(name: String, rect: Rect2) -> void:
 	draw_rect(rect.grow(4), Color(1.0, 0.82, 0.34, pulse), false, 3)
 
 func _draw_storage(pos: Vector2) -> void:
-	draw_rect(Rect2(pos, Vector2(30, 44)), Color("#3f4b5f"))
+	var rect := Rect2(pos, Vector2(30, 44))
+	if storage_texture != null:
+		draw_texture_rect(storage_texture, rect, false)
+		return
+	draw_rect(rect, Color("#3f4b5f"))
 	draw_rect(Rect2(pos + Vector2(4, 5), Vector2(22, 12)), Color("#6d7c91"))
 	draw_rect(Rect2(pos + Vector2(4, 25), Vector2(22, 12)), Color("#6d7c91"))
 	draw_circle(pos + Vector2(24, 22), 2, Color("#e7c66b"))
 
 func _draw_console(pos: Vector2, animated: bool) -> void:
-	draw_rect(Rect2(pos, Vector2(46, 28)), Color("#263242"))
-	draw_rect(Rect2(pos + Vector2(5, 5), Vector2(22, 10)), Color("#79b8ff"))
+	var rect := Rect2(pos, Vector2(46, 28))
+	if console_texture != null:
+		draw_texture_rect(console_texture, rect, false)
+	else:
+		draw_rect(rect, Color("#263242"))
+		draw_rect(Rect2(pos + Vector2(5, 5), Vector2(22, 10)), Color("#79b8ff"))
 	_draw_status_light(pos + Vector2(35, 9), animated)
 	_draw_status_light(pos + Vector2(35, 20), not animated)
 
@@ -182,9 +215,13 @@ func _draw_tank(center: Vector2, color: Color) -> void:
 	draw_rect(Rect2(center + Vector2(-8, 13), Vector2(16, 8)), Color("#6f7d8f"))
 
 func _draw_robot_charger(pos: Vector2) -> void:
-	draw_rect(Rect2(pos, Vector2(38, 48)), Color("#263242"))
-	draw_rect(Rect2(pos + Vector2(7, 8), Vector2(24, 24)), Color("#4d5f75"))
-	draw_line(pos + Vector2(12, 40), pos + Vector2(30, 40), Color("#e7c66b"), 3)
+	var rect := Rect2(pos, Vector2(38, 48))
+	if robot_charger_texture != null:
+		draw_texture_rect(robot_charger_texture, rect, false)
+	else:
+		draw_rect(rect, Color("#263242"))
+		draw_rect(Rect2(pos + Vector2(7, 8), Vector2(24, 24)), Color("#4d5f75"))
+		draw_line(pos + Vector2(12, 40), pos + Vector2(30, 40), Color("#e7c66b"), 3)
 	_draw_status_light(pos + Vector2(30, 8), true)
 
 func _draw_suit_rack(pos: Vector2) -> void:

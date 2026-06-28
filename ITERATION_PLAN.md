@@ -501,3 +501,29 @@
 - 将家具和设备替换为真正的独立 PNG/sprite 资源
 - 添加循环环境音、气闸完整音效、脚步声和工具声采样
 - 继续拆分 `main.gd`：资源表、任务系统、UI 页面管理器
+
+## V0.21 第一批独立家具 Sprite
+
+已完成：
+
+- 新增第一批独立 PNG sprite 资源：
+  - `assets/sprites/facilities/bed.png`
+  - `assets/sprites/facilities/storage.png`
+  - `assets/sprites/facilities/console.png`
+  - `assets/sprites/facilities/robot_charger.png`
+- `scripts/module_visual.gd` 改为优先使用 PNG sprite 绘制：
+  - 床铺
+  - 储物柜
+  - 控制台
+  - 机器人充电桩
+- 保留程序绘制回退：
+  - PNG 加载失败时仍然能显示旧版设施图形
+  - 避免资源导入问题导致项目无法启动
+- 控制台和机器人充电桩仍保留状态灯动画叠加
+
+后续可增强：
+
+- 将气闸、生命维持罐、温室种植床、太阳能板替换为独立 sprite
+- 建立统一的 sprite atlas 或 TileSet 资源
+- 加入正式音效采样，而不是程序生成提示音
+- 继续将模块视觉逻辑拆分为更独立的资产/渲染管理脚本
