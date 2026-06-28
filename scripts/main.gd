@@ -14,6 +14,7 @@ const COLLECTABLE_SCENE := preload("res://scenes/collectable_visual.tscn")
 const ROBOT_SCENE := preload("res://scenes/robot.tscn")
 const SaveManagerScript := preload("res://scripts/save_manager.gd")
 const AudioFeedbackScript := preload("res://scripts/audio_feedback.gd")
+const RobotTaskManagerScript := preload("res://scripts/robot_task_manager.gd")
 
 var day := 1
 var is_moon_night := false
@@ -46,6 +47,7 @@ var robot_queue: Array[String] = []
 var robot_pos := Vector2.ZERO
 var robot_target := Vector2.ZERO
 var robot_active := false
+var robot_path_pulse := 0.0
 var backpack := {
 	"regolith": 0.0,
 	"ice": 0.0,
@@ -262,6 +264,7 @@ var entity_root: Node2D
 var camera: Camera2D
 var save_manager: Node
 var audio_feedback: Node
+var robot_task_manager: Node
 var module_nodes: Dictionary = {}
 var collectable_nodes: Dictionary = {}
 var player_node: Node2D
@@ -333,6 +336,7 @@ func _reset_game_state() -> void:
 	robot_pos = _cell_to_world(Vector2i(10, 6))
 	robot_target = robot_pos
 	robot_active = false
+	robot_path_pulse = 0.0
 	backpack = _default_backpack()
 	solar_storm_days = 0
 	micrometeor_alert_days = 0
@@ -425,7 +429,7 @@ func _process(delta: float) -> void:
 	player_pos.x = clamp(player_pos.x, MAP_ORIGIN.x + 5.0, MAP_ORIGIN.x + MAP_W * TILE - 5.0)
 	player_pos.y = clamp(player_pos.y, MAP_ORIGIN.y + 5.0, MAP_ORIGIN.y + MAP_H * TILE - 5.0)
 	_process_suit_oxygen(delta)
-	_process_robot_movement(delta)
+	_process_robot_queue(delta)
 	_find_interaction()
 	_sync_scene_instances()
 	_update_camera()
@@ -459,6 +463,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		_advance_day()
 
 func _draw() -> void:
+	_draw_robot_path()
+	_draw_tutorial_arrow()
 	_draw_build_ghost()
 
 func _update_camera() -> void:
@@ -466,14 +472,32 @@ func _update_camera() -> void:
 		return
 	camera.position = player_pos
 
-func _process_robot_movement(delta: float) -> void:
+func _process_robot_queue(delta: float) -> void:
+	robot_path_pulse += delta
 	if not robot_active:
+		_try_start_robot_task()
 		return
 	var to_target: Vector2 = robot_target - robot_pos
 	if to_target.length() <= 4.0:
 		robot_active = false
+		_complete_robot_task(robot_task)
 		return
 	robot_pos += to_target.normalized() * 120.0 * delta
+
+func _try_start_robot_task() -> void:
+	if robot_queue.is_empty():
+		robot_task = "idle"
+		return
+	if not _can_run_robot():
+		return
+	if resources["power"] < 3.0:
+		robot_task = String(robot_queue[0])
+		return
+	resources["power"] -= 3.0
+	robot_task = String(robot_queue.pop_front())
+	_set_robot_target_for_task(robot_task)
+	add_log("Robot task started: %s." % _robot_task_name(robot_task))
+	_play_audio_event("robot")
 
 func _set_robot_target_for_task(task: String) -> void:
 	robot_active = true
@@ -486,6 +510,30 @@ func _set_robot_target_for_task(task: String) -> void:
 			robot_target = _nearest_collectable_pos(["supply_pod"])
 		_:
 			robot_target = _cell_to_world(Vector2i(10, 6))
+
+func _complete_robot_task(task: String) -> void:
+	match task:
+		"sample":
+			resources["regolith"] += 0.8
+			if randi() % 4 == 0:
+				resources["samples"] += 0.5
+			add_log("Robot sample task complete: regolith +0.8.")
+			_play_audio_event("tool")
+		"maintenance":
+			solar_dust = max(0.0, solar_dust - 0.06)
+			resources["integrity"] = min(100.0, resources["integrity"] + 1.2)
+			add_log("Robot patrol complete: dust reduced and integrity restored.")
+			_play_audio_event("tool")
+		"haul":
+			if _robot_haul_supply():
+				add_log("Robot haul complete: one cargo batch moved from supply pod.")
+				_play_audio_event("cargo")
+			else:
+				resources["parts"] += 0.2
+				add_log("Robot haul complete: spare parts sorted, parts +0.2.")
+				_play_audio_event("cargo")
+	robot_task = String(robot_queue[0]) if not robot_queue.is_empty() else "idle"
+	_update_ui()
 
 func _nearest_collectable_pos(types: Array[String]) -> Vector2:
 	var best: Vector2 = robot_pos
@@ -565,10 +613,19 @@ func _setup_audio() -> void:
 	audio_feedback = AudioFeedbackScript.new()
 	audio_feedback.name = "AudioFeedback"
 	add_child(audio_feedback)
+	robot_task_manager = RobotTaskManagerScript.new()
+	robot_task_manager.name = "RobotTaskManager"
+	add_child(robot_task_manager)
 
 func _play_ui_tone(frequency: float = 660.0, duration: float = 0.08, volume: float = 0.08) -> void:
 	if is_instance_valid(audio_feedback) and audio_feedback.has_method("play_tone"):
 		audio_feedback.call("play_tone", frequency, duration, volume)
+
+func _play_audio_event(event_name: String) -> void:
+	if is_instance_valid(audio_feedback) and audio_feedback.has_method("play_event"):
+		audio_feedback.call("play_event", event_name)
+	else:
+		_play_ui_tone()
 
 func _sync_scene_instances() -> void:
 	if not is_instance_valid(entity_root):
@@ -816,6 +873,39 @@ func _draw_build_ghost() -> void:
 	draw_rect(rect, color)
 	draw_rect(rect, Color("#f2f0da"), false, 2)
 
+func _draw_robot_path() -> void:
+	if not robot_active:
+		return
+	var color := Color(0.45, 0.95, 1.0, 0.55 + 0.25 * abs(sin(robot_path_pulse * 5.0)))
+	var start: Vector2 = robot_pos
+	var end: Vector2 = robot_target
+	var distance: float = start.distance_to(end)
+	if distance < 8.0:
+		return
+	var direction: Vector2 = (end - start).normalized()
+	var segment := 18.0
+	var gap := 10.0
+	var traveled := fmod(robot_path_pulse * 32.0, segment + gap)
+	while traveled < distance:
+		var a: Vector2 = start + direction * traveled
+		var b: Vector2 = start + direction * min(distance, traveled + segment)
+		draw_line(a, b, color, 3)
+		traveled += segment + gap
+	draw_circle(end, 12.0 + 3.0 * abs(sin(robot_path_pulse * 4.0)), Color(0.45, 0.95, 1.0, 0.22))
+
+func _draw_tutorial_arrow() -> void:
+	var target: Vector2 = _tutorial_target_pos()
+	if target.x == INF:
+		return
+	var pulse: float = abs(sin(Time.get_ticks_msec() / 260.0))
+	var arrow_tip: Vector2 = target + Vector2(0, -34 - pulse * 8.0)
+	var arrow_tail: Vector2 = arrow_tip + Vector2(0, -38)
+	var color := Color(1.0, 0.82, 0.25, 0.75)
+	draw_line(arrow_tail, arrow_tip, color, 5)
+	draw_line(arrow_tip, arrow_tip + Vector2(-10, -12), color, 5)
+	draw_line(arrow_tip, arrow_tip + Vector2(10, -12), color, 5)
+	draw_circle(target, 20.0 + 4.0 * pulse, Color(1.0, 0.82, 0.25, 0.18))
+
 func _draw_player() -> void:
 	var foot_offset := sin(walk_phase) * 3.0
 	var side := Vector2(-player_facing.y, player_facing.x)
@@ -1013,7 +1103,7 @@ func _use_storage() -> void:
 	_show_info_panel("BackpackPanel", _backpack_panel_text())
 
 func _use_robot_charger() -> void:
-	if not _has_tech("robot_assist") and not _has_tech("yutu_robot"):
+	if not _can_run_robot():
 		add_log("机器人充电桩待机：需要先解锁玉兔机器人或机器人协作协议。")
 		_play_ui_tone(260.0, 0.08, 0.06)
 		return
@@ -1021,11 +1111,12 @@ func _use_robot_charger() -> void:
 	var next_index := robot_queue.size() % order.size()
 	var queued_task: String = order[next_index]
 	if robot_queue.size() >= 4:
-		add_log("机器人任务队列已满。等待每日执行后再派发新任务。")
+		add_log("机器人任务队列已满。等待当前队列执行后再派发新任务。")
 		return
 	robot_queue.append(queued_task)
-	robot_task = robot_queue[0]
-	_play_ui_tone(960.0, 0.08, 0.07)
+	if not robot_active:
+		robot_task = String(robot_queue[0])
+	_play_audio_event("robot")
 	add_log("机器人充电桩：任务已入队 -> %s。队列：%s。" % [_robot_task_name(queued_task), _robot_queue_text()])
 
 func _use_greenhouse(module: Dictionary) -> void:
@@ -1053,7 +1144,7 @@ func _clean_solar() -> void:
 	resources["parts"] -= 1
 	solar_dust = max(0.0, solar_dust - 0.28)
 	resources["suit_dust"] = min(100.0, resources["suit_dust"] + 3.0)
-	_play_ui_tone(740.0, 0.07, 0.07)
+	_play_audio_event("tool")
 	add_log("清理太阳能阵列。月尘覆盖降至 %d%%。" % int(solar_dust * 100))
 
 func _repair_life_support() -> void:
@@ -1066,7 +1157,7 @@ func _repair_life_support() -> void:
 	resources["parts"] -= 1
 	resources["integrity"] = min(100.0, resources["integrity"] + 12.0)
 	oxygen_wear = max(0.0, oxygen_wear - 0.12)
-	_play_ui_tone(620.0, 0.08, 0.08)
+	_play_audio_event("tool")
 	add_log("完成一次生命维持系统维护。")
 
 func _repair_module_leak(module: Dictionary) -> void:
@@ -1080,7 +1171,7 @@ func _repair_module_leak(module: Dictionary) -> void:
 	module["leaking"] = false
 	resources["integrity"] = min(100.0, resources["integrity"] + 6.0)
 	var def: Dictionary = module_defs[module["type"]]
-	_play_ui_tone(520.0, 0.1, 0.08)
+	_play_audio_event("tool")
 	add_log("已封堵 %s 漏点，舱压恢复稳定。" % def["name"])
 
 func _repair_external_equipment(module: Dictionary) -> void:
@@ -1094,7 +1185,7 @@ func _repair_external_equipment(module: Dictionary) -> void:
 	resources["integrity"] = min(100.0, resources["integrity"] + 8.0)
 	resources["suit_dust"] = min(100.0, resources["suit_dust"] + 4.0)
 	var def: Dictionary = module_defs[module["type"]]
-	_play_ui_tone(560.0, 0.08, 0.08)
+	_play_audio_event("tool")
 	add_log("完成 %s 外部维护：完整度 +8，宇航服月尘污染上升。" % def["name"])
 
 func _use_workshop() -> void:
@@ -1119,7 +1210,7 @@ func _cycle_airlock() -> void:
 	resources["suit_integrity"] = min(100.0, resources["suit_integrity"] + 8.0)
 	resources["pressure"] = min(100.0, resources["pressure"] + 3.0)
 	tutorial_flags["airlock"] = true
-	_play_ui_tone(880.0, 0.1, 0.08)
+	_play_audio_event("airlock")
 	add_log("气闸循环完成：消耗电力 %.0f、氧气 %.0f，宇航服补氧、复压、除尘。" % [power_cost, oxygen_cost])
 
 func _use_regolith_plant() -> void:
@@ -1199,6 +1290,11 @@ func _research_tech(tech_id: String) -> void:
 func _has_tech(tech_id: String) -> bool:
 	return unlocked_techs.has(tech_id)
 
+func _can_run_robot() -> bool:
+	if is_instance_valid(robot_task_manager) and robot_task_manager.has_method("can_run_robot"):
+		return bool(robot_task_manager.call("can_run_robot", unlocked_techs))
+	return _has_tech("robot_assist") or _has_tech("yutu_robot")
+
 func _process_tech_daily_effects() -> void:
 	if _has_tech("yutu_robot"):
 		solar_dust = max(0.0, solar_dust - 0.04)
@@ -1206,38 +1302,8 @@ func _process_tech_daily_effects() -> void:
 		if day % 3 == 0:
 			resources["samples"] += 0.5
 			add_log("玉兔机器人完成巡视：科研样本 +0.5。")
-	_process_robot_task()
-
-func _process_robot_task() -> void:
-	if robot_queue.is_empty():
+	if robot_queue.is_empty() and not robot_active:
 		robot_task = "idle"
-		return
-	if not _has_tech("robot_assist") and not _has_tech("yutu_robot"):
-		return
-	if resources["power"] < 3.0:
-		add_log("机器人任务暂停：充电桩电力不足。")
-		return
-	resources["power"] -= 3.0
-	var active_task := String(robot_queue.pop_front())
-	robot_task = active_task
-	_set_robot_target_for_task(active_task)
-	match active_task:
-		"sample":
-			resources["regolith"] += 0.8
-			if day % 4 == 0:
-				resources["samples"] += 0.5
-			add_log("机器人采样任务完成：月壤 +0.8。")
-		"maintenance":
-			solar_dust = max(0.0, solar_dust - 0.06)
-			resources["integrity"] = min(100.0, resources["integrity"] + 1.2)
-			add_log("机器人巡检任务完成：月尘下降，设备完整度小幅恢复。")
-		"haul":
-			if _robot_haul_supply():
-				add_log("机器人搬运任务完成：已从补给舱自动转运一批货物。")
-			else:
-				resources["parts"] += 0.2
-				add_log("机器人搬运任务：整理备件，维修件 +0.2。")
-	robot_task = robot_queue[0] if not robot_queue.is_empty() else "idle"
 
 func _robot_haul_supply() -> bool:
 	if supply_order.is_empty() or not supply_order.has("cargo_remaining"):
@@ -1277,6 +1343,8 @@ func _mark_supply_pod_depleted() -> void:
 	_sync_scene_instances()
 
 func _robot_task_name(task: String) -> String:
+	if is_instance_valid(robot_task_manager) and robot_task_manager.has_method("task_name"):
+		return String(robot_task_manager.call("task_name", task))
 	match task:
 		"sample":
 			return "自动采样"
@@ -1413,7 +1481,7 @@ func _collect_surface_item(item: Dictionary) -> void:
 				return
 			add_log("采集特殊月壤样本 +%.0f，已装入出舱背包。" % amount)
 	item["depleted"] = true
-	_play_ui_tone(680.0, 0.08, 0.07)
+	_play_audio_event("tool")
 	_sync_scene_instances()
 
 func _recover_supply_cargo(item: Dictionary) -> void:
@@ -1457,7 +1525,7 @@ func _recover_supply_cargo(item: Dictionary) -> void:
 			moved_parts.append("%s %.0f" % [resource_names.get(key, key), take])
 	_clean_empty_cargo(remaining)
 	resources["suit_dust"] = min(100.0, resources["suit_dust"] + 4.0)
-	_play_ui_tone(720.0, 0.1, 0.08)
+	_play_audio_event("cargo")
 	if moved_parts.is_empty():
 		add_log("补给舱没有可搬运货物。")
 	else:
@@ -2745,34 +2813,78 @@ func _mission_status_text() -> String:
 	return "任务 %d/%d：%s" % [completed_missions.size(), mission_defs.size(), active]
 
 func _guide_text() -> String:
-	var title := "当前目标"
-	var body := ""
-	var tip := ""
+	var title := "[ 今日任务卡 ]"
+	var action := ""
+	var reason := ""
+	var done := ""
 	if not bool(tutorial_flags.get("console", false)):
-		body = "1. 先走到居住舱右侧的控制台。"
-		tip = "靠近闪烁屏幕，按 E 查看基地状态。"
+		action = "1. 去居住舱控制台"
+		reason = "先确认电力、氧气、水和补给状态。"
+		done = "靠近闪烁屏幕按 E。"
 	elif not bool(tutorial_flags.get("airlock", false)):
-		body = "2. 去气闸舱做出舱准备。"
-		tip = "靠近气闸按 E，补满宇航服氧气并除尘。"
+		action = "2. 去气闸做出舱检查"
+		reason = "补满航天服氧气，降低第一次出舱风险。"
+		done = "靠近气闸按 E。"
 	elif not bool(tutorial_flags.get("collected", false)):
-		body = "3. 出舱采集第一批资源。"
-		tip = "选择采样铲，去月面水冰/月壤点按 E。资源会先进入背包。"
+		action = "3. 出舱采集第一批资源"
+		reason = "月壤、水冰和样本是制氧、科研和扩建的起点。"
+		done = "靠近月面采集点按 E。"
 	elif not bool(tutorial_flags.get("stored", false)):
-		body = "4. 回到舱内储物柜入库。"
-		tip = "靠近储物柜按 E，把背包里的资源转入基地库存。"
+		action = "4. 回储物柜入库"
+		reason = "背包物资不算基地库存，必须搬回舱内。"
+		done = "靠近储物柜按 E。"
 	elif not bool(tutorial_flags.get("planted", false)):
-		body = "5. 去温室种下第一批作物。"
-		tip = "底部选择作物，靠近温室按 E。先种土豆最稳。"
+		action = "5. 去温室种下第一批作物"
+		reason = "食物会持续消耗，农业越早启动越稳。"
+		done = "靠近温室按 E。"
 	elif not bool(tutorial_flags.get("supply", false)):
-		body = "6. 去补给降落区申请地球补给。"
-		tip = "靠近地图右下补给区按 E，优先申请生存包。"
+		action = "6. 去补给区申请地球补给"
+		reason = "补给有运输时间，提前申请比缺了再等更安全。"
+		done = "靠近补给区按 E，优先选择生存包。"
 	elif not bool(tutorial_flags.get("advanced_day", false)):
-		body = "7. 完成第一天准备，进入下一天。"
-		tip = "按 N 或右下按钮推进时间，观察资源变化。"
+		action = "7. 进入下一天"
+		reason = "观察资源结算，开始真正的生存循环。"
+		done = "按 N 或右下按钮推进时间。"
 	else:
-		body = _strategic_next_goal()
-		tip = "长期目标：撑过 30 天，扩建能源、温室、生命维持和机器人能力。"
-	return "%s\n%s\n%s" % [title, body, tip]
+		action = _strategic_next_goal()
+		reason = "长期目标：撑过 30 天，扩建能源、温室、生命维持和机器人能力。"
+		done = "完成当前最紧急的一项基地运营动作。"
+	return "%s\n行动：%s\n原因：%s\n完成：%s" % [title, action, reason, done]
+
+func _tutorial_target_pos() -> Vector2:
+	if not bool(tutorial_flags.get("console", false)):
+		return _facility_target_pos("hab", "console")
+	if not bool(tutorial_flags.get("airlock", false)):
+		return _module_target_pos("airlock")
+	if not bool(tutorial_flags.get("collected", false)):
+		return _nearest_collectable_pos(["regolith", "ice", "sample"])
+	if not bool(tutorial_flags.get("stored", false)):
+		return _facility_target_pos("hab", "storage")
+	if not bool(tutorial_flags.get("planted", false)):
+		return _module_target_pos("greenhouse")
+	if not bool(tutorial_flags.get("supply", false)):
+		return _module_target_pos("supply")
+	return Vector2(INF, INF)
+
+func _module_target_pos(module_type: String) -> Vector2:
+	for module: Dictionary in modules:
+		if String(module["type"]) == module_type:
+			return _module_rect(module).get_center()
+	return Vector2(INF, INF)
+
+func _facility_target_pos(module_type: String, facility: String) -> Vector2:
+	for module: Dictionary in modules:
+		if String(module["type"]) != module_type:
+			continue
+		var rect: Rect2 = _module_rect(module)
+		match facility:
+			"console":
+				return rect.position + Vector2(rect.size.x - 34, rect.size.y - 32)
+			"storage":
+				return rect.position + Vector2(rect.size.x - 34, 46)
+			"bed":
+				return rect.position + Vector2(48, 48)
+	return _module_target_pos(module_type)
 
 func _strategic_next_goal() -> String:
 	if resources["power"] < 35.0:
