@@ -1323,6 +1323,9 @@ func _facility_hint(facility: String) -> String:
 
 func _try_build_selected() -> void:
 	var cell: Vector2i = _player_build_cell()
+	if _candidate_overlaps_player(selected_build, cell):
+		add_log("建造位置太近：请退后一步，把模块放在前方空地。")
+		return
 	if not _can_place(selected_build, cell):
 		add_log("这里空间不足或超出基地网格，无法建造。")
 		return
@@ -2241,7 +2244,9 @@ func _horizontal_overlap(a: Rect2i, b: Rect2i) -> bool:
 	return a.position.x < b.position.x + b.size.x and b.position.x < a.position.x + a.size.x
 
 func _player_build_cell() -> Vector2i:
-	var local := player_pos - MAP_ORIGIN
+	var facing: Vector2 = player_facing.normalized() if player_facing.length() > 0.01 else Vector2.DOWN
+	var placement_pos: Vector2 = player_pos + facing * TILE
+	var local := placement_pos - MAP_ORIGIN
 	var x := int(floor(local.x / TILE))
 	var y := int(floor(local.y / TILE))
 	return Vector2i(clamp(x, 0, MAP_W - 1), clamp(y, 0, MAP_H - 1))
@@ -2260,6 +2265,8 @@ func _can_place(module_type: String, cell: Vector2i) -> bool:
 	var size: Vector2i = def["size"]
 	if cell.x < 0 or cell.y < 0 or cell.x + size.x > MAP_W or cell.y + size.y > MAP_H:
 		return false
+	if _candidate_overlaps_player(module_type, cell):
+		return false
 	var candidate: Rect2i = Rect2i(cell, size)
 	for module: Dictionary in modules:
 		var other_def: Dictionary = module_defs[module["type"]]
@@ -2269,6 +2276,12 @@ func _can_place(module_type: String, cell: Vector2i) -> bool:
 		if candidate.intersects(other):
 			return false
 	return true
+
+func _candidate_overlaps_player(module_type: String, cell: Vector2i) -> bool:
+	var def: Dictionary = module_defs[module_type]
+	var size: Vector2i = def["size"]
+	var rect: Rect2 = Rect2(_cell_to_world(cell), Vector2(size.x * TILE - 2, size.y * TILE - 2))
+	return rect.grow(player_radius + 6.0).has_point(player_pos)
 
 func _is_connected_placement(module_type: String, cell: Vector2i) -> bool:
 	var def: Dictionary = module_defs[module_type]
