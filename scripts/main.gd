@@ -46,6 +46,8 @@ var backpack := {
 	"parts": 0.0,
 }
 var backpack_capacity := 12.0
+var camera_zoom := 1.0
+var ui_scale := 1.0
 
 var solar_dust := 0.12
 var oxygen_wear := 0.08
@@ -243,6 +245,7 @@ var interior_tile_map: TileMapLayer
 var moon_tile_source_id := 0
 var interior_tile_source_id := 0
 var entity_root: Node2D
+var camera: Camera2D
 var audio_player: AudioStreamPlayer
 var module_nodes: Dictionary = {}
 var collectable_nodes: Dictionary = {}
@@ -274,6 +277,10 @@ func _setup_input_map() -> void:
 	_add_key_action("save_game", [KEY_F5])
 	_add_key_action("load_game", [KEY_F9])
 	_add_key_action("new_game", [KEY_F10])
+	_add_key_action("camera_zoom_in", [KEY_Z])
+	_add_key_action("camera_zoom_out", [KEY_X])
+	_add_key_action("ui_scale_down", [KEY_BRACKETLEFT])
+	_add_key_action("ui_scale_up", [KEY_BRACKETRIGHT])
 
 func _add_key_action(action_name: String, keys: Array[int]) -> void:
 	if not InputMap.has_action(action_name):
@@ -307,6 +314,8 @@ func _reset_game_state() -> void:
 	tutorial_flags = _default_tutorial_flags()
 	robot_task = "idle"
 	backpack = _default_backpack()
+	camera_zoom = 1.0
+	ui_scale = 1.0
 	solar_dust = 0.12
 	oxygen_wear = 0.08
 	next_module_uid = 1
@@ -389,6 +398,7 @@ func _process(delta: float) -> void:
 	_process_suit_oxygen(delta)
 	_find_interaction()
 	_sync_scene_instances()
+	_update_camera()
 	queue_redraw()
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -398,6 +408,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		_load_game()
 	if event.is_action_pressed("new_game"):
 		_start_new_game()
+	if event.is_action_pressed("camera_zoom_in"):
+		_adjust_camera_zoom(0.1)
+	if event.is_action_pressed("camera_zoom_out"):
+		_adjust_camera_zoom(-0.1)
+	if event.is_action_pressed("ui_scale_down"):
+		_adjust_ui_scale(-0.1)
+	if event.is_action_pressed("ui_scale_up"):
+		_adjust_ui_scale(0.1)
 	if event.is_action_pressed("toggle_build") and not game_over:
 		_toggle_build_mode()
 	if event.is_action_pressed("cancel") and not game_over:
@@ -412,14 +430,48 @@ func _unhandled_input(event: InputEvent) -> void:
 func _draw() -> void:
 	_draw_build_ghost()
 
+func _update_camera() -> void:
+	if not is_instance_valid(camera):
+		return
+	camera.position = player_pos
+
+func _adjust_camera_zoom(delta: float) -> void:
+	camera_zoom = clamp(camera_zoom + delta, 0.7, 1.6)
+	_apply_camera_zoom()
+	add_log("地图缩放：%d%%。" % int(camera_zoom * 100))
+	_update_ui()
+
+func _apply_camera_zoom() -> void:
+	if is_instance_valid(camera):
+		camera.zoom = Vector2(camera_zoom, camera_zoom)
+
+func _adjust_ui_scale(delta: float) -> void:
+	ui_scale = clamp(ui_scale + delta, 0.8, 1.3)
+	_apply_ui_scale()
+	add_log("UI 缩放：%d%%。" % int(ui_scale * 100))
+	_update_ui()
+
+func _apply_ui_scale() -> void:
+	if has_node("UI/Root"):
+		var root: Control = $UI/Root
+		root.scale = Vector2(ui_scale, ui_scale)
+		root.position = Vector2.ZERO
+
 func _setup_entity_root() -> void:
 	entity_root = Node2D.new()
 	entity_root.name = "Entities"
 	add_child(entity_root)
+	camera = Camera2D.new()
+	camera.name = "PlayerCamera"
+	camera.enabled = true
+	camera.position_smoothing_enabled = true
+	camera.position_smoothing_speed = 6.0
+	add_child(camera)
 	player_node = PLAYER_SCENE.instantiate()
 	player_node.name = "Player"
 	player_node.z_index = 30
 	entity_root.add_child(player_node)
+	_apply_camera_zoom()
 	_sync_scene_instances()
 
 func _setup_audio() -> void:
@@ -1482,6 +1534,8 @@ func _save_game() -> void:
 		"operator": _serialize_operator(),
 		"backpack": backpack,
 		"robot_task": robot_task,
+		"camera_zoom": camera_zoom,
+		"ui_scale": ui_scale,
 		"solar_dust": solar_dust,
 		"oxygen_wear": oxygen_wear,
 		"next_module_uid": next_module_uid,
@@ -1529,6 +1583,7 @@ func _start_new_game() -> void:
 		$UI/Root/MainMenu.visible = false
 	add_log("新一轮广寒前哨任务开始。")
 	add_log("先按左上角当前目标行动：控制台 -> 气闸 -> 出舱采集 -> 储物柜入库。")
+	_update_camera()
 	_update_ui()
 	queue_redraw()
 
@@ -1558,6 +1613,10 @@ func _apply_save_data(data: Dictionary) -> void:
 	operator = _deserialize_operator(data.get("operator", data.get("crew", _serialize_operator())))
 	backpack = _copy_float_dictionary(data.get("backpack", _default_backpack()), _default_backpack())
 	robot_task = String(data.get("robot_task", "idle"))
+	camera_zoom = float(data.get("camera_zoom", 1.0))
+	ui_scale = float(data.get("ui_scale", 1.0))
+	_apply_camera_zoom()
+	_apply_ui_scale()
 	solar_dust = float(data.get("solar_dust", 0.12))
 	oxygen_wear = float(data.get("oxygen_wear", 0.08))
 	next_module_uid = int(data.get("next_module_uid", 1))
@@ -1951,6 +2010,7 @@ func _setup_ui() -> void:
 	root.name = "Root"
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	ui.add_child(root)
+	_apply_ui_scale()
 
 	var top := Label.new()
 	top.name = "Top"
@@ -1978,7 +2038,7 @@ func _setup_ui() -> void:
 	controls.name = "Controls"
 	controls.position = Vector2(1300, 340)
 	controls.size = Vector2(280, 86)
-	controls.text = "WASD/方向键：移动\nE：交互/采集/建造\nN：进入下一天\nB：建造模式\nF5/F9/F10：保存/读取/新局"
+	controls.text = "WASD/方向键：移动\nE：交互/采集/建造\nN：下一天  B：建造\nZ/X：地图缩放\n[/]：UI 缩放\nF5/F9/F10：保存/读取/新局"
 	root.add_child(controls)
 
 	var guide := RichTextLabel.new()
@@ -2128,6 +2188,32 @@ func _setup_ui() -> void:
 	new_button.pressed.connect(_start_new_game)
 	save_panel.add_child(new_button)
 
+	var zoom_panel := HBoxContainer.new()
+	zoom_panel.name = "ZoomPanel"
+	zoom_panel.position = Vector2(1300, 760)
+	zoom_panel.size = Vector2(280, 38)
+	root.add_child(zoom_panel)
+	var map_minus := Button.new()
+	map_minus.text = "地图-"
+	map_minus.pressed.connect(func(): _adjust_camera_zoom(-0.1))
+	zoom_panel.add_child(map_minus)
+	var zoom_label := Label.new()
+	zoom_label.name = "ZoomLabel"
+	zoom_label.custom_minimum_size = Vector2(86, 30)
+	zoom_panel.add_child(zoom_label)
+	var map_plus := Button.new()
+	map_plus.text = "地图+"
+	map_plus.pressed.connect(func(): _adjust_camera_zoom(0.1))
+	zoom_panel.add_child(map_plus)
+	var ui_minus := Button.new()
+	ui_minus.text = "UI-"
+	ui_minus.pressed.connect(func(): _adjust_ui_scale(-0.1))
+	zoom_panel.add_child(ui_minus)
+	var ui_plus := Button.new()
+	ui_plus.text = "UI+"
+	ui_plus.pressed.connect(func(): _adjust_ui_scale(0.1))
+	zoom_panel.add_child(ui_plus)
+
 func _setup_main_menu() -> void:
 	var menu := PanelContainer.new()
 	menu.name = "MainMenu"
@@ -2203,6 +2289,8 @@ func _update_ui() -> void:
 	$UI/Root/MissionStatus.text = _mission_status_text()
 	$UI/Root/EvaTasks.text = _eva_tasks_text()
 	$UI/Root/Guide.text = _guide_text()
+	if has_node("UI/Root/ZoomPanel/ZoomLabel"):
+		$UI/Root/ZoomPanel/ZoomLabel.text = "图%d UI%d" % [int(camera_zoom * 100), int(ui_scale * 100)]
 	_update_tech_buttons()
 	_refresh_main_menu()
 	var hint := "工具：%s | 作物：%s | 背包 %.0f/%.0f：%s | 月壤 %.0f 水冰 %.0f 样本 %.0f。" % [
