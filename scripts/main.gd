@@ -407,7 +407,8 @@ func _setup_starting_base() -> void:
 	_add_module("life_support", Vector2i(9, 5), true)
 	_add_module("greenhouse", Vector2i(12, 5), true)
 	_add_module("supply", Vector2i(17, 7), true)
-	player_pos = _cell_to_world(Vector2i(5, 5)) + Vector2(TILE * 0.5, TILE * 0.5)
+	var hab_module: Dictionary = modules[1]
+	player_pos = _module_rect(hab_module).position + Vector2(84, 58)
 
 func _process(delta: float) -> void:
 	if game_over or pending_main_menu:
@@ -2171,26 +2172,26 @@ func _facility_solid_rects(module_type: String) -> Array[Rect2]:
 	match module_type:
 		"hab":
 			return [
-				Rect2(Vector2(22, 22), Vector2(54, 24)),
-				Rect2(Vector2(22, 56), Vector2(54, 24)),
-				Rect2(Vector2(110, 22), Vector2(24, 54)),
-				Rect2(Vector2(92, 70), Vector2(42, 24)),
+				Rect2(Vector2(30, 28), Vector2(22, 12)),
+				Rect2(Vector2(30, 62), Vector2(22, 12)),
+				Rect2(Vector2(118, 34), Vector2(10, 30)),
+				Rect2(Vector2(108, 78), Vector2(16, 10)),
 			]
 		"life_support":
 			return [
-				Rect2(Vector2(46, 32), Vector2(76, 32)),
-				Rect2(Vector2(22, 72), Vector2(46, 22)),
+				Rect2(Vector2(58, 38), Vector2(52, 20)),
+				Rect2(Vector2(34, 78), Vector2(20, 10)),
 			]
 		"workshop":
 			return [
-				Rect2(Vector2(22, 30), Vector2(58, 26)),
-				Rect2(Vector2(110, 22), Vector2(38, 48)),
-				Rect2(Vector2(24, 76), Vector2(30, 22)),
+				Rect2(Vector2(34, 36), Vector2(34, 12)),
+				Rect2(Vector2(120, 32), Vector2(16, 28)),
+				Rect2(Vector2(30, 84), Vector2(18, 8)),
 			]
 		"airlock":
 			return [
-				Rect2(Vector2(34, 26), Vector2(16, 48)),
-				Rect2(Vector2(94, 26), Vector2(22, 44)),
+				Rect2(Vector2(40, 34), Vector2(8, 32)),
+				Rect2(Vector2(100, 34), Vector2(10, 28)),
 			]
 	return []
 
