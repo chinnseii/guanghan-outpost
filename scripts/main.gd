@@ -11,6 +11,9 @@ const SAVE_DIR := "user://saves"
 const PLAYER_SCENE := preload("res://scenes/player.tscn")
 const MODULE_SCENE := preload("res://scenes/module_visual.tscn")
 const COLLECTABLE_SCENE := preload("res://scenes/collectable_visual.tscn")
+const ROBOT_SCENE := preload("res://scenes/robot.tscn")
+const SaveManagerScript := preload("res://scripts/save_manager.gd")
+const AudioFeedbackScript := preload("res://scripts/audio_feedback.gd")
 
 var day := 1
 var is_moon_night := false
@@ -40,6 +43,9 @@ var log_lines: Array[String] = []
 var tutorial_flags := {}
 var robot_task := "idle"
 var robot_queue: Array[String] = []
+var robot_pos := Vector2.ZERO
+var robot_target := Vector2.ZERO
+var robot_active := false
 var backpack := {
 	"regolith": 0.0,
 	"ice": 0.0,
@@ -254,10 +260,12 @@ var moon_tile_source_id := 0
 var interior_tile_source_id := 0
 var entity_root: Node2D
 var camera: Camera2D
-var audio_player: AudioStreamPlayer
+var save_manager: Node
+var audio_feedback: Node
 var module_nodes: Dictionary = {}
 var collectable_nodes: Dictionary = {}
 var player_node: Node2D
+var robot_node: Node2D
 
 func _ready() -> void:
 	_setup_input_map()
@@ -322,6 +330,9 @@ func _reset_game_state() -> void:
 	tutorial_flags = _default_tutorial_flags()
 	robot_task = "idle"
 	robot_queue.clear()
+	robot_pos = _cell_to_world(Vector2i(10, 6))
+	robot_target = robot_pos
+	robot_active = false
 	backpack = _default_backpack()
 	solar_storm_days = 0
 	micrometeor_alert_days = 0
@@ -413,6 +424,7 @@ func _process(delta: float) -> void:
 	player_pos.x = clamp(player_pos.x, MAP_ORIGIN.x + 5.0, MAP_ORIGIN.x + MAP_W * TILE - 5.0)
 	player_pos.y = clamp(player_pos.y, MAP_ORIGIN.y + 5.0, MAP_ORIGIN.y + MAP_H * TILE - 5.0)
 	_process_suit_oxygen(delta)
+	_process_robot_movement(delta)
 	_find_interaction()
 	_sync_scene_instances()
 	_update_camera()
@@ -438,6 +450,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("cancel") and not game_over:
 		build_mode = false
 		selected_build = ""
+		_hide_info_panels()
 		_update_ui()
 	if event.is_action_pressed("interact") and not game_over:
 		_interact()
@@ -451,6 +464,55 @@ func _update_camera() -> void:
 	if not is_instance_valid(camera):
 		return
 	camera.position = player_pos
+
+func _process_robot_movement(delta: float) -> void:
+	if not robot_active:
+		return
+	var to_target: Vector2 = robot_target - robot_pos
+	if to_target.length() <= 4.0:
+		robot_active = false
+		return
+	robot_pos += to_target.normalized() * 120.0 * delta
+
+func _set_robot_target_for_task(task: String) -> void:
+	robot_active = true
+	match task:
+		"sample":
+			robot_target = _nearest_collectable_pos(["regolith", "ice", "sample"])
+		"maintenance":
+			robot_target = _nearest_module_pos(["solar", "regolith_plant", "ice_processor"])
+		"haul":
+			robot_target = _nearest_collectable_pos(["supply_pod"])
+		_:
+			robot_target = _cell_to_world(Vector2i(10, 6))
+
+func _nearest_collectable_pos(types: Array[String]) -> Vector2:
+	var best: Vector2 = robot_pos
+	var best_dist: float = INF
+	for item: Dictionary in collectables:
+		if item["depleted"]:
+			continue
+		if not types.has(String(item["type"])):
+			continue
+		var pos: Vector2 = item["pos"]
+		var dist: float = robot_pos.distance_to(pos)
+		if dist < best_dist:
+			best_dist = dist
+			best = pos
+	return best
+
+func _nearest_module_pos(types: Array[String]) -> Vector2:
+	var best: Vector2 = robot_pos
+	var best_dist: float = INF
+	for module: Dictionary in modules:
+		if not types.has(String(module["type"])):
+			continue
+		var pos: Vector2 = _module_rect(module).get_center()
+		var dist: float = robot_pos.distance_to(pos)
+		if dist < best_dist:
+			best_dist = dist
+			best = pos
+	return best
 
 func _adjust_camera_zoom(delta: float) -> void:
 	camera_zoom = clamp(camera_zoom + delta, 0.7, 1.6)
@@ -488,33 +550,24 @@ func _setup_entity_root() -> void:
 	player_node.name = "Player"
 	player_node.z_index = 30
 	entity_root.add_child(player_node)
+	robot_node = ROBOT_SCENE.instantiate()
+	robot_node.name = "Robot"
+	robot_node.z_index = 24
+	entity_root.add_child(robot_node)
 	_apply_camera_zoom()
 	_sync_scene_instances()
 
 func _setup_audio() -> void:
-	audio_player = AudioStreamPlayer.new()
-	audio_player.name = "ActionTonePlayer"
-	add_child(audio_player)
+	save_manager = SaveManagerScript.new()
+	save_manager.name = "SaveManager"
+	add_child(save_manager)
+	audio_feedback = AudioFeedbackScript.new()
+	audio_feedback.name = "AudioFeedback"
+	add_child(audio_feedback)
 
 func _play_ui_tone(frequency: float = 660.0, duration: float = 0.08, volume: float = 0.08) -> void:
-	if not is_instance_valid(audio_player):
-		return
-	var stream := AudioStreamGenerator.new()
-	stream.mix_rate = 22050.0
-	stream.buffer_length = max(0.05, duration + 0.03)
-	audio_player.stream = stream
-	audio_player.play()
-	var playback: AudioStreamGeneratorPlayback = audio_player.get_stream_playback()
-	if playback == null:
-		return
-	var frames := int(stream.mix_rate * duration)
-	var phase := 0.0
-	var increment := TAU * frequency / stream.mix_rate
-	for i in range(frames):
-		var fade: float = 1.0 - float(i) / float(max(1, frames))
-		var sample := sin(phase) * volume * fade
-		playback.push_frame(Vector2(sample, sample))
-		phase += increment
+	if is_instance_valid(audio_feedback) and audio_feedback.has_method("play_tone"):
+		audio_feedback.call("play_tone", frequency, duration, volume)
 
 func _sync_scene_instances() -> void:
 	if not is_instance_valid(entity_root):
@@ -523,6 +576,10 @@ func _sync_scene_instances() -> void:
 		player_node.position = player_pos
 		if player_node.has_method("setup"):
 			player_node.call("setup", player_facing, _is_player_inside_pressurized_module(), resources["suit_o2"])
+	if is_instance_valid(robot_node):
+		robot_node.position = robot_pos
+		if robot_node.has_method("setup"):
+			robot_node.call("setup", robot_task, robot_active)
 	for module: Dictionary in modules:
 		var uid := int(module["uid"])
 		if not module_nodes.has(uid) or not is_instance_valid(module_nodes[uid]):
@@ -535,6 +592,9 @@ func _sync_scene_instances() -> void:
 		if module_node.has_method("setup"):
 			var visual_data: Dictionary = module.duplicate(true)
 			visual_data["doors"] = _module_door_sides(module)
+			visual_data["active_facility"] = ""
+			if interact_target.get("kind", "") == "facility" and int(interact_target.get("module_uid", -1)) == uid:
+				visual_data["active_facility"] = String(interact_target.get("facility", ""))
 			module_node.call("setup", visual_data, module_defs[module["type"]], interact_target == module)
 	for uid in module_nodes.keys():
 		var still_exists := false
@@ -935,11 +995,13 @@ func _use_console() -> void:
 		resources["power"], resources["oxygen"], resources["water"], resources["pressure"], modules.size(), leak_count, pod_count
 	])
 	add_log("控制台：机器人队列=%s，背包 %.0f/%.0f。" % [_robot_queue_text(), _backpack_load(), backpack_capacity])
+	_show_info_panel("ConsolePanel", _console_panel_text())
 
 func _use_storage() -> void:
 	if _backpack_load() <= 0.0:
 		add_log("储物柜：出舱背包为空。可出舱采集后回到这里入库。")
 		_play_ui_tone(420.0, 0.06, 0.05)
+		_show_info_panel("BackpackPanel", _backpack_panel_text())
 		return
 	for key: String in backpack.keys():
 		resources[key] += float(backpack[key])
@@ -947,6 +1009,7 @@ func _use_storage() -> void:
 	tutorial_flags["stored"] = true
 	_play_ui_tone(680.0, 0.1, 0.07)
 	add_log("储物柜：出舱背包已入库。基地库存已更新。")
+	_show_info_panel("BackpackPanel", _backpack_panel_text())
 
 func _use_robot_charger() -> void:
 	if not _has_tech("robot_assist") and not _has_tech("yutu_robot"):
@@ -1082,14 +1145,17 @@ func _collect_supply() -> void:
 	if supply_waiting:
 		var pos := _dict_to_vector2(supply_order.get("landing_pos", _vector2_to_dict(_cell_to_world(Vector2i(17, 7)))))
 		add_log("补给舱等待回收。信标坐标：%.0f, %.0f；请检查航天服氧气后出舱取货。" % [pos.x, pos.y])
+		_show_info_panel("SupplyCargoPanel", _supply_panel_text())
 		return
 	if not supply_order.is_empty():
 		add_log("补给 %s 在途，预计第 %d 天抵达。" % [supply_order["name"], supply_order["arrival_day"]])
+		_show_info_panel("SupplyCargoPanel", _supply_panel_text())
 		return
 	if day < next_supply_request_day:
 		add_log("补给申请窗口未开放。下一次窗口：第 %d 天。" % next_supply_request_day)
 		return
 	$UI/Root/SupplyPanel.visible = true
+	_show_info_panel("SupplyCargoPanel", _supply_panel_text())
 	add_log("地球通信窗口开放：请选择下一批补给货单。")
 
 func _toggle_build_mode() -> void:
@@ -1153,6 +1219,7 @@ func _process_robot_task() -> void:
 	resources["power"] -= 3.0
 	var active_task := String(robot_queue.pop_front())
 	robot_task = active_task
+	_set_robot_target_for_task(active_task)
 	match active_task:
 		"sample":
 			resources["regolith"] += 0.8
@@ -1362,6 +1429,7 @@ func _recover_supply_cargo(item: Dictionary) -> void:
 	if free_space <= 0.0:
 		add_log("背包已满，无法继续搬运补给。先回储物柜入库。")
 		_play_ui_tone(220.0, 0.08, 0.06)
+		_show_info_panel("SupplyCargoPanel", _supply_panel_text())
 		return
 	var moved := 0.0
 	var moved_parts: Array[String] = []
@@ -1390,6 +1458,7 @@ func _recover_supply_cargo(item: Dictionary) -> void:
 		add_log("补给舱没有可搬运货物。")
 	else:
 		add_log("搬运补给：%s。背包 %.0f/%.0f。" % [_join_strings(moved_parts, " / "), _backpack_load(), backpack_capacity])
+	_show_info_panel("SupplyCargoPanel", _supply_panel_text())
 	if remaining.is_empty():
 		_finish_supply_recovery(item)
 
@@ -1666,7 +1735,10 @@ func _random_supply_landing_pos() -> Vector2:
 	return pos
 
 func _save_game() -> void:
-	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(SAVE_DIR))
+	if is_instance_valid(save_manager) and save_manager.has_method("ensure_save_dir"):
+		save_manager.call("ensure_save_dir")
+	else:
+		DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(SAVE_DIR))
 	var file := FileAccess.open(_save_path(current_save_slot), FileAccess.WRITE)
 	if file == null:
 		add_log("保存失败：无法写入存档文件。")
@@ -1694,6 +1766,9 @@ func _save_game() -> void:
 		"backpack": backpack,
 		"robot_task": robot_task,
 		"robot_queue": robot_queue,
+		"robot_pos": _vector2_to_dict(robot_pos),
+		"robot_target": _vector2_to_dict(robot_target),
+		"robot_active": robot_active,
 		"solar_storm_days": solar_storm_days,
 		"micrometeor_alert_days": micrometeor_alert_days,
 		"camera_zoom": camera_zoom,
@@ -1780,7 +1855,10 @@ func _apply_save_data(data: Dictionary) -> void:
 	for task in saved_queue:
 		robot_queue.append(String(task))
 	if not robot_queue.is_empty():
-		robot_task = robot_queue[0]
+		robot_task = String(robot_queue[0])
+	robot_pos = _dict_to_vector2(data.get("robot_pos", _vector2_to_dict(_cell_to_world(Vector2i(10, 6)))))
+	robot_target = _dict_to_vector2(data.get("robot_target", _vector2_to_dict(robot_pos)))
+	robot_active = bool(data.get("robot_active", false))
 	solar_storm_days = int(data.get("solar_storm_days", 0))
 	micrometeor_alert_days = int(data.get("micrometeor_alert_days", 0))
 	camera_zoom = float(data.get("camera_zoom", 1.0))
@@ -1896,6 +1974,8 @@ func _deserialize_operator(value) -> Dictionary:
 	}
 
 func _save_path(slot: int) -> String:
+	if is_instance_valid(save_manager) and save_manager.has_method("save_path"):
+		return String(save_manager.call("save_path", slot))
 	return "%s/slot_%d.json" % [SAVE_DIR, clamp(slot, 1, SAVE_SLOTS)]
 
 func _select_save_slot(slot: int) -> void:
@@ -1905,6 +1985,8 @@ func _select_save_slot(slot: int) -> void:
 	_update_ui()
 
 func _slot_summary(slot: int) -> String:
+	if is_instance_valid(save_manager) and save_manager.has_method("slot_summary"):
+		return String(save_manager.call("slot_summary", slot))
 	var path := _save_path(slot)
 	if not FileAccess.file_exists(path):
 		return "空槽"
@@ -2070,12 +2152,47 @@ func _is_walkable_point(pos: Vector2) -> bool:
 		if not _module_has_interior(module["type"]):
 			return false
 		if _module_inner_rect(module).has_point(pos):
-			return true
+			return not _is_furniture_blocked_point(pos, module)
 		return _is_module_door_gap(pos, module)
 	return true
 
 func _module_inner_rect(module: Dictionary) -> Rect2:
 	return _module_rect(module).grow(-12.0)
+
+func _is_furniture_blocked_point(pos: Vector2, module: Dictionary) -> bool:
+	var module_type := String(module["type"])
+	var local: Vector2 = pos - _module_rect(module).position
+	for rect: Rect2 in _facility_solid_rects(module_type):
+		if rect.has_point(local):
+			return true
+	return false
+
+func _facility_solid_rects(module_type: String) -> Array[Rect2]:
+	match module_type:
+		"hab":
+			return [
+				Rect2(Vector2(22, 22), Vector2(54, 24)),
+				Rect2(Vector2(22, 56), Vector2(54, 24)),
+				Rect2(Vector2(110, 22), Vector2(24, 54)),
+				Rect2(Vector2(92, 70), Vector2(42, 24)),
+			]
+		"life_support":
+			return [
+				Rect2(Vector2(46, 32), Vector2(76, 32)),
+				Rect2(Vector2(22, 72), Vector2(46, 22)),
+			]
+		"workshop":
+			return [
+				Rect2(Vector2(22, 30), Vector2(58, 26)),
+				Rect2(Vector2(110, 22), Vector2(38, 48)),
+				Rect2(Vector2(24, 76), Vector2(30, 22)),
+			]
+		"airlock":
+			return [
+				Rect2(Vector2(34, 26), Vector2(16, 48)),
+				Rect2(Vector2(94, 26), Vector2(22, 44)),
+			]
+	return []
 
 func _is_module_door_gap(pos: Vector2, module: Dictionary) -> bool:
 	var rect := _module_rect(module)
@@ -2309,6 +2426,10 @@ func _setup_ui() -> void:
 	next_day.pressed.connect(_advance_day)
 	root.add_child(next_day)
 
+	root.add_child(_make_info_panel("ConsolePanel", Vector2(388, 76), Vector2(360, 230), "BASE CONSOLE"))
+	root.add_child(_make_info_panel("BackpackPanel", Vector2(388, 316), Vector2(360, 190), "BACKPACK / STORAGE"))
+	root.add_child(_make_info_panel("SupplyCargoPanel", Vector2(760, 76), Vector2(360, 230), "SUPPLY CARGO"))
+
 	var supply_panel := PanelContainer.new()
 	supply_panel.name = "SupplyPanel"
 	supply_panel.position = Vector2(520, 180)
@@ -2383,6 +2504,96 @@ func _setup_ui() -> void:
 	ui_plus.text = "UI+"
 	ui_plus.pressed.connect(func(): _adjust_ui_scale(0.1))
 	zoom_panel.add_child(ui_plus)
+
+func _make_info_panel(panel_name: String, panel_pos: Vector2, panel_size: Vector2, title_text: String) -> PanelContainer:
+	var panel := PanelContainer.new()
+	panel.name = panel_name
+	panel.position = panel_pos
+	panel.size = panel_size
+	panel.visible = false
+	var box := VBoxContainer.new()
+	box.name = "Box"
+	box.add_theme_constant_override("separation", 6)
+	panel.add_child(box)
+	var title := Label.new()
+	title.text = title_text
+	title.add_theme_font_size_override("font_size", 18)
+	box.add_child(title)
+	var text := RichTextLabel.new()
+	text.name = "Text"
+	text.custom_minimum_size = panel_size - Vector2(24, 54)
+	text.fit_content = false
+	text.scroll_active = true
+	text.add_theme_font_size_override("normal_font_size", 15)
+	box.add_child(text)
+	return panel
+
+func _show_info_panel(panel_name: String, text: String) -> void:
+	for name: String in ["BackpackPanel", "SupplyCargoPanel", "ConsolePanel"]:
+		var path := "UI/Root/%s" % name
+		if has_node(path):
+			var target: CanvasItem = get_node(path)
+			target.visible = false
+	var panel_path := "UI/Root/%s" % panel_name
+	if not has_node(panel_path):
+		return
+	var panel: PanelContainer = get_node(panel_path)
+	panel.visible = true
+	var label: RichTextLabel = panel.get_node("Box/Text")
+	label.text = text
+
+func _hide_info_panels() -> void:
+	for name: String in ["BackpackPanel", "SupplyCargoPanel", "ConsolePanel"]:
+		var path := "UI/Root/%s" % name
+		if has_node(path):
+			var target: CanvasItem = get_node(path)
+			target.visible = false
+
+func _console_panel_text() -> String:
+	return "Base status\nPower %.0f  O2 %.0f  Water %.0f  Food %.0f\nPressure %.0f%%  CO2 %.0f  Humidity %.0f%%\nModules %d  Leaks %d\nRobot: %s\nEVA risk: %s" % [
+		resources["power"], resources["oxygen"], resources["water"], resources["food"],
+		resources["pressure"], resources["co2"], resources["humidity"],
+		modules.size(), _leaking_module_count(), _robot_queue_text(), _eva_risk_text()
+	]
+
+func _backpack_panel_text() -> String:
+	return "Backpack %.0f / %.0f\n%s\n\nStorage action\nPress E at storage cabinet to unload carried cargo into base inventory.\nLarge supply pods require several trips." % [
+		_backpack_load(), backpack_capacity, _backpack_summary()
+	]
+
+func _supply_panel_text() -> String:
+	if supply_order.is_empty():
+		return "No active Earth supply order.\nOpen the supply terminal when the request window is available."
+	var status := "In transit"
+	if supply_waiting:
+		status = "Landed: EVA pickup required"
+	var remaining := "Cargo not unpacked yet"
+	if supply_order.has("cargo_remaining"):
+		var cargo: Dictionary = supply_order["cargo_remaining"]
+		var parts: Array[String] = []
+		for key: String in cargo.keys():
+			parts.append("%s %.0f" % [resource_names.get(key, key), float(cargo[key])])
+		remaining = _join_strings(parts, " / ") if not parts.is_empty() else "Cargo hold empty"
+	return "%s\nOrder: %s\nArrival day: %d\nRemaining: %s\nBackpack %.0f / %.0f" % [
+		status,
+		supply_order.get("name", "-"),
+		int(supply_order.get("arrival_day", day)),
+		remaining,
+		_backpack_load(),
+		backpack_capacity
+	]
+
+func _eva_risk_text() -> String:
+	var risks: Array[String] = []
+	if resources["suit_o2"] <= 35.0:
+		risks.append("low O2")
+	if solar_storm_days > 0:
+		risks.append("solar storm")
+	if micrometeor_alert_days > 0:
+		risks.append("micrometeor alert")
+	if resources["suit_dust"] >= 60.0:
+		risks.append("high dust")
+	return _join_strings(risks, " / ") if not risks.is_empty() else "nominal"
 
 func _setup_main_menu() -> void:
 	var menu := PanelContainer.new()

@@ -105,10 +105,17 @@ func _draw_greenhouse(rect: Rect2) -> void:
 			draw_circle(bed.get_center(), 7 + 13 * growth, Color("#71d46f"))
 
 func _draw_hab_interior(rect: Rect2) -> void:
-	_draw_bed(rect.position + Vector2(24, 24))
-	_draw_bed(rect.position + Vector2(24, 58))
-	_draw_storage(rect.position + Vector2(rect.size.x - 50, 24))
-	_draw_console(rect.position + Vector2(rect.size.x - 58, rect.size.y - 46), true)
+	var bed_a := Rect2(rect.position + Vector2(24, 24), Vector2(48, 22))
+	var bed_b := Rect2(rect.position + Vector2(24, 58), Vector2(48, 22))
+	var storage := Rect2(rect.position + Vector2(rect.size.x - 50, 24), Vector2(30, 44))
+	var console := Rect2(rect.position + Vector2(rect.size.x - 58, rect.size.y - 46), Vector2(46, 28))
+	_highlight_facility("bed", bed_a.merge(bed_b).grow(4))
+	_highlight_facility("storage", storage.grow(5))
+	_highlight_facility("console", console.grow(5))
+	_draw_bed(bed_a.position)
+	_draw_bed(bed_b.position)
+	_draw_storage(storage.position)
+	_draw_console(console.position, true)
 	draw_circle(rect.get_center(), 12, Color("#717d8f"))
 	draw_circle(rect.get_center(), 6, Color("#9fb0c5"))
 
@@ -116,14 +123,21 @@ func _draw_life_support_interior(rect: Rect2) -> void:
 	_draw_tank(rect.get_center() + Vector2(-34, -4), Color("#98d5ff"))
 	_draw_tank(rect.get_center() + Vector2(0, -4), Color("#b8f0d0"))
 	_draw_tank(rect.get_center() + Vector2(34, -4), Color("#d8e0eb"))
-	_draw_console(rect.position + Vector2(22, rect.size.y - 44), true)
+	var console := Rect2(rect.position + Vector2(22, rect.size.y - 44), Vector2(46, 28))
+	_highlight_facility("console", console.grow(5))
+	_draw_console(console.position, true)
 	draw_line(rect.get_center() + Vector2(-48, 22), rect.get_center() + Vector2(48, 22), Color("#6f7d8f"), 4)
 
 func _draw_workshop_interior(rect: Rect2) -> void:
-	draw_rect(Rect2(rect.position + Vector2(22, 26), Vector2(58, 34)), Color("#c0a36c"))
+	var bench := Rect2(rect.position + Vector2(22, 26), Vector2(58, 34))
+	var charger := Rect2(rect.position + Vector2(rect.size.x - 58, 24), Vector2(38, 48))
+	var storage := Rect2(rect.position + Vector2(24, rect.size.y - 48), Vector2(30, 44))
+	_highlight_facility("robot_charger", charger.grow(5))
+	_highlight_facility("storage", storage.grow(5))
+	draw_rect(bench, Color("#c0a36c"))
 	draw_rect(Rect2(rect.position + Vector2(28, 32), Vector2(46, 10)), Color("#6d5b3b"))
-	_draw_robot_charger(rect.position + Vector2(rect.size.x - 58, 24))
-	_draw_storage(rect.position + Vector2(24, rect.size.y - 48))
+	_draw_robot_charger(charger.position)
+	_draw_storage(storage.position)
 
 func _draw_airlock_interior(rect: Rect2) -> void:
 	var chamber := Rect2(rect.position + Vector2(22, 18), Vector2(52, 58))
@@ -143,6 +157,12 @@ func _draw_bed(pos: Vector2) -> void:
 	draw_rect(Rect2(pos, Vector2(48, 22)), Color("#38475e"))
 	draw_rect(Rect2(pos + Vector2(4, 4), Vector2(14, 14)), Color("#d8e0eb"))
 	draw_rect(Rect2(pos + Vector2(20, 4), Vector2(24, 14)), Color("#6fa0d8"))
+
+func _highlight_facility(name: String, rect: Rect2) -> void:
+	if String(module_data.get("active_facility", "")) != name:
+		return
+	var pulse: float = 0.45 + 0.55 * abs(sin(anim_time * 5.0))
+	draw_rect(rect.grow(4), Color(1.0, 0.82, 0.34, pulse), false, 3)
 
 func _draw_storage(pos: Vector2) -> void:
 	draw_rect(Rect2(pos, Vector2(30, 44)), Color("#3f4b5f"))
