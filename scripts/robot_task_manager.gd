@@ -11,5 +11,7 @@ func task_name(task: String) -> String:
 			return "自动巡检"
 		"haul":
 			return "补给搬运"
+		"charging":
+			return "返回充电"
 		_:
 			return "待机"

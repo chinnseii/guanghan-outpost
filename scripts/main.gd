@@ -49,6 +49,8 @@ var robot_pos := Vector2.ZERO
 var robot_target := Vector2.ZERO
 var robot_active := false
 var robot_path_pulse := 0.0
+var robot_battery := 100.0
+var robot_charging := false
 var backpack := {
 	"regolith": 0.0,
 	"ice": 0.0,
@@ -339,6 +341,8 @@ func _reset_game_state() -> void:
 	robot_target = robot_pos
 	robot_active = false
 	robot_path_pulse = 0.0
+	robot_battery = 100.0
+	robot_charging = false
 	backpack = _default_backpack()
 	solar_storm_days = 0
 	micrometeor_alert_days = 0
@@ -476,8 +480,15 @@ func _update_camera() -> void:
 
 func _process_robot_queue(delta: float) -> void:
 	robot_path_pulse += delta
+	if robot_charging:
+		_process_robot_charging(delta)
+		return
 	if not robot_active:
 		_try_start_robot_task()
+		return
+	robot_battery = max(0.0, robot_battery - delta * 4.5)
+	if robot_battery <= 12.0:
+		_start_robot_charging(true)
 		return
 	var to_target: Vector2 = robot_target - robot_pos
 	if to_target.length() <= 4.0:
@@ -487,19 +498,59 @@ func _process_robot_queue(delta: float) -> void:
 	robot_pos += to_target.normalized() * 120.0 * delta
 
 func _try_start_robot_task() -> void:
+	if robot_charging:
+		return
 	if robot_queue.is_empty():
 		robot_task = "idle"
 		return
 	if not _can_run_robot():
 		return
-	if resources["power"] < 3.0:
+	if robot_battery <= 18.0:
 		robot_task = String(robot_queue[0])
+		_start_robot_charging(false)
 		return
-	resources["power"] -= 3.0
 	robot_task = String(robot_queue.pop_front())
 	_set_robot_target_for_task(robot_task)
 	add_log("Robot task started: %s." % _robot_task_name(robot_task))
 	_play_audio_event("robot")
+
+func _start_robot_charging(requeue_current: bool) -> void:
+	if requeue_current and not ["idle", "charging"].has(robot_task):
+		robot_queue.insert(0, robot_task)
+		add_log("机器人电量低：暂停 %s，返回充电桩。" % _robot_task_name(robot_task))
+	else:
+		add_log("机器人电量低：返回充电桩等待充电。")
+	robot_task = "charging"
+	robot_charging = true
+	robot_active = true
+	robot_target = _robot_home_pos()
+	_play_audio_event("robot")
+
+func _process_robot_charging(delta: float) -> void:
+	var home: Vector2 = _robot_home_pos()
+	robot_target = home
+	var to_home: Vector2 = home - robot_pos
+	if to_home.length() > 4.0:
+		robot_pos += to_home.normalized() * 135.0 * delta
+		robot_battery = max(0.0, robot_battery - delta * 2.0)
+		return
+	robot_active = false
+	if resources["power"] <= 0.1:
+		robot_task = "charging"
+		return
+	var charge_amount: float = min(100.0 - robot_battery, delta * 24.0)
+	var power_cost: float = charge_amount * 0.06
+	if resources["power"] < power_cost:
+		charge_amount = resources["power"] / 0.06
+		power_cost = resources["power"]
+	resources["power"] = max(0.0, resources["power"] - power_cost)
+	robot_battery = min(100.0, robot_battery + charge_amount)
+	if robot_battery >= 96.0:
+		robot_charging = false
+		robot_task = String(robot_queue[0]) if not robot_queue.is_empty() else "idle"
+		add_log("机器人充电完成：电量 %.0f%%。" % robot_battery)
+		_play_audio_event("robot")
+	_update_ui()
 
 func _set_robot_target_for_task(task: String) -> void:
 	robot_active = true
@@ -511,7 +562,13 @@ func _set_robot_target_for_task(task: String) -> void:
 		"haul":
 			robot_target = _nearest_collectable_pos(["supply_pod"])
 		_:
-			robot_target = _cell_to_world(Vector2i(10, 6))
+			robot_target = _robot_home_pos()
+
+func _robot_home_pos() -> Vector2:
+	var charger_pos: Vector2 = _facility_target_pos("workshop", "robot_charger")
+	if charger_pos.x != INF:
+		return charger_pos
+	return _cell_to_world(Vector2i(10, 6))
 
 func _complete_robot_task(task: String) -> void:
 	match task:
@@ -1133,6 +1190,7 @@ func _use_robot_charger() -> void:
 		robot_task = String(robot_queue[0])
 	_play_audio_event("robot")
 	add_log("机器人充电桩：任务已入队 -> %s。队列：%s。" % [_robot_task_name(queued_task), _robot_queue_text()])
+	_show_info_panel("RobotPanel", _robot_panel_text())
 
 func _use_greenhouse(module: Dictionary) -> void:
 	if module["crop"] == "":
@@ -1379,6 +1437,63 @@ func _robot_queue_text() -> String:
 	for task: String in robot_queue:
 		parts.append(_robot_task_name(task))
 	return _join_strings(parts, " > ")
+
+func _robot_status_text() -> String:
+	if robot_charging:
+		return "充电中" if robot_pos.distance_to(_robot_home_pos()) <= 5.0 else "返回充电桩"
+	if robot_active:
+		return "执行中"
+	if not robot_queue.is_empty():
+		return "待执行"
+	return "待机"
+
+func _robot_target_text() -> String:
+	if robot_charging:
+		return "充电桩 %.0f, %.0f" % [_robot_home_pos().x, _robot_home_pos().y]
+	if robot_active:
+		return "%.0f, %.0f" % [robot_target.x, robot_target.y]
+	if not robot_queue.is_empty():
+		return "等待启动：%s" % _robot_task_name(String(robot_queue[0]))
+	return "无"
+
+func _robot_panel_text() -> String:
+	return "状态：%s\n当前：%s\n电量：%.0f%%\n目标：%s\n队列：%s\n\n取消：停止当前任务并清空移动目标。\n优先：把指定任务提到队首；若队列里没有，会新增一个。" % [
+		_robot_status_text(),
+		_robot_task_name(robot_task),
+		robot_battery,
+		_robot_target_text(),
+		_robot_queue_text(),
+	]
+
+func _cancel_robot_task() -> void:
+	if robot_active and not robot_charging and robot_task != "idle":
+		add_log("机器人任务已取消：%s。" % _robot_task_name(robot_task))
+	elif robot_charging:
+		add_log("机器人正在充电，已取消排队任务。")
+	robot_queue.clear()
+	robot_active = false
+	robot_charging = false
+	robot_task = "idle"
+	robot_target = robot_pos
+	_play_audio_event("robot")
+	_show_info_panel("RobotPanel", _robot_panel_text())
+	_update_ui()
+
+func _prioritize_robot_task(task: String) -> void:
+	var removed := false
+	for i in range(robot_queue.size() - 1, -1, -1):
+		if robot_queue[i] == task:
+			robot_queue.remove_at(i)
+			removed = true
+	robot_queue.insert(0, task)
+	if robot_queue.size() > 4:
+		robot_queue.pop_back()
+	add_log("机器人优先级调整：%s 已置顶%s。" % [_robot_task_name(task), "" if removed else "（新增任务）"])
+	if not robot_active and not robot_charging:
+		robot_task = task
+	_play_audio_event("robot")
+	_show_info_panel("RobotPanel", _robot_panel_text())
+	_update_ui()
 
 func _facility_name(facility: String) -> String:
 	match facility:
@@ -1869,6 +1984,8 @@ func _save_game() -> void:
 		"robot_pos": _vector2_to_dict(robot_pos),
 		"robot_target": _vector2_to_dict(robot_target),
 		"robot_active": robot_active,
+		"robot_battery": robot_battery,
+		"robot_charging": robot_charging,
 		"solar_storm_days": solar_storm_days,
 		"micrometeor_alert_days": micrometeor_alert_days,
 		"camera_zoom": camera_zoom,
@@ -1959,6 +2076,8 @@ func _apply_save_data(data: Dictionary) -> void:
 	robot_pos = _dict_to_vector2(data.get("robot_pos", _vector2_to_dict(_cell_to_world(Vector2i(10, 6)))))
 	robot_target = _dict_to_vector2(data.get("robot_target", _vector2_to_dict(robot_pos)))
 	robot_active = bool(data.get("robot_active", false))
+	robot_battery = float(data.get("robot_battery", 100.0))
+	robot_charging = bool(data.get("robot_charging", false))
 	solar_storm_days = int(data.get("solar_storm_days", 0))
 	micrometeor_alert_days = int(data.get("micrometeor_alert_days", 0))
 	camera_zoom = float(data.get("camera_zoom", 1.0))
@@ -2550,6 +2669,7 @@ func _setup_ui() -> void:
 	root.add_child(_make_info_panel("ConsolePanel", Vector2(388, 76), Vector2(360, 230), "BASE CONSOLE"))
 	root.add_child(_make_info_panel("BackpackPanel", Vector2(388, 316), Vector2(360, 190), "BACKPACK / STORAGE"))
 	root.add_child(_make_info_panel("SupplyCargoPanel", Vector2(760, 76), Vector2(360, 230), "SUPPLY CARGO"))
+	root.add_child(_make_robot_panel())
 
 	var supply_panel := PanelContainer.new()
 	supply_panel.name = "SupplyPanel"
@@ -2649,8 +2769,33 @@ func _make_info_panel(panel_name: String, panel_pos: Vector2, panel_size: Vector
 	box.add_child(text)
 	return panel
 
+func _make_robot_panel() -> PanelContainer:
+	var panel := _make_info_panel("RobotPanel", Vector2(760, 316), Vector2(420, 250), "ROBOT TASKS")
+	var box: VBoxContainer = panel.get_node("Box")
+	var row := HBoxContainer.new()
+	row.name = "Controls"
+	row.add_theme_constant_override("separation", 5)
+	box.add_child(row)
+	var cancel := Button.new()
+	cancel.text = "取消"
+	cancel.pressed.connect(_cancel_robot_task)
+	row.add_child(cancel)
+	var haul := Button.new()
+	haul.text = "搬运优先"
+	haul.pressed.connect(_prioritize_robot_task.bind("haul"))
+	row.add_child(haul)
+	var maintenance := Button.new()
+	maintenance.text = "巡检优先"
+	maintenance.pressed.connect(_prioritize_robot_task.bind("maintenance"))
+	row.add_child(maintenance)
+	var sample := Button.new()
+	sample.text = "采样优先"
+	sample.pressed.connect(_prioritize_robot_task.bind("sample"))
+	row.add_child(sample)
+	return panel
+
 func _show_info_panel(panel_name: String, text: String) -> void:
-	for name: String in ["BackpackPanel", "SupplyCargoPanel", "ConsolePanel"]:
+	for name: String in ["BackpackPanel", "SupplyCargoPanel", "ConsolePanel", "RobotPanel"]:
 		var path := "UI/Root/%s" % name
 		if has_node(path):
 			var target: CanvasItem = get_node(path)
@@ -2664,17 +2809,17 @@ func _show_info_panel(panel_name: String, text: String) -> void:
 	label.text = text
 
 func _hide_info_panels() -> void:
-	for name: String in ["BackpackPanel", "SupplyCargoPanel", "ConsolePanel"]:
+	for name: String in ["BackpackPanel", "SupplyCargoPanel", "ConsolePanel", "RobotPanel"]:
 		var path := "UI/Root/%s" % name
 		if has_node(path):
 			var target: CanvasItem = get_node(path)
 			target.visible = false
 
 func _console_panel_text() -> String:
-	return "Base status\nPower %.0f  O2 %.0f  Water %.0f  Food %.0f\nPressure %.0f%%  CO2 %.0f  Humidity %.0f%%\nModules %d  Leaks %d\nRobot: %s\nEVA risk: %s" % [
+	return "Base status\nPower %.0f  O2 %.0f  Water %.0f  Food %.0f\nPressure %.0f%%  CO2 %.0f  Humidity %.0f%%\nModules %d  Leaks %d\nRobot: %s %.0f%%\nEVA risk: %s" % [
 		resources["power"], resources["oxygen"], resources["water"], resources["food"],
 		resources["pressure"], resources["co2"], resources["humidity"],
-		modules.size(), _leaking_module_count(), _robot_queue_text(), _eva_risk_text()
+		modules.size(), _leaking_module_count(), _robot_status_text(), robot_battery, _eva_risk_text()
 	]
 
 func _backpack_panel_text() -> String:
@@ -2818,6 +2963,15 @@ func _update_ui() -> void:
 				hint = "%s：%s" % [def["name"], def["hint"]]
 	$UI/Root/Hint.text = hint
 	$UI/Root/Log.text = _join_strings(log_lines, "\n")
+	_refresh_open_info_panels()
+
+func _refresh_open_info_panels() -> void:
+	if has_node("UI/Root/RobotPanel") and $UI/Root/RobotPanel.visible:
+		var label: RichTextLabel = $UI/Root/RobotPanel.get_node("Box/Text")
+		label.text = _robot_panel_text()
+	if has_node("UI/Root/ConsolePanel") and $UI/Root/ConsolePanel.visible:
+		var label: RichTextLabel = $UI/Root/ConsolePanel.get_node("Box/Text")
+		label.text = _console_panel_text()
 
 func _update_tech_buttons() -> void:
 	if not has_node("UI/Root/TechPanel"):
@@ -2959,6 +3113,8 @@ func _facility_target_pos(module_type: String, facility: String) -> Vector2:
 				return rect.position + Vector2(rect.size.x - 34, 46)
 			"bed":
 				return rect.position + Vector2(48, 48)
+			"robot_charger":
+				return rect.position + Vector2(rect.size.x - 40, 48)
 	return _module_target_pos(module_type)
 
 func _strategic_next_goal() -> String:
