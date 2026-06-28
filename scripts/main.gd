@@ -42,6 +42,7 @@ var unlocked_techs: Array[String] = []
 var completed_missions: Array[String] = []
 var log_lines: Array[String] = []
 var tutorial_flags := {}
+var last_guidance_tip := ""
 var robot_task := "idle"
 var robot_queue: Array[String] = []
 var robot_pos := Vector2.ZERO
@@ -331,6 +332,7 @@ func _reset_game_state() -> void:
 	unlocked_techs.clear()
 	completed_missions.clear()
 	tutorial_flags = _default_tutorial_flags()
+	last_guidance_tip = ""
 	robot_task = "idle"
 	robot_queue.clear()
 	robot_pos = _cell_to_world(Vector2i(10, 6))
@@ -627,6 +629,13 @@ func _play_audio_event(event_name: String) -> void:
 	else:
 		_play_ui_tone()
 
+func _set_guidance_tip(text: String) -> void:
+	last_guidance_tip = text
+	_update_ui()
+
+func _clear_guidance_tip() -> void:
+	last_guidance_tip = ""
+
 func _sync_scene_instances() -> void:
 	if not is_instance_valid(entity_root):
 		return
@@ -901,10 +910,13 @@ func _draw_tutorial_arrow() -> void:
 	var arrow_tip: Vector2 = target + Vector2(0, -34 - pulse * 8.0)
 	var arrow_tail: Vector2 = arrow_tip + Vector2(0, -38)
 	var color := Color(1.0, 0.82, 0.25, 0.75)
+	if player_pos.distance_to(target) > 180.0:
+		draw_line(player_pos, target, Color(1.0, 0.82, 0.25, 0.18), 4)
 	draw_line(arrow_tail, arrow_tip, color, 5)
 	draw_line(arrow_tip, arrow_tip + Vector2(-10, -12), color, 5)
 	draw_line(arrow_tip, arrow_tip + Vector2(10, -12), color, 5)
-	draw_circle(target, 20.0 + 4.0 * pulse, Color(1.0, 0.82, 0.25, 0.18))
+	draw_circle(target, 24.0 + 5.0 * pulse, Color(1.0, 0.82, 0.25, 0.2))
+	draw_arc(target, 32.0 + 4.0 * pulse, 0.0, TAU, 32, Color(1.0, 0.82, 0.25, 0.7), 3)
 
 func _draw_player() -> void:
 	var foot_offset := sin(walk_phase) * 3.0
@@ -1081,6 +1093,7 @@ func _use_console() -> void:
 	var pod_count := _active_collectable_count("supply_pod")
 	var leak_count := _leaking_module_count()
 	tutorial_flags["console"] = true
+	_clear_guidance_tip()
 	_play_ui_tone(840.0, 0.08, 0.07)
 	add_log("控制台：电力 %.0f，氧 %.0f，水 %.0f，舱压 %.0f%%，模块 %d，漏气 %d，补给信标 %d。" % [
 		resources["power"], resources["oxygen"], resources["water"], resources["pressure"], modules.size(), leak_count, pod_count
@@ -1091,6 +1104,7 @@ func _use_console() -> void:
 func _use_storage() -> void:
 	if _backpack_load() <= 0.0:
 		add_log("储物柜：出舱背包为空。可出舱采集后回到这里入库。")
+		_set_guidance_tip("背包为空：先出舱采集月壤、水冰或样本，再回储物柜入库。")
 		_play_ui_tone(420.0, 0.06, 0.05)
 		_show_info_panel("BackpackPanel", _backpack_panel_text())
 		return
@@ -1098,6 +1112,7 @@ func _use_storage() -> void:
 		resources[key] += float(backpack[key])
 		backpack[key] = 0.0
 	tutorial_flags["stored"] = true
+	_clear_guidance_tip()
 	_play_ui_tone(680.0, 0.1, 0.07)
 	add_log("储物柜：出舱背包已入库。基地库存已更新。")
 	_show_info_panel("BackpackPanel", _backpack_panel_text())
@@ -1129,6 +1144,7 @@ func _use_greenhouse(module: Dictionary) -> void:
 		module["crop"] = selected_crop
 		module["age"] = 0
 		tutorial_flags["planted"] = true
+		_clear_guidance_tip()
 		add_log("在温室种下 %s。%s。" % [crop_def["name"], crop_def["note"]])
 	else:
 		var crop_def: Dictionary = crop_defs[module["crop"]]
@@ -1210,6 +1226,7 @@ func _cycle_airlock() -> void:
 	resources["suit_integrity"] = min(100.0, resources["suit_integrity"] + 8.0)
 	resources["pressure"] = min(100.0, resources["pressure"] + 3.0)
 	tutorial_flags["airlock"] = true
+	_clear_guidance_tip()
 	_play_audio_event("airlock")
 	add_log("气闸循环完成：消耗电力 %.0f、氧气 %.0f，宇航服补氧、复压、除尘。" % [power_cost, oxygen_cost])
 
@@ -1393,21 +1410,26 @@ func _try_build_selected() -> void:
 	var cell: Vector2i = _player_build_cell()
 	if _candidate_overlaps_player(selected_build, cell):
 		add_log("建造位置太近：请退后一步，把模块放在前方空地。")
+		_set_guidance_tip("建造失败：你站得太近。退后一步，让预览格不要压住角色。")
 		return
 	if not _can_place(selected_build, cell):
 		add_log("这里空间不足或超出基地网格，无法建造。")
+		_set_guidance_tip("建造失败：预览区域需要完全空出来，不能压住已有模块或地图边界。")
 		return
 	if not _is_connected_placement(selected_build, cell):
 		add_log("新模块必须贴近已有基地舱段或能源节点。")
+		_set_guidance_tip("建造失败：新模块必须贴着已有基地模块放置。")
 		return
 	var def: Dictionary = module_defs[selected_build]
 	var cost: Dictionary = def["cost"]
 	if resources["parts"] < cost["parts"] or resources["power"] < cost["power"]:
 		add_log("资源不足：需要维修件 %.0f、电力 %.0f。" % [cost["parts"], cost["power"]])
+		_set_guidance_tip("建造失败：资源不足。先采集、搬运补给，或等待维修工作台产出维修件。")
 		return
 	resources["parts"] -= cost["parts"]
 	resources["power"] -= cost["power"]
 	_add_module(selected_build, cell, false)
+	_clear_guidance_tip()
 	add_log("建成 %s。基地自给能力提升。" % def["name"])
 	_update_ui()
 
@@ -1456,6 +1478,7 @@ func _collect_surface_item(item: Dictionary) -> void:
 		return
 	if selected_tool != "sampler":
 		add_log("需要先选择采样铲。")
+		_set_guidance_tip("采集失败：先点击底部工具栏的采样铲，再靠近资源点按 E。")
 		return
 	var amount: float = item["amount"]
 	if _has_tech("change_samples"):
@@ -1500,6 +1523,7 @@ func _recover_supply_cargo(item: Dictionary) -> void:
 	var free_space := backpack_capacity - _backpack_load()
 	if free_space <= 0.0:
 		add_log("背包已满，无法继续搬运补给。先回储物柜入库。")
+		_set_guidance_tip("背包已满：跟随箭头回舱内储物柜，按 E 入库后再搬。")
 		_play_ui_tone(220.0, 0.08, 0.06)
 		_show_info_panel("SupplyCargoPanel", _supply_panel_text())
 		return
@@ -1555,10 +1579,12 @@ func _clean_empty_cargo(cargo: Dictionary) -> void:
 func _add_to_backpack(key: String, amount: float) -> bool:
 	if _backpack_load() + amount > backpack_capacity:
 		add_log("出舱背包容量不足：%.0f/%.0f。请回储物柜入库。" % [_backpack_load(), backpack_capacity])
+		_set_guidance_tip("背包容量不足：先回储物柜入库，再继续采集或搬运。")
 		_play_ui_tone(220.0, 0.08, 0.06)
 		return false
 	backpack[key] = float(backpack.get(key, 0.0)) + amount
 	tutorial_flags["collected"] = true
+	_clear_guidance_tip()
 	return true
 
 func _backpack_load() -> float:
@@ -1579,6 +1605,7 @@ func _backpack_summary() -> String:
 func _advance_day() -> void:
 	day += 1
 	tutorial_flags["advanced_day"] = true
+	_clear_guidance_tip()
 	if solar_storm_days > 0:
 		solar_storm_days -= 1
 		solar_dust = min(0.8, solar_dust + 0.08)
@@ -1770,6 +1797,7 @@ func _choose_supply(kind: String) -> void:
 	}
 	next_supply_request_day = day + 7
 	tutorial_flags["supply"] = true
+	_clear_guidance_tip()
 	add_log("已申请 %s（%s），预计第 %d 天抵达。" % [def["name"], def["desc"], supply_order["arrival_day"]])
 	$UI/Root/SupplyPanel.visible = false
 	_update_ui()
@@ -2213,6 +2241,7 @@ func _eva_precheck_ok() -> bool:
 		return true
 	if eva_warning_cooldown <= 0.0:
 		add_log("出舱检查未通过：宇航服氧气至少 35%，耐久至少 25%。请先到气闸复压、补氧、除尘。")
+		_set_guidance_tip("不能出舱：先跟随箭头去气闸，按 E 补氧、复压、除尘。")
 		eva_warning_cooldown = 3.0
 	return false
 
@@ -2418,6 +2447,16 @@ func _setup_ui() -> void:
 	guide.scroll_active = false
 	guide.add_theme_font_size_override("normal_font_size", 16)
 	root.add_child(guide)
+
+	var task_log := RichTextLabel.new()
+	task_log.name = "TaskLog"
+	task_log.position = Vector2(18, 268)
+	task_log.size = Vector2(360, 250)
+	task_log.fit_content = false
+	task_log.scroll_active = false
+	task_log.bbcode_enabled = true
+	task_log.add_theme_font_size_override("normal_font_size", 14)
+	root.add_child(task_log)
 
 	var supply_status := Label.new()
 	supply_status.name = "SupplyStatus"
@@ -2752,6 +2791,7 @@ func _update_ui() -> void:
 	$UI/Root/MissionStatus.text = _mission_status_text()
 	$UI/Root/EvaTasks.text = _eva_tasks_text()
 	$UI/Root/Guide.text = _guide_text()
+	$UI/Root/TaskLog.text = _task_log_text()
 	if has_node("UI/Root/ZoomPanel/ZoomLabel"):
 		$UI/Root/ZoomPanel/ZoomLabel.text = "图%d UI%d" % [int(camera_zoom * 100), int(ui_scale * 100)]
 	_update_tech_buttons()
@@ -2849,7 +2889,42 @@ func _guide_text() -> String:
 		action = _strategic_next_goal()
 		reason = "长期目标：撑过 30 天，扩建能源、温室、生命维持和机器人能力。"
 		done = "完成当前最紧急的一项基地运营动作。"
-	return "%s\n行动：%s\n原因：%s\n完成：%s" % [title, action, reason, done]
+	var warning := ""
+	if last_guidance_tip != "":
+		warning = "\n提示：%s" % last_guidance_tip
+	return "%s\n行动：%s\n原因：%s\n完成：%s%s" % [title, action, reason, done, warning]
+
+func _tutorial_steps() -> Array[Dictionary]:
+	return [
+		{"flag": "console", "name": "查看控制台", "detail": "确认电力、氧气、水和补给状态"},
+		{"flag": "airlock", "name": "气闸检查", "detail": "补氧、复压、除尘后再出舱"},
+		{"flag": "collected", "name": "采集资源", "detail": "用采样铲采集月壤/水冰/样本"},
+		{"flag": "stored", "name": "储物柜入库", "detail": "把背包物资转成基地库存"},
+		{"flag": "planted", "name": "温室种植", "detail": "启动第一批食物生产"},
+		{"flag": "supply", "name": "申请补给", "detail": "提前向地球申请物资"},
+		{"flag": "advanced_day", "name": "进入下一天", "detail": "观察每日结算并继续运营"},
+	]
+
+func _task_log_text() -> String:
+	var lines: Array[String] = ["[b]任务日志[/b]"]
+	var current_found := false
+	for step: Dictionary in _tutorial_steps():
+		var done := bool(tutorial_flags.get(String(step["flag"]), false))
+		var prefix := "[x]"
+		var color := "8fa0b8"
+		if not done and not current_found:
+			prefix = "[>]"
+			color = "e7c66b"
+			current_found = true
+		elif not done:
+			prefix = "[ ]"
+		lines.append("[color=#%s]%s %s[/color]" % [color, prefix, String(step["name"])])
+		if not done and current_found and prefix == "[>]":
+			lines.append("[color=#d8e0eb]    %s[/color]" % String(step["detail"]))
+	if not current_found:
+		lines.append("[color=#7dff9d][x] 新手流程完成[/color]")
+		lines.append("[color=#d8e0eb]下一步：%s[/color]" % _strategic_next_goal())
+	return _join_strings(lines, "\n")
 
 func _tutorial_target_pos() -> Vector2:
 	if not bool(tutorial_flags.get("console", false)):

@@ -26,6 +26,9 @@ func _load_facility_textures() -> void:
 	robot_charger_texture = _load_png_texture(ROBOT_CHARGER_TEXTURE_PATH)
 
 func _load_png_texture(path: String) -> Texture2D:
+	var imported: Resource = ResourceLoader.load(path)
+	if imported is Texture2D:
+		return imported as Texture2D
 	var image: Image = Image.load_from_file(path)
 	if image == null or image.is_empty():
 		return null
