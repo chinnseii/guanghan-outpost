@@ -1,6 +1,6 @@
 extends Node2D
 
-const TILE := 48
+const TILE := 56
 const MAP_W := 22
 const MAP_H := 13
 const MAP_ORIGIN := Vector2(50, 70)
@@ -37,6 +37,7 @@ var selected_build := ""
 var unlocked_techs: Array[String] = []
 var completed_missions: Array[String] = []
 var log_lines: Array[String] = []
+var tutorial_flags := {}
 var robot_task := "idle"
 var backpack := {
 	"regolith": 0.0,
@@ -256,8 +257,8 @@ func _ready() -> void:
 	_setup_audio()
 	_setup_ui()
 	_setup_main_menu()
-	add_log("广寒前哨上线。玉兔工程车完成自动部署，但系统仍需人工调试。")
-	add_log("V0.11：舱内/舱外分层、碰撞、正式模块素材与单人前哨员设定上线。")
+	add_log("任务简报：你是广寒前哨唯一常驻前哨员。先看左上角当前目标。")
+	add_log("第一天目标：看控制台、气闸补氧、出舱采集、回储物柜入库、种植、申请补给。")
 	_sync_scene_instances()
 	_update_ui()
 
@@ -303,6 +304,7 @@ func _reset_game_state() -> void:
 	selected_build = ""
 	unlocked_techs.clear()
 	completed_missions.clear()
+	tutorial_flags = _default_tutorial_flags()
 	robot_task = "idle"
 	backpack = _default_backpack()
 	solar_dust = 0.12
@@ -348,6 +350,17 @@ func _default_backpack() -> Dictionary:
 		"ice": 0.0,
 		"samples": 0.0,
 		"parts": 0.0,
+	}
+
+func _default_tutorial_flags() -> Dictionary:
+	return {
+		"console": false,
+		"airlock": false,
+		"collected": false,
+		"stored": false,
+		"planted": false,
+		"supply": false,
+		"advanced_day": false,
 	}
 
 func _setup_starting_base() -> void:
@@ -834,6 +847,7 @@ func _use_bed() -> void:
 	operator["morale"] = min(100.0, float(operator.get("morale", 100.0)) + 3.0)
 	resources["food"] = max(0.0, resources["food"] - 1.0)
 	resources["water"] = max(0.0, resources["water"] - 1.0)
+	tutorial_flags["rested"] = true
 	_play_ui_tone(520.0, 0.12, 0.07)
 	add_log("在床铺休整一轮：疲劳 %.0f -> %.0f，消耗食物 1、水 1。" % [old_fatigue, operator["fatigue"]])
 
@@ -841,6 +855,7 @@ func _use_console() -> void:
 	var counts: Dictionary = _module_counts()
 	var pod_count := _active_collectable_count("supply_pod")
 	var leak_count := _leaking_module_count()
+	tutorial_flags["console"] = true
 	_play_ui_tone(840.0, 0.08, 0.07)
 	add_log("控制台：电力 %.0f，氧 %.0f，水 %.0f，舱压 %.0f%%，模块 %d，漏气 %d，补给信标 %d。" % [
 		resources["power"], resources["oxygen"], resources["water"], resources["pressure"], modules.size(), leak_count, pod_count
@@ -855,6 +870,7 @@ func _use_storage() -> void:
 	for key: String in backpack.keys():
 		resources[key] += float(backpack[key])
 		backpack[key] = 0.0
+	tutorial_flags["stored"] = true
 	_play_ui_tone(680.0, 0.1, 0.07)
 	add_log("储物柜：出舱背包已入库。基地库存已更新。")
 
@@ -878,6 +894,7 @@ func _use_greenhouse(module: Dictionary) -> void:
 		resources["water"] -= crop_def["water"]
 		module["crop"] = selected_crop
 		module["age"] = 0
+		tutorial_flags["planted"] = true
 		add_log("在温室种下 %s。%s。" % [crop_def["name"], crop_def["note"]])
 	else:
 		var crop_def: Dictionary = crop_defs[module["crop"]]
@@ -955,6 +972,7 @@ func _cycle_airlock() -> void:
 	resources["suit_dust"] = max(0.0, resources["suit_dust"] - 55.0)
 	resources["suit_integrity"] = min(100.0, resources["suit_integrity"] + 8.0)
 	resources["pressure"] = min(100.0, resources["pressure"] + 3.0)
+	tutorial_flags["airlock"] = true
 	_play_ui_tone(880.0, 0.1, 0.08)
 	add_log("气闸循环完成：宇航服补氧、复压、除尘，耐久检查通过。")
 
@@ -1205,6 +1223,7 @@ func _add_to_backpack(key: String, amount: float) -> bool:
 		_play_ui_tone(220.0, 0.08, 0.06)
 		return false
 	backpack[key] = float(backpack.get(key, 0.0)) + amount
+	tutorial_flags["collected"] = true
 	return true
 
 func _backpack_load() -> float:
@@ -1224,6 +1243,7 @@ func _backpack_summary() -> String:
 
 func _advance_day() -> void:
 	day += 1
+	tutorial_flags["advanced_day"] = true
 	is_moon_night = day >= 14 and day < 22
 	var counts: Dictionary = _module_counts()
 	var power_cap: float = 120.0 + float(counts["battery"]) * 35.0
@@ -1397,6 +1417,7 @@ func _choose_supply(kind: String) -> void:
 		"landed": false,
 	}
 	next_supply_request_day = day + 7
+	tutorial_flags["supply"] = true
 	add_log("已申请 %s（%s），预计第 %d 天抵达。" % [def["name"], def["desc"], supply_order["arrival_day"]])
 	$UI/Root/SupplyPanel.visible = false
 	_update_ui()
@@ -1457,6 +1478,7 @@ func _save_game() -> void:
 		"selected_build": selected_build,
 		"unlocked_techs": unlocked_techs,
 		"completed_missions": completed_missions,
+		"tutorial_flags": tutorial_flags,
 		"operator": _serialize_operator(),
 		"backpack": backpack,
 		"robot_task": robot_task,
@@ -1506,7 +1528,7 @@ func _start_new_game() -> void:
 	if has_node("UI/Root/MainMenu"):
 		$UI/Root/MainMenu.visible = false
 	add_log("新一轮广寒前哨任务开始。")
-	add_log("按 F5 保存，F9 读取，F10 重新开始。")
+	add_log("先按左上角当前目标行动：控制台 -> 气闸 -> 出舱采集 -> 储物柜入库。")
 	_update_ui()
 	queue_redraw()
 
@@ -1532,6 +1554,7 @@ func _apply_save_data(data: Dictionary) -> void:
 	var saved_missions: Array = data.get("completed_missions", [])
 	for mission_id in saved_missions:
 		completed_missions.append(String(mission_id))
+	tutorial_flags = _copy_bool_dictionary(data.get("tutorial_flags", _default_tutorial_flags()), _default_tutorial_flags())
 	operator = _deserialize_operator(data.get("operator", data.get("crew", _serialize_operator())))
 	backpack = _copy_float_dictionary(data.get("backpack", _default_backpack()), _default_backpack())
 	robot_task = String(data.get("robot_task", "idle"))
@@ -1701,6 +1724,15 @@ func _copy_float_dictionary(value, defaults: Dictionary) -> Dictionary:
 	var data: Dictionary = value
 	for key: String in data.keys():
 		result[key] = float(data[key])
+	return result
+
+func _copy_bool_dictionary(value, defaults: Dictionary) -> Dictionary:
+	var result := defaults.duplicate(true)
+	if typeof(value) != TYPE_DICTIONARY:
+		return result
+	var data: Dictionary = value
+	for key: String in data.keys():
+		result[key] = bool(data[key])
 	return result
 
 func _check_game_state() -> void:
@@ -1923,64 +1955,73 @@ func _setup_ui() -> void:
 	var top := Label.new()
 	top.name = "Top"
 	top.position = Vector2(18, 12)
-	top.size = Vector2(1050, 60)
+	top.size = Vector2(1240, 60)
 	top.add_theme_font_size_override("font_size", 20)
 	root.add_child(top)
 
 	var hint := Label.new()
 	hint.name = "Hint"
-	hint.position = Vector2(18, 646)
-	hint.size = Vector2(820, 42)
+	hint.position = Vector2(18, 760)
+	hint.size = Vector2(1220, 42)
 	hint.add_theme_font_size_override("font_size", 18)
 	root.add_child(hint)
 
 	var log := RichTextLabel.new()
 	log.name = "Log"
-	log.position = Vector2(905, 20)
-	log.size = Vector2(350, 310)
+	log.position = Vector2(1300, 20)
+	log.size = Vector2(280, 310)
 	log.fit_content = false
 	log.scroll_following = true
 	root.add_child(log)
 
 	var controls := Label.new()
 	controls.name = "Controls"
-	controls.position = Vector2(905, 340)
-	controls.size = Vector2(350, 86)
+	controls.position = Vector2(1300, 340)
+	controls.size = Vector2(280, 86)
 	controls.text = "WASD/方向键：移动\nE：交互/采集/建造\nN：进入下一天\nB：建造模式\nF5/F9/F10：保存/读取/新局"
 	root.add_child(controls)
 
+	var guide := RichTextLabel.new()
+	guide.name = "Guide"
+	guide.position = Vector2(18, 76)
+	guide.size = Vector2(360, 182)
+	guide.fit_content = false
+	guide.scroll_active = false
+	guide.add_theme_font_size_override("normal_font_size", 16)
+	root.add_child(guide)
+
 	var supply_status := Label.new()
 	supply_status.name = "SupplyStatus"
-	supply_status.position = Vector2(905, 430)
-	supply_status.size = Vector2(350, 70)
+	supply_status.position = Vector2(1300, 430)
+	supply_status.size = Vector2(280, 70)
 	supply_status.add_theme_font_size_override("font_size", 16)
 	root.add_child(supply_status)
 
 	var life_status := Label.new()
 	life_status.name = "LifeStatus"
-	life_status.position = Vector2(905, 485)
-	life_status.size = Vector2(350, 62)
+	life_status.position = Vector2(1300, 500)
+	life_status.size = Vector2(280, 72)
 	life_status.add_theme_font_size_override("font_size", 16)
 	root.add_child(life_status)
 
 	var operator_status := Label.new()
 	operator_status.name = "OperatorStatus"
-	operator_status.position = Vector2(905, 542)
-	operator_status.size = Vector2(350, 76)
+	operator_status.position = Vector2(1300, 580)
+	operator_status.size = Vector2(280, 76)
 	operator_status.add_theme_font_size_override("font_size", 15)
 	root.add_child(operator_status)
 
 	var mission_status := Label.new()
 	mission_status.name = "MissionStatus"
-	mission_status.position = Vector2(905, 615)
-	mission_status.size = Vector2(350, 44)
+	mission_status.position = Vector2(1300, 665)
+	mission_status.size = Vector2(280, 64)
 	mission_status.add_theme_font_size_override("font_size", 15)
 	root.add_child(mission_status)
 
 	var eva_tasks := RichTextLabel.new()
 	eva_tasks.name = "EvaTasks"
-	eva_tasks.position = Vector2(360, 390)
-	eva_tasks.size = Vector2(500, 104)
+	eva_tasks.position = Vector2(900, 660)
+	eva_tasks.size = Vector2(360, 116)
 	eva_tasks.fit_content = false
 	eva_tasks.scroll_active = false
 	eva_tasks.add_theme_font_size_override("normal_font_size", 14)
@@ -1988,8 +2029,8 @@ func _setup_ui() -> void:
 
 	var tech_panel := HBoxContainer.new()
 	tech_panel.name = "TechPanel"
-	tech_panel.position = Vector2(18, 504)
-	tech_panel.size = Vector2(850, 38)
+	tech_panel.position = Vector2(18, 812)
+	tech_panel.size = Vector2(1220, 34)
 	root.add_child(tech_panel)
 	for tech_id: String in _tech_order():
 		var button := Button.new()
@@ -1999,7 +2040,7 @@ func _setup_ui() -> void:
 
 	var crop_panel := HBoxContainer.new()
 	crop_panel.name = "CropPanel"
-	crop_panel.position = Vector2(18, 550)
+	crop_panel.position = Vector2(18, 852)
 	crop_panel.size = Vector2(330, 38)
 	root.add_child(crop_panel)
 	for crop_name: String in crop_defs.keys():
@@ -2010,7 +2051,7 @@ func _setup_ui() -> void:
 
 	var tool_panel := HBoxContainer.new()
 	tool_panel.name = "ToolPanel"
-	tool_panel.position = Vector2(18, 590)
+	tool_panel.position = Vector2(260, 852)
 	tool_panel.size = Vector2(330, 38)
 	root.add_child(tool_panel)
 	for tool_name: String in ["sampler", "brush", "repair"]:
@@ -2021,8 +2062,8 @@ func _setup_ui() -> void:
 
 	var build_panel := HBoxContainer.new()
 	build_panel.name = "BuildPanel"
-	build_panel.position = Vector2(360, 590)
-	build_panel.size = Vector2(430, 38)
+	build_panel.position = Vector2(490, 852)
+	build_panel.size = Vector2(650, 38)
 	root.add_child(build_panel)
 	for module_type: String in ["solar", "battery", "greenhouse", "life_support", "workshop", "airlock", "regolith_plant", "ice_processor"]:
 		var button := Button.new()
@@ -2033,15 +2074,15 @@ func _setup_ui() -> void:
 	var next_day := Button.new()
 	next_day.name = "NextDay"
 	next_day.text = "进入下一天"
-	next_day.position = Vector2(790, 588)
+	next_day.position = Vector2(1160, 850)
 	next_day.size = Vector2(110, 40)
 	next_day.pressed.connect(_advance_day)
 	root.add_child(next_day)
 
 	var supply_panel := PanelContainer.new()
 	supply_panel.name = "SupplyPanel"
-	supply_panel.position = Vector2(390, 130)
-	supply_panel.size = Vector2(470, 210)
+	supply_panel.position = Vector2(520, 180)
+	supply_panel.size = Vector2(520, 230)
 	supply_panel.visible = false
 	root.add_child(supply_panel)
 	var box := VBoxContainer.new()
@@ -2066,8 +2107,8 @@ func _setup_ui() -> void:
 
 	var save_panel := HBoxContainer.new()
 	save_panel.name = "SavePanel"
-	save_panel.position = Vector2(905, 655)
-	save_panel.size = Vector2(330, 38)
+	save_panel.position = Vector2(1300, 810)
+	save_panel.size = Vector2(280, 38)
 	root.add_child(save_panel)
 	for slot in range(1, SAVE_SLOTS + 1):
 		var slot_button := Button.new()
@@ -2090,8 +2131,8 @@ func _setup_ui() -> void:
 func _setup_main_menu() -> void:
 	var menu := PanelContainer.new()
 	menu.name = "MainMenu"
-	menu.position = Vector2(340, 110)
-	menu.size = Vector2(600, 430)
+	menu.position = Vector2(500, 150)
+	menu.size = Vector2(620, 430)
 	$UI/Root.add_child(menu)
 	var box := VBoxContainer.new()
 	box.name = "Box"
@@ -2161,6 +2202,7 @@ func _update_ui() -> void:
 	$UI/Root/OperatorStatus.text = _operator_status_text()
 	$UI/Root/MissionStatus.text = _mission_status_text()
 	$UI/Root/EvaTasks.text = _eva_tasks_text()
+	$UI/Root/Guide.text = _guide_text()
 	_update_tech_buttons()
 	_refresh_main_menu()
 	var hint := "工具：%s | 作物：%s | 背包 %.0f/%.0f：%s | 月壤 %.0f 水冰 %.0f 样本 %.0f。" % [
@@ -2218,6 +2260,53 @@ func _mission_status_text() -> String:
 	if active == "":
 		active = "阶段任务全部完成。"
 	return "任务 %d/%d：%s" % [completed_missions.size(), mission_defs.size(), active]
+
+func _guide_text() -> String:
+	var title := "当前目标"
+	var body := ""
+	var tip := ""
+	if not bool(tutorial_flags.get("console", false)):
+		body = "1. 先走到居住舱右侧的控制台。"
+		tip = "靠近闪烁屏幕，按 E 查看基地状态。"
+	elif not bool(tutorial_flags.get("airlock", false)):
+		body = "2. 去气闸舱做出舱准备。"
+		tip = "靠近气闸按 E，补满宇航服氧气并除尘。"
+	elif not bool(tutorial_flags.get("collected", false)):
+		body = "3. 出舱采集第一批资源。"
+		tip = "选择采样铲，去月面水冰/月壤点按 E。资源会先进入背包。"
+	elif not bool(tutorial_flags.get("stored", false)):
+		body = "4. 回到舱内储物柜入库。"
+		tip = "靠近储物柜按 E，把背包里的资源转入基地库存。"
+	elif not bool(tutorial_flags.get("planted", false)):
+		body = "5. 去温室种下第一批作物。"
+		tip = "底部选择作物，靠近温室按 E。先种土豆最稳。"
+	elif not bool(tutorial_flags.get("supply", false)):
+		body = "6. 去补给降落区申请地球补给。"
+		tip = "靠近地图右下补给区按 E，优先申请生存包。"
+	elif not bool(tutorial_flags.get("advanced_day", false)):
+		body = "7. 完成第一天准备，进入下一天。"
+		tip = "按 N 或右下按钮推进时间，观察资源变化。"
+	else:
+		body = _strategic_next_goal()
+		tip = "长期目标：撑过 30 天，扩建能源、温室、生命维持和机器人能力。"
+	return "%s\n%s\n%s" % [title, body, tip]
+
+func _strategic_next_goal() -> String:
+	if resources["power"] < 35.0:
+		return "电力偏低：清理太阳能板，或建造太阳能/电池。"
+	if resources["food"] < 25.0:
+		return "食物偏低：去温室种植，优先土豆或藻类。"
+	if resources["oxygen"] < 35.0:
+		return "氧气偏低：维护生命维持，或用月壤提氧。"
+	if _leaking_module_count() > 0:
+		return "存在漏气舱段：切换维修枪，优先封堵红框模块。"
+	if _active_collectable_count("supply_pod") > 0:
+		return "补给已落地：检查宇航服，出舱回收补给舱。"
+	if _backpack_load() > 0.0:
+		return "背包有物资：回储物柜入库。"
+	if day >= 11 and day < 14:
+		return "月夜将至：储电、备氧、申请补给。"
+	return "基地稳定：采集水冰/月壤，研究科技，继续扩建。"
 
 func _eva_tasks_text() -> String:
 	var tasks: Array[String] = []

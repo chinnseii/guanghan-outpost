@@ -1,6 +1,6 @@
 extends Node2D
 
-const TILE := 48
+const TILE := 56
 
 var module_data: Dictionary = {}
 var module_def: Dictionary = {}
