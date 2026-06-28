@@ -43,6 +43,9 @@ var completed_missions: Array[String] = []
 var log_lines: Array[String] = []
 var tutorial_flags := {}
 var last_guidance_tip := ""
+var task_log_expanded := false
+var task_history: Array[String] = []
+var intro_overlay_seen := false
 var robot_task := "idle"
 var robot_queue: Array[String] = []
 var robot_pos := Vector2.ZERO
@@ -336,6 +339,9 @@ func _reset_game_state() -> void:
 	completed_missions.clear()
 	tutorial_flags = _default_tutorial_flags()
 	last_guidance_tip = ""
+	task_log_expanded = false
+	task_history.clear()
+	intro_overlay_seen = false
 	robot_task = "idle"
 	robot_queue.clear()
 	robot_pos = _cell_to_world(Vector2i(10, 6))
@@ -441,6 +447,7 @@ func _process(delta: float) -> void:
 	_find_interaction()
 	_sync_scene_instances()
 	_update_camera()
+	_update_edge_hint()
 	queue_redraw()
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -1883,6 +1890,7 @@ func _advance_day() -> void:
 	for key: String in ["power", "oxygen", "water", "food", "integrity", "co2", "humidity", "pressure", "suit_o2", "suit_integrity", "suit_dust"]:
 		resources[key] = clamp(resources[key], 0.0, power_cap if key == "power" else 120.0)
 	add_log("第 %d 天开始。%s" % [day, "月夜中，太阳能归零。" if is_moon_night else "月昼，太阳能可用。"])
+	_record_task_history("strategy:day:%d" % day, "长期目标：%s" % _strategic_next_goal())
 	_check_missions()
 	_check_game_state()
 	_update_ui()
@@ -1960,6 +1968,7 @@ func _complete_mission(mission_id: String) -> void:
 	resources["parts"] += 1.0
 	var mission: Dictionary = mission_defs[mission_id]
 	add_log("任务完成：%s。奖励：样本 +0.5，维修件 +1。" % mission["name"])
+	_record_task_history("mission:%s" % mission_id, "阶段目标完成：%s" % String(mission["name"]))
 
 func _process_supply_window() -> void:
 	if not supply_order.is_empty() and day >= int(supply_order["arrival_day"]) and not bool(supply_order.get("landed", false)):
@@ -2084,6 +2093,9 @@ func _save_game() -> void:
 		"unlocked_techs": unlocked_techs,
 		"completed_missions": completed_missions,
 		"tutorial_flags": tutorial_flags,
+		"task_log_expanded": task_log_expanded,
+		"task_history": task_history,
+		"intro_overlay_seen": intro_overlay_seen,
 		"operator": _serialize_operator(),
 		"backpack": backpack,
 		"robot_task": robot_task,
@@ -2145,6 +2157,7 @@ func _start_new_game() -> void:
 		$UI/Root/MainMenu.visible = false
 	add_log("新一轮广寒前哨任务开始。")
 	add_log("先按左上角当前目标行动：控制台 -> 气闸 -> 出舱采集 -> 储物柜入库。")
+	_record_task_history("strategy:day:1", "长期目标：%s" % _strategic_next_goal())
 	_update_camera()
 	_update_ui()
 	queue_redraw()
@@ -2172,6 +2185,12 @@ func _apply_save_data(data: Dictionary) -> void:
 	for mission_id in saved_missions:
 		completed_missions.append(String(mission_id))
 	tutorial_flags = _copy_bool_dictionary(data.get("tutorial_flags", _default_tutorial_flags()), _default_tutorial_flags())
+	task_log_expanded = bool(data.get("task_log_expanded", false))
+	task_history.clear()
+	var saved_history: Array = data.get("task_history", [])
+	for entry in saved_history:
+		task_history.append(String(entry))
+	intro_overlay_seen = bool(data.get("intro_overlay_seen", true))
 	operator = _deserialize_operator(data.get("operator", data.get("crew", _serialize_operator())))
 	backpack = _copy_float_dictionary(data.get("backpack", _default_backpack()), _default_backpack())
 	robot_task = String(data.get("robot_task", "idle"))
@@ -2686,6 +2705,26 @@ func _setup_ui() -> void:
 	task_log.add_theme_font_size_override("normal_font_size", 14)
 	root.add_child(task_log)
 
+	var task_toggle := Button.new()
+	task_toggle.name = "TaskLogToggle"
+	task_toggle.position = Vector2(288, 236)
+	task_toggle.size = Vector2(90, 30)
+	task_toggle.pressed.connect(_toggle_task_log)
+	root.add_child(task_toggle)
+
+	var edge_hint := Label.new()
+	edge_hint.name = "EdgeHint"
+	edge_hint.visible = false
+	edge_hint.size = Vector2(150, 32)
+	edge_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	edge_hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	edge_hint.add_theme_font_size_override("font_size", 16)
+	edge_hint.add_theme_color_override("font_color", Color("#15191f"))
+	edge_hint.add_theme_color_override("font_shadow_color", Color(1.0, 0.82, 0.25, 0.7))
+	edge_hint.add_theme_constant_override("shadow_offset_x", 0)
+	edge_hint.add_theme_constant_override("shadow_offset_y", 0)
+	root.add_child(edge_hint)
+
 	var supply_status := Label.new()
 	supply_status.name = "SupplyStatus"
 	supply_status.position = Vector2(1300, 430)
@@ -2855,6 +2894,8 @@ func _setup_ui() -> void:
 	ui_plus.pressed.connect(func(): _adjust_ui_scale(0.1))
 	zoom_panel.add_child(ui_plus)
 
+	root.add_child(_make_intro_overlay())
+
 func _make_info_panel(panel_name: String, panel_pos: Vector2, panel_size: Vector2, title_text: String) -> PanelContainer:
 	var panel := PanelContainer.new()
 	panel.name = panel_name
@@ -2902,6 +2943,116 @@ func _make_robot_panel() -> PanelContainer:
 	sample.pressed.connect(_prioritize_robot_task.bind("sample"))
 	row.add_child(sample)
 	return panel
+
+func _make_intro_overlay() -> Control:
+	var overlay := Control.new()
+	overlay.name = "IntroOverlay"
+	overlay.position = Vector2.ZERO
+	overlay.size = Vector2(1600, 900)
+	overlay.visible = false
+	overlay.z_index = 100
+	var dim := ColorRect.new()
+	dim.name = "Dim"
+	dim.color = Color(0.02, 0.04, 0.06, 0.62)
+	dim.position = Vector2.ZERO
+	dim.size = Vector2(1600, 900)
+	overlay.add_child(dim)
+	var highlight := Panel.new()
+	highlight.name = "Highlight"
+	highlight.position = Vector2(10, 68)
+	highlight.size = Vector2(376, 198)
+	var highlight_style := StyleBoxFlat.new()
+	highlight_style.bg_color = Color(1.0, 0.82, 0.25, 0.08)
+	highlight_style.border_color = Color("#e7c66b")
+	highlight_style.set_border_width_all(3)
+	highlight.add_theme_stylebox_override("panel", highlight_style)
+	overlay.add_child(highlight)
+	var card := PanelContainer.new()
+	card.name = "Card"
+	card.position = Vector2(420, 96)
+	card.size = Vector2(430, 210)
+	overlay.add_child(card)
+	var box := VBoxContainer.new()
+	box.name = "Box"
+	box.add_theme_constant_override("separation", 10)
+	card.add_child(box)
+	var title := Label.new()
+	title.text = "第一次任务提示"
+	title.add_theme_font_size_override("font_size", 24)
+	box.add_child(title)
+	var text := Label.new()
+	text.text = "先看左上角的今日任务卡。黄色高亮会指向当前目标；如果目标离开视野，屏幕边缘会显示方向提示。"
+	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	text.custom_minimum_size = Vector2(390, 82)
+	box.add_child(text)
+	var start := Button.new()
+	start.text = "知道了，开始执行"
+	start.custom_minimum_size = Vector2(0, 40)
+	start.pressed.connect(_dismiss_intro_overlay)
+	box.add_child(start)
+	return overlay
+
+func _dismiss_intro_overlay() -> void:
+	intro_overlay_seen = true
+	if has_node("UI/Root/IntroOverlay"):
+		$UI/Root/IntroOverlay.visible = false
+	_play_ui_tone(740.0, 0.07, 0.07)
+	_update_ui()
+
+func _toggle_task_log() -> void:
+	task_log_expanded = not task_log_expanded
+	_play_ui_tone(620.0, 0.05, 0.06)
+	_update_ui()
+
+func _update_task_log_controls() -> void:
+	if not has_node("UI/Root/TaskLog") or not has_node("UI/Root/TaskLogToggle"):
+		return
+	var log: RichTextLabel = $UI/Root/TaskLog
+	var toggle: Button = $UI/Root/TaskLogToggle
+	if task_log_expanded:
+		log.size = Vector2(360, 360)
+		toggle.text = "折叠"
+	else:
+		log.size = Vector2(360, 174)
+		toggle.text = "展开"
+
+func _update_intro_overlay() -> void:
+	if not has_node("UI/Root/IntroOverlay"):
+		return
+	$UI/Root/IntroOverlay.visible = (not intro_overlay_seen) and (not pending_main_menu)
+
+func _update_edge_hint() -> void:
+	if not has_node("UI/Root/EdgeHint") or not is_instance_valid(camera):
+		return
+	var hint: Label = $UI/Root/EdgeHint
+	var target: Vector2 = _tutorial_target_pos()
+	if target.x == INF or pending_main_menu:
+		hint.visible = false
+		return
+	var viewport_size: Vector2 = get_viewport_rect().size
+	var screen_pos: Vector2 = (target - camera.position) * camera_zoom + viewport_size * 0.5
+	var margin := 58.0
+	if screen_pos.x >= margin and screen_pos.x <= viewport_size.x - margin and screen_pos.y >= margin and screen_pos.y <= viewport_size.y - margin:
+		hint.visible = false
+		return
+	var center: Vector2 = viewport_size * 0.5
+	var direction: Vector2 = (screen_pos - center).normalized()
+	if direction.length() <= 0.01:
+		hint.visible = false
+		return
+	var clamped: Vector2 = Vector2(
+		clamp(screen_pos.x, margin, viewport_size.x - margin),
+		clamp(screen_pos.y, margin, viewport_size.y - margin)
+	)
+	var local_pos: Vector2 = clamped / max(ui_scale, 0.01)
+	hint.position = local_pos - hint.size * 0.5
+	hint.text = "%s  %.0fm" % [_direction_label(direction), player_pos.distance_to(target) / float(TILE)]
+	hint.visible = true
+
+func _direction_label(direction: Vector2) -> String:
+	if abs(direction.x) > abs(direction.y):
+		return "目标 >" if direction.x > 0.0 else "< 目标"
+	return "目标 v" if direction.y > 0.0 else "^ 目标"
 
 func _show_info_panel(panel_name: String, text: String) -> void:
 	for name: String in ["BackpackPanel", "SupplyCargoPanel", "ConsolePanel", "RobotPanel"]:
@@ -3028,6 +3179,7 @@ func _select_crop(crop_name: String) -> void:
 func _update_ui() -> void:
 	if not has_node("UI/Root"):
 		return
+	_sync_task_history()
 	var phase := "月夜" if is_moon_night else "月昼"
 	var counts: Dictionary = _module_counts()
 	var power_cap: float = 120.0 + float(counts["battery"]) * 35.0
@@ -3045,7 +3197,10 @@ func _update_ui() -> void:
 	$UI/Root/MissionStatus.text = _mission_status_text()
 	$UI/Root/EvaTasks.text = _eva_tasks_text()
 	$UI/Root/Guide.text = _guide_text()
+	_update_task_log_controls()
 	$UI/Root/TaskLog.text = _task_log_text()
+	_update_edge_hint()
+	_update_intro_overlay()
 	if has_node("UI/Root/ZoomPanel/ZoomLabel"):
 		$UI/Root/ZoomPanel/ZoomLabel.text = "图%d UI%d" % [int(camera_zoom * 100), int(ui_scale * 100)]
 	_update_tech_buttons()
@@ -3168,25 +3323,71 @@ func _tutorial_steps() -> Array[Dictionary]:
 		{"flag": "advanced_day", "name": "进入下一天", "detail": "观察每日结算并继续运营"},
 	]
 
-func _task_log_text() -> String:
-	var lines: Array[String] = ["[b]任务日志[/b]"]
-	var current_found := false
+func _sync_task_history() -> void:
 	for step: Dictionary in _tutorial_steps():
-		var done := bool(tutorial_flags.get(String(step["flag"]), false))
-		var prefix := "[x]"
-		var color := "8fa0b8"
-		if not done and not current_found:
-			prefix = "[>]"
-			color = "e7c66b"
+		var flag := String(step["flag"])
+		if bool(tutorial_flags.get(flag, false)):
+			_record_task_history("tutorial:%s" % flag, "新手流程完成：%s" % String(step["name"]))
+
+func _record_task_history(marker: String, text: String) -> void:
+	var token := "%s|" % marker
+	for entry: String in task_history:
+		if entry.begins_with(token):
+			return
+	task_history.append("%s|D%d  %s" % [marker, day, text])
+	while task_history.size() > 18:
+		task_history.pop_front()
+
+func _task_history_lines(limit: int) -> Array[String]:
+	var lines: Array[String] = []
+	var start: int = max(0, task_history.size() - limit)
+	for i in range(start, task_history.size()):
+		var entry := String(task_history[i])
+		var parts := entry.split("|", false, 1)
+		lines.append(parts[1] if parts.size() > 1 else entry)
+	return lines
+
+func _current_tutorial_step() -> Dictionary:
+	for step: Dictionary in _tutorial_steps():
+		if not bool(tutorial_flags.get(String(step["flag"]), false)):
+			return step
+	return {}
+
+func _task_log_text() -> String:
+	var lines: Array[String] = ["[b]任务日志[/b]  %s" % ("展开" if task_log_expanded else "简略")]
+	var current_found := false
+	var steps: Array[Dictionary] = _tutorial_steps()
+	if task_log_expanded:
+		for step: Dictionary in steps:
+			var done := bool(tutorial_flags.get(String(step["flag"]), false))
+			var prefix := "[x]"
+			var color := "8fa0b8"
+			if not done and not current_found:
+				prefix = "[>]"
+				color = "e7c66b"
+				current_found = true
+			elif not done:
+				prefix = "[ ]"
+			lines.append("[color=#%s]%s %s[/color]" % [color, prefix, String(step["name"])])
+			if not done and current_found and prefix == "[>]":
+				lines.append("[color=#d8e0eb]    %s[/color]" % String(step["detail"]))
+	else:
+		var current_step: Dictionary = _current_tutorial_step()
+		if current_step.is_empty():
+			current_found = false
+		else:
 			current_found = true
-		elif not done:
-			prefix = "[ ]"
-		lines.append("[color=#%s]%s %s[/color]" % [color, prefix, String(step["name"])])
-		if not done and current_found and prefix == "[>]":
-			lines.append("[color=#d8e0eb]    %s[/color]" % String(step["detail"]))
+			lines.append("[color=#e7c66b][>] %s[/color]" % String(current_step["name"]))
+			lines.append("[color=#d8e0eb]    %s[/color]" % String(current_step["detail"]))
 	if not current_found:
 		lines.append("[color=#7dff9d][x] 新手流程完成[/color]")
 		lines.append("[color=#d8e0eb]下一步：%s[/color]" % _strategic_next_goal())
+	var history_lines := _task_history_lines(8 if task_log_expanded else 3)
+	if not history_lines.is_empty():
+		lines.append("")
+		lines.append("[b]历史[/b]")
+		for line: String in history_lines:
+			lines.append("[color=#8fa0b8]%s[/color]" % line)
 	return _join_strings(lines, "\n")
 
 func _tutorial_target_pos() -> Vector2:
