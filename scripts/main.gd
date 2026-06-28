@@ -39,13 +39,21 @@ var completed_missions: Array[String] = []
 var log_lines: Array[String] = []
 var tutorial_flags := {}
 var robot_task := "idle"
+var robot_queue: Array[String] = []
 var backpack := {
 	"regolith": 0.0,
 	"ice": 0.0,
 	"samples": 0.0,
 	"parts": 0.0,
+	"food": 0.0,
+	"water": 0.0,
+	"oxygen": 0.0,
+	"power": 0.0,
 }
 var backpack_capacity := 12.0
+var solar_storm_days := 0
+var micrometeor_alert_days := 0
+var low_o2_warning_cooldown := 0.0
 var camera_zoom := 1.0
 var ui_scale := 1.0
 
@@ -313,7 +321,11 @@ func _reset_game_state() -> void:
 	completed_missions.clear()
 	tutorial_flags = _default_tutorial_flags()
 	robot_task = "idle"
+	robot_queue.clear()
 	backpack = _default_backpack()
+	solar_storm_days = 0
+	micrometeor_alert_days = 0
+	low_o2_warning_cooldown = 0.0
 	camera_zoom = 1.0
 	ui_scale = 1.0
 	solar_dust = 0.12
@@ -359,6 +371,10 @@ func _default_backpack() -> Dictionary:
 		"ice": 0.0,
 		"samples": 0.0,
 		"parts": 0.0,
+		"food": 0.0,
+		"water": 0.0,
+		"oxygen": 0.0,
+		"power": 0.0,
 	}
 
 func _default_tutorial_flags() -> Dictionary:
@@ -386,6 +402,7 @@ func _process(delta: float) -> void:
 	if game_over or pending_main_menu:
 		return
 	eva_warning_cooldown = max(0.0, eva_warning_cooldown - delta)
+	low_o2_warning_cooldown = max(0.0, low_o2_warning_cooldown - delta)
 	var input := Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	var target_pos := player_pos + input * PLAYER_SPEED * delta
 	if _can_player_move_to(target_pos):
@@ -810,13 +827,18 @@ func _process_suit_oxygen(delta: float) -> void:
 			add_log("返舱完成：舱压稳定，宇航服开始复压检查。")
 		resources["suit_o2"] = min(100.0, resources["suit_o2"] + delta * 10.0)
 	else:
-		resources["suit_o2"] = max(0.0, resources["suit_o2"] - delta * 1.8)
-		resources["suit_dust"] = min(100.0, resources["suit_dust"] + delta * (0.18 + solar_dust * 0.25))
-		resources["suit_integrity"] = max(0.0, resources["suit_integrity"] - delta * 0.035)
+		var storm_multiplier := 1.8 if solar_storm_days > 0 else 1.0
+		var meteor_multiplier := 1.6 if micrometeor_alert_days > 0 else 1.0
+		resources["suit_o2"] = max(0.0, resources["suit_o2"] - delta * 1.8 * storm_multiplier)
+		resources["suit_dust"] = min(100.0, resources["suit_dust"] + delta * (0.18 + solar_dust * 0.25) * storm_multiplier)
+		resources["suit_integrity"] = max(0.0, resources["suit_integrity"] - delta * 0.035 * meteor_multiplier)
 		if resources["suit_o2"] <= 0.0:
 			resources["oxygen"] = max(0.0, resources["oxygen"] - delta * 2.5)
 		if resources["suit_integrity"] <= 0.0:
 			resources["oxygen"] = max(0.0, resources["oxygen"] - delta * 1.8)
+		if resources["suit_o2"] <= 25.0 and low_o2_warning_cooldown <= 0.0:
+			add_log("低氧倒计时：宇航服氧气 %.0f%%，请立即返舱或进气闸补氧。" % resources["suit_o2"])
+			low_o2_warning_cooldown = 8.0
 	was_inside = inside
 
 func _is_player_inside_pressurized_module() -> bool:
@@ -912,7 +934,7 @@ func _use_console() -> void:
 	add_log("控制台：电力 %.0f，氧 %.0f，水 %.0f，舱压 %.0f%%，模块 %d，漏气 %d，补给信标 %d。" % [
 		resources["power"], resources["oxygen"], resources["water"], resources["pressure"], modules.size(), leak_count, pod_count
 	])
-	add_log("控制台：机器人任务=%s，背包 %.0f/%.0f。" % [_robot_task_name(robot_task), _backpack_load(), backpack_capacity])
+	add_log("控制台：机器人队列=%s，背包 %.0f/%.0f。" % [_robot_queue_text(), _backpack_load(), backpack_capacity])
 
 func _use_storage() -> void:
 	if _backpack_load() <= 0.0:
@@ -931,11 +953,16 @@ func _use_robot_charger() -> void:
 		add_log("机器人充电桩待机：需要先解锁玉兔机器人或机器人协作协议。")
 		_play_ui_tone(260.0, 0.08, 0.06)
 		return
-	var order := ["idle", "sample", "maintenance", "haul"]
-	var index := order.find(robot_task)
-	robot_task = order[(index + 1) % order.size()]
+	var order := ["sample", "maintenance", "haul"]
+	var next_index := robot_queue.size() % order.size()
+	var queued_task: String = order[next_index]
+	if robot_queue.size() >= 4:
+		add_log("机器人任务队列已满。等待每日执行后再派发新任务。")
+		return
+	robot_queue.append(queued_task)
+	robot_task = robot_queue[0]
 	_play_ui_tone(960.0, 0.08, 0.07)
-	add_log("机器人充电桩：已派发任务 -> %s。" % _robot_task_name(robot_task))
+	add_log("机器人充电桩：任务已入队 -> %s。队列：%s。" % [_robot_task_name(queued_task), _robot_queue_text()])
 
 func _use_greenhouse(module: Dictionary) -> void:
 	if module["crop"] == "":
@@ -1015,18 +1042,21 @@ func _use_workshop() -> void:
 	add_log("维修工作台打印了 1 个维修件。")
 
 func _cycle_airlock() -> void:
-	if resources["power"] < 2 or resources["oxygen"] < 1:
-		add_log("气闸循环需要电力 2、氧气 1。")
+	var dust_cost: float = ceil(resources["suit_dust"] / 35.0)
+	var power_cost: float = 2.0 + dust_cost
+	var oxygen_cost: float = 1.0 + floor(dust_cost / 2.0)
+	if resources["power"] < power_cost or resources["oxygen"] < oxygen_cost:
+		add_log("气闸循环需要电力 %.0f、氧气 %.0f。月尘污染越高，维护成本越高。" % [power_cost, oxygen_cost])
 		return
-	resources["power"] -= 2
-	resources["oxygen"] -= 1
+	resources["power"] -= power_cost
+	resources["oxygen"] -= oxygen_cost
 	resources["suit_o2"] = 100.0
 	resources["suit_dust"] = max(0.0, resources["suit_dust"] - 55.0)
 	resources["suit_integrity"] = min(100.0, resources["suit_integrity"] + 8.0)
 	resources["pressure"] = min(100.0, resources["pressure"] + 3.0)
 	tutorial_flags["airlock"] = true
 	_play_ui_tone(880.0, 0.1, 0.08)
-	add_log("气闸循环完成：宇航服补氧、复压、除尘，耐久检查通过。")
+	add_log("气闸循环完成：消耗电力 %.0f、氧气 %.0f，宇航服补氧、复压、除尘。" % [power_cost, oxygen_cost])
 
 func _use_regolith_plant() -> void:
 	if resources["regolith"] < 2 or resources["power"] < 6:
@@ -1112,7 +1142,8 @@ func _process_tech_daily_effects() -> void:
 	_process_robot_task()
 
 func _process_robot_task() -> void:
-	if robot_task == "idle":
+	if robot_queue.is_empty():
+		robot_task = "idle"
 		return
 	if not _has_tech("robot_assist") and not _has_tech("yutu_robot"):
 		return
@@ -1120,7 +1151,9 @@ func _process_robot_task() -> void:
 		add_log("机器人任务暂停：充电桩电力不足。")
 		return
 	resources["power"] -= 3.0
-	match robot_task:
+	var active_task := String(robot_queue.pop_front())
+	robot_task = active_task
+	match active_task:
 		"sample":
 			resources["regolith"] += 0.8
 			if day % 4 == 0:
@@ -1131,12 +1164,49 @@ func _process_robot_task() -> void:
 			resources["integrity"] = min(100.0, resources["integrity"] + 1.2)
 			add_log("机器人巡检任务完成：月尘下降，设备完整度小幅恢复。")
 		"haul":
-			if _active_collectable_count("supply_pod") > 0:
-				resources["suit_dust"] = max(0.0, resources["suit_dust"] - 2.0)
-				add_log("机器人搬运任务：已标记补给舱路径，玩家回收风险降低。")
+			if _robot_haul_supply():
+				add_log("机器人搬运任务完成：已从补给舱自动转运一批货物。")
 			else:
 				resources["parts"] += 0.2
 				add_log("机器人搬运任务：整理备件，维修件 +0.2。")
+	robot_task = robot_queue[0] if not robot_queue.is_empty() else "idle"
+
+func _robot_haul_supply() -> bool:
+	if supply_order.is_empty() or not supply_order.has("cargo_remaining"):
+		return false
+	var cargo: Dictionary = supply_order["cargo_remaining"]
+	if cargo.is_empty():
+		return false
+	var capacity := 6.0
+	var moved := 0.0
+	for key: String in cargo.keys():
+		if moved >= capacity:
+			break
+		var amount := float(cargo[key])
+		if key == "dust":
+			solar_dust = max(0.0, solar_dust + amount)
+			cargo[key] = 0.0
+			continue
+		if amount <= 0.0:
+			continue
+		var take: float = min(amount, capacity - moved)
+		resources[key] += take
+		cargo[key] = amount - take
+		moved += take
+	_clean_empty_cargo(cargo)
+	if cargo.is_empty():
+		_mark_supply_pod_depleted()
+	return moved > 0.0
+
+func _mark_supply_pod_depleted() -> void:
+	for item: Dictionary in collectables:
+		if item["type"] == "supply_pod" and not item["depleted"]:
+			item["depleted"] = true
+			break
+	supply_order.clear()
+	supply_waiting = false
+	_complete_mission("supply_recovery")
+	_sync_scene_instances()
 
 func _robot_task_name(task: String) -> String:
 	match task:
@@ -1148,6 +1218,14 @@ func _robot_task_name(task: String) -> String:
 			return "补给搬运"
 		_:
 			return "待机"
+
+func _robot_queue_text() -> String:
+	if robot_queue.is_empty():
+		return "空"
+	var parts: Array[String] = []
+	for task: String in robot_queue:
+		parts.append(_robot_task_name(task))
+	return _join_strings(parts, " > ")
 
 func _facility_name(facility: String) -> String:
 	match facility:
@@ -1234,9 +1312,7 @@ func _collect_surface_item(item: Dictionary) -> void:
 		if not supply_waiting:
 			add_log("补给舱信标异常：当前没有待回收补给。")
 			return
-		_receive_supply()
-		item["depleted"] = true
-		_complete_mission("supply_recovery")
+		_recover_supply_cargo(item)
 		_sync_scene_instances()
 		return
 	if selected_tool != "sampler":
@@ -1269,6 +1345,72 @@ func _collect_surface_item(item: Dictionary) -> void:
 	_play_ui_tone(680.0, 0.08, 0.07)
 	_sync_scene_instances()
 
+func _recover_supply_cargo(item: Dictionary) -> void:
+	if supply_order.is_empty():
+		supply_waiting = false
+		item["depleted"] = true
+		return
+	if not supply_order.has("cargo_remaining"):
+		var kind: String = supply_order["kind"]
+		var def: Dictionary = supply_defs[kind]
+		supply_order["cargo_remaining"] = _copy_dictionary(def["payload"])
+	var remaining: Dictionary = supply_order["cargo_remaining"]
+	if remaining.is_empty():
+		_finish_supply_recovery(item)
+		return
+	var free_space := backpack_capacity - _backpack_load()
+	if free_space <= 0.0:
+		add_log("背包已满，无法继续搬运补给。先回储物柜入库。")
+		_play_ui_tone(220.0, 0.08, 0.06)
+		return
+	var moved := 0.0
+	var moved_parts: Array[String] = []
+	for key: String in remaining.keys():
+		if moved >= free_space:
+			break
+		var amount := float(remaining[key])
+		if key == "dust":
+			solar_dust = max(0.0, solar_dust + amount)
+			remaining[key] = 0.0
+			moved_parts.append("除尘耗材")
+			continue
+		if amount <= 0.0:
+			continue
+		var take: float = min(amount, free_space - moved)
+		if take <= 0.0:
+			continue
+		if _add_to_backpack(key, take):
+			remaining[key] = amount - take
+			moved += take
+			moved_parts.append("%s %.0f" % [resource_names.get(key, key), take])
+	_clean_empty_cargo(remaining)
+	resources["suit_dust"] = min(100.0, resources["suit_dust"] + 4.0)
+	_play_ui_tone(720.0, 0.1, 0.08)
+	if moved_parts.is_empty():
+		add_log("补给舱没有可搬运货物。")
+	else:
+		add_log("搬运补给：%s。背包 %.0f/%.0f。" % [_join_strings(moved_parts, " / "), _backpack_load(), backpack_capacity])
+	if remaining.is_empty():
+		_finish_supply_recovery(item)
+
+func _finish_supply_recovery(item: Dictionary) -> void:
+	var kind: String = supply_order.get("kind", "")
+	var def: Dictionary = supply_defs.get(kind, {})
+	add_log("补给舱回收完成：%s。" % def.get("desc", "货物已全部搬空"))
+	supply_order.clear()
+	supply_waiting = false
+	item["depleted"] = true
+	_complete_mission("supply_recovery")
+	_update_ui()
+
+func _clean_empty_cargo(cargo: Dictionary) -> void:
+	var keys_to_remove: Array[String] = []
+	for key: String in cargo.keys():
+		if float(cargo[key]) <= 0.01:
+			keys_to_remove.append(key)
+	for key: String in keys_to_remove:
+		cargo.erase(key)
+
 func _add_to_backpack(key: String, amount: float) -> bool:
 	if _backpack_load() + amount > backpack_capacity:
 		add_log("出舱背包容量不足：%.0f/%.0f。请回储物柜入库。" % [_backpack_load(), backpack_capacity])
@@ -1296,6 +1438,13 @@ func _backpack_summary() -> String:
 func _advance_day() -> void:
 	day += 1
 	tutorial_flags["advanced_day"] = true
+	if solar_storm_days > 0:
+		solar_storm_days -= 1
+		solar_dust = min(0.8, solar_dust + 0.08)
+		add_log("太阳风暴影响中：舱外行动风险提高，太阳能板月尘污染上升。")
+	if micrometeor_alert_days > 0:
+		micrometeor_alert_days -= 1
+		add_log("微陨石预警仍在：舱外设备和宇航服耐久风险提高。")
 	is_moon_night = day >= 14 and day < 22
 	var counts: Dictionary = _module_counts()
 	var power_cap: float = 120.0 + float(counts["battery"]) * 35.0
@@ -1428,6 +1577,9 @@ func _process_supply_window() -> void:
 		supply_order["landed"] = true
 		var landing_pos := _random_supply_landing_pos()
 		supply_order["landing_pos"] = _vector2_to_dict(landing_pos)
+		var kind: String = supply_order["kind"]
+		var def: Dictionary = supply_defs[kind]
+		supply_order["cargo_remaining"] = _copy_dictionary(def["payload"])
 		_add_collectable("supply_pod", landing_pos, 1.0)
 		add_log("%s 已着陆，但落点出现偏差。信标坐标：%.0f, %.0f；需要出舱取货。" % [supply_order["name"], landing_pos.x, landing_pos.y])
 		_sync_scene_instances()
@@ -1439,7 +1591,14 @@ func _process_random_event() -> void:
 		add_log("月尘静电附着增强，太阳能效率开始下降。")
 	if day == 11:
 		add_log("地面控制提醒：月夜将在第 14 天开始，请提前储电。")
-	if randf() < 0.12:
+	if randf() < 0.08 and solar_storm_days <= 0:
+		solar_storm_days = 1
+		add_log("太阳风暴预警：未来 1 天尽量减少出舱，气闸除尘成本会上升。")
+	if randf() < 0.08 and micrometeor_alert_days <= 0:
+		micrometeor_alert_days = 1
+		add_log("微陨石短时警报：建议暂停外部维修和远距离采集。")
+	var impact_chance := 0.18 if micrometeor_alert_days > 0 else 0.12
+	if randf() < impact_chance:
 		var hit_module := _pick_pressurized_module()
 		if not hit_module.is_empty() and not hit_module.get("leaking", false):
 			hit_module["leaking"] = true
@@ -1534,6 +1693,9 @@ func _save_game() -> void:
 		"operator": _serialize_operator(),
 		"backpack": backpack,
 		"robot_task": robot_task,
+		"robot_queue": robot_queue,
+		"solar_storm_days": solar_storm_days,
+		"micrometeor_alert_days": micrometeor_alert_days,
 		"camera_zoom": camera_zoom,
 		"ui_scale": ui_scale,
 		"solar_dust": solar_dust,
@@ -1613,6 +1775,14 @@ func _apply_save_data(data: Dictionary) -> void:
 	operator = _deserialize_operator(data.get("operator", data.get("crew", _serialize_operator())))
 	backpack = _copy_float_dictionary(data.get("backpack", _default_backpack()), _default_backpack())
 	robot_task = String(data.get("robot_task", "idle"))
+	robot_queue.clear()
+	var saved_queue: Array = data.get("robot_queue", [])
+	for task in saved_queue:
+		robot_queue.append(String(task))
+	if not robot_queue.is_empty():
+		robot_task = robot_queue[0]
+	solar_storm_days = int(data.get("solar_storm_days", 0))
+	micrometeor_alert_days = int(data.get("micrometeor_alert_days", 0))
 	camera_zoom = float(data.get("camera_zoom", 1.0))
 	ui_scale = float(data.get("ui_scale", 1.0))
 	_apply_camera_zoom()
@@ -2335,7 +2505,7 @@ func _operator_status_text() -> String:
 		float(operator.get("health", 100.0)),
 		float(operator.get("morale", 100.0)),
 		float(operator.get("fatigue", 0.0)),
-		_robot_task_name(robot_task) if (_has_tech("robot_assist") or _has_tech("yutu_robot")) else "待解锁"
+		_robot_queue_text() if (_has_tech("robot_assist") or _has_tech("yutu_robot")) else "待解锁"
 	]
 
 func _mission_status_text() -> String:
@@ -2402,19 +2572,39 @@ func _eva_tasks_text() -> String:
 	var ice_nodes := _active_collectable_count("ice")
 	var external_repairs := _external_repair_count()
 	if supply_pods > 0:
-		tasks.append("回收补给舱：%d 个信标，氧气>35%%" % supply_pods)
+		tasks.append("搬运补给舱：%s，背包 %.0f/%.0f" % [_supply_cargo_summary(), _backpack_load(), backpack_capacity])
 	if ice_nodes > 0:
 		tasks.append("采集水冰：%d 处，工具：采样铲" % ice_nodes)
 	if solar_dust >= 0.22:
 		tasks.append("清理太阳能板：月尘 %d%%，工具：除尘刷" % int(solar_dust * 100))
 	if external_repairs > 0:
 		tasks.append("维修外部设备：%d 个目标，工具：维修枪" % external_repairs)
+	if solar_storm_days > 0:
+		tasks.append("太阳风暴中：减少出舱，气闸成本上升")
+	if micrometeor_alert_days > 0:
+		tasks.append("微陨石预警：暂停远距离维修")
 	if tasks.is_empty():
 		tasks.append("暂无紧急出舱任务。可巡检水冰、太阳能板和补给信标。")
 	var suit_line := "宇航服：氧 %.0f%% 耐久 %.0f%% 月尘 %.0f%%" % [
 		resources["suit_o2"], resources["suit_integrity"], resources["suit_dust"]
 	]
 	return "出舱任务 V1\n%s\n%s" % [_join_strings(tasks.slice(0, 3), "\n"), suit_line]
+
+func _supply_cargo_summary() -> String:
+	if supply_order.is_empty() or not supply_order.has("cargo_remaining"):
+		return "无货物"
+	var cargo: Dictionary = supply_order["cargo_remaining"]
+	if cargo.is_empty():
+		return "待确认"
+	var parts: Array[String] = []
+	for key: String in cargo.keys():
+		if key == "dust":
+			continue
+		if float(cargo[key]) > 0.0:
+			parts.append("%s %.0f" % [resource_names.get(key, key), float(cargo[key])])
+	if parts.is_empty():
+		return "仅剩耗材"
+	return _join_strings(parts, " / ")
 
 func _active_collectable_count(item_type: String) -> int:
 	var count := 0
@@ -2458,7 +2648,7 @@ func _tech_button_text(tech_id: String) -> String:
 func _supply_status_text() -> String:
 	if supply_waiting:
 		var pos := _dict_to_vector2(supply_order.get("landing_pos", _vector2_to_dict(Vector2.ZERO)))
-		return "补给状态：%s 已着陆\n信标：%.0f, %.0f；出舱取货。" % [supply_order.get("name", "补给舱"), pos.x, pos.y]
+		return "补给状态：%s 已着陆\n剩余：%s\n信标：%.0f, %.0f；分批搬运。" % [supply_order.get("name", "补给舱"), _supply_cargo_summary(), pos.x, pos.y]
 	if not supply_order.is_empty():
 		var eta: int = max(0, int(supply_order["arrival_day"]) - day)
 		return "补给状态：%s 在途\nETA：%d 天（第 %d 天抵达）" % [supply_order["name"], eta, supply_order["arrival_day"]]
