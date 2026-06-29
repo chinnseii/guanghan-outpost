@@ -49,6 +49,8 @@ var education_detail_body: Label
 var suit_marking_edit: LineEdit
 var name_initials_edit: LineEdit
 var appearance_options: Dictionary = {}
+var confirmation_checks: Array[CheckBox] = []
+var submit_button: Button
 
 func _ready() -> void:
 	profile = PlayerProfileDataScript.new()
@@ -304,19 +306,29 @@ func _show_appearance() -> void:
 
 func _show_review() -> void:
 	_add_page_title("04 提交申请", "SUBMIT APPLICATION")
+	confirmation_checks.clear()
+	submit_button = null
 	var columns := _add_columns(0.52)
 	var left: VBoxContainer = columns[0]
 	var right: VBoxContainer = columns[1]
 	_add_panel_title(left, "提交确认")
 	_add_body_to(left, "你即将提交广寒计划常驻开拓者申请。\n\n一旦通过审核，你将进入国家深空生命科学中心训练序列。\n\n训练完成并通过最终考核后，\n你可能被派往月球广寒前哨，\n执行长期驻留与生命支持建设任务。")
 	_add_panel_title(left, "确认事项")
-	_add_body_to(left, "□ 我理解这是一项长期任务。\n□ 我理解任务地点位于月球。\n□ 我理解广寒前哨仍处于早期建设阶段。")
+	_add_confirmation_check(left, "我理解这是一项长期任务。")
+	_add_confirmation_check(left, "我理解任务地点位于月球。")
+	_add_confirmation_check(left, "我理解广寒前哨仍处于早期建设阶段。")
 	_add_panel_title(right, "候选人摘要")
 	_add_body_to(right, _profile_summary())
 	_add_footer_button("返回修改", func(): _show_step("identity"))
-	_add_footer_button("提交申请", func():
+	submit_button = Button.new()
+	submit_button.text = "提交申请"
+	submit_button.custom_minimum_size = Vector2(200, 42)
+	submit_button.disabled = true
+	submit_button.pressed.connect(func():
 		_start_review_sequence()
 	)
+	footer.add_child(submit_button)
+	_update_submit_enabled()
 
 func _start_review_sequence() -> void:
 	profile.set("application_submitted", true)
@@ -355,7 +367,7 @@ func _show_notice() -> void:
 	title.modulate = Color("#eaf4ff")
 	title.add_theme_font_size_override("font_size", 28)
 	panel.add_child(title)
-	_add_body_to(panel, "经广寒计划常驻开拓者选拔委员会初步审核，\n你的申请已通过资格初审。\n\n你将进入国家深空生命科学中心训练序列。\n\n训练完成并通过最终考核后，\n你才可能被正式派往月球广寒前哨，\n执行长期驻留与生命支持建设任务。\n\n广寒计划不是一次普通申请。\n这只是第一步。")
+	_add_body_to(panel, "致 %s：\n\n经广寒计划常驻开拓者选拔委员会初步审核，\n你的申请已通过资格初审。\n\n你将进入国家深空生命科学中心训练序列。\n\n训练完成并通过最终考核后，\n你才可能被正式派往月球广寒前哨，\n执行长期驻留与生命支持建设任务。\n\n广寒计划不是一次普通申请。\n这只是第一步。" % _display_name())
 	_add_footer_button("返回主菜单", func():
 		get_tree().change_scene_to_file("res://scenes/main.tscn")
 	)
@@ -400,6 +412,8 @@ func _capture_appearance() -> void:
 		profile.set(key, options.get_item_text(options.selected))
 	if suit_marking_edit != null:
 		profile.set("suit_marking", suit_marking_edit.text.strip_edges())
+	if name_initials_edit != null:
+		profile.set("name_initials", name_initials_edit.text.strip_edges())
 	_save_profile()
 
 func _update_education_detail() -> void:
@@ -438,7 +452,7 @@ func _display_name() -> String:
 	return value if not value.is_empty() else "候选人"
 
 func _name_initials() -> String:
-	var value := String(profile.get("suit_marking")).strip_edges()
+	var value := String(profile.get("name_initials")).strip_edges()
 	return value if not value.is_empty() else "C.S.W."
 
 func _suit_id() -> String:
@@ -570,6 +584,26 @@ func _add_footer_button(text: String, callback: Callable) -> void:
 	button.custom_minimum_size = Vector2(200, 42)
 	button.pressed.connect(callback)
 	footer.add_child(button)
+
+func _add_confirmation_check(parent: VBoxContainer, text: String) -> void:
+	var check := CheckBox.new()
+	check.text = text
+	check.modulate = Color("#d8e7f2")
+	check.add_theme_font_size_override("font_size", 16)
+	check.toggled.connect(func(_pressed: bool):
+		_update_submit_enabled()
+	)
+	parent.add_child(check)
+	confirmation_checks.append(check)
+
+func _update_submit_enabled() -> void:
+	if submit_button == null:
+		return
+	for check in confirmation_checks:
+		if not check.button_pressed:
+			submit_button.disabled = true
+			return
+	submit_button.disabled = false
 
 func _clear_container(node: Node) -> void:
 	for child in node.get_children():

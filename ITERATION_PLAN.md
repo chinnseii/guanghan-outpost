@@ -983,3 +983,23 @@ Completed:
 - Result page now states that official Moon assignment can happen only after national training and final assessment.
 - Result page buttons are `进入训练序列` and `返回主菜单`.
 - `进入训练序列` goes to `TrainingPlaceholderScene` for now.
+
+## Sprint 03 Minor Patch Before Acceptance
+
+Status: complete.
+
+Completed:
+
+- Updated the training placeholder copy to say the national training sequence is initializing and candidate profile sync should be confirmed.
+- Renamed the training placeholder dev button to `开发入口：进入月球抵达原型`.
+- Separated suit ID, patch ID and name initials in the Appearance & Marking data path.
+- Changed the Submit Application confirmations into three required checkboxes.
+- Disabled `提交申请` until all three confirmation statements are checked.
+- Confirmed the review sequence ends with `正在建立候选人档案` and `审核完成`.
+- Adjusted Preliminary Eligibility Review into a formal notice addressed to the player name.
+
+Still out of scope:
+
+- Sprint 04 training gameplay.
+- Final assessment.
+- Accept Mission / 17-pioneer black screen.

@@ -16,12 +16,12 @@ func _ready() -> void:
 	title.add_theme_font_size_override("font_size", 32)
 	box.add_child(title)
 	var body := Label.new()
-	body.text = "当前版本训练模块尚未开放。\n\n这是 Sprint 04 的占位入口。"
+	body.text = "国家训练序列正在初始化。\n请确认候选人档案已完成同步。"
 	body.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	body.add_theme_font_size_override("font_size", 22)
 	box.add_child(body)
 	var arrival := Button.new()
-	arrival.text = "Dev Only: 进入月球抵达原型"
+	arrival.text = "开发入口：进入月球抵达原型"
 	arrival.custom_minimum_size = Vector2(0, 46)
 	arrival.pressed.connect(func():
 		get_tree().change_scene_to_file("res://scenes/arrival/ArrivalCinematicScene.tscn")

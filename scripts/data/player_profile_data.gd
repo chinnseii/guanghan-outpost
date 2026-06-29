@@ -13,6 +13,7 @@ class_name PlayerProfileData
 @export var hair_preset := "Short"
 @export var hair_color_preset := "Black"
 @export var suit_marking := "GH-01"
+@export var name_initials := "C.S.W."
 @export var suit_marking_color := "Blue"
 @export var application_submitted := false
 @export var application_accepted := false
@@ -33,6 +34,7 @@ func to_dictionary() -> Dictionary:
 		"HairPreset": hair_preset,
 		"HairColorPreset": hair_color_preset,
 		"SuitMarking": suit_marking,
+		"NameInitials": name_initials,
 		"SuitMarkingColor": suit_marking_color,
 		"ApplicationSubmitted": application_submitted,
 		"ApplicationAccepted": application_accepted,
@@ -55,6 +57,7 @@ func load_dictionary(data: Dictionary) -> void:
 	hair_preset = String(data.get("HairPreset", hair_preset))
 	hair_color_preset = String(data.get("HairColorPreset", hair_color_preset))
 	suit_marking = String(data.get("SuitMarking", suit_marking))
+	name_initials = String(data.get("NameInitials", name_initials))
 	suit_marking_color = String(data.get("SuitMarkingColor", suit_marking_color))
 	application_submitted = bool(data.get("ApplicationSubmitted", application_submitted))
 	application_accepted = bool(data.get("ApplicationAccepted", application_accepted))

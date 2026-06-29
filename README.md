@@ -413,3 +413,12 @@ Out of scope remains training gameplay, final assessment, launch, inventory, min
 - The preview focuses on astronaut suit, patch, suit ID, name initials, and marking color.
 - Gender affects visual body preset only and does not affect stats, abilities, or gameplay bonuses.
 - Added the note: `外观仅用于角色显示与任务档案，不影响能力。`
+
+## Sprint 03 Minor Patch Before Acceptance
+
+- Training placeholder text now says the national training sequence is initializing and candidate profile sync should be confirmed.
+- The training placeholder keeps a dev entry, renamed to `开发入口：进入月球抵达原型`.
+- Appearance & Marking now stores suit ID, patch ID and name initials as separate fields.
+- Submit Application now requires all three confirmation checkboxes before `提交申请` is enabled.
+- Review processing includes candidate file creation and review completion before moving to preliminary eligibility review.
+- Preliminary Eligibility Review is formatted as a formal notice addressed to the current player name.
