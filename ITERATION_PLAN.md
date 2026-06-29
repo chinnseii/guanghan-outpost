@@ -927,3 +927,29 @@ Completed:
 - Lowered HUD presence and kept debug hidden by default behind F3.
 
 No new gameplay systems were added.
+
+## Sprint 03 Prologue & Application
+
+Status: complete first playable pass.
+
+Completed:
+
+- Added `res://scenes/application/ApplicationStartScene.tscn`.
+- Added `res://scenes/application/BlackScreenSequence.tscn`.
+- Added `res://scenes/application/TrainingPlaceholderScene.tscn`.
+- Added `scripts/application/application_flow_scene.gd`.
+- Added `scripts/application/black_screen_sequence.gd`.
+- Added `scripts/application/training_placeholder_scene.gd`.
+- Added `scripts/data/player_profile_data.gd`.
+- Main menu now offers `Apply to Project Guanghan` and `Continue Mission`.
+- Direct sandbox/arrival entries remain available but are labeled `Dev Only`.
+- Application flow includes identity, education, appearance, review, admission notice, accept/withdraw choice, black screen text and training placeholder.
+- Player profile saves to `user://saves/application_profile.json`, including submitted/accepted state, current step and next scene after application.
+- Education background is saved as context only; no numerical bonuses or RPG attributes were added.
+
+Deferred to Sprint 04+:
+
+- National training gameplay.
+- Final assessment.
+- Launch sequence.
+- Any plant, backpack, mining, automation, resident, tech tree or RPG-stat systems.

@@ -372,3 +372,24 @@ This keeps the cinematic target screenshot separate from the gameplay map instea
 - Player is drawn as a small back-facing figure looking toward Earth and the distant base.
 - Continue prompt now reads `E / Enter 前往基地气闸`.
 - HUD is dimmer by default; debug remains hidden unless toggled with F3.
+
+## Sprint 03 Prologue & Application
+
+The formal New Game flow now starts with an application instead of sending the player directly to the Moon.
+
+Implemented:
+
+- Main menu entry: `Apply to Project Guanghan`.
+- Continue entry: `Continue Mission`, which reopens the saved application flow.
+- Application UI shell for the National Deep Space Life Science Center / Project Guanghan.
+- Basic identity page: name, birth year, gender display.
+- Education background page with six non-buff options.
+- Appearance placeholder page for simple body/skin/hair/suit marking presets.
+- Submit/review flow with short formal processing lines.
+- Admission notice page with player name.
+- Final choice: accept mission or withdraw application.
+- Black screen text sequence after accepting the mission.
+- `TrainingPlaceholderScene` for Sprint 04 handoff, with a Dev Only button into ArrivalCinematicScene.
+- Player profile save file: `user://saves/application_profile.json`.
+
+Out of scope remains training gameplay, final assessment, launch, inventory, mining, robots, tech tree, RPG stats and education-background buffs.

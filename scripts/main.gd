@@ -3168,6 +3168,7 @@ func _make_intro_overlay() -> Control:
 	text.custom_minimum_size = Vector2(390, 82)
 	box.add_child(text)
 	var start := Button.new()
+	start.text = "Dev Only: Start Survival Sandbox"
 	start.text = "知道了，开始执行"
 	start.custom_minimum_size = Vector2(0, 40)
 	start.pressed.connect(_dismiss_intro_overlay)
@@ -3458,7 +3459,7 @@ func _setup_main_menu() -> void:
 	var menu := PanelContainer.new()
 	menu.name = "MainMenu"
 	menu.position = Vector2(500, 150)
-	menu.size = Vector2(620, 430)
+	menu.size = Vector2(620, 680)
 	$UI/Root.add_child(menu)
 	var box := VBoxContainer.new()
 	box.name = "Box"
@@ -3473,6 +3474,24 @@ func _setup_main_menu() -> void:
 	subtitle.text = "月球生存、温室种植与基地扩建模拟"
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(subtitle)
+	var apply := Button.new()
+	apply.text = "Apply to Project Guanghan"
+	apply.custom_minimum_size = Vector2(0, 44)
+	apply.pressed.connect(func():
+		get_tree().change_scene_to_file("res://scenes/application/ApplicationStartScene.tscn")
+	)
+	box.add_child(apply)
+	var continue_mission := Button.new()
+	continue_mission.text = "Continue Mission"
+	continue_mission.custom_minimum_size = Vector2(0, 40)
+	continue_mission.pressed.connect(func():
+		get_tree().change_scene_to_file("res://scenes/application/ApplicationStartScene.tscn")
+	)
+	box.add_child(continue_mission)
+	var archive_label := Label.new()
+	archive_label.text = "Archives"
+	archive_label.modulate = Color("#d8e7f2", 0.82)
+	box.add_child(archive_label)
 	for slot in range(1, SAVE_SLOTS + 1):
 		var row := HBoxContainer.new()
 		row.name = "SlotRow%d" % slot
@@ -3492,15 +3511,31 @@ func _setup_main_menu() -> void:
 	var start := Button.new()
 	start.text = "从当前槽开始新任务"
 	start.custom_minimum_size = Vector2(0, 44)
+	start.text = "Dev Only: Start Survival Sandbox"
 	start.pressed.connect(_start_new_game)
 	box.add_child(start)
 	var arrival_dev := Button.new()
 	arrival_dev.text = "Dev Entry: Arrival Cinematic"
 	arrival_dev.custom_minimum_size = Vector2(0, 40)
+	arrival_dev.text = "Dev Only: Arrival Cinematic"
 	arrival_dev.pressed.connect(func():
 		get_tree().change_scene_to_file("res://scenes/arrival/ArrivalCinematicScene.tscn")
 	)
 	box.add_child(arrival_dev)
+	var settings := Button.new()
+	settings.text = "Settings"
+	settings.custom_minimum_size = Vector2(0, 36)
+	settings.pressed.connect(func():
+		add_log("Settings page is not available in this prototype.")
+	)
+	box.add_child(settings)
+	var exit_button := Button.new()
+	exit_button.text = "Exit"
+	exit_button.custom_minimum_size = Vector2(0, 36)
+	exit_button.pressed.connect(func():
+		get_tree().quit()
+	)
+	box.add_child(exit_button)
 	var close := Button.new()
 	close.text = "继续当前模拟"
 	close.pressed.connect(func():
