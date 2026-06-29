@@ -15,6 +15,12 @@ const ROBOT_SCENE := preload("res://scenes/robot.tscn")
 const SaveManagerScript := preload("res://scripts/save_manager.gd")
 const AudioFeedbackScript := preload("res://scripts/audio_feedback.gd")
 const RobotTaskManagerScript := preload("res://scripts/robot_task_manager.gd")
+const GameStateManagerScript := preload("res://scripts/game_state_manager.gd")
+const TimeManagerScript := preload("res://scripts/time_manager.gd")
+const CameraManagerScript := preload("res://scripts/camera_manager.gd")
+const UIManagerScript := preload("res://scripts/ui_manager.gd")
+const EventManagerScript := preload("res://scripts/event_manager.gd")
+const AudioManagerScript := preload("res://scripts/audio_manager.gd")
 
 var day := 1
 var is_moon_night := false
@@ -280,6 +286,12 @@ var entity_root: Node2D
 var camera: Camera2D
 var save_manager: Node
 var audio_feedback: Node
+var game_state_manager: Node
+var time_manager: Node
+var camera_manager: Node
+var ui_manager: Node
+var event_manager: Node
+var audio_manager: Node
 var robot_task_manager: Node
 var module_nodes: Dictionary = {}
 var collectable_nodes: Dictionary = {}
@@ -377,6 +389,10 @@ func _reset_game_state() -> void:
 	low_o2_warning_cooldown = 0.0
 	camera_zoom = 1.0
 	ui_scale = 1.0
+	if is_instance_valid(time_manager) and time_manager.has_method("set_time"):
+		time_manager.call("set_time", day, 7, 42)
+	if is_instance_valid(game_state_manager) and game_state_manager.has_method("change_state"):
+		game_state_manager.call("change_state", GameStateManagerScript.MAIN_MENU)
 	solar_dust = 0.12
 	oxygen_wear = 0.08
 	next_module_uid = 1
@@ -521,7 +537,10 @@ func _update_camera() -> void:
 		var objective_pos := _active_objective_target_pos()
 		if objective_pos.x != INF:
 			target = objective_pos
-	camera.position = target
+	if is_instance_valid(camera_manager) and camera_manager.has_method("update_camera"):
+		camera_manager.call("update_camera", camera, target, camera_zoom)
+	else:
+		camera.position = target
 
 func _process_robot_queue(delta: float) -> void:
 	robot_path_pulse += delta
@@ -785,7 +804,9 @@ func _adjust_camera_zoom(delta: float) -> void:
 	_update_ui()
 
 func _apply_camera_zoom() -> void:
-	if is_instance_valid(camera):
+	if is_instance_valid(camera_manager) and camera_manager.has_method("apply_zoom"):
+		camera_zoom = float(camera_manager.call("apply_zoom", camera, camera_zoom))
+	elif is_instance_valid(camera):
 		camera.zoom = Vector2(camera_zoom, camera_zoom)
 
 func _adjust_ui_scale(delta: float) -> void:
@@ -810,6 +831,8 @@ func _setup_entity_root() -> void:
 	camera.position_smoothing_enabled = true
 	camera.position_smoothing_speed = 6.0
 	add_child(camera)
+	if is_instance_valid(camera_manager) and camera_manager.has_method("configure"):
+		camera_manager.call("configure", camera)
 	player_node = PLAYER_SCENE.instantiate()
 	player_node.name = "Player"
 	player_node.z_index = 30
@@ -822,21 +845,51 @@ func _setup_entity_root() -> void:
 	_sync_scene_instances()
 
 func _setup_audio() -> void:
+	game_state_manager = GameStateManagerScript.new()
+	game_state_manager.name = "GameStateManager"
+	add_child(game_state_manager)
+	time_manager = TimeManagerScript.new()
+	time_manager.name = "TimeManager"
+	add_child(time_manager)
+	time_manager.call("set_time", day, 7, 42)
+	camera_manager = CameraManagerScript.new()
+	camera_manager.name = "CameraManager"
+	add_child(camera_manager)
+	if is_instance_valid(camera):
+		camera_manager.call("configure", camera)
+	ui_manager = UIManagerScript.new()
+	ui_manager.name = "UIManager"
+	add_child(ui_manager)
+	event_manager = EventManagerScript.new()
+	event_manager.name = "EventManager"
+	add_child(event_manager)
+	audio_manager = AudioManagerScript.new()
+	audio_manager.name = "AudioManager"
+	add_child(audio_manager)
 	save_manager = SaveManagerScript.new()
 	save_manager.name = "SaveManager"
 	add_child(save_manager)
 	audio_feedback = AudioFeedbackScript.new()
 	audio_feedback.name = "AudioFeedback"
 	add_child(audio_feedback)
+	audio_manager.call("set_backend", audio_feedback)
 	robot_task_manager = RobotTaskManagerScript.new()
 	robot_task_manager.name = "RobotTaskManager"
 	add_child(robot_task_manager)
+	game_state_manager.call("change_state", GameStateManagerScript.MAIN_MENU)
+	event_manager.call("trigger", "foundation_boot", {}, true)
 
 func _play_ui_tone(frequency: float = 660.0, duration: float = 0.08, volume: float = 0.08) -> void:
+	if is_instance_valid(audio_manager) and audio_manager.has_method("play_ui"):
+		audio_manager.call("play_ui", frequency, duration, volume)
+		return
 	if is_instance_valid(audio_feedback) and audio_feedback.has_method("play_tone"):
 		audio_feedback.call("play_tone", frequency, duration, volume)
 
 func _play_audio_event(event_name: String) -> void:
+	if is_instance_valid(audio_manager) and audio_manager.has_method("play_event"):
+		audio_manager.call("play_event", event_name)
+		return
 	if is_instance_valid(audio_feedback) and audio_feedback.has_method("play_event"):
 		audio_feedback.call("play_event", event_name)
 	else:
@@ -1896,6 +1949,9 @@ func _backpack_summary() -> String:
 
 func _advance_day() -> void:
 	day += 1
+	if is_instance_valid(time_manager) and time_manager.has_method("advance_day"):
+		time_manager.call("advance_day", 7, 42)
+		day = int(time_manager.get("day"))
 	tutorial_flags["advanced_day"] = true
 	_clear_guidance_tip()
 	if solar_storm_days > 0:
@@ -2140,6 +2196,10 @@ func _save_game() -> void:
 		return
 	var save_data := {
 		"version": 1,
+		"game_state": game_state_manager.call("serialize") if is_instance_valid(game_state_manager) and game_state_manager.has_method("serialize") else {},
+		"time": time_manager.call("serialize") if is_instance_valid(time_manager) and time_manager.has_method("serialize") else {},
+		"camera_manager": camera_manager.call("serialize") if is_instance_valid(camera_manager) and camera_manager.has_method("serialize") else {},
+		"events": event_manager.call("serialize") if is_instance_valid(event_manager) and event_manager.has_method("serialize") else {},
 		"day": day,
 		"is_moon_night": is_moon_night,
 		"game_over": game_over,
@@ -2209,6 +2269,8 @@ func _load_game() -> void:
 	pending_main_menu = false
 	if has_node("UI/Root/MainMenu"):
 		$UI/Root/MainMenu.visible = false
+	if is_instance_valid(game_state_manager) and game_state_manager.has_method("change_state"):
+		game_state_manager.call("change_state", GameStateManagerScript.MOON_SURFACE)
 	_play_ui_tone(760.0, 0.08, 0.07)
 	add_log("已读取存档槽 %d。" % current_save_slot)
 	_sync_scene_instances()
@@ -2220,6 +2282,10 @@ func _start_new_game() -> void:
 	pending_main_menu = false
 	if has_node("UI/Root/MainMenu"):
 		$UI/Root/MainMenu.visible = false
+	if is_instance_valid(game_state_manager) and game_state_manager.has_method("change_state"):
+		game_state_manager.call("change_state", GameStateManagerScript.MOON_SURFACE)
+	if is_instance_valid(time_manager) and time_manager.has_method("set_time"):
+		time_manager.call("set_time", day, 7, 42)
 	add_log("新一轮广寒前哨任务开始。")
 	add_log("先按左上角当前目标行动：控制台 -> 气闸 -> 出舱采集 -> 储物柜入库。")
 	_record_task_history("strategy:day:1", "长期目标：%s" % _strategic_next_goal())
@@ -2229,6 +2295,15 @@ func _start_new_game() -> void:
 
 func _apply_save_data(data: Dictionary) -> void:
 	day = int(data.get("day", 1))
+	if is_instance_valid(game_state_manager) and game_state_manager.has_method("deserialize"):
+		game_state_manager.call("deserialize", data.get("game_state", {"current_state": GameStateManagerScript.MOON_SURFACE}))
+	if is_instance_valid(time_manager) and time_manager.has_method("deserialize"):
+		time_manager.call("deserialize", data.get("time", {"day": day, "hour": 7, "minute": 42}))
+		day = int(time_manager.get("day"))
+	if is_instance_valid(camera_manager) and camera_manager.has_method("deserialize"):
+		camera_manager.call("deserialize", data.get("camera_manager", {}))
+	if is_instance_valid(event_manager) and event_manager.has_method("deserialize"):
+		event_manager.call("deserialize", data.get("events", {}))
 	is_moon_night = bool(data.get("is_moon_night", false))
 	game_over = bool(data.get("game_over", false))
 	supply_waiting = bool(data.get("supply_waiting", false))
@@ -2722,6 +2797,8 @@ func _setup_ui() -> void:
 	root.name = "Root"
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	ui.add_child(root)
+	if is_instance_valid(ui_manager) and ui_manager.has_method("bind_root"):
+		ui_manager.call("bind_root", root)
 	_apply_ui_scale()
 
 	var top := Label.new()

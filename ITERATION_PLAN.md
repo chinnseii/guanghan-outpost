@@ -795,12 +795,46 @@
 - 明确第一株植物不是玩家种出来的，而是玩家救活的。
 - 后续开发优先从“堆系统内容”切换为“Foundation + 第一小时体验”。
 
+## Sprint 01 Foundation 第一轮
+
+已完成：
+
+- 新增 `docs/SPRINT_01_FOUNDATION.md`，将 Sprint 01 Issue List 转成项目内 checklist。
+- 新增 `scripts/game_state_manager.gd`：
+  - Boot
+  - MainMenu
+  - Application
+  - Training
+  - Launch
+  - Landing
+  - MoonSurface
+  - BaseInterior
+  - Sleep
+- 新增 `scripts/time_manager.gd`，支持 Day / Hour / Minute / Time Scale / Pause。
+- 新增 `scripts/camera_manager.gd`，集中管理固定镜头、跟随、缩放和未来镜头锁定。
+- 新增 `scripts/ui_manager.gd`，提供 UI Root、HUD、Prompt、Dialogue 占位入口。
+- 新增 `scripts/event_manager.gd`，支持事件触发、一次性事件和事件状态保存。
+- 新增 `scripts/audio_manager.gd`，集中转发现有 UI / 事件音频入口。
+- 新增 `scripts/interactable.gd` 和 `scripts/interaction_detector.gd`，为统一 E 键交互系统预留接口。
+- 新增 Resource 数据类型：
+  - `ItemData`
+  - `LifeEntityData`
+  - `StructureData`
+  - `InteractableData`
+  - `DialogueData`
+  - `SceneEventData`
+- 新增测试数据：
+  - `data/foundation/test_life_entity.tres`
+  - `data/foundation/test_structure.tres`
+- `main.gd` 已轻量接入 GameState、Time、Camera、UI、Event 和 Audio managers。
+- 存档开始保存 Foundation managers 的状态。
+
 ## 当前下一步建议
 
 1. Sprint 01 Foundation：
-   - 新增 Game State Machine，支持主菜单、第一次踏上月球、旧基地、普通游玩等状态
-   - 梳理 Fixed Camera / Cinematic Camera，为 TS-001 固定镜头预留接口
-   - 把 UI Manager 从 `main.gd` 中逐步拆出，支持剧情时隐藏经营 UI
+   - 建立 `FoundationTestMap` 测试场景
+   - 将玩家移动拆为 `PlayerController.gd`，支持启用/禁用输入
+   - 将现有 E 键交互逐步迁到 `Interactable` / `InteractionDetector`
 2. TS-001 可运行灰盒：
    - 用现有 TileMap 和像素素材搭出“运输船离开、远处旧基地、地球可见”的测试场景
    - 保持 HUD 极简，只显示宇航服状态、时间和环境信息

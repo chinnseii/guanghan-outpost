@@ -18,6 +18,7 @@
 - 第一版像素宇航员角色 sprite：4 方向、2 帧步行动画、低氧/舱外状态提示
 - 项目方向文档：`docs/PROJECT_BRIEF.md`
 - 第一张目标截图说明：`docs/art/TS-001/README.md`
+- Sprint 01 Foundation 清单：`docs/SPRINT_01_FOUNDATION.md`
 - 默认窗口：1600×900
 - 地图格子和舱内模块尺寸已放大，提高可读性
 - 右侧信息栏与地图区域分离，减少遮挡
@@ -58,6 +59,8 @@
 - 保存/读取系统
 - 主菜单和 3 个存档槽
 - 存档路径：`user://saves/slot_1.json` 至 `user://saves/slot_3.json`
+- Foundation Manager 第一轮：GameState、Time、Camera、UI、Event、Audio 已有集中入口
+- Resource 数据底座：ItemData、LifeEntityData、StructureData、InteractableData、DialogueData、SceneEventData
 - 可保存日期、资源、玩家位置、模块、作物、漏气、采集点、补给订单、任务、前哨员状态和日志
 - 玩家、模块和采集点已拆成独立 Godot 场景，主脚本同步数据层与显示层
 - 舱内设施第一版：
@@ -286,12 +289,22 @@ launch_godot.bat
 - 保留现有 PNG 加载回退逻辑：优先使用 Godot 导入资源，失败时直接读取 PNG，仍然有程序绘制兜底。
 - 没有改动核心玩法、资源结算、机器人任务或存档结构。
 
+## Sprint 01 Foundation 第一轮
+
+- 新增 `docs/SPRINT_01_FOUNDATION.md`，把 Sprint 01 issue list 转成项目内 checklist。
+- 新增 `GameStateManager`、`TimeManager`、`CameraManager`、`UIManager`、`EventManager`、`AudioManager`。
+- 新增通用交互接口占位 `Interactable` 和 `InteractionDetector`。
+- 新增 Resource 数据类型：`ItemData`、`LifeEntityData`、`StructureData`、`InteractableData`、`DialogueData`、`SceneEventData`。
+- 新增测试数据：`data/foundation/test_life_entity.tres` 和 `data/foundation/test_structure.tres`。
+- 现有主场景已轻量接入 GameState、Time、Camera、UI、Event 和 Audio 管理器。
+- 存档开始保存 Foundation managers 的状态。
+
 ## 下一步建议
 
 1. Sprint 01 Foundation：
-   - 新增 Game State Machine，支持主菜单、第一次踏上月球、旧基地、普通游玩等状态。
-   - 梳理 Fixed Camera / Cinematic Camera，为 TS-001 固定镜头预留接口。
-   - 把 UI Manager 从 `main.gd` 中逐步拆出，支持剧情时隐藏经营 UI。
+   - 建立 `FoundationTestMap` 测试场景。
+   - 将玩家移动拆为 `PlayerController.gd`，支持启用/禁用输入。
+   - 将现有 E 键交互逐步迁到 `Interactable` / `InteractionDetector`。
 2. TS-001 可运行灰盒：
    - 用现有 TileMap 和像素素材搭出“运输船离开、远处旧基地、地球可见”的测试场景。
    - 保持 HUD 极简，只显示宇航服状态、时间和环境信息。

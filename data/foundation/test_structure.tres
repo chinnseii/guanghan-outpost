@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="StructureData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/structure_data.gd" id="1_structure"]
+
+[resource]
+script = ExtResource("1_structure")
+id = "test_old_console"
+display_name = "旧控制台"
+description = "旧基地遗留的控制台，可用于测试交互提示和事件。"
+interaction_label = "查看控制台"
+pressurized = true
+supports_life = false

@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="LifeEntityData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/life_entity_data.gd" id="1_life"]
+
+[resource]
+script = ExtResource("1_life")
+id = "test_last_plant"
+display_name = "最后一株植物"
+description = "上一位开拓者留下的虚弱植物。它不是奖励，而是需要被救活的生命。"
+interaction_label = "检查植物"
+max_health = 100.0
+needs_light = true
+needs_water = true
