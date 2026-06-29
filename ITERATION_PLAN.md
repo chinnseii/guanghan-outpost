@@ -935,17 +935,16 @@ Status: complete first playable pass.
 Completed:
 
 - Added `res://scenes/application/ApplicationStartScene.tscn`.
-- Added `res://scenes/application/BlackScreenSequence.tscn`.
 - Added `res://scenes/application/TrainingPlaceholderScene.tscn`.
 - Added `scripts/application/application_flow_scene.gd`.
-- Added `scripts/application/black_screen_sequence.gd`.
 - Added `scripts/application/training_placeholder_scene.gd`.
 - Added `scripts/data/player_profile_data.gd`.
 - Main menu now offers `Apply to Project Guanghan` and `Continue Mission`.
 - Direct sandbox/arrival entries remain available but are labeled `Dev Only`.
-- Application flow includes identity, education, appearance, review, admission notice, accept/withdraw choice, black screen text and training placeholder.
+- Application flow includes identity, education, appearance, review, preliminary eligibility result and training placeholder.
 - Player profile saves to `user://saves/application_profile.json`, including submitted/accepted state, current step and next scene after application.
 - Education background is saved as context only; no numerical bonuses or RPG attributes were added.
+- Accept mission, withdraw Moon assignment, and the 17-pioneer black screen are deferred until after training/final assessment.
 
 Deferred to Sprint 04+:
 
@@ -971,3 +970,16 @@ Completed:
 - Updated preview focus to suit, patch, suit ID, name initials, and marking color.
 - Added explicit notes that appearance is display/record only and does not affect ability.
 - Gender only changes visual body preset options.
+
+## Sprint 03 Revision 02: Application Result Flow
+
+Status: complete.
+
+Completed:
+
+- Replaced the former admission/final-choice ending with `资格初审结果 / PRELIMINARY ELIGIBILITY REVIEW`.
+- Removed `接受使命` and `放弃申请` from the Sprint 03 application flow.
+- Removed the immediate accept-mission black screen route from Sprint 03.
+- Result page now states that official Moon assignment can happen only after national training and final assessment.
+- Result page buttons are `进入训练序列` and `返回主菜单`.
+- `进入训练序列` goes to `TrainingPlaceholderScene` for now.

@@ -5,7 +5,7 @@ class_name PlayerProfileData
 @export var birth_year := 2000
 @export var gender_display := "男"
 @export var application_id := "GHO-APP-2068-0421"
-@export var candidate_file_status := "待建立"
+@export var candidate_file_status := "待提交"
 @export var mission_identity := "常驻开拓者候选人"
 @export var education_background := ""
 @export var appearance_preset := "Standard"

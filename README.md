@@ -386,13 +386,22 @@ Implemented:
 - Education background page with six non-buff options.
 - Appearance placeholder page for simple body/skin/hair/suit marking presets.
 - Submit/review flow with short formal processing lines.
-- Admission notice page with player name.
-- Final choice: accept mission or withdraw application.
-- Black screen text sequence after accepting the mission.
+- Preliminary eligibility review result page with player name.
+- `进入训练序列` handoff after preliminary approval.
+- Accept mission / withdraw mission assignment and the 17-pioneer black screen are deferred until after training/final assessment.
 - `TrainingPlaceholderScene` for Sprint 04 handoff, with a Dev Only button into ArrivalCinematicScene.
 - Player profile save file: `user://saves/application_profile.json`.
 
 Out of scope remains training gameplay, final assessment, launch, inventory, mining, robots, tech tree, RPG stats and education-background buffs.
+
+## Sprint 03 Revision 02: Application Result Flow
+
+- Sprint 03 now ends at preliminary eligibility approval, not mission acceptance.
+- The former admission/final-choice flow is replaced by `资格初审结果 / PRELIMINARY ELIGIBILITY REVIEW`.
+- The result page explains that Moon assignment is only possible after national training and final assessment.
+- Buttons are `进入训练序列` and `返回主菜单`.
+- `进入训练序列` currently opens `TrainingPlaceholderScene`.
+- The accept-mission black screen has been removed from the Sprint 03 route and deferred to a later sprint.
 
 ## APP-002A Application UI Update
 
