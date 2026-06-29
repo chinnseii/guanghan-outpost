@@ -5,6 +5,10 @@ const BED_TEXTURE_PATH := "res://assets/sprites/facilities/bed.png"
 const STORAGE_TEXTURE_PATH := "res://assets/sprites/facilities/storage.png"
 const CONSOLE_TEXTURE_PATH := "res://assets/sprites/facilities/console.png"
 const ROBOT_CHARGER_TEXTURE_PATH := "res://assets/sprites/facilities/robot_charger.png"
+const AIRLOCK_DOOR_TEXTURE_PATH := "res://assets/sprites/facilities/airlock_door.png"
+const LIFE_SUPPORT_TANK_TEXTURE_PATH := "res://assets/sprites/facilities/life_support_tank.png"
+const GREENHOUSE_BED_TEXTURE_PATH := "res://assets/sprites/facilities/greenhouse_bed.png"
+const SOLAR_PANEL_TEXTURE_PATH := "res://assets/sprites/facilities/solar_panel.png"
 
 var module_data: Dictionary = {}
 var module_def: Dictionary = {}
@@ -14,6 +18,10 @@ var bed_texture: Texture2D
 var storage_texture: Texture2D
 var console_texture: Texture2D
 var robot_charger_texture: Texture2D
+var airlock_door_texture: Texture2D
+var life_support_tank_texture: Texture2D
+var greenhouse_bed_texture: Texture2D
+var solar_panel_texture: Texture2D
 
 func _ready() -> void:
 	_load_facility_textures()
@@ -24,12 +32,17 @@ func _load_facility_textures() -> void:
 	storage_texture = _load_png_texture(STORAGE_TEXTURE_PATH)
 	console_texture = _load_png_texture(CONSOLE_TEXTURE_PATH)
 	robot_charger_texture = _load_png_texture(ROBOT_CHARGER_TEXTURE_PATH)
+	airlock_door_texture = _load_png_texture(AIRLOCK_DOOR_TEXTURE_PATH)
+	life_support_tank_texture = _load_png_texture(LIFE_SUPPORT_TANK_TEXTURE_PATH)
+	greenhouse_bed_texture = _load_png_texture(GREENHOUSE_BED_TEXTURE_PATH)
+	solar_panel_texture = _load_png_texture(SOLAR_PANEL_TEXTURE_PATH)
 
 func _load_png_texture(path: String) -> Texture2D:
-	var imported: Resource = ResourceLoader.load(path)
-	if imported is Texture2D:
-		return imported as Texture2D
-	var image: Image = Image.load_from_file(path)
+	if FileAccess.file_exists("%s.import" % path):
+		var imported: Resource = ResourceLoader.load(path)
+		if imported is Texture2D:
+			return imported as Texture2D
+	var image: Image = Image.load_from_file(ProjectSettings.globalize_path(path))
 	if image == null or image.is_empty():
 		return null
 	return ImageTexture.create_from_image(image)
@@ -122,8 +135,11 @@ func _draw_details(module_type: String, rect: Rect2) -> void:
 func _draw_greenhouse(rect: Rect2) -> void:
 	for i in range(2):
 		var bed := Rect2(rect.position + Vector2(22 + i * 72, 28), Vector2(52, 48))
-		draw_rect(bed, Color("#223026"))
-		draw_rect(bed, Color("#74b77a"), false, 2)
+		if greenhouse_bed_texture != null:
+			draw_texture_rect(greenhouse_bed_texture, bed, false)
+		else:
+			draw_rect(bed, Color("#223026"))
+			draw_rect(bed, Color("#74b77a"), false, 2)
 		if String(module_data.get("crop", "")) != "":
 			var growth: float = clamp(float(module_data.get("age", 0)) / 4.0, 0.2, 1.0)
 			draw_circle(bed.get_center(), 7 + 13 * growth, Color("#71d46f"))
@@ -165,9 +181,12 @@ func _draw_workshop_interior(rect: Rect2) -> void:
 
 func _draw_airlock_interior(rect: Rect2) -> void:
 	var chamber := Rect2(rect.position + Vector2(22, 18), Vector2(52, 58))
-	draw_rect(chamber, Color("#8892a3"), false, 4)
-	draw_line(rect.position + Vector2(48, 20), rect.position + Vector2(48, 74), Color("#d8e0eb"), 2)
-	draw_line(rect.position + Vector2(62, 22), rect.position + Vector2(62, 72), Color("#7fd5ff", 0.8), 2)
+	if airlock_door_texture != null:
+		draw_texture_rect(airlock_door_texture, chamber, false)
+	else:
+		draw_rect(chamber, Color("#8892a3"), false, 4)
+		draw_line(rect.position + Vector2(48, 20), rect.position + Vector2(48, 74), Color("#d8e0eb"), 2)
+		draw_line(rect.position + Vector2(62, 22), rect.position + Vector2(62, 72), Color("#7fd5ff", 0.8), 2)
 	_draw_suit_rack(rect.position + Vector2(rect.size.x - 40, 24))
 
 func _draw_battery_bank(rect: Rect2) -> void:
@@ -213,6 +232,11 @@ func _draw_console(pos: Vector2, animated: bool) -> void:
 	_draw_status_light(pos + Vector2(35, 20), not animated)
 
 func _draw_tank(center: Vector2, color: Color) -> void:
+	var rect := Rect2(center - Vector2(16, 22), Vector2(32, 44))
+	if life_support_tank_texture != null:
+		draw_texture_rect(life_support_tank_texture, rect, false)
+		draw_circle(center + Vector2(8, -2), 5, color)
+		return
 	draw_circle(center, 16, Color("#263242"))
 	draw_circle(center, 12, color)
 	draw_rect(Rect2(center + Vector2(-8, 13), Vector2(16, 8)), Color("#6f7d8f"))
@@ -241,5 +265,8 @@ func _draw_status_light(pos: Vector2, animated: bool) -> void:
 func _draw_solar(rect: Rect2) -> void:
 	for i in range(4):
 		var panel := Rect2(rect.position + Vector2(14 + i * 40, 18), Vector2(30, 58))
-		draw_rect(panel, Color("#365f95"))
-		draw_rect(panel, Color("#94bdeb"), false, 1)
+		if solar_panel_texture != null:
+			draw_texture_rect(solar_panel_texture, panel, false)
+		else:
+			draw_rect(panel, Color("#365f95"))
+			draw_rect(panel, Color("#94bdeb"), false, 1)

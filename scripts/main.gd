@@ -32,6 +32,7 @@ var player_facing := Vector2.DOWN
 var walk_phase := 0.0
 var was_inside := false
 var eva_warning_cooldown := 0.0
+var step_audio_cooldown := 0.0
 var interact_target: Dictionary = {}
 
 var selected_crop := "potato"
@@ -329,6 +330,7 @@ func _reset_game_state() -> void:
 	player_facing = Vector2.DOWN
 	was_inside = false
 	eva_warning_cooldown = 0.0
+	step_audio_cooldown = 0.0
 	walk_phase = 0.0
 	interact_target = {}
 	selected_crop = "potato"
@@ -433,6 +435,7 @@ func _process(delta: float) -> void:
 		return
 	eva_warning_cooldown = max(0.0, eva_warning_cooldown - delta)
 	low_o2_warning_cooldown = max(0.0, low_o2_warning_cooldown - delta)
+	step_audio_cooldown = max(0.0, step_audio_cooldown - delta)
 	var input := Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	var target_pos := player_pos + input * PLAYER_SPEED * delta
 	if _can_player_move_to(target_pos):
@@ -440,6 +443,9 @@ func _process(delta: float) -> void:
 	if input.length() > 0.01:
 		player_facing = input.normalized()
 		walk_phase += delta * 10.0
+		if step_audio_cooldown <= 0.0:
+			_play_audio_event("step")
+			step_audio_cooldown = 0.32
 	player_pos.x = clamp(player_pos.x, MAP_ORIGIN.x + 5.0, MAP_ORIGIN.x + MAP_W * TILE - 5.0)
 	player_pos.y = clamp(player_pos.y, MAP_ORIGIN.y + 5.0, MAP_ORIGIN.y + MAP_H * TILE - 5.0)
 	_process_suit_oxygen(delta)
@@ -769,6 +775,7 @@ func _setup_audio() -> void:
 	robot_task_manager = RobotTaskManagerScript.new()
 	robot_task_manager.name = "RobotTaskManager"
 	add_child(robot_task_manager)
+	_play_audio_event("ambient")
 
 func _play_ui_tone(frequency: float = 660.0, duration: float = 0.08, volume: float = 0.08) -> void:
 	if is_instance_valid(audio_feedback) and audio_feedback.has_method("play_tone"):

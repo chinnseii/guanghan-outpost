@@ -646,19 +646,47 @@
 - 当前目标支持手动追踪/取消追踪
 - 将新手引导逻辑拆成独立 TutorialManager
 
+## V0.26 正式素材下一轮
+
+已完成：
+
+- 新增第二批独立 PNG sprite 资源：
+  - `assets/sprites/facilities/airlock_door.png`
+  - `assets/sprites/facilities/life_support_tank.png`
+  - `assets/sprites/facilities/greenhouse_bed.png`
+  - `assets/sprites/facilities/solar_panel.png`
+- `scripts/module_visual.gd` 新增第二批素材路径常量
+- 气闸门优先使用 `airlock_door.png`
+- 生命维持罐优先使用 `life_support_tank.png`
+- 温室种植床优先使用 `greenhouse_bed.png`
+- 太阳能板优先使用 `solar_panel.png`
+- 第二批 sprite 保留程序绘制回退
+- PNG 加载支持未导入素材直接读取，避免新增资源时刷导入错误
+- `scripts/audio_feedback.gd` 增加持续环境底噪
+- 气闸、工具、搬运、机器人事件改为短音型
+- 玩家移动时加入轻脚步声
+- 音频节点退出时会主动停止并释放 stream，避免验证时出现退出警告
+
+后续可增强：
+
+- 给机器人、补给舱、月面采集点制作独立 sprite
+- 建立统一 sprite 尺寸和命名规范
+- 将程序生成音效替换为正式采样音效文件
+
 ## 当前下一步建议
 
-1. V0.26 正式素材下一轮：
-   - 气闸、生命维持罐、温室种植床、太阳能板替换为独立 PNG/sprite
-   - 添加循环环境音、气闸完整音效、脚步声和工具声采样
-2. V0.27 机器人玩法深化：
+1. V0.27 机器人玩法深化：
    - 给三类机器人加入不同外观或状态灯
    - 增加机器人任务完成小弹窗/地图标记
    - 维护机器人只在有月尘、漏气或完整度损耗时优先出动
-3. V0.28 任务体验继续打磨：
+2. V0.28 任务体验继续打磨：
    - 给任务完成加入短暂屏幕反馈
    - 把当前目标、出舱任务、长期目标合并成更清晰的信息层级
    - 给关键任务增加可选的地图自动居中/追踪
+3. V0.29 正式素材第三轮：
+   - 给机器人、补给舱、月面采集点加入更多独立 sprite
+   - 将舱外资源点和外部设备的视觉状态做得更容易辨认
+   - 建立统一 sprite 尺寸规范，方便后续批量替换
 4. 工程结构整理：
    - 继续拆出资源表、任务系统、UI 页面管理器
    - 将机器人任务逻辑继续迁移到 `scripts/robot_task_manager.gd`
