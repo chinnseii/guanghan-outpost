@@ -63,27 +63,34 @@ func _draw() -> void:
 	var size: Vector2i = module_def["size"]
 	var rect := Rect2(Vector2.ZERO, Vector2(size.x * TILE - 2, size.y * TILE - 2))
 	var fill: Color = module_def["color"]
+	draw_rect(rect.grow(9), Color(0, 0, 0, 0.20))
 	if highlighted:
-		draw_rect(rect.grow(5), Color("#e7c66b"), false, 3)
+		draw_rect(rect.grow(8), Color(1.0, 0.82, 0.25, 0.22))
+		draw_rect(rect.grow(6), Color("#e7c66b"), false, 4)
 	if module_data.get("leaking", false):
-		draw_rect(rect.grow(7), Color("#ff5a5a"), false, 4)
+		draw_rect(rect.grow(10), Color(1.0, 0.2, 0.16, 0.22))
+		draw_rect(rect.grow(8), Color("#ff5a5a"), false, 5)
 	_draw_hull(rect, fill)
 	_draw_details(String(module_data["type"]), rect)
 
 func _draw_hull(rect: Rect2, fill: Color) -> void:
 	var module_type := String(module_data["type"])
 	if module_type in ["solar", "supply", "regolith_plant", "ice_processor"]:
-		draw_rect(rect, fill)
-		draw_rect(rect, Color("#a7b3c5"), false, 2)
+		draw_rect(rect, Color("#151b23"))
+		draw_rect(rect.grow(-5), fill.darkened(0.05))
+		draw_rect(rect, Color("#a7b3c5"), false, 3)
+		_draw_module_badge(rect, module_type)
 		return
 	var inner := rect.grow(-12.0)
-	draw_rect(rect, Color("#202833"))
-	_draw_pixel_floor(inner, fill.lightened(0.15))
-	draw_line(Vector2(rect.position.x + 22, rect.position.y), Vector2(rect.end.x - 22, rect.position.y), Color("#a7b3c5"), 3)
-	draw_line(Vector2(rect.position.x + 22, rect.end.y), Vector2(rect.end.x - 22, rect.end.y), Color("#a7b3c5"), 3)
-	draw_line(Vector2(rect.position.x, rect.position.y + 22), Vector2(rect.position.x, rect.end.y - 22), Color("#a7b3c5"), 3)
-	draw_line(Vector2(rect.end.x, rect.position.y + 22), Vector2(rect.end.x, rect.end.y - 22), Color("#a7b3c5"), 3)
-	draw_rect(inner, Color("#d7dee8"), false, 2)
+	draw_rect(rect, Color("#111820"))
+	draw_rect(rect.grow(-4), Color("#2b3440"))
+	_draw_pixel_floor(inner, fill.lightened(0.34))
+	draw_line(Vector2(rect.position.x + 18, rect.position.y + 3), Vector2(rect.end.x - 18, rect.position.y + 3), Color("#d7dee8"), 5)
+	draw_line(Vector2(rect.position.x + 18, rect.end.y - 3), Vector2(rect.end.x - 18, rect.end.y - 3), Color("#d7dee8"), 5)
+	draw_line(Vector2(rect.position.x + 3, rect.position.y + 18), Vector2(rect.position.x + 3, rect.end.y - 18), Color("#d7dee8"), 5)
+	draw_line(Vector2(rect.end.x - 3, rect.position.y + 18), Vector2(rect.end.x - 3, rect.end.y - 18), Color("#d7dee8"), 5)
+	draw_rect(inner, Color("#eef3f8"), false, 2)
+	_draw_module_badge(rect, module_type)
 	_draw_door_markers(rect)
 
 func _draw_pixel_floor(rect: Rect2, color: Color) -> void:
@@ -98,13 +105,32 @@ func _draw_door_markers(rect: Rect2) -> void:
 	var door := Color("#e7c66b")
 	var doors: Array = module_data.get("doors", [])
 	if doors.has("top"):
-		draw_line(Vector2(center.x - 18, rect.position.y + 2), Vector2(center.x + 18, rect.position.y + 2), door, 4)
+		draw_line(Vector2(center.x - 24, rect.position.y + 1), Vector2(center.x + 24, rect.position.y + 1), door, 7)
 	if doors.has("bottom"):
-		draw_line(Vector2(center.x - 18, rect.end.y - 2), Vector2(center.x + 18, rect.end.y - 2), door, 4)
+		draw_line(Vector2(center.x - 24, rect.end.y - 1), Vector2(center.x + 24, rect.end.y - 1), door, 7)
 	if doors.has("left"):
-		draw_line(Vector2(rect.position.x + 2, center.y - 18), Vector2(rect.position.x + 2, center.y + 18), door, 4)
+		draw_line(Vector2(rect.position.x + 1, center.y - 24), Vector2(rect.position.x + 1, center.y + 24), door, 7)
 	if doors.has("right"):
-		draw_line(Vector2(rect.end.x - 2, center.y - 18), Vector2(rect.end.x - 2, center.y + 18), door, 4)
+		draw_line(Vector2(rect.end.x - 1, center.y - 24), Vector2(rect.end.x - 1, center.y + 24), door, 7)
+
+func _draw_module_badge(rect: Rect2, module_type: String) -> void:
+	var color := Color("#8fa0b8")
+	match module_type:
+		"hab":
+			color = Color("#f2f0da")
+		"airlock":
+			color = Color("#e7c66b")
+		"greenhouse":
+			color = Color("#74d07b")
+		"life_support":
+			color = Color("#9fd7ff")
+		"workshop":
+			color = Color("#d1a15b")
+		"solar":
+			color = Color("#7fb8ff")
+		"supply":
+			color = Color("#d68b52")
+	draw_rect(Rect2(rect.position + Vector2(8, 8), Vector2(28, 7)), color)
 
 func _draw_details(module_type: String, rect: Rect2) -> void:
 	if module_type == "greenhouse":

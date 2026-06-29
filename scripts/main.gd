@@ -29,6 +29,7 @@ var pending_main_menu := true
 var player_pos := Vector2(300, 420)
 var player_radius := 14.0
 var player_facing := Vector2.DOWN
+var player_moving := false
 var walk_phase := 0.0
 var was_inside := false
 var eva_warning_cooldown := 0.0
@@ -335,6 +336,7 @@ func _reset_game_state() -> void:
 	current_save_slot = clamp(current_save_slot, 1, SAVE_SLOTS)
 	player_pos = Vector2(300, 420)
 	player_facing = Vector2.DOWN
+	player_moving = false
 	was_inside = false
 	eva_warning_cooldown = 0.0
 	step_audio_cooldown = 0.0
@@ -450,10 +452,11 @@ func _process(delta: float) -> void:
 	low_o2_warning_cooldown = max(0.0, low_o2_warning_cooldown - delta)
 	step_audio_cooldown = max(0.0, step_audio_cooldown - delta)
 	var input := Input.get_vector("move_left", "move_right", "move_up", "move_down")
+	player_moving = input.length() > 0.01
 	var target_pos := player_pos + input * PLAYER_SPEED * delta
 	if _can_player_move_to(target_pos):
 		player_pos = target_pos
-	if input.length() > 0.01:
+	if player_moving:
 		player_facing = input.normalized()
 		walk_phase += delta * 10.0
 		if step_audio_cooldown <= 0.0:
@@ -833,7 +836,7 @@ func _sync_scene_instances() -> void:
 	if is_instance_valid(player_node):
 		player_node.position = player_pos
 		if player_node.has_method("setup"):
-			player_node.call("setup", player_facing, _is_player_inside_pressurized_module(), resources["suit_o2"])
+			player_node.call("setup", player_facing, _is_player_inside_pressurized_module(), resources["suit_o2"], player_moving, walk_phase)
 	if is_instance_valid(robot_node):
 		robot_node.position = robot_pos
 		if robot_node.has_method("setup"):
@@ -913,11 +916,12 @@ func _create_moon_tile_set() -> TileSet:
 	for tile_x in range(4):
 		for px in range(TILE):
 			for py in range(TILE):
-				var base: float = 0.17 + float(tile_x) * 0.025
-				var grain: float = float((px * 13 + py * 7 + tile_x * 19) % 11) * 0.004
+				var base: float = 0.12 + float(tile_x) * 0.02
+				var grain: float = float((px * 13 + py * 7 + tile_x * 19) % 11) * 0.003
 				var crater: float = _tile_crater_shadow(tile_x, px, py)
-				var shade: float = clamp(base + grain + crater, 0.06, 0.34)
-				image.set_pixel(tile_x * TILE + px, py, Color(shade, shade, shade + 0.018, 1.0))
+				var shade: float = clamp(base + grain + crater, 0.04, 0.28)
+				var cool: float = shade + 0.035
+				image.set_pixel(tile_x * TILE + px, py, Color(shade * 0.86, shade * 0.90, cool, 1.0))
 	var texture: ImageTexture = ImageTexture.create_from_image(image)
 	var source: TileSetAtlasSource = TileSetAtlasSource.new()
 	source.texture = texture
@@ -934,10 +938,10 @@ func _create_interior_tile_set() -> TileSet:
 	for tile_x in range(3):
 		for px in range(TILE):
 			for py in range(TILE):
-				var seam := 0.055 if px < 2 or py < 2 else 0.0
-				var stripe := 0.035 if (px + tile_x * 9) % 16 < 3 else 0.0
-				var base := 0.24 + float(tile_x) * 0.035 + seam + stripe
-				image.set_pixel(tile_x * TILE + px, py, Color(base, base + 0.025, base + 0.045, 1.0))
+				var seam := 0.09 if px < 2 or py < 2 else 0.0
+				var stripe := 0.045 if (px + tile_x * 9) % 16 < 3 else 0.0
+				var base := 0.34 + float(tile_x) * 0.035 + seam + stripe
+				image.set_pixel(tile_x * TILE + px, py, Color(base, base + 0.035, base + 0.055, 1.0))
 	var texture: ImageTexture = ImageTexture.create_from_image(image)
 	var source: TileSetAtlasSource = TileSetAtlasSource.new()
 	source.texture = texture

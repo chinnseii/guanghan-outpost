@@ -2,7 +2,6 @@ extends Node
 
 var audio_player: AudioStreamPlayer
 var ambient_player: AudioStreamPlayer
-var ambient_playback: AudioStreamGeneratorPlayback
 var ambient_phase := 0.0
 var ambient_enabled := false
 
@@ -39,7 +38,6 @@ func _process(_delta: float) -> void:
 
 func _exit_tree() -> void:
 	ambient_enabled = false
-	ambient_playback = null
 	if is_instance_valid(ambient_player):
 		ambient_player.stop()
 		ambient_player.stream = null
@@ -98,17 +96,19 @@ func _start_ambient_hum() -> void:
 	stream.buffer_length = 0.8
 	ambient_player.stream = stream
 	ambient_player.play()
-	ambient_playback = ambient_player.get_stream_playback()
-	ambient_enabled = ambient_playback != null
+	ambient_enabled = ambient_player.get_stream_playback() != null
 	_fill_ambient_hum()
 
 func _fill_ambient_hum() -> void:
-	if ambient_playback == null:
+	if not is_instance_valid(ambient_player):
 		return
-	var frames: int = ambient_playback.get_frames_available()
+	var playback: AudioStreamGeneratorPlayback = ambient_player.get_stream_playback()
+	if playback == null:
+		return
+	var frames: int = playback.get_frames_available()
 	var increment: float = TAU * 72.0 / 11025.0
 	for i in range(frames):
 		var overtone: float = sin(ambient_phase * 0.5) * 0.004
 		var sample: float = sin(ambient_phase) * 0.012 + overtone
-		ambient_playback.push_frame(Vector2(sample, sample))
+		playback.push_frame(Vector2(sample, sample))
 		ambient_phase += increment
