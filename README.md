@@ -363,3 +363,12 @@ Arrival is now split into two prototype scenes:
 The main menu dev entry now opens `ArrivalCinematicScene` first. After Observe Earth triggers, press `E` or `Enter` to continue into the top-down ArrivalLandingScene.
 
 This keeps the cinematic target screenshot separate from the gameplay map instead of forcing both jobs into one scene.
+
+## ArrivalCinematicScene Polish Pass
+
+- AI dialogue now appears as lower subtitles instead of covering Earth.
+- Earth is smaller, brighter, and has a colder rim glow.
+- Transport ship silhouette has clearer engineering panels, landing struts, ramp shape, engine afterglow and light moon dust.
+- Player is drawn as a small back-facing figure looking toward Earth and the distant base.
+- Continue prompt now reads `E / Enter 前往基地气闸`.
+- HUD is dimmer by default; debug remains hidden unless toggled with F3.

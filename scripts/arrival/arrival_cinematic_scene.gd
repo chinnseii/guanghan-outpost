@@ -14,7 +14,7 @@ var player_input_enabled := true
 var debug_visible := false
 var observe_hold := 0.0
 var observe_triggered := false
-var hud_alpha := 1.0
+var hud_alpha := 0.58
 var dialogue_alpha := 0.0
 var dialogue_text := ""
 var prompt_text := "停下，望向地球"
@@ -96,26 +96,27 @@ func _setup_ui() -> void:
 	canvas.add_child(root)
 	var hud := Label.new()
 	hud.name = "MinimalHUD"
-	hud.position = Vector2(28, 708)
-	hud.size = Vector2(320, 126)
-	hud.modulate = Color("#d8e7f2")
-	hud.add_theme_font_size_override("font_size", 18)
+	hud.position = Vector2(28, 726)
+	hud.size = Vector2(300, 118)
+	hud.modulate = Color("#c7d8e4", 0.58)
+	hud.add_theme_font_size_override("font_size", 16)
 	root.add_child(hud)
 	var dialogue := Label.new()
 	dialogue.name = "DialogueLine"
-	dialogue.position = Vector2(420, 94)
-	dialogue.size = Vector2(760, 128)
+	dialogue.position = Vector2(360, 642)
+	dialogue.size = Vector2(880, 92)
 	dialogue.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	dialogue.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	dialogue.modulate = Color("#dcecff", 0.0)
-	dialogue.add_theme_font_size_override("font_size", 24)
+	dialogue.add_theme_font_size_override("font_size", 23)
 	root.add_child(dialogue)
 	var prompt := Label.new()
 	prompt.name = "Prompt"
 	prompt.position = Vector2(520, 770)
 	prompt.size = Vector2(560, 44)
 	prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	prompt.modulate = Color("#e7d2a0", 0.88)
-	prompt.add_theme_font_size_override("font_size", 19)
+	prompt.modulate = Color("#e7d2a0", 0.82)
+	prompt.add_theme_font_size_override("font_size", 18)
 	root.add_child(prompt)
 	var debug := Label.new()
 	debug.name = "Debug"
@@ -155,8 +156,8 @@ func _process_movement(delta: float) -> void:
 
 func _process_observe(delta: float) -> void:
 	if observe_triggered:
-		hud_alpha = move_toward(hud_alpha, 1.0, delta * 0.26)
-		dialogue_alpha = move_toward(dialogue_alpha, 0.0, delta * 0.12)
+		hud_alpha = move_toward(hud_alpha, 0.58, delta * 0.22)
+		dialogue_alpha = move_toward(dialogue_alpha, 0.0, delta * 0.10)
 		return
 	if player_moving:
 		observe_hold = 0.0
@@ -167,7 +168,7 @@ func _process_observe(delta: float) -> void:
 
 func _trigger_observe_earth() -> void:
 	observe_triggered = true
-	hud_alpha = 0.34
+	hud_alpha = 0.24
 	dialogue_alpha = 1.0
 	camera_lock_time = 3.2
 	dialogue_text = "那里，是地球。\n距离：384,400公里。\n预计通信延迟：1.3秒。"
@@ -192,7 +193,7 @@ func _update_ui() -> void:
 	dialogue.modulate.a = dialogue_alpha
 	var prompt: Label = $UI/Root/Prompt
 	if observe_triggered:
-		prompt_text = "E / Enter 继续前往月面行动区"
+		prompt_text = "E / Enter 前往基地气闸"
 	else:
 		var left: float = max(0.0, 5.0 - observe_hold)
 		prompt_text = "停下，望向地球 %.1fs" % left
@@ -219,15 +220,18 @@ func _draw_sky() -> void:
 		var y := float(28 + (i * 53) % 360)
 		var alpha := 0.22 + float(i % 5) * 0.08
 		draw_circle(Vector2(x, y), 1.0 + float(i % 2), Color("#d9e8ff", alpha))
-	_draw_earth(Vector2(860, 150), 74.0)
+	_draw_earth(Vector2(860, 150), 64.0)
 
 func _draw_earth(center: Vector2, radius: float) -> void:
-	draw_circle(center, radius + 9.0, Color("#81d5ff", 0.10))
-	draw_circle(center, radius, Color("#1d75b8"))
-	draw_circle(center + Vector2(-18, -10), 20, Color("#e9f5ff", 0.82))
-	draw_circle(center + Vector2(18, 14), 15, Color("#61c77c", 0.88))
-	draw_circle(center + Vector2(5, -28), 10, Color("#dbefff", 0.72))
-	draw_arc(center, radius + 3.0, 0.0, TAU, 72, Color("#c6edff", 0.45), 2)
+	draw_circle(center, radius + 24.0, Color("#63c9ff", 0.06))
+	draw_circle(center, radius + 14.0, Color("#7edbff", 0.12))
+	draw_circle(center, radius + 5.0, Color("#b6efff", 0.18))
+	draw_circle(center, radius, Color("#2f98e5"))
+	draw_circle(center + Vector2(-15, -9), 18, Color("#f0fbff", 0.86))
+	draw_circle(center + Vector2(16, 12), 13, Color("#71df93", 0.88))
+	draw_circle(center + Vector2(4, -24), 9, Color("#e5f7ff", 0.74))
+	draw_arc(center, radius + 4.0, 0.0, TAU, 72, Color("#d3f6ff", 0.62), 2)
+	draw_arc(center, radius + 12.0, -0.4, 2.8, 48, Color("#72dfff", 0.30), 3)
 
 func _draw_distant_layer() -> void:
 	draw_polygon(
@@ -261,31 +265,48 @@ func _draw_foreground() -> void:
 	_draw_transport_ship()
 	_draw_player()
 	draw_circle(Vector2(455, 804), 130, Color("#0b0704", 0.20))
-	draw_circle(Vector2(660, 760), 70, Color("#e3863e", 0.07))
+	draw_circle(Vector2(604, 802), 84, Color("#e3863e", 0.055))
+	for i in range(8):
+		draw_circle(Vector2(475 + i * 32, 818 + sin(float(i)) * 12.0), 18.0 + float(i % 3) * 8.0, Color("#b78c62", 0.035))
 
 func _draw_transport_ship() -> void:
 	var base := Vector2(230, 610)
 	draw_polygon(
-		[base + Vector2(0, 120), base + Vector2(92, 48), base + Vector2(315, 42), base + Vector2(430, 110), base + Vector2(392, 188), base + Vector2(88, 190)],
-		[Color("#a8aaa2")]
+		[base + Vector2(-18, 130), base + Vector2(82, 52), base + Vector2(305, 35), base + Vector2(452, 112), base + Vector2(404, 198), base + Vector2(72, 194)],
+		[Color("#8f958f")]
 	)
-	draw_rect(Rect2(base + Vector2(88, 78), Vector2(116, 54)), Color("#334151"))
-	draw_rect(Rect2(base + Vector2(305, 4), Vector2(74, 220)), Color("#686d68"))
-	draw_line(base + Vector2(382, 170), base + Vector2(590, 220), Color("#9d9687"), 12)
-	draw_line(base + Vector2(590, 220), base + Vector2(680, 240), Color("#716a5d"), 6)
-	draw_circle(base + Vector2(62, 182), 26, Color("#e5863e", 0.44))
-	draw_circle(base + Vector2(250, 194), 22, Color("#e5863e", 0.36))
-	draw_string(ThemeDB.fallback_font, base + Vector2(105, 112), "TRANSPORT", HORIZONTAL_ALIGNMENT_LEFT, -1, 17, Color("#1d2430"))
+	draw_polygon(
+		[base + Vector2(38, 118), base + Vector2(108, 76), base + Vector2(308, 74), base + Vector2(405, 126), base + Vector2(376, 160), base + Vector2(86, 158)],
+		[Color("#b6b8ad")]
+	)
+	draw_rect(Rect2(base + Vector2(88, 82), Vector2(116, 50)), Color("#334151"))
+	draw_rect(Rect2(base + Vector2(302, 0), Vector2(78, 224)), Color("#5f6663"))
+	draw_line(base + Vector2(88, 158), base + Vector2(388, 158), Color("#555b58"), 3)
+	draw_line(base + Vector2(128, 76), base + Vector2(128, 158), Color("#68706c"), 3)
+	draw_line(base + Vector2(242, 72), base + Vector2(242, 158), Color("#68706c"), 3)
+	draw_line(base + Vector2(382, 170), base + Vector2(590, 220), Color("#b7ad98"), 16)
+	draw_line(base + Vector2(590, 220), base + Vector2(680, 240), Color("#7e7667"), 8)
+	draw_line(base + Vector2(388, 186), base + Vector2(584, 232), Color("#d0c4ab"), 3)
+	draw_line(base + Vector2(404, 122), base + Vector2(404, 224), Color("#4d534f"), 6)
+	draw_line(base + Vector2(112, 190), base + Vector2(100, 238), Color("#55534c"), 5)
+	draw_line(base + Vector2(318, 198), base + Vector2(342, 244), Color("#55534c"), 5)
+	draw_circle(base + Vector2(62, 184), 30, Color("#f09a47", 0.28))
+	draw_circle(base + Vector2(250, 196), 24, Color("#f09a47", 0.22))
+	draw_circle(base + Vector2(168, 220), 86, Color("#e3863e", 0.045))
 
 func _draw_player() -> void:
 	var feet := Vector2(player_x, 748)
 	var bob := sin(walk_phase) * 2.0 if player_moving else 0.0
 	draw_ellipse(feet + Vector2(0, 16), 20.0, 5.0, Color("#020305", 0.35))
-	draw_rect(Rect2(feet + Vector2(-9, -56 + bob), Vector2(18, 38)), Color("#d8e0e7"))
-	draw_circle(feet + Vector2(0, -68 + bob), 17, Color("#e8eef4"))
-	draw_circle(feet + Vector2(player_facing * 6.0, -68 + bob), 7, Color("#6f879b"))
-	draw_line(feet + Vector2(-8, -22 + bob), feet + Vector2(-15, 4), Color("#c8d1d8"), 5)
-	draw_line(feet + Vector2(8, -22 + bob), feet + Vector2(14, 4), Color("#c8d1d8"), 5)
+	draw_rect(Rect2(feet + Vector2(-11, -57 + bob), Vector2(22, 40)), Color("#cfd9e1"))
+	draw_rect(Rect2(feet + Vector2(-8, -52 + bob), Vector2(16, 22)), Color("#aeb9c4"))
+	draw_circle(feet + Vector2(0, -70 + bob), 18, Color("#e5edf2"))
+	draw_circle(feet + Vector2(0, -70 + bob), 10, Color("#98aabb"))
+	draw_line(feet + Vector2(-10, -28 + bob), feet + Vector2(-20, -7 + bob), Color("#c3cdd4"), 5)
+	draw_line(feet + Vector2(10, -28 + bob), feet + Vector2(20, -7 + bob), Color("#c3cdd4"), 5)
+	draw_line(feet + Vector2(-7, -19 + bob), feet + Vector2(-13, 5), Color("#c8d1d8"), 5)
+	draw_line(feet + Vector2(7, -19 + bob), feet + Vector2(13, 5), Color("#c8d1d8"), 5)
+	draw_line(feet + Vector2(0, -88 + bob), Vector2(860, 214), Color("#74cfff", 0.10), 1)
 
 func _save_cinematic() -> void:
 	var data := {

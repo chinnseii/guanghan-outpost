@@ -912,3 +912,18 @@ Completed:
 - After the cinematic moment, `E` / `Enter` transitions to `ArrivalLandingScene`.
 
 Out of scope remains unchanged: no application flow, training, launch sequence, inventory, mining, robots, tech tree or final art/audio.
+
+## ArrivalCinematicScene Polish Pass
+
+Status: complete.
+
+Completed:
+
+- Moved Observe Earth AI line to lower subtitle placement.
+- Reduced Earth size by roughly 10-15% and increased blue brightness/cold rim glow.
+- Strengthened transport ship readability with engineering panel lines, landing struts, a clearer ramp, engine afterglow and moon dust.
+- Adjusted the player into a back-facing, still silhouette aimed toward Earth/base.
+- Changed the continue prompt to `E / Enter 前往基地气闸`.
+- Lowered HUD presence and kept debug hidden by default behind F3.
+
+No new gameplay systems were added.
