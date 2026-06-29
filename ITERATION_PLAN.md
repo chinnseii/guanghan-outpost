@@ -893,3 +893,22 @@ Completed:
 Still intentionally out of scope:
 
 - Application, training, launch sequence, inventory, mining, robots, tech tree, automation and final art/audio.
+
+## Sprint 02 Direction Adjustment: Arrival Cinematic Scene Split
+
+Status: complete.
+
+Completed:
+
+- Added `res://scenes/arrival/ArrivalCinematicScene.tscn`.
+- Added `scripts/arrival/arrival_cinematic_scene.gd`.
+- Split responsibilities:
+  - `ArrivalCinematicScene` handles TS-001 / TS-002 mood, Earth in sky, transport ship, player silhouette, distant base and Observe Earth.
+  - `ArrivalLandingScene` remains the top-down gameplay prototype for movement, airlock and base entry.
+- Main menu dev entry now starts with `ArrivalCinematicScene`.
+- Cinematic scene hides debug by default, keeps only minimal HUD, and supports F3 debug toggle.
+- ObserveEarthEvent can trigger in the cinematic scene after the player remains still for 5 seconds.
+- The event saves to the arrival prototype save file and does not repeat after load.
+- After the cinematic moment, `E` / `Enter` transitions to `ArrivalLandingScene`.
+
+Out of scope remains unchanged: no application flow, training, launch sequence, inventory, mining, robots, tech tree or final art/audio.

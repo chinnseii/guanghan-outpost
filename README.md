@@ -352,3 +352,14 @@ Revision 01 keeps Arrival as a development-only prototype, but improves the firs
 - Moon surface now has simple footprints, tire tracks, cables, cargo, rocks, craters, dust and solar-panel silhouettes.
 - ObserveEarthEvent starts false on scene start and only triggers after staying still in the observe area for about 5 seconds.
 - Debug panel is separate from the minimal HUD and can be toggled with F3.
+
+## Sprint 02 Direction Adjustment: Cinematic Scene Split
+
+Arrival is now split into two prototype scenes:
+
+- `res://scenes/arrival/ArrivalCinematicScene.tscn`: emotional TS-001 / TS-002 opening tableau with sky, Earth, horizon, transport ship, small player figure, distant warm base lights and the Observe Earth moment.
+- `res://scenes/arrival/ArrivalLandingScene.tscn`: top-down gameplay prototype for free movement, airlock interaction, save/load validation and base entry.
+
+The main menu dev entry now opens `ArrivalCinematicScene` first. After Observe Earth triggers, press `E` or `Enter` to continue into the top-down ArrivalLandingScene.
+
+This keeps the cinematic target screenshot separate from the gameplay map instead of forcing both jobs into one scene.

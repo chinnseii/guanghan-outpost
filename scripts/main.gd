@@ -3495,10 +3495,10 @@ func _setup_main_menu() -> void:
 	start.pressed.connect(_start_new_game)
 	box.add_child(start)
 	var arrival_dev := Button.new()
-	arrival_dev.text = "Dev Entry: Arrival Prototype"
+	arrival_dev.text = "Dev Entry: Arrival Cinematic"
 	arrival_dev.custom_minimum_size = Vector2(0, 40)
 	arrival_dev.pressed.connect(func():
-		get_tree().change_scene_to_file("res://scenes/arrival/ArrivalLandingScene.tscn")
+		get_tree().change_scene_to_file("res://scenes/arrival/ArrivalCinematicScene.tscn")
 	)
 	box.add_child(arrival_dev)
 	var close := Button.new()
