@@ -1,30 +1,14 @@
 extends Node2D
 
-const TEXTURE_PATHS := {
-	"regolith": "res://assets/sprites/collectables/regolith_node.png",
-	"ice": "res://assets/sprites/collectables/ice_node.png",
-	"meteor": "res://assets/sprites/collectables/meteor_node.png",
-	"sample": "res://assets/sprites/collectables/sample_node.png",
-	"supply_pod": "res://assets/sprites/collectables/supply_pod.png",
-}
+const AssetCatalog := preload("res://scripts/asset_catalog.gd")
 
 var item_data: Dictionary = {}
 var highlighted := false
 var textures: Dictionary = {}
 
 func _ready() -> void:
-	for key: String in TEXTURE_PATHS.keys():
-		textures[key] = _load_png_texture(String(TEXTURE_PATHS[key]))
-
-func _load_png_texture(path: String) -> Texture2D:
-	if FileAccess.file_exists("%s.import" % path):
-		var imported: Resource = ResourceLoader.load(path)
-		if imported is Texture2D:
-			return imported as Texture2D
-	var image: Image = Image.load_from_file(ProjectSettings.globalize_path(path))
-	if image == null or image.is_empty():
-		return null
-	return ImageTexture.create_from_image(image)
+	for key: String in AssetCatalog.COLLECTABLE_TEXTURE_PATHS.keys():
+		textures[key] = AssetCatalog.load_png_texture(AssetCatalog.collectable_texture_path(key))
 
 func setup(data: Dictionary, is_highlighted: bool) -> void:
 	item_data = data

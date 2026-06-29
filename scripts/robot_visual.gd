@@ -1,8 +1,6 @@
 extends Node2D
 
-const SAMPLE_TEXTURE_PATH := "res://assets/sprites/robots/yutu_sample.png"
-const MAINTENANCE_TEXTURE_PATH := "res://assets/sprites/robots/maintenance_bot.png"
-const HAUL_TEXTURE_PATH := "res://assets/sprites/robots/hauler_bot.png"
+const AssetCatalog := preload("res://scripts/asset_catalog.gd")
 
 var task := "idle"
 var active := false
@@ -14,9 +12,9 @@ var maintenance_texture: Texture2D
 var haul_texture: Texture2D
 
 func _ready() -> void:
-	sample_texture = _load_png_texture(SAMPLE_TEXTURE_PATH)
-	maintenance_texture = _load_png_texture(MAINTENANCE_TEXTURE_PATH)
-	haul_texture = _load_png_texture(HAUL_TEXTURE_PATH)
+	sample_texture = AssetCatalog.load_png_texture(AssetCatalog.robot_texture_path("sample"))
+	maintenance_texture = AssetCatalog.load_png_texture(AssetCatalog.robot_texture_path("maintenance"))
+	haul_texture = AssetCatalog.load_png_texture(AssetCatalog.robot_texture_path("haul"))
 
 func setup(new_task: String, is_active: bool, new_battery: float = 100.0, is_charging: bool = false) -> void:
 	task = new_task
@@ -24,16 +22,6 @@ func setup(new_task: String, is_active: bool, new_battery: float = 100.0, is_cha
 	battery = new_battery
 	charging = is_charging
 	queue_redraw()
-
-func _load_png_texture(path: String) -> Texture2D:
-	if FileAccess.file_exists("%s.import" % path):
-		var imported: Resource = ResourceLoader.load(path)
-		if imported is Texture2D:
-			return imported as Texture2D
-	var image: Image = Image.load_from_file(ProjectSettings.globalize_path(path))
-	if image == null or image.is_empty():
-		return null
-	return ImageTexture.create_from_image(image)
 
 func _process(delta: float) -> void:
 	anim_time += delta

@@ -64,6 +64,7 @@ func play_tone(frequency: float = 660.0, duration: float = 0.08, volume: float =
 		var sample: float = sin(phase) * volume * fade
 		playback.push_frame(Vector2(sample, sample))
 		phase += increment
+	playback = null
 
 func play_pattern(frequencies: Array[float], note_duration: float, volume: float) -> void:
 	if not is_instance_valid(audio_player):
@@ -85,6 +86,7 @@ func play_pattern(frequencies: Array[float], note_duration: float, volume: float
 			var sample: float = sin(phase) * volume * fade
 			playback.push_frame(Vector2(sample, sample))
 			phase += increment
+	playback = null
 
 func _start_ambient_hum() -> void:
 	if not is_instance_valid(ambient_player):
@@ -96,7 +98,9 @@ func _start_ambient_hum() -> void:
 	stream.buffer_length = 0.8
 	ambient_player.stream = stream
 	ambient_player.play()
-	ambient_enabled = ambient_player.get_stream_playback() != null
+	var playback: AudioStreamGeneratorPlayback = ambient_player.get_stream_playback()
+	ambient_enabled = playback != null
+	playback = null
 	_fill_ambient_hum()
 
 func _fill_ambient_hum() -> void:
@@ -112,3 +116,4 @@ func _fill_ambient_hum() -> void:
 		var sample: float = sin(ambient_phase) * 0.012 + overtone
 		playback.push_frame(Vector2(sample, sample))
 		ambient_phase += increment
+	playback = null

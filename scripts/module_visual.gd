@@ -1,14 +1,7 @@
 extends Node2D
 
+const AssetCatalog := preload("res://scripts/asset_catalog.gd")
 const TILE := 56
-const BED_TEXTURE_PATH := "res://assets/sprites/facilities/bed.png"
-const STORAGE_TEXTURE_PATH := "res://assets/sprites/facilities/storage.png"
-const CONSOLE_TEXTURE_PATH := "res://assets/sprites/facilities/console.png"
-const ROBOT_CHARGER_TEXTURE_PATH := "res://assets/sprites/facilities/robot_charger.png"
-const AIRLOCK_DOOR_TEXTURE_PATH := "res://assets/sprites/facilities/airlock_door.png"
-const LIFE_SUPPORT_TANK_TEXTURE_PATH := "res://assets/sprites/facilities/life_support_tank.png"
-const GREENHOUSE_BED_TEXTURE_PATH := "res://assets/sprites/facilities/greenhouse_bed.png"
-const SOLAR_PANEL_TEXTURE_PATH := "res://assets/sprites/facilities/solar_panel.png"
 
 var module_data: Dictionary = {}
 var module_def: Dictionary = {}
@@ -28,24 +21,14 @@ func _ready() -> void:
 	set_process(true)
 
 func _load_facility_textures() -> void:
-	bed_texture = _load_png_texture(BED_TEXTURE_PATH)
-	storage_texture = _load_png_texture(STORAGE_TEXTURE_PATH)
-	console_texture = _load_png_texture(CONSOLE_TEXTURE_PATH)
-	robot_charger_texture = _load_png_texture(ROBOT_CHARGER_TEXTURE_PATH)
-	airlock_door_texture = _load_png_texture(AIRLOCK_DOOR_TEXTURE_PATH)
-	life_support_tank_texture = _load_png_texture(LIFE_SUPPORT_TANK_TEXTURE_PATH)
-	greenhouse_bed_texture = _load_png_texture(GREENHOUSE_BED_TEXTURE_PATH)
-	solar_panel_texture = _load_png_texture(SOLAR_PANEL_TEXTURE_PATH)
-
-func _load_png_texture(path: String) -> Texture2D:
-	if FileAccess.file_exists("%s.import" % path):
-		var imported: Resource = ResourceLoader.load(path)
-		if imported is Texture2D:
-			return imported as Texture2D
-	var image: Image = Image.load_from_file(ProjectSettings.globalize_path(path))
-	if image == null or image.is_empty():
-		return null
-	return ImageTexture.create_from_image(image)
+	bed_texture = AssetCatalog.load_png_texture(AssetCatalog.facility_texture_path("bed"))
+	storage_texture = AssetCatalog.load_png_texture(AssetCatalog.facility_texture_path("storage"))
+	console_texture = AssetCatalog.load_png_texture(AssetCatalog.facility_texture_path("console"))
+	robot_charger_texture = AssetCatalog.load_png_texture(AssetCatalog.facility_texture_path("robot_charger"))
+	airlock_door_texture = AssetCatalog.load_png_texture(AssetCatalog.facility_texture_path("airlock_door"))
+	life_support_tank_texture = AssetCatalog.load_png_texture(AssetCatalog.facility_texture_path("life_support_tank"))
+	greenhouse_bed_texture = AssetCatalog.load_png_texture(AssetCatalog.facility_texture_path("greenhouse_bed"))
+	solar_panel_texture = AssetCatalog.load_png_texture(AssetCatalog.facility_texture_path("solar_panel"))
 
 func _process(delta: float) -> void:
 	anim_time += delta

@@ -1,6 +1,6 @@
 extends Node2D
 
-const ASTRONAUT_TEXTURE_PATH := "res://assets/sprites/player/astronaut_walk.png"
+const AssetCatalog := preload("res://scripts/asset_catalog.gd")
 const FRAME_SIZE := Vector2(40, 56)
 
 var facing := Vector2.DOWN
@@ -11,7 +11,7 @@ var walk_phase := 0.0
 var astronaut_texture: Texture2D
 
 func _ready() -> void:
-	astronaut_texture = _load_png_texture(ASTRONAUT_TEXTURE_PATH)
+	astronaut_texture = AssetCatalog.load_png_texture(AssetCatalog.player_texture_path("astronaut_walk"))
 
 func setup(new_facing: Vector2, new_inside: bool, new_suit_o2: float, is_moving: bool = false, new_walk_phase: float = 0.0) -> void:
 	facing = new_facing
@@ -20,16 +20,6 @@ func setup(new_facing: Vector2, new_inside: bool, new_suit_o2: float, is_moving:
 	moving = is_moving
 	walk_phase = new_walk_phase
 	queue_redraw()
-
-func _load_png_texture(path: String) -> Texture2D:
-	if FileAccess.file_exists("%s.import" % path):
-		var imported: Resource = ResourceLoader.load(path)
-		if imported is Texture2D:
-			return imported as Texture2D
-	var image: Image = Image.load_from_file(ProjectSettings.globalize_path(path))
-	if image == null or image.is_empty():
-		return null
-	return ImageTexture.create_from_image(image)
 
 func _draw() -> void:
 	if astronaut_texture != null:

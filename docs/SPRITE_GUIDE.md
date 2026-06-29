@@ -1,36 +1,80 @@
-# Sprite Guide
+# Sprite Guide / 素材规范
 
-Guanghan Outpost currently uses small transparent PNG sprites with programmatic drawing fallback.
+《Guanghan Outpost / 广寒前哨》当前使用透明 PNG 小图作为第一批正式占位素材。视觉脚本仍保留程序绘制回退，避免单张素材导入失败时影响项目启动。
 
-## Folders
+## 目录结构
 
-- `assets/sprites/facilities/`: interior facilities and module equipment.
-- `assets/sprites/robots/`: robot bodies by labor role.
-- `assets/sprites/collectables/`: moon resources and supply pods.
+- `assets/sprites/player/`：玩家宇航员、后续玩家动作帧。
+- `assets/sprites/robots/`：机器人机体，按劳动角色区分。
+- `assets/sprites/facilities/`：舱内设施、舱门、生命维持设备、太阳能板等。
+- `assets/sprites/collectables/`：月面采集点、补给舱、后续可拾取物。
 
-## Target Sizes
+暂不新增更深层目录。等素材数量明显增加后，再考虑 `ui/`、`tiles/`、`effects/` 等目录。
 
-- Facility fixtures: keep exact in-game footprint when possible.
-  - Bed: `48x22`
-  - Storage: `30x44`
-  - Console: `46x28`
-  - Robot charger: `38x48`
-  - Airlock door: `52x58`
-  - Life support tank: `32x44`
-  - Greenhouse bed: `52x48`
-  - Solar panel tile: `30x58`
-- Robots: `48x48`, centered around feet near the lower third.
-- Collectables:
-  - Resource nodes: `32x32`
-  - Supply pod: `48x40`
+## 命名规范
 
-## Style Rules
+- 文件名使用小写英文和下划线，例如 `greenhouse_bed.png`。
+- 名称先写用途，再写类型：`ice_node.png`、`supply_pod.png`。
+- 同一对象的动画帧优先放在同一张图里，例如 `astronaut_walk.png`。
+- 不随意改名已有素材；如果必须改名，同步更新 `scripts/asset_catalog.gd` 和 Godot `.import` 文件。
 
-- Transparent background.
-- Pixel readable at 100 percent scale.
-- Use clear status colors:
-  - Green: ready or complete.
-  - Blue: charging, oxygen, water, ice.
-  - Yellow: interactable, highlighted, mission critical.
-  - Red/orange: warning, dust, low battery, cargo.
-- Keep a fallback drawing path in scripts when adding new sprites.
+## 尺寸规范
+
+- 玩家：
+  - `astronaut_walk.png`：单帧 `40x56`，当前为 4 方向 x 2 帧。
+  - 帧顺序：下、左、右、上；每行 2 帧。
+  - 脚底尽量贴近帧底部，方便俯视移动时对齐格子。
+- 机器人：
+  - 单体建议 `48x48`。
+  - 轮子或支脚靠近下三分之一，状态灯保持在右上或机身明显位置。
+  - 角色区分优先靠轮廓和工具附件，不只靠颜色。
+- 设施：
+  - 床铺：`48x22`
+  - 储物柜：`30x44`
+  - 控制台：`46x28`
+  - 机器人充电桩：`38x48`
+  - 气闸门：`52x58`
+  - 生命维持罐：`32x44`
+  - 温室种植床：`52x48`
+  - 太阳能板单片：`30x58`
+  - 设施图尽量贴合实际占地，不额外留大透明边。
+- 采集点与补给：
+  - 月壤、水冰、陨石、科研样本节点：源图建议 `32x32`，游戏内可放大显示。
+  - 补给舱：源图建议 `48x40`，外形要比普通资源点更“重”。
+- UI 图标：
+  - 后续新增独立 UI 图标时，优先使用 `16x16` 或 `24x24`。
+  - 图标需要在深色面板上可读，保留 1 像素以上明暗边界。
+
+## 颜色规范
+
+- 月面主色：偏冷灰、低饱和，不要和舱内地板混在一起。
+- 舱内主色：更亮的浅灰、蓝灰，体现有压舱段和人造结构。
+- 宇航员：白色/浅灰为主，头盔 visor 可用蓝色；低氧提示使用红橙外圈。
+- 机器人：
+  - 采样机器人可偏玉兔/月壤主题，使用浅灰、金色、绿色状态灯。
+  - 维护机器人可偏蓝色/水氧/维修工具色。
+  - 搬运机器人可带橙色或货箱色块。
+- 状态色：
+  - 绿色：可用、完成、正常。
+  - 蓝色：充电、氧气、水冰、冷却。
+  - 黄色：可交互、高亮、任务关键。
+  - 红色/橙色：警告、低氧、低电、损坏、货物压力。
+
+常用状态色已集中在 `scripts/asset_catalog.gd`，新增视觉脚本时优先从那里取色或补充名称。
+
+## TS-001 颜色脚本
+
+第一张目标截图 `docs/art/TS-001/` 的颜色优先级高于普通占位素材：
+
+- 地球必须是全画面最醒目的蓝色，代表玩家离开的家。
+- 基地灯光和运输船灯光使用暖黄/琥珀色，代表正在创造的新家。
+- 月面保持冷灰、黑、低饱和，不要加入过多彩色装饰。
+- 工程设备使用灰、白、少量橙色编号，避免赛博霓虹。
+- 绿色在第一小时必须稀有，几乎只属于“最后一株植物”。
+
+## 接入规则
+
+- 新 PNG 路径先登记到 `scripts/asset_catalog.gd`，视觉脚本再从 catalog 读取。
+- 保留程序绘制回退：PNG 加载失败时，场景仍应有可读图形。
+- 新增素材后不要删除旧 PNG 或 `.import` 文件，除非已经确认没有脚本和场景引用。
+- 小规模占位素材可以先上，目标是读得懂，不追求一次性美术完成。

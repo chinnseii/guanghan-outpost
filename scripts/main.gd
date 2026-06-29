@@ -49,6 +49,7 @@ var task_log_expanded := false
 var task_history: Array[String] = []
 var intro_overlay_seen := false
 var objective_tracking := false
+var tracked_objective_index := 0
 var feedback_text := ""
 var feedback_timer := 0.0
 var map_marker_text := ""
@@ -316,6 +317,7 @@ func _setup_input_map() -> void:
 	_add_key_action("ui_scale_down", [KEY_BRACKETLEFT])
 	_add_key_action("ui_scale_up", [KEY_BRACKETRIGHT])
 	_add_key_action("toggle_objective_tracking", [KEY_T])
+	_add_key_action("cycle_objective_target", [KEY_Y])
 
 func _add_key_action(action_name: String, keys: Array[int]) -> void:
 	if not InputMap.has_action(action_name):
@@ -354,6 +356,7 @@ func _reset_game_state() -> void:
 	task_history.clear()
 	intro_overlay_seen = false
 	objective_tracking = false
+	tracked_objective_index = 0
 	feedback_text = ""
 	feedback_timer = 0.0
 	map_marker_text = ""
@@ -490,6 +493,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		_adjust_ui_scale(0.1)
 	if event.is_action_pressed("toggle_objective_tracking"):
 		_toggle_objective_tracking()
+	if event.is_action_pressed("cycle_objective_target"):
+		_cycle_objective_target()
 	if event.is_action_pressed("toggle_build") and not game_over:
 		_toggle_build_mode()
 	if event.is_action_pressed("cancel") and not game_over:
@@ -741,6 +746,21 @@ func _nearest_collectable_item(types: Array[String]) -> Dictionary:
 			best = item
 	return best
 
+func _nearest_collectable_from(origin: Vector2, types: Array[String]) -> Dictionary:
+	var best: Dictionary = {}
+	var best_dist: float = INF
+	for item: Dictionary in collectables:
+		if bool(item["depleted"]):
+			continue
+		if not types.has(String(item["type"])):
+			continue
+		var pos: Vector2 = item["pos"]
+		var dist: float = origin.distance_to(pos)
+		if dist < best_dist:
+			best_dist = dist
+			best = item
+	return best
+
 func _nearest_collectable_pos(types: Array[String]) -> Vector2:
 	var target: Dictionary = _nearest_collectable_item(types)
 	return target["pos"] if not target.is_empty() else robot_pos
@@ -811,7 +831,6 @@ func _setup_audio() -> void:
 	robot_task_manager = RobotTaskManagerScript.new()
 	robot_task_manager.name = "RobotTaskManager"
 	add_child(robot_task_manager)
-	_play_audio_event("ambient")
 
 func _play_ui_tone(frequency: float = 660.0, duration: float = 0.08, volume: float = 0.08) -> void:
 	if is_instance_valid(audio_feedback) and audio_feedback.has_method("play_tone"):
@@ -2141,6 +2160,7 @@ func _save_game() -> void:
 		"task_history": task_history,
 		"intro_overlay_seen": intro_overlay_seen,
 		"objective_tracking": objective_tracking,
+		"tracked_objective_index": tracked_objective_index,
 		"operator": _serialize_operator(),
 		"backpack": backpack,
 		"robot_task": robot_task,
@@ -2237,6 +2257,7 @@ func _apply_save_data(data: Dictionary) -> void:
 		task_history.append(String(entry))
 	intro_overlay_seen = bool(data.get("intro_overlay_seen", true))
 	objective_tracking = bool(data.get("objective_tracking", false))
+	tracked_objective_index = int(data.get("tracked_objective_index", 0))
 	operator = _deserialize_operator(data.get("operator", data.get("crew", _serialize_operator())))
 	backpack = _copy_float_dictionary(data.get("backpack", _default_backpack()), _default_backpack())
 	robot_task = String(data.get("robot_task", "idle"))
@@ -2728,8 +2749,8 @@ func _setup_ui() -> void:
 	var controls := Label.new()
 	controls.name = "Controls"
 	controls.position = Vector2(1300, 340)
-	controls.size = Vector2(280, 86)
-	controls.text = "WASD/方向键：移动\nE：交互/采集/建造\nN：下一天  B：建造\nZ/X：地图缩放\n[/]：UI 缩放\nF5/F9/F10：保存/读取/新局"
+	controls.size = Vector2(280, 104)
+	controls.text = "WASD/方向键：移动\nE：交互/采集/建造\nN：下一天  B：建造\nZ/X：地图缩放\n[/]：UI 缩放\nT：追踪  Y：切换目标\nF5/F9/F10：保存/读取/新局"
 	root.add_child(controls)
 
 	var guide := RichTextLabel.new()
@@ -2757,6 +2778,13 @@ func _setup_ui() -> void:
 	tracking_button.size = Vector2(128, 34)
 	tracking_button.pressed.connect(_toggle_objective_tracking)
 	root.add_child(tracking_button)
+
+	var next_target_button := Button.new()
+	next_target_button.name = "NextTargetButton"
+	next_target_button.position = Vector2(760, 696)
+	next_target_button.size = Vector2(128, 34)
+	next_target_button.pressed.connect(_cycle_objective_target)
+	root.add_child(next_target_button)
 
 	var task_log := RichTextLabel.new()
 	task_log.name = "TaskLog"
@@ -3133,9 +3161,36 @@ func _direction_label(direction: Vector2) -> String:
 
 func _toggle_objective_tracking() -> void:
 	objective_tracking = not objective_tracking
+	tracked_objective_index = _normalized_objective_index(tracked_objective_index)
 	_play_ui_tone(700.0 if objective_tracking else 420.0, 0.06, 0.06)
 	_update_camera()
 	_update_ui()
+
+func _cycle_objective_target() -> void:
+	var targets := _objective_targets()
+	if targets.is_empty():
+		add_log("当前没有可追踪目标。")
+		_set_guidance_tip("暂无可追踪目标：先查看当前任务卡，或推进一天刷新任务。")
+		_update_ui()
+		return
+	tracked_objective_index = (tracked_objective_index + 1) % targets.size()
+	objective_tracking = true
+	var target: Dictionary = targets[tracked_objective_index]
+	add_log("追踪目标切换：%s。" % String(target.get("name", "目标")))
+	_set_guidance_tip("正在追踪：%s。" % String(target.get("summary", target.get("name", "目标"))))
+	_play_ui_tone(820.0, 0.06, 0.06)
+	_update_camera()
+	_update_ui()
+
+func _normalized_objective_index(index: int) -> int:
+	var targets := _objective_targets()
+	if targets.is_empty():
+		return 0
+	if index < 0:
+		return 0
+	if index >= targets.size():
+		return targets.size() - 1
+	return index
 
 func _show_task_feedback(text: String, pos: Vector2) -> void:
 	feedback_text = text
@@ -3162,18 +3217,92 @@ func _draw_map_marker() -> void:
 	draw_line(map_marker_pos + Vector2(-14, -22), map_marker_pos + Vector2(14, -22), Color("#7dff9d"), 3)
 
 func _active_objective_target_pos() -> Vector2:
+	var targets := _objective_targets()
+	if targets.is_empty():
+		return Vector2(INF, INF)
+	tracked_objective_index = _normalized_objective_index(tracked_objective_index)
+	return targets[tracked_objective_index].get("pos", Vector2(INF, INF))
+
+func _objective_targets() -> Array[Dictionary]:
+	var targets: Array[Dictionary] = []
 	var tutorial_target := _tutorial_target_pos()
 	if tutorial_target.x != INF:
-		return tutorial_target
-	if _active_collectable_count("supply_pod") > 0:
-		return _nearest_collectable_pos(["supply_pod"])
+		targets.append({
+			"id": "tutorial",
+			"name": "新手目标",
+			"summary": _current_objective_action(),
+			"pos": tutorial_target,
+			"kind": "tutorial",
+			"tool": "按任务卡行动",
+			"priority": 0,
+		})
+		return targets
 	if _backpack_load() > 0.0:
-		return _facility_target_pos("hab", "storage")
-	if _leaking_module_count() > 0:
-		return _first_leaking_module_pos()
+		var storage_pos := _facility_target_pos("hab", "storage")
+		targets.append({
+			"id": "storage",
+			"name": "回储物柜入库",
+			"summary": "背包 %.0f/%.0f，先回舱内卸货" % [_backpack_load(), backpack_capacity],
+			"pos": storage_pos,
+			"kind": "storage",
+			"tool": "储物柜 E",
+			"priority": 1,
+		})
+	var supply_target := _nearest_collectable_from(player_pos, ["supply_pod"])
+	if not supply_target.is_empty():
+		targets.append({
+			"id": "supply_pod",
+			"name": "回收补给舱",
+			"summary": _supply_cargo_summary(),
+			"pos": supply_target["pos"],
+			"kind": "supply",
+			"tool": "靠近补给舱 E",
+			"priority": 2,
+		})
+	var ice_target := _nearest_collectable_from(player_pos, ["ice"])
+	if not ice_target.is_empty():
+		targets.append({
+			"id": "ice",
+			"name": "采集水冰",
+			"summary": "水冰节点 %d 处" % _active_collectable_count("ice"),
+			"pos": ice_target["pos"],
+			"kind": "ice",
+			"tool": "采样铲",
+			"priority": 4,
+		})
 	if solar_dust >= 0.22:
-		return _module_target_pos("solar")
-	return Vector2(INF, INF)
+		var solar_pos := _module_target_pos("solar")
+		if solar_pos.x != INF:
+			targets.append({
+				"id": "solar_clean",
+				"name": "清理太阳能板",
+				"summary": "月尘 %d%%" % int(solar_dust * 100),
+				"pos": solar_pos,
+				"kind": "solar",
+				"tool": "除尘刷",
+				"priority": 3,
+			})
+	var repair_pos := _external_repair_target_pos()
+	if repair_pos.x != INF:
+		targets.append({
+			"id": "external_repair",
+			"name": "维修外部设备",
+			"summary": "%d 个维修目标" % _external_repair_count(),
+			"pos": repair_pos,
+			"kind": "repair",
+			"tool": "维修枪",
+			"priority": 5,
+		})
+	targets.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		var pa := int(a.get("priority", 99))
+		var pb := int(b.get("priority", 99))
+		if pa == pb:
+			var da: float = player_pos.distance_to(a.get("pos", player_pos))
+			var db: float = player_pos.distance_to(b.get("pos", player_pos))
+			return da < db
+		return pa < pb
+	)
+	return targets
 
 func _first_leaking_module_pos() -> Vector2:
 	for module: Dictionary in modules:
@@ -3326,6 +3455,8 @@ func _update_ui() -> void:
 	$UI/Root/Guide.text = _guide_text()
 	$UI/Root/ObjectiveStack.text = _objective_stack_text()
 	$UI/Root/TrackingButton.text = "追踪目标：开" if objective_tracking else "追踪目标：关"
+	if has_node("UI/Root/NextTargetButton"):
+		$UI/Root/NextTargetButton.text = "切换目标 Y"
 	_update_task_log_controls()
 	$UI/Root/TaskLog.text = _task_log_text()
 	_update_completion_toast()
@@ -3444,10 +3575,16 @@ func _guide_text() -> String:
 
 func _objective_stack_text() -> String:
 	var lines: Array[String] = ["[b]目标栈[/b]"]
+	var targets := _objective_targets()
+	tracked_objective_index = _normalized_objective_index(tracked_objective_index)
+	var tracked_name := "无"
+	if not targets.is_empty():
+		var tracked: Dictionary = targets[tracked_objective_index]
+		tracked_name = "%s  %.1f格" % [String(tracked.get("name", "目标")), _target_distance_tiles(tracked)]
 	lines.append("[color=#e7c66b]当前：%s[/color]" % _current_objective_action())
 	lines.append("[color=#d8e0eb]出舱：%s[/color]" % _primary_eva_task())
 	lines.append("[color=#8fa0b8]长期：%s[/color]" % _strategic_next_goal())
-	lines.append("[color=#8fa0b8]追踪：%s（T 切换）[/color]" % ("已开启" if objective_tracking else "关闭"))
+	lines.append("[color=#8fa0b8]追踪：%s | %s（T 开关 / Y 切换）[/color]" % ["开" if objective_tracking else "关", tracked_name])
 	return _join_strings(lines, "\n")
 
 func _current_objective_action() -> String:
@@ -3606,28 +3743,76 @@ func _strategic_next_goal() -> String:
 	return "基地稳定：采集水冰/月壤，研究科技，继续扩建。"
 
 func _eva_tasks_text() -> String:
-	var tasks: Array[String] = []
-	var supply_pods := _active_collectable_count("supply_pod")
-	var ice_nodes := _active_collectable_count("ice")
-	var external_repairs := _external_repair_count()
-	if supply_pods > 0:
-		tasks.append("搬运补给舱：%s，背包 %.0f/%.0f" % [_supply_cargo_summary(), _backpack_load(), backpack_capacity])
-	if ice_nodes > 0:
-		tasks.append("采集水冰：%d 处，工具：采样铲" % ice_nodes)
-	if solar_dust >= 0.22:
-		tasks.append("清理太阳能板：月尘 %d%%，工具：除尘刷" % int(solar_dust * 100))
-	if external_repairs > 0:
-		tasks.append("维修外部设备：%d 个目标，工具：维修枪" % external_repairs)
+	var lines: Array[String] = []
+	var targets := _objective_targets()
+	var eva_targets: Array[Dictionary] = []
+	for target: Dictionary in targets:
+		if String(target.get("kind", "")) in ["supply", "ice", "solar", "repair", "storage"]:
+			eva_targets.append(target)
+	for i in range(min(3, eva_targets.size())):
+		var target: Dictionary = eva_targets[i]
+		lines.append("%d. %s %s | %.1f格 | %s | %s" % [
+			i + 1,
+			_eva_task_icon(String(target.get("kind", ""))),
+			String(target.get("name", "任务")),
+			_target_distance_tiles(target),
+			_eva_task_risk_label(target),
+			String(target.get("tool", ""))
+		])
 	if solar_storm_days > 0:
-		tasks.append("太阳风暴中：减少出舱，气闸成本上升")
+		lines.append("! 太阳风暴：减少出舱，气闸成本上升")
 	if micrometeor_alert_days > 0:
-		tasks.append("微陨石预警：暂停远距离维修")
-	if tasks.is_empty():
-		tasks.append("暂无紧急出舱任务。可巡检水冰、太阳能板和补给信标。")
+		lines.append("! 微陨石：暂停远距离维修")
+	if lines.is_empty():
+		lines.append("暂无紧急出舱任务。可巡检水冰、太阳能板和补给信标。")
 	var suit_line := "宇航服：氧 %.0f%% 耐久 %.0f%% 月尘 %.0f%%" % [
 		resources["suit_o2"], resources["suit_integrity"], resources["suit_dust"]
 	]
-	return "出舱任务 V1\n%s\n%s" % [_join_strings(tasks.slice(0, 3), "\n"), suit_line]
+	return "出舱任务 V2：建议顺序\n%s\n%s" % [_join_strings(lines.slice(0, 4), "\n"), suit_line]
+
+func _eva_task_icon(kind: String) -> String:
+	match kind:
+		"storage":
+			return "[入库]"
+		"supply":
+			return "[补给]"
+		"ice":
+			return "[水冰]"
+		"solar":
+			return "[清灰]"
+		"repair":
+			return "[维修]"
+		_:
+			return "[目标]"
+
+func _target_distance_tiles(target: Dictionary) -> float:
+	var pos: Vector2 = target.get("pos", player_pos)
+	return player_pos.distance_to(pos) / float(TILE)
+
+func _eva_task_risk_label(target: Dictionary) -> String:
+	var score := 0
+	var distance := _target_distance_tiles(target)
+	if distance >= 10.0:
+		score += 2
+	elif distance >= 6.0:
+		score += 1
+	if resources["suit_o2"] < 45.0:
+		score += 2
+	elif resources["suit_o2"] < 65.0:
+		score += 1
+	if resources["suit_integrity"] < 35.0:
+		score += 2
+	if resources["suit_dust"] >= 60.0:
+		score += 1
+	if solar_storm_days > 0:
+		score += 2
+	if micrometeor_alert_days > 0 and String(target.get("kind", "")) == "repair":
+		score += 2
+	if score >= 5:
+		return "高风险"
+	if score >= 3:
+		return "中风险"
+	return "低风险"
 
 func _supply_cargo_summary() -> String:
 	if supply_order.is_empty() or not supply_order.has("cargo_remaining"):
@@ -3663,6 +3848,15 @@ func _external_repair_count() -> int:
 		if module["type"] in ["regolith_plant", "ice_processor"] and resources["integrity"] < 70.0:
 			count += 1
 	return count
+
+func _external_repair_target_pos() -> Vector2:
+	for module: Dictionary in modules:
+		if bool(module.get("leaking", false)):
+			return _module_rect(module).get_center()
+	for module: Dictionary in modules:
+		if String(module["type"]) in ["regolith_plant", "ice_processor"] and resources["integrity"] < 70.0:
+			return _module_rect(module).get_center()
+	return Vector2(INF, INF)
 
 func _refresh_main_menu() -> void:
 	if not has_node("UI/Root/MainMenu/Box"):
