@@ -3,7 +3,10 @@ class_name PlayerProfileData
 
 @export var player_name := ""
 @export var birth_year := 2000
-@export var gender_display := "Prefer not to say"
+@export var gender_display := "男"
+@export var application_id := "GHO-APP-2068-0421"
+@export var candidate_file_status := "待建立"
+@export var mission_identity := "常驻开拓者候选人"
 @export var education_background := ""
 @export var appearance_preset := "Standard"
 @export var skin_preset := "Preset A"
@@ -21,6 +24,9 @@ func to_dictionary() -> Dictionary:
 		"PlayerName": player_name,
 		"BirthYear": birth_year,
 		"GenderDisplay": gender_display,
+		"ApplicationId": application_id,
+		"CandidateFileStatus": candidate_file_status,
+		"MissionIdentity": mission_identity,
 		"EducationBackground": education_background,
 		"AppearancePreset": appearance_preset,
 		"SkinPreset": skin_preset,
@@ -38,6 +44,11 @@ func load_dictionary(data: Dictionary) -> void:
 	player_name = String(data.get("PlayerName", player_name))
 	birth_year = int(data.get("BirthYear", birth_year))
 	gender_display = String(data.get("GenderDisplay", gender_display))
+	if gender_display != "女":
+		gender_display = "男"
+	application_id = String(data.get("ApplicationId", application_id))
+	candidate_file_status = String(data.get("CandidateFileStatus", candidate_file_status))
+	mission_identity = String(data.get("MissionIdentity", mission_identity))
 	education_background = String(data.get("EducationBackground", education_background))
 	appearance_preset = String(data.get("AppearancePreset", appearance_preset))
 	skin_preset = String(data.get("SkinPreset", skin_preset))

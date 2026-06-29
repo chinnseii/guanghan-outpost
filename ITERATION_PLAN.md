@@ -953,3 +953,21 @@ Deferred to Sprint 04+:
 - Final assessment.
 - Launch sequence.
 - Any plant, backpack, mining, automation, resident, tech tree or RPG-stat systems.
+
+## APP-002A Application UI Update
+
+Status: complete.
+
+Completed:
+
+- Reduced gender choices to `男` and `女`.
+- Confirmed the form does not ask for nationality, ID number, emergency contact, or other real-world sensitive fields.
+- Added system-generated mission fields to the profile and Basic Information page:
+  - Application ID
+  - Candidate file status
+  - Mission identity
+- Moved character/suit preview out of Basic Information and into `03 外观与标识`.
+- Renamed the preview to `开拓者预览 / PIONEER PREVIEW`.
+- Updated preview focus to suit, patch, suit ID, name initials, and marking color.
+- Added explicit notes that appearance is display/record only and does not affect ability.
+- Gender only changes visual body preset options.

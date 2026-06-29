@@ -393,3 +393,14 @@ Implemented:
 - Player profile save file: `user://saves/application_profile.json`.
 
 Out of scope remains training gameplay, final assessment, launch, inventory, mining, robots, tech tree, RPG stats and education-background buffs.
+
+## APP-002A Application UI Update
+
+- Basic Information gender options now only include `男` and `女`.
+- Sensitive real-world fields are not requested.
+- Basic Information shows system-generated mission fields: application ID, candidate file status, and mission identity.
+- Character preview is removed from Basic Information and appears only on `03 外观与标识`.
+- The preview is labeled `开拓者预览 / PIONEER PREVIEW`.
+- The preview focuses on astronaut suit, patch, suit ID, name initials, and marking color.
+- Gender affects visual body preset only and does not affect stats, abilities, or gameplay bonuses.
+- Added the note: `外观仅用于角色显示与任务档案，不影响能力。`
