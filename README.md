@@ -339,3 +339,16 @@ Implemented:
 - Airlock prompt: `E 进入气闸`, then transition to `BaseInterior_Test`.
 - Arrival prototype save/load through F5/F9 at `user://arrival_prototype_save.json`.
 - Foundation review report: `docs/reports/SPRINT_01_FOUNDATION_REVIEW.md`.
+
+## Sprint 02 Revision 01: Arrival Layout & Feel
+
+Revision 01 keeps Arrival as a development-only prototype, but improves the first-read composition.
+
+- Arrival scene now uses a darker, wider lunar surface instead of a medium-grey test-board feel.
+- Earth is moved into a separate sky layer so it reads as background/sky, not an interactable map object.
+- Camera follow target is offset so the player is lower-left/lower-middle rather than perfectly centered.
+- Transport ship is larger, lower-left, and includes ramp, engine glow and landing scorch placeholders.
+- Distant base and airlock are farther ahead with warm lights so they read as the next destination.
+- Moon surface now has simple footprints, tire tracks, cables, cargo, rocks, craters, dust and solar-panel silhouettes.
+- ObserveEarthEvent starts false on scene start and only triggers after staying still in the observe area for about 5 seconds.
+- Debug panel is separate from the minimal HUD and can be toggled with F3.

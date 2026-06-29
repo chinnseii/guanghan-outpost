@@ -874,3 +874,22 @@ Still intentionally out of scope:
 - Application/training/assessment/launch sequence.
 - Automation, robots, mining, tech tree, construction upgrades and complex UI.
 - Final art/audio for TS-001 and TS-002.
+
+## Sprint 02 Revision 01: Arrival Layout & Feel
+
+Status: complete.
+
+Completed:
+
+- Removed the grey-board feeling from Arrival by darkening and widening the lunar surface.
+- Added a separate sky layer for Earth so it reads as sky/background rather than a map prop.
+- Re-composed the first view: Earth high, old base far ahead, transport ship behind/left, player lower in the frame.
+- Reworked transport ship placeholder with ramp, engine glow and landing scorch marks.
+- Reworked distant base and airlock with warmer light and greater distance.
+- Added restrained moon work-site detail: footprints, tire tracks, cables, cargo, rocks, craters, dust and solar-panel silhouette.
+- Confirmed ObserveEarthEvent is false at scene start and only flips after the player waits inside the trigger area.
+- Added F3 debug panel toggle and separated debug readout from the player HUD.
+
+Still intentionally out of scope:
+
+- Application, training, launch sequence, inventory, mining, robots, tech tree, automation and final art/audio.
