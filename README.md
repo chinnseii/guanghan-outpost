@@ -317,3 +317,25 @@ launch_godot.bat
    - 补充 UI 图标目录，例如氧气、电量、时间、辐射、补给。
    - 后续新增素材先登记到 `scripts/asset_catalog.gd`。
    - 将 TS-001 的颜色脚本同步到 `docs/SPRITE_GUIDE.md`。
+
+## Sprint 02 Arrival Prototype
+
+This is a development-only playable prototype, not the final New Game flow.
+
+Current final-flow intention:
+
+```text
+New Game -> Application -> National Training -> Final Assessment -> Mission Acceptance -> Launch -> ArrivalLandingScene
+```
+
+For now, the main menu exposes `Dev Entry: Arrival Prototype` so TS-001 and TS-002 can be tested directly.
+
+Implemented:
+
+- `res://scenes/arrival/ArrivalLandingScene.tscn`
+- `res://scenes/base/BaseInterior_Test.tscn`
+- TS-001 moon arrival test scene with transport ship, Earth, distant old base, cargo, cables, tracks, solar panel placeholder and minimal HUD.
+- TS-002 Observe Earth event: stay still in the trigger area for 5 seconds, HUD fades, camera locks briefly, AI line plays, and the event is saved as fired.
+- Airlock prompt: `E 进入气闸`, then transition to `BaseInterior_Test`.
+- Arrival prototype save/load through F5/F9 at `user://arrival_prototype_save.json`.
+- Foundation review report: `docs/reports/SPRINT_01_FOUNDATION_REVIEW.md`.

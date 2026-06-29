@@ -847,3 +847,30 @@
    - 补充 UI 图标目录，例如氧气、电量、时间、辐射、补给
    - 后续新增素材先登记到 `scripts/asset_catalog.gd`
    - 将 TS-001 的颜色脚本同步到 `docs/SPRITE_GUIDE.md`
+
+## Sprint 02 Arrival Playable Prototype
+
+Status: in progress / dev prototype.
+
+Important boundary: ArrivalLandingScene is currently a development test entry, not the permanent New Game opening. The future canonical flow is still planned as Application -> National Training -> Final Assessment -> Mission Acceptance -> Launch -> Arrival.
+
+Completed:
+
+- Added `docs/reports/SPRINT_01_FOUNDATION_REVIEW.md`.
+- Added `res://scenes/arrival/ArrivalLandingScene.tscn`.
+- Added `res://scenes/base/BaseInterior_Test.tscn`.
+- Added `scripts/arrival/arrival_landing_scene.gd`.
+- Added `scripts/arrival/base_interior_test.gd`.
+- Added `scripts/lighting_manager.gd` and `scripts/light_zone.gd` as the first lighting framework pass.
+- Added main menu `Dev Entry: Arrival Prototype` button for direct testing.
+- TS-001 prototype includes player movement, moon TileMapLayer, transport ship, Earth, distant base, airlock, engineering traces and minimal HUD.
+- TS-002 Observe Earth event triggers after standing still in the target area for 5 seconds, weakens HUD, locks the camera briefly, shows the AI line and saves the one-shot event state.
+- Airlock interaction shows `E 进入气闸` and switches to `BaseInterior_Test`.
+- F5/F9 arrival prototype save/load stores scene, player position, game state, time, ObserveEarthEvent and airlock entry state.
+
+Still intentionally out of scope:
+
+- Full first-hour flow.
+- Application/training/assessment/launch sequence.
+- Automation, robots, mining, tech tree, construction upgrades and complex UI.
+- Final art/audio for TS-001 and TS-002.
