@@ -38,6 +38,7 @@ var review_timer := 0.0
 var is_reviewing := false
 
 var page_body: VBoxContainer
+var content_scroll: ScrollContainer
 var footer: HBoxContainer
 var status_label: Label
 var name_edit: LineEdit
@@ -96,30 +97,42 @@ func _build_shell() -> void:
 
 	var root := VBoxContainer.new()
 	root.name = "ApplicationShell"
-	root.position = Vector2(42, 28)
-	root.size = Vector2(1516, 840)
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.offset_left = 36
+	root.offset_top = 24
+	root.offset_right = -36
+	root.offset_bottom = -32
 	root.add_theme_constant_override("separation", 12)
 	add_child(root)
 
 	var header := HBoxContainer.new()
 	header.add_theme_constant_override("separation", 24)
 	root.add_child(header)
-	_add_header_label(header, "国家深空生命科学中心\nNATIONAL DEEP SPACE LIFE SCIENCE CENTER", Vector2(360, 58), 15, Color("#d8e7f2"))
-	_add_header_label(header, "广寒计划常驻开拓者申请系统\nPROJECT GUANGHAN · PERMANENT PIONEER APPLICATION SYSTEM", Vector2(710, 58), 22, Color("#edf7ff"))
-	_add_header_label(header, "系统编号  GHO-AS-2068-0421\n当前时间  2068-04-12   07:15:32", Vector2(330, 58), 14, Color("#8fa3b2"))
+	_add_header_label(header, "国家深空生命科学中心\nNATIONAL DEEP SPACE LIFE SCIENCE CENTER", Vector2(280, 58), 15, Color("#d8e7f2"))
+	_add_header_label(header, "广寒计划常驻开拓者申请系统\nPROJECT GUANGHAN · PERMANENT PIONEER APPLICATION SYSTEM", Vector2(520, 58), 22, Color("#edf7ff"))
+	_add_header_label(header, "系统编号  GHO-AS-2068-0421\n当前时间  2068-04-12   07:15:32", Vector2(240, 58), 14, Color("#8fa3b2"))
 
 	root.add_child(HSeparator.new())
 	_add_step_bar(root)
 
+	content_scroll = ScrollContainer.new()
+	content_scroll.name = "ContentArea"
+	content_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	content_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	root.add_child(content_scroll)
+
 	page_body = VBoxContainer.new()
 	page_body.name = "PageBody"
 	page_body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	page_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	page_body.add_theme_constant_override("separation", 12)
-	root.add_child(page_body)
+	content_scroll.add_child(page_body)
 
 	footer = HBoxContainer.new()
 	footer.name = "Footer"
 	footer.alignment = BoxContainer.ALIGNMENT_END
+	footer.custom_minimum_size = Vector2(0, 48)
+	footer.size_flags_vertical = Control.SIZE_SHRINK_END
 	footer.add_theme_constant_override("separation", 12)
 	root.add_child(footer)
 
@@ -137,7 +150,8 @@ func _add_step_bar(root: VBoxContainer) -> void:
 	root.add_child(row)
 	for key in ["identity", "education", "appearance", "review"]:
 		var panel := PanelContainer.new()
-		panel.custom_minimum_size = Vector2(330, 58)
+		panel.custom_minimum_size = Vector2(270, 58)
+		panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(panel)
 		var box := VBoxContainer.new()
 		panel.add_child(box)
@@ -498,8 +512,8 @@ func _add_columns(left_ratio: float) -> Array[VBoxContainer]:
 	page_body.add_child(row)
 	var left := _add_panel(row)
 	var right := _add_panel(row)
-	left.custom_minimum_size = Vector2(1380.0 * left_ratio, 560)
-	right.custom_minimum_size = Vector2(1380.0 * (1.0 - left_ratio), 560)
+	left.custom_minimum_size = Vector2(1100.0 * left_ratio, 430)
+	right.custom_minimum_size = Vector2(1100.0 * (1.0 - left_ratio), 430)
 	return [left, right]
 
 func _add_panel(parent: Node) -> VBoxContainer:
@@ -588,13 +602,63 @@ func _add_footer_button(text: String, callback: Callable) -> void:
 func _add_confirmation_check(parent: VBoxContainer, text: String) -> void:
 	var check := CheckBox.new()
 	check.text = text
-	check.modulate = Color("#d8e7f2")
+	check.custom_minimum_size = Vector2(0, 40)
+	check.add_theme_icon_override("unchecked", _make_checkbox_icon(false))
+	check.add_theme_icon_override("checked", _make_checkbox_icon(true))
 	check.add_theme_font_size_override("font_size", 16)
+	check.add_theme_color_override("font_color", Color("#d8e7f2"))
+	check.add_theme_color_override("font_hover_color", Color("#eaf4ff"))
+	check.add_theme_color_override("font_pressed_color", Color("#eaf4ff"))
+	check.add_theme_color_override("font_focus_color", Color("#eaf4ff"))
+	_style_confirmation_check(check)
 	check.toggled.connect(func(_pressed: bool):
+		_style_confirmation_check(check)
 		_update_submit_enabled()
 	)
 	parent.add_child(check)
 	confirmation_checks.append(check)
+
+func _style_confirmation_check(check: CheckBox) -> void:
+	var box := StyleBoxFlat.new()
+	box.bg_color = Color("#12324a") if check.button_pressed else Color("#0a1823")
+	box.border_color = Color("#5fb8ff") if check.button_pressed else Color("#5d829a")
+	box.set_border_width_all(1)
+	box.corner_radius_top_left = 4
+	box.corner_radius_top_right = 4
+	box.corner_radius_bottom_left = 4
+	box.corner_radius_bottom_right = 4
+	box.content_margin_left = 10
+	box.content_margin_right = 10
+	box.content_margin_top = 6
+	box.content_margin_bottom = 6
+	check.add_theme_stylebox_override("normal", box)
+	check.add_theme_stylebox_override("hover", box)
+	check.add_theme_stylebox_override("pressed", box)
+	check.add_theme_stylebox_override("hover_pressed", box)
+	check.add_theme_stylebox_override("focus", box)
+
+func _make_checkbox_icon(checked: bool) -> Texture2D:
+	var image := Image.create(24, 24, false, Image.FORMAT_RGBA8)
+	image.fill(Color(0, 0, 0, 0))
+	var border := Color("#5fb8ff") if checked else Color("#8db4cb")
+	var fill := Color("#174466") if checked else Color("#0f2533")
+	for y in range(3, 21):
+		for x in range(3, 21):
+			if x <= 4 or x >= 19 or y <= 4 or y >= 19:
+				image.set_pixel(x, y, border)
+			else:
+				image.set_pixel(x, y, fill)
+	if checked:
+		var mark := Color("#eaf7ff")
+		var points := [
+			Vector2i(8, 12), Vector2i(9, 13), Vector2i(10, 14),
+			Vector2i(11, 15), Vector2i(12, 14), Vector2i(13, 13),
+			Vector2i(14, 12), Vector2i(15, 11), Vector2i(16, 10),
+		]
+		for point in points:
+			image.set_pixelv(point, mark)
+			image.set_pixel(point.x, point.y + 1, mark)
+	return ImageTexture.create_from_image(image)
 
 func _update_submit_enabled() -> void:
 	if submit_button == null:

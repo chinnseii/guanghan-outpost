@@ -422,3 +422,11 @@ Out of scope remains training gameplay, final assessment, launch, inventory, min
 - Submit Application now requires all three confirmation checkboxes before `提交申请` is enabled.
 - Review processing includes candidate file creation and review completion before moving to preliminary eligibility review.
 - Preliminary Eligibility Review is formatted as a formal notice addressed to the current player name.
+
+## Sprint 03 Final UI Bugfix / Polish
+
+- Application shell now keeps `Header / StepTabs / ContentArea / FooterButtons` in a safer vertical layout.
+- The middle content area scrolls when needed, while footer buttons remain visible inside the screen.
+- Layout margins were adjusted for clean use at 1600x900 and better usability at 1280x720.
+- Submit confirmation checkboxes now use brighter unchecked outlines and restrained blue checked highlights.
+- Submit behavior is unchanged: `提交申请` stays disabled until all three confirmation statements are checked.

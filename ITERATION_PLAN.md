@@ -1003,3 +1003,20 @@ Still out of scope:
 - Sprint 04 training gameplay.
 - Final assessment.
 - Accept Mission / 17-pioneer black screen.
+
+## Sprint 03 Final UI Bugfix / Polish
+
+Status: complete.
+
+Completed:
+
+- Changed the application shell to keep the footer buttons outside the scrollable content area.
+- Added a scrollable middle content area so oversized pages do not push navigation buttons off-screen.
+- Reduced fixed minimum widths in the header, step tabs and page columns for cleaner 1600x900 presentation and usable 1280x720 presentation.
+- Improved Submit Application checkbox visibility with clearer unchecked outlines, checked icons and restrained blue active-state styling.
+- Kept the existing submit gating logic: all three confirmation statements must be checked before `提交申请` enables.
+
+Still out of scope:
+
+- Sprint 04 training gameplay.
+- Any application-flow redesign beyond this acceptance polish.
