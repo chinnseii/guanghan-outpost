@@ -47,6 +47,12 @@ var last_guidance_tip := ""
 var task_log_expanded := false
 var task_history: Array[String] = []
 var intro_overlay_seen := false
+var objective_tracking := false
+var feedback_text := ""
+var feedback_timer := 0.0
+var map_marker_text := ""
+var map_marker_pos := Vector2(INF, INF)
+var map_marker_timer := 0.0
 var robot_task := "idle"
 var robot_queue: Array[String] = []
 var robot_pos := Vector2.ZERO
@@ -308,6 +314,7 @@ func _setup_input_map() -> void:
 	_add_key_action("camera_zoom_out", [KEY_X])
 	_add_key_action("ui_scale_down", [KEY_BRACKETLEFT])
 	_add_key_action("ui_scale_up", [KEY_BRACKETRIGHT])
+	_add_key_action("toggle_objective_tracking", [KEY_T])
 
 func _add_key_action(action_name: String, keys: Array[int]) -> void:
 	if not InputMap.has_action(action_name):
@@ -344,6 +351,12 @@ func _reset_game_state() -> void:
 	task_log_expanded = false
 	task_history.clear()
 	intro_overlay_seen = false
+	objective_tracking = false
+	feedback_text = ""
+	feedback_timer = 0.0
+	map_marker_text = ""
+	map_marker_pos = Vector2(INF, INF)
+	map_marker_timer = 0.0
 	robot_task = "idle"
 	robot_queue.clear()
 	robot_pos = _cell_to_world(Vector2i(10, 6))
@@ -454,6 +467,7 @@ func _process(delta: float) -> void:
 	_sync_scene_instances()
 	_update_camera()
 	_update_edge_hint()
+	_update_completion_toast()
 	queue_redraw()
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -471,6 +485,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		_adjust_ui_scale(-0.1)
 	if event.is_action_pressed("ui_scale_up"):
 		_adjust_ui_scale(0.1)
+	if event.is_action_pressed("toggle_objective_tracking"):
+		_toggle_objective_tracking()
 	if event.is_action_pressed("toggle_build") and not game_over:
 		_toggle_build_mode()
 	if event.is_action_pressed("cancel") and not game_over:
@@ -485,16 +501,24 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _draw() -> void:
 	_draw_robot_path()
+	_draw_map_marker()
 	_draw_tutorial_arrow()
 	_draw_build_ghost()
 
 func _update_camera() -> void:
 	if not is_instance_valid(camera):
 		return
-	camera.position = player_pos
+	var target := player_pos
+	if objective_tracking:
+		var objective_pos := _active_objective_target_pos()
+		if objective_pos.x != INF:
+			target = objective_pos
+	camera.position = target
 
 func _process_robot_queue(delta: float) -> void:
 	robot_path_pulse += delta
+	feedback_timer = max(0.0, feedback_timer - delta)
+	map_marker_timer = max(0.0, map_marker_timer - delta)
 	if robot_charging:
 		_process_robot_charging(delta)
 		return
@@ -602,10 +626,12 @@ func _complete_robot_task(task: String) -> void:
 			solar_dust = max(0.0, solar_dust - 0.06)
 			resources["integrity"] = min(100.0, resources["integrity"] + 1.2)
 			add_log("维护机器人巡检完成：月尘降低，基地完整度 +1.2。")
+			_show_task_feedback("维护巡检完成", robot_pos)
 			_play_audio_event("tool")
 		"haul":
 			if _robot_haul_supply():
 				add_log("搬运机器人完成：从补给舱转运一批货物。")
+				_show_task_feedback("搬运补给完成", robot_pos)
 				_play_audio_event("cargo")
 			else:
 				_skip_robot_task(task, "搬运机器人没有找到可搬运补给舱或剩余货物，任务已跳过。")
@@ -642,6 +668,7 @@ func _complete_robot_sample_task() -> bool:
 			add_log("玉兔采样完成：月壤 +%.1f。" % max(0.8, amount))
 	robot_failure_note = ""
 	_sync_scene_instances()
+	_show_task_feedback("玉兔采样完成", robot_pos)
 	_play_audio_event("tool")
 	return true
 
@@ -664,7 +691,13 @@ func _robot_task_skip_reason(task: String) -> String:
 		"sample":
 			if _nearest_collectable_item(["regolith", "ice", "sample"]).is_empty():
 				return "没有可用月壤、水冰或科研样本点，玉兔采样自动跳过。"
+		"maintenance":
+			if not _has_robot_maintenance_work():
+				return "没有需要维护的外部设备，维护巡检自动跳过。"
 	return ""
+
+func _has_robot_maintenance_work() -> bool:
+	return solar_dust >= 0.08 or _leaking_module_count() > 0 or resources["integrity"] < 96.0
 
 func _has_supply_cargo_remaining() -> bool:
 	if supply_order.is_empty() or not supply_order.has("cargo_remaining"):
@@ -804,7 +837,7 @@ func _sync_scene_instances() -> void:
 	if is_instance_valid(robot_node):
 		robot_node.position = robot_pos
 		if robot_node.has_method("setup"):
-			robot_node.call("setup", robot_task, robot_active)
+			robot_node.call("setup", robot_task, robot_active, robot_battery, robot_charging)
 	for module: Dictionary in modules:
 		var uid := int(module["uid"])
 		if not module_nodes.has(uid) or not is_instance_valid(module_nodes[uid]):
@@ -2103,6 +2136,7 @@ func _save_game() -> void:
 		"task_log_expanded": task_log_expanded,
 		"task_history": task_history,
 		"intro_overlay_seen": intro_overlay_seen,
+		"objective_tracking": objective_tracking,
 		"operator": _serialize_operator(),
 		"backpack": backpack,
 		"robot_task": robot_task,
@@ -2198,6 +2232,7 @@ func _apply_save_data(data: Dictionary) -> void:
 	for entry in saved_history:
 		task_history.append(String(entry))
 	intro_overlay_seen = bool(data.get("intro_overlay_seen", true))
+	objective_tracking = bool(data.get("objective_tracking", false))
 	operator = _deserialize_operator(data.get("operator", data.get("crew", _serialize_operator())))
 	backpack = _copy_float_dictionary(data.get("backpack", _default_backpack()), _default_backpack())
 	robot_task = String(data.get("robot_task", "idle"))
@@ -2702,6 +2737,23 @@ func _setup_ui() -> void:
 	guide.add_theme_font_size_override("normal_font_size", 16)
 	root.add_child(guide)
 
+	var objective_stack := RichTextLabel.new()
+	objective_stack.name = "ObjectiveStack"
+	objective_stack.position = Vector2(388, 520)
+	objective_stack.size = Vector2(500, 132)
+	objective_stack.fit_content = false
+	objective_stack.scroll_active = false
+	objective_stack.bbcode_enabled = true
+	objective_stack.add_theme_font_size_override("normal_font_size", 15)
+	root.add_child(objective_stack)
+
+	var tracking_button := Button.new()
+	tracking_button.name = "TrackingButton"
+	tracking_button.position = Vector2(760, 658)
+	tracking_button.size = Vector2(128, 34)
+	tracking_button.pressed.connect(_toggle_objective_tracking)
+	root.add_child(tracking_button)
+
 	var task_log := RichTextLabel.new()
 	task_log.name = "TaskLog"
 	task_log.position = Vector2(18, 268)
@@ -2731,6 +2783,20 @@ func _setup_ui() -> void:
 	edge_hint.add_theme_constant_override("shadow_offset_x", 0)
 	edge_hint.add_theme_constant_override("shadow_offset_y", 0)
 	root.add_child(edge_hint)
+
+	var completion_toast := Label.new()
+	completion_toast.name = "CompletionToast"
+	completion_toast.visible = false
+	completion_toast.position = Vector2(520, 120)
+	completion_toast.size = Vector2(560, 46)
+	completion_toast.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	completion_toast.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	completion_toast.add_theme_font_size_override("font_size", 22)
+	completion_toast.add_theme_color_override("font_color", Color("#15191f"))
+	completion_toast.add_theme_color_override("font_shadow_color", Color(1.0, 0.82, 0.25, 0.75))
+	completion_toast.add_theme_constant_override("shadow_offset_x", 0)
+	completion_toast.add_theme_constant_override("shadow_offset_y", 0)
+	root.add_child(completion_toast)
 
 	var supply_status := Label.new()
 	supply_status.name = "SupplyStatus"
@@ -3061,6 +3127,56 @@ func _direction_label(direction: Vector2) -> String:
 		return "目标 >" if direction.x > 0.0 else "< 目标"
 	return "目标 v" if direction.y > 0.0 else "^ 目标"
 
+func _toggle_objective_tracking() -> void:
+	objective_tracking = not objective_tracking
+	_play_ui_tone(700.0 if objective_tracking else 420.0, 0.06, 0.06)
+	_update_camera()
+	_update_ui()
+
+func _show_task_feedback(text: String, pos: Vector2) -> void:
+	feedback_text = text
+	feedback_timer = 2.2
+	map_marker_text = text
+	map_marker_pos = pos
+	map_marker_timer = 3.2
+	_play_ui_tone(880.0, 0.08, 0.07)
+	_update_completion_toast()
+
+func _update_completion_toast() -> void:
+	if not has_node("UI/Root/CompletionToast"):
+		return
+	var toast: Label = $UI/Root/CompletionToast
+	toast.visible = feedback_timer > 0.0 and not feedback_text.is_empty()
+	toast.text = "完成：%s" % feedback_text
+
+func _draw_map_marker() -> void:
+	if map_marker_timer <= 0.0 or map_marker_pos.x == INF:
+		return
+	var pulse: float = abs(sin(Time.get_ticks_msec() / 150.0))
+	draw_circle(map_marker_pos, 18.0 + pulse * 8.0, Color(0.48, 1.0, 0.62, 0.22))
+	draw_arc(map_marker_pos, 28.0 + pulse * 5.0, 0.0, TAU, 32, Color("#7dff9d"), 3)
+	draw_line(map_marker_pos + Vector2(-14, -22), map_marker_pos + Vector2(14, -22), Color("#7dff9d"), 3)
+
+func _active_objective_target_pos() -> Vector2:
+	var tutorial_target := _tutorial_target_pos()
+	if tutorial_target.x != INF:
+		return tutorial_target
+	if _active_collectable_count("supply_pod") > 0:
+		return _nearest_collectable_pos(["supply_pod"])
+	if _backpack_load() > 0.0:
+		return _facility_target_pos("hab", "storage")
+	if _leaking_module_count() > 0:
+		return _first_leaking_module_pos()
+	if solar_dust >= 0.22:
+		return _module_target_pos("solar")
+	return Vector2(INF, INF)
+
+func _first_leaking_module_pos() -> Vector2:
+	for module: Dictionary in modules:
+		if bool(module.get("leaking", false)):
+			return _module_rect(module).get_center()
+	return Vector2(INF, INF)
+
 func _show_info_panel(panel_name: String, text: String) -> void:
 	for name: String in ["BackpackPanel", "SupplyCargoPanel", "ConsolePanel", "RobotPanel"]:
 		var path := "UI/Root/%s" % name
@@ -3204,8 +3320,11 @@ func _update_ui() -> void:
 	$UI/Root/MissionStatus.text = _mission_status_text()
 	$UI/Root/EvaTasks.text = _eva_tasks_text()
 	$UI/Root/Guide.text = _guide_text()
+	$UI/Root/ObjectiveStack.text = _objective_stack_text()
+	$UI/Root/TrackingButton.text = "追踪目标：开" if objective_tracking else "追踪目标：关"
 	_update_task_log_controls()
 	$UI/Root/TaskLog.text = _task_log_text()
+	_update_completion_toast()
 	_update_edge_hint()
 	_update_intro_overlay()
 	if has_node("UI/Root/ZoomPanel/ZoomLabel"):
@@ -3319,6 +3438,35 @@ func _guide_text() -> String:
 		warning = "\n提示：%s" % last_guidance_tip
 	return "%s\n行动：%s\n原因：%s\n完成：%s%s" % [title, action, reason, done, warning]
 
+func _objective_stack_text() -> String:
+	var lines: Array[String] = ["[b]目标栈[/b]"]
+	lines.append("[color=#e7c66b]当前：%s[/color]" % _current_objective_action())
+	lines.append("[color=#d8e0eb]出舱：%s[/color]" % _primary_eva_task())
+	lines.append("[color=#8fa0b8]长期：%s[/color]" % _strategic_next_goal())
+	lines.append("[color=#8fa0b8]追踪：%s（T 切换）[/color]" % ("已开启" if objective_tracking else "关闭"))
+	return _join_strings(lines, "\n")
+
+func _current_objective_action() -> String:
+	var step: Dictionary = _current_tutorial_step()
+	if not step.is_empty():
+		return String(step["name"])
+	return _strategic_next_goal()
+
+func _primary_eva_task() -> String:
+	if _active_collectable_count("supply_pod") > 0:
+		return "回收补给舱"
+	if _active_collectable_count("ice") > 0:
+		return "采集水冰"
+	if solar_dust >= 0.22:
+		return "清理太阳能板"
+	if _external_repair_count() > 0:
+		return "维修外部设备"
+	if solar_storm_days > 0:
+		return "太阳风暴中，减少出舱"
+	if micrometeor_alert_days > 0:
+		return "微陨石预警，暂停远距离维修"
+	return "暂无紧急出舱任务"
+
 func _tutorial_steps() -> Array[Dictionary]:
 	return [
 		{"flag": "console", "name": "查看控制台", "detail": "确认电力、氧气、水和补给状态"},
@@ -3344,6 +3492,8 @@ func _record_task_history(marker: String, text: String) -> void:
 	task_history.append("%s|D%d  %s" % [marker, day, text])
 	while task_history.size() > 18:
 		task_history.pop_front()
+	if marker.begins_with("tutorial:") or marker.begins_with("mission:"):
+		_show_task_feedback(text, player_pos)
 
 func _task_history_lines(limit: int) -> Array[String]:
 	var lines: Array[String] = []

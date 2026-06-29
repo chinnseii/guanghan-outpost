@@ -673,20 +673,69 @@
 - 建立统一 sprite 尺寸和命名规范
 - 将程序生成音效替换为正式采样音效文件
 
+## V0.27 机器人玩法深化
+
+已完成：
+
+- `scripts/robot_visual.gd` 接入三类机器人独立 sprite
+- 玉兔采样、维护巡检、搬运补给使用不同外观
+- 机器人显示状态灯：
+  - 绿色：执行/可用
+  - 蓝色：充电
+  - 橙红：低电
+- 机器人显示电量条
+- 机器人完成采样、维护、搬运时显示屏幕反馈
+- 机器人完成任务时在地图位置显示短暂完成标记
+- 维护机器人只在月尘、漏气或完整度损耗时出动
+- 无维护目标时，维护任务自动跳过并说明原因
+
+## V0.28 任务体验继续打磨
+
+已完成：
+
+- 新增短暂屏幕完成反馈 `CompletionToast`
+- 新增短暂地图完成标记
+- 新手任务、阶段任务和机器人任务完成都会触发反馈
+- 新增“目标栈”面板 `ObjectiveStack`
+- 目标栈合并显示：
+  - 当前目标
+  - 出舱任务
+  - 长期目标
+  - 追踪状态
+- 新增关键目标追踪开关 `objective_tracking`
+- `T` 键可切换目标自动居中/追踪
+- UI 追踪按钮可切换目标追踪
+- 目标追踪状态进入保存/读取系统
+
+## V0.29 正式素材第三轮
+
+已完成：
+
+- 新增机器人 sprite：
+  - `assets/sprites/robots/yutu_sample.png`
+  - `assets/sprites/robots/maintenance_bot.png`
+  - `assets/sprites/robots/hauler_bot.png`
+- 新增采集点/补给舱 sprite：
+  - `assets/sprites/collectables/regolith_node.png`
+  - `assets/sprites/collectables/ice_node.png`
+  - `assets/sprites/collectables/meteor_node.png`
+  - `assets/sprites/collectables/sample_node.png`
+  - `assets/sprites/collectables/supply_pod.png`
+- `scripts/collectable_visual.gd` 优先使用独立 sprite 绘制月面资源和补给舱
+- 采集点加入类型状态点，水冰、样本、陨石、补给更容易分辨
+- 新增 `docs/SPRITE_GUIDE.md`
+- 建立设施、机器人、采集点 sprite 尺寸规范和状态颜色规范
+
 ## 当前下一步建议
 
-1. V0.27 机器人玩法深化：
-   - 给三类机器人加入不同外观或状态灯
-   - 增加机器人任务完成小弹窗/地图标记
-   - 维护机器人只在有月尘、漏气或完整度损耗时优先出动
-2. V0.28 任务体验继续打磨：
-   - 给任务完成加入短暂屏幕反馈
-   - 把当前目标、出舱任务、长期目标合并成更清晰的信息层级
-   - 给关键任务增加可选的地图自动居中/追踪
-3. V0.29 正式素材第三轮：
-   - 给机器人、补给舱、月面采集点加入更多独立 sprite
-   - 将舱外资源点和外部设备的视觉状态做得更容易辨认
-   - 建立统一 sprite 尺寸规范，方便后续批量替换
-4. 工程结构整理：
+1. V0.30 工程结构整理：
    - 继续拆出资源表、任务系统、UI 页面管理器
    - 将机器人任务逻辑继续迁移到 `scripts/robot_task_manager.gd`
+2. V0.31 月面作业体验：
+   - 给出舱任务加入距离、风险和建议顺序
+   - 给补给舱/水冰/维修点添加更明确的任务图标
+   - 让目标追踪支持在多个任务点之间切换
+3. V0.32 机器人系统扩展：
+   - 三类机器人拥有独立队列和充电策略
+   - 搬运机器人可多趟回收补给
+   - 维护机器人可自动选择最危险的外部目标
