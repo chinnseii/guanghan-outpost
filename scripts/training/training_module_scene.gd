@@ -37,6 +37,7 @@ class TrainingTargetVisual:
 	var active := false
 	var highlighted := false
 	var locked := false
+	var show_trigger_debug := false
 
 	func _ready() -> void:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -57,6 +58,9 @@ class TrainingTargetVisual:
 		var c := Color("#f0c766") if highlighted else Color("#4fb7f0")
 		var fill_alpha := 0.28 if highlighted else 0.12
 		draw_rect(Rect2(Vector2.ZERO, size), Color("#12324a", fill_alpha), true)
+		if show_trigger_debug:
+			draw_rect(Rect2(Vector2.ZERO, size), Color("#f0c766", 0.08), true)
+			draw_rect(Rect2(Vector2.ZERO, size), Color("#f0c766", 0.9), false, 1.0)
 		for x in range(0, int(size.x), 14):
 			draw_line(Vector2(x, 0), Vector2(min(x + 7, size.x), 0), c, 2.0)
 			draw_line(Vector2(x, size.y), Vector2(min(x + 7, size.x), size.y), c, 2.0)
@@ -136,6 +140,7 @@ var diagnosis_panel: VBoxContainer
 var target_nodes: Dictionary = {}
 var prompt_label: Label
 var completed := false
+var show_trigger_debug := false
 var player_speed := 280.0
 
 func _ready() -> void:
@@ -154,6 +159,9 @@ func _process(delta: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("interact") and not completed:
 		_try_interact()
+	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_F3:
+		show_trigger_debug = not show_trigger_debug
+		_update_trigger_debug()
 	if event.is_action_pressed("ui_cancel"):
 		get_tree().change_scene_to_file("res://scenes/main.tscn")
 
@@ -342,7 +350,7 @@ func _check_auto_steps() -> void:
 	var step := _current_step()
 	if step.is_empty() or String(step.get("type", "")) != "move":
 		return
-	if _is_near(String(step.get("target", ""))):
+	if _is_inside_target_area(String(step.get("target", ""))):
 		_complete_step()
 
 func _try_interact() -> void:
@@ -417,6 +425,20 @@ func _is_near(target_id: String) -> bool:
 	var target_center := target.position + target.size * 0.5
 	return player_center.distance_to(target_center) <= 95.0
 
+func _is_inside_target_area(target_id: String) -> bool:
+	if not target_nodes.has(target_id):
+		return false
+	var target: Control = target_nodes[target_id]
+	var target_rect := Rect2(target.position, target.size)
+	var player_feet := player.position + Vector2(player.size.x * 0.5, player.size.y)
+	return target_rect.has_point(player_feet)
+
+func _update_trigger_debug() -> void:
+	for node in target_nodes.values():
+		if node is TrainingTargetVisual:
+			node.show_trigger_debug = show_trigger_debug and node.kind == "marker"
+			node.queue_redraw()
+
 func _update_room_prompt() -> void:
 	if prompt_label == null:
 		return
@@ -428,6 +450,7 @@ func _update_room_prompt() -> void:
 			node.active = false
 			node.locked = node.name == "exit" and target_id != "exit"
 			node.modulate = Color(1, 1, 1, 1) if node.highlighted else Color(0.72, 0.78, 0.84, 0.72)
+			node.show_trigger_debug = show_trigger_debug and node.kind == "marker"
 			node.queue_redraw()
 	if completed or step.is_empty():
 		prompt_label.visible = false

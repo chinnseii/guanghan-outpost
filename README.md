@@ -467,3 +467,4 @@ Scope note:
 - Training exit is visible but visually locked until the module reaches the exit step.
 - Pressing E at the active exit advances directly to the next training module.
 - Player start position was nudged farther inside the training room.
+- Marker zone completion now checks the trainee's feet inside the visible marker rectangle instead of using a loose distance trigger.

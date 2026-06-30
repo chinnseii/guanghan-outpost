@@ -1087,6 +1087,8 @@ Completed:
 - Kept the exit visible from the start but visually locked until the module reaches the exit step.
 - Changed the active exit interaction so pressing E advances directly to the next training module.
 - Nudged the player start position farther inside the training room.
+- Fixed marker-zone completion so the trainee must enter the visible marker rectangle; loose distance checks are no longer used for movement zones.
+- Added a temporary F3 trigger-debug overlay for marker-zone alignment checks.
 
 Still out of scope:
 
