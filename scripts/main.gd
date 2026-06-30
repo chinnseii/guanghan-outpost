@@ -3530,6 +3530,14 @@ func _setup_main_menu() -> void:
 		get_tree().change_scene_to_file("res://scenes/training/TrainingStartScene.tscn")
 	)
 	box.add_child(training_dev)
+	var power_repair_dev := Button.new()
+	power_repair_dev.text = "Dev Only: Training Module 03 Power Repair"
+	power_repair_dev.custom_minimum_size = Vector2(0, 40)
+	power_repair_dev.pressed.connect(func():
+		TrainingManagerScript.set_current_module("power_repair")
+		get_tree().change_scene_to_file("res://scenes/training/Training_03_PowerRepair.tscn")
+	)
+	box.add_child(power_repair_dev)
 	var assessment_dev := Button.new()
 	assessment_dev.text = "Dev Only: Final Assessment"
 	assessment_dev.custom_minimum_size = Vector2(0, 40)
