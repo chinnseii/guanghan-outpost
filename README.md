@@ -499,3 +499,13 @@ Scope note:
 - Wrong-order actions show calm procedural hints; there is no failure screen or punishment.
 - Main menu now includes `Dev Only: Training Module 04 Life Support` for direct testing.
 - This remains a scripted training simulation only; no full oxygen, water, temperature or base-wide life support model was added.
+
+## Sprint 04 Module 05: Plant Diagnosis
+
+- Module 05 now uses the TR-001 training-room visual standard instead of abstract colored blocks.
+- The room includes semantic placeholder props for training plant chamber, plant scanner, nutrient/light console, grow light, plant status display and training exit.
+- The staged flow is scripted: observe plant, scan plant, choose diagnosis, adjust grow light, wait for plant status stability and exit to final assessment.
+- HUD plant state updates through `异常 / 稳定中 / 稳定`.
+- Wrong diagnosis gives calm feedback and asks the player to re-check scan information.
+- Main menu now includes `Dev Only: Training Module 05 Plant Diagnosis` for direct testing.
+- This remains a scripted diagnosis module only; no crop growth, watering, nutrients, harvest or greenhouse management system was added.

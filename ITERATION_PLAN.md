@@ -1174,3 +1174,30 @@ Still out of scope:
 - Full oxygen consumption, water cycle or temperature simulation.
 - Base-wide life support model.
 - Failure, death, survival pressure or crop-system dependencies.
+
+## Sprint 04 Module 05: Plant Diagnosis
+
+Status: complete first playable pass.
+
+Completed:
+
+- Converted Module 05 from abstract colored blocks into a TR-001-style plant diagnosis training room.
+- Added semantic placeholder props:
+  - Training plant chamber.
+  - Plant scanner.
+  - Nutrient/light control console.
+  - Grow light.
+  - Plant status display.
+  - Training exit.
+- Implemented staged flow: observe plant, scan plant, select diagnosis, adjust grow light, wait for plant stability and exit to final assessment.
+- Added scripted state updates for `Module05Started`, `PlantObserved`, `PlantScanned`, `DiagnosisSelected`, `CorrectDiagnosis`, `GrowLightAdjusted`, `PlantStable` and `Module05Completed`.
+- Added simulated plant status fields for plant status, grow light status and scanner result.
+- Added HUD plant status progression through `异常`, `稳定中` and `稳定`.
+- Added calm wrong-order hints for scanning before observation, adjusting light before diagnosis and exiting before completion.
+- Added a direct main-menu dev entry for Module 05.
+
+Still out of scope:
+
+- Full crop growth, watering, nutrients or greenhouse management.
+- Harvest, yield, inventory or random plant disease.
+- Magical growth or rapid recovery visuals.

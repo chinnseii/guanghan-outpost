@@ -3546,6 +3546,14 @@ func _setup_main_menu() -> void:
 		get_tree().change_scene_to_file("res://scenes/training/Training_04_LifeSupport.tscn")
 	)
 	box.add_child(life_support_dev)
+	var plant_diagnosis_dev := Button.new()
+	plant_diagnosis_dev.text = "Dev Only: Training Module 05 Plant Diagnosis"
+	plant_diagnosis_dev.custom_minimum_size = Vector2(0, 40)
+	plant_diagnosis_dev.pressed.connect(func():
+		TrainingManagerScript.set_current_module("plant_diagnosis")
+		get_tree().change_scene_to_file("res://scenes/training/Training_05_PlantDiagnosis.tscn")
+	)
+	box.add_child(plant_diagnosis_dev)
 	var assessment_dev := Button.new()
 	assessment_dev.text = "Dev Only: Final Assessment"
 	assessment_dev.custom_minimum_size = Vector2(0, 40)
