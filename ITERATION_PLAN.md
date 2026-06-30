@@ -1114,6 +1114,8 @@ Completed:
 - Added scripted `PressureSimulationStarted`, `PressureStable`, `OuterDoorUnlocked`, `OuterDoorOpen` and `Module02Completed` state updates.
 - Added calm wrong-order hints for trying the outer door or pressure console too early.
 - Updated the HUD pressure status through `未启动`, `稳定中` and `稳定`.
+- Polished Module 02 readability with thicker chamber walls, clearer chamber floor tone, darker exterior simulation floor marks and Chinese `锁定` door labels.
+- Added a room-side pressure display that updates through `舱压：未启动`, `舱压：稳定中` and `舱压：稳定`.
 
 Still out of scope:
 

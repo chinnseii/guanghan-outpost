@@ -45,13 +45,21 @@ class AirlockRoomBlockout:
 		var chamber := Rect2(Vector2(286, 86), Vector2(204, size.y - 172))
 		var exterior := Rect2(Vector2(512, 68), Vector2(size.x - 572, size.y - 136))
 		draw_rect(interior, Color("#1c2833"), true)
-		draw_rect(chamber, Color("#202f3a"), true)
+		draw_rect(chamber, Color("#243541"), true)
 		draw_rect(exterior, Color("#121b24"), true)
 		draw_rect(interior, Color("#5d6f7d"), false, 3.0)
-		draw_rect(chamber, Color("#6f8493"), false, 3.0)
+		draw_rect(chamber, Color("#9aa8b4"), false, 4.0)
+		draw_rect(chamber.grow(-12), Color("#587083", 0.3), false, 2.0)
 		draw_rect(exterior, Color("#5b7180"), false, 3.0)
-		draw_line(Vector2(276, room.position.y + 42), Vector2(276, room.end.y - 42), Color("#405261"), 4.0)
-		draw_line(Vector2(500, room.position.y + 42), Vector2(500, room.end.y - 42), Color("#405261"), 4.0)
+		draw_rect(Rect2(Vector2(268, room.position.y + 42), Vector2(14, room.size.y - 84)), Color("#405261"), true)
+		draw_rect(Rect2(Vector2(494, room.position.y + 42), Vector2(14, room.size.y - 84)), Color("#405261"), true)
+		draw_rect(Rect2(Vector2(272, 210), Vector2(10, 138)), Color("#89d8ff", 0.2), true)
+		draw_rect(Rect2(Vector2(494, 210), Vector2(10, 138)), Color("#89d8ff", 0.2), true)
+		for mark in [Vector2(548, 260), Vector2(620, 340), Vector2(700, 210)]:
+			draw_arc(mark, 14.0, 0.2, 4.8, 18, Color("#6f8493", 0.35), 1.0)
+			draw_line(mark + Vector2(-18, 16), mark + Vector2(22, 9), Color("#6f8493", 0.28), 1.0)
+		draw_rect(Rect2(Vector2(574, 420), Vector2(34, 8)), Color("#6f8493", 0.24), true)
+		draw_rect(Rect2(Vector2(664, 148), Vector2(22, 6)), Color("#6f8493", 0.22), true)
 		for light_x in [100, 340, 590]:
 			var light_rect := Rect2(Vector2(light_x, room.position.y + 16), Vector2(86, 8))
 			draw_rect(light_rect, Color("#87d9ff", 0.38), true)
@@ -69,6 +77,7 @@ class TrainingTargetVisual:
 	var highlighted := false
 	var locked := false
 	var show_trigger_debug := false
+	var status_text := ""
 
 	func _ready() -> void:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -139,7 +148,7 @@ class TrainingTargetVisual:
 		draw_rect(Rect2(Vector2(0, 12), Vector2(6, size.y - 24)), edge, true)
 		draw_rect(Rect2(Vector2(size.x - 6, 12), Vector2(6, size.y - 24)), edge, true)
 		if locked:
-			draw_string(ThemeDB.fallback_font, Vector2(12, size.y * 0.5), "LOCK", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color("#8fa3b2"))
+			draw_string(ThemeDB.fallback_font, Vector2(12, size.y * 0.5), "锁定", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color("#8fa3b2"))
 
 	func _draw_status_display() -> void:
 		draw_rect(Rect2(Vector2.ZERO, size), Color("#1a2b38"), true)
@@ -147,6 +156,8 @@ class TrainingTargetVisual:
 		draw_rect(Rect2(Vector2(12, 14), Vector2(size.x - 24, 5)), Color("#89d8ff", 0.65), true)
 		draw_rect(Rect2(Vector2(12, 30), Vector2(size.x - 42, 4)), Color("#d8e7f2", 0.45), true)
 		draw_rect(Rect2(Vector2(12, 44), Vector2(size.x - 62, 4)), Color("#f0c766", 0.35), true)
+		var text := status_text if not status_text.is_empty() else "舱压：未启动"
+		draw_string(ThemeDB.fallback_font, Vector2(12, size.y - 12), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color("#d8e7f2"))
 
 	func _draw_exit() -> void:
 		var edge := Color("#f0c766", 0.7) if highlighted and not locked else Color("#89d8ff", 0.28)
@@ -157,7 +168,7 @@ class TrainingTargetVisual:
 		draw_rect(Rect2(Vector2(size.x - 14, 18), Vector2(10, size.y - 36)), edge, true)
 		draw_rect(Rect2(Vector2(28, size.y - 20), Vector2(size.x - 56, 4)), Color("#f0c766", 0.55 if highlighted and not locked else 0.18), true)
 		if locked:
-			draw_string(ThemeDB.fallback_font, Vector2(28, size.y * 0.5), "LOCK", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color("#8fa3b2"))
+			draw_string(ThemeDB.fallback_font, Vector2(28, size.y * 0.5), "锁定", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color("#8fa3b2"))
 
 	func _draw_generic() -> void:
 		draw_rect(Rect2(Vector2.ZERO, size), Color("#2a3a45"), true)
@@ -601,6 +612,8 @@ func _update_room_prompt() -> void:
 			node.locked = _target_locked(String(node.name), target_id)
 			node.modulate = Color(1, 1, 1, 1) if node.highlighted else Color(0.72, 0.78, 0.84, 0.72)
 			node.show_trigger_debug = show_trigger_debug and node.kind == "marker"
+			if module_id == "airlock_procedure" and node.name == "pressure_display":
+				node.status_text = "舱压：%s" % _airlock_pressure_status()
 			node.queue_redraw()
 	if completed or step.is_empty():
 		prompt_label.visible = false
@@ -686,13 +699,16 @@ func _suit_control_hint(step: Dictionary) -> String:
 	return "请按当前目标执行训练流程。"
 
 func _airlock_hud_text() -> String:
-	var state: Dictionary = module_data.get("state", {})
-	var pressure_status := "未启动"
-	if bool(state.get("PressureStable", false)):
-		pressure_status = "稳定"
-	elif bool(state.get("PressureSimulationStarted", false)):
-		pressure_status = "稳定中"
+	var pressure_status := _airlock_pressure_status()
 	return "氧气模拟值：98%%\n电力模拟值：稳定\n舱压状态：%s\n提示信息：按当前流程执行。" % pressure_status
+
+func _airlock_pressure_status() -> String:
+	var state: Dictionary = module_data.get("state", {})
+	if bool(state.get("PressureStable", false)):
+		return "稳定"
+	if bool(state.get("PressureSimulationStarted", false)):
+		return "稳定中"
+	return "未启动"
 
 func _airlock_hint(step: Dictionary) -> String:
 	match String(step.get("target", "")):

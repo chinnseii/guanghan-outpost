@@ -477,3 +477,4 @@ Scope note:
 - Wrong-order actions show calm procedural hints instead of failure or damage.
 - HUD now reports airlock pressure status as `未启动 / 稳定中 / 稳定`.
 - This remains a training simulation only; no real oxygen consumption, decompression damage or full EVA system was added.
+- Module 02 polish: chamber walls are thicker, the chamber floor tone is clearer, door locks use `锁定`, and the pressure display now shows `舱压：未启动 / 稳定中 / 稳定`.
