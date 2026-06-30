@@ -2,9 +2,9 @@
 
 一个用于逐步迭代的 Godot 4 月球基地农业生存原型。
 
-## 当前版本：V0.31 月面作业体验
+## 当前版本：V0.4-dev 主菜单与训练流程
 
-当前主线版本开始打磨“出舱前要想清楚去哪”的玩法体验：出舱任务面板升级为 V2，会按建议顺序显示回收补给、采集水冰、清理太阳能板、维修外部设备和回储物柜入库；每个任务会显示距离、风险和需要的工具；目标追踪支持在多个任务点之间切换。V0.31A 素材规范和脚本拆分准备作为并行副线保留记录。
+当前主线版本把正式玩家入口和开发入口分离：启动后进入 MAIN-001 风格的安静标题屏，正常菜单只显示申请、继续、档案、设置和退出；所有测试入口移动到 F12 开发菜单。Sprint 04 国家训练序列已经包含五个脚本训练模块、最终考核、任务派遣通知和接受派遣后的黑屏到抵达淡入流程。
 
 ## 当前方向更新
 
@@ -445,7 +445,7 @@ Implemented:
 - There is no temporary launch/transfer placeholder in the normal player flow.
 - Temporary decline keeps the candidate file and returns to the menu.
 - Training progress is saved to `user://saves/training_progress.json` and `Continue Mission` routes to the current training state.
-- Dev Only menu entries are available for Training Start, Final Assessment, Mission Assignment Notice, reset training progress and Arrival Cinematic.
+- F12 Dev Menu entries are available for Training Start, Final Assessment, Mission Assignment Notice, reset training progress and Arrival Cinematic.
 
 Scope note:
 
@@ -487,7 +487,7 @@ Scope note:
 - The staged flow is scripted: get repair tool, inspect the damaged panel, repair the panel, restart power, observe the test light and exit to the next module.
 - HUD power state updates through `故障 / 维修中 / 稳定`.
 - Wrong-order actions show calm procedural hints; there is no failure screen or punishment.
-- Main menu now includes `Dev Only: Training Module 03 Power Repair` for direct testing.
+- F12 Dev Menu includes `Dev Only: Training Module 03` for direct testing.
 - Module 03 acceptance polish strengthens restored-power feedback, clarifies the damaged panel warning read and updates the exit hint copy.
 - This remains a scripted training simulation only; no full electrical grid, tool inventory, durability or repair minigame was added.
 
@@ -498,7 +498,7 @@ Scope note:
 - The staged flow is scripted: open console, read four simulated statuses, start stabilization, wait for stable life support, confirm the environment and exit to Module 05.
 - HUD life-support state updates through `未稳定 / 稳定中 / 稳定`, with oxygen and temperature starting low.
 - Wrong-order actions show calm procedural hints; there is no failure screen or punishment.
-- Main menu now includes `Dev Only: Training Module 04 Life Support` for direct testing.
+- F12 Dev Menu includes `Dev Only: Training Module 04` for direct testing.
 - This remains a scripted training simulation only; no full oxygen, water, temperature or base-wide life support model was added.
 
 ## Sprint 04 Module 05: Plant Diagnosis
@@ -508,7 +508,7 @@ Scope note:
 - The staged flow is scripted: observe plant, scan plant, choose diagnosis, adjust grow light, wait for plant status stability and exit to final assessment.
 - HUD plant state updates through `异常 / 稳定中 / 稳定`.
 - Wrong diagnosis gives calm feedback and asks the player to re-check scan information.
-- Main menu now includes `Dev Only: Training Module 05 Plant Diagnosis` for direct testing.
+- F12 Dev Menu includes `Dev Only: Training Module 05` for direct testing.
 - This remains a scripted diagnosis module only; no crop growth, watering, nutrients, harvest or greenhouse management system was added.
 
 ## Sprint 04 Final Assessment
@@ -528,3 +528,14 @@ Scope note:
 - `OpeningFlowStage` is saved as `AssignmentBlackScreen` when the player accepts and `AwaitingArrivalCinematic` before loading the arrival cinematic.
 - Future launch, Earth-Moon transfer and landing scenes are intentionally not represented by fake placeholder text or temporary rocket animation.
 - The flow code contains a TODO for inserting `LaunchSequenceScene`, `EarthMoonTransferScene` and `LandingSequenceScene` once the art direction is ready.
+
+## MAIN-001 Title Screen & Main Menu Patch
+
+- Startup now opens to a clean `MainMenu` title screen instead of showing the survival sandbox HUD behind the menu.
+- The title screen shows `广寒前哨 / GUANGHAN OUTPOST` and `让生命，在从未存在生命的地方生长。`.
+- Normal player buttons are limited to `申请加入广寒计划`, `继续任务`, `档案`, `设置` and `退出`.
+- `继续任务` is disabled when no training progress or sandbox save exists.
+- `申请加入广寒计划` starts the Sprint 03 application flow.
+- All development shortcuts are hidden behind `F12` in `开发菜单 / DEV MENU`.
+- The title screen uses a scripted deep-space, Earth, lunar horizon and distant outpost-light background based on `docs/art/MAIN-001`.
+- Gameplay HUD, resource bars, task log, controls, minimap-style panels and save-slot controls are hidden on the title screen.

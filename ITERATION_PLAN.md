@@ -1259,3 +1259,33 @@ Still out of scope:
 - Fake launch text.
 - Temporary rocket animation.
 - Development placeholder text in the normal player flow.
+
+## MAIN-001 Title Screen & Main Menu Patch
+
+Status: complete.
+
+Completed:
+
+- Replaced the old debug-dashboard startup menu with a full-screen MAIN-001 style title screen.
+- Added scripted title background: deep black space, Earth, lunar horizon and distant Guanghan Outpost warm lights.
+- Added official title copy:
+  - `广寒前哨`
+  - `GUANGHAN OUTPOST`
+  - `让生命，在从未存在生命的地方生长。`
+- Normal player menu now shows only:
+  - `申请加入广寒计划`
+  - `继续任务`
+  - `档案`
+  - `设置`
+  - `退出`
+- `申请加入广寒计划` starts the Sprint 03 application flow.
+- `继续任务` is disabled unless training progress or a sandbox save exists.
+- Development shortcuts are hidden behind F12 in `开发菜单 / DEV MENU`.
+- Gameplay HUD is hidden on the title screen, including resource bars, task log, controls, save-slot controls and sandbox UI panels.
+- Starting or loading the sandbox restores the gameplay HUD.
+
+Still out of scope:
+
+- Final title art.
+- Fully implemented archive/settings pages.
+- Replacing scripted background with a polished bitmap/menu scene.

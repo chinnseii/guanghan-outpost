@@ -11,7 +11,7 @@ func set_hud_visible(visible: bool) -> void:
 	if not is_instance_valid(root):
 		return
 	for child in root.get_children():
-		if child is CanvasItem and String(child.name) not in ["MainMenu", "FadeLayer"]:
+		if child is CanvasItem and String(child.name) not in ["MainMenu", "DevMenu", "FadeLayer"]:
 			(child as CanvasItem).visible = visible
 
 func show_prompt(text: String) -> void:

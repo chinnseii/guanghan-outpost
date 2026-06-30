@@ -23,6 +23,44 @@ const UIManagerScript := preload("res://scripts/ui_manager.gd")
 const EventManagerScript := preload("res://scripts/event_manager.gd")
 const AudioManagerScript := preload("res://scripts/audio_manager.gd")
 
+class TitleScreenBackground:
+	extends Control
+
+	func _draw() -> void:
+		var rect: Rect2 = Rect2(Vector2.ZERO, size)
+		draw_rect(rect, Color("#020711"), true)
+		for i in range(86):
+			var x: float = fposmod(float(i * 197), max(size.x, 1.0))
+			var y: float = fposmod(float(i * 89), max(size.y * 0.7, 1.0))
+			var alpha: float = 0.22 + float(i % 5) * 0.08
+			draw_circle(Vector2(x, y), 1.0 + float(i % 3) * 0.45, Color("#d8e7f2", alpha))
+		var earth_center: Vector2 = Vector2(size.x * 0.73, size.y * 0.28)
+		var earth_radius: float = min(size.x, size.y) * 0.095
+		draw_circle(earth_center, earth_radius * 1.2, Color("#73b7ff", 0.06))
+		draw_circle(earth_center, earth_radius, Color("#214c75"))
+		draw_circle(earth_center + Vector2(-earth_radius * 0.22, -earth_radius * 0.1), earth_radius * 0.55, Color("#8ec7ff", 0.68))
+		draw_arc(earth_center + Vector2(-earth_radius * 0.15, earth_radius * 0.08), earth_radius * 0.72, 3.4, 6.0, 48, Color("#e8f3ff", 0.62), 5.0)
+		draw_circle(earth_center + Vector2(earth_radius * 0.38, -earth_radius * 0.22), earth_radius * 0.28, Color("#02101c", 0.28))
+		draw_circle(earth_center + Vector2(earth_radius * 0.26, -earth_radius * 0.12), earth_radius * 0.16, Color("#cfe9ff", 0.28))
+		var horizon_y: float = size.y * 0.7
+		var points := PackedVector2Array()
+		points.append(Vector2(0, size.y))
+		for i in range(17):
+			var x: float = size.x * float(i) / 16.0
+			var ridge: float = sin(float(i) * 1.17) * 24.0 + sin(float(i) * 2.31) * 10.0
+			points.append(Vector2(x, horizon_y + ridge))
+		points.append(Vector2(size.x, size.y))
+		draw_colored_polygon(points, Color("#151c24"))
+		for i in range(11):
+			var x: float = size.x * (0.52 + float(i) * 0.035)
+			var base_y: float = horizon_y + 18.0 + sin(float(i)) * 10.0
+			draw_rect(Rect2(Vector2(x, base_y - 28.0), Vector2(18.0, 28.0)), Color("#2b333b"), true)
+			draw_rect(Rect2(Vector2(x + 5.0, base_y - 16.0), Vector2(7.0, 6.0)), Color("#f0c766", 0.72), true)
+			draw_line(Vector2(x + 9.0, base_y - 30.0), Vector2(x + 9.0, base_y - 58.0), Color("#5d6f7d", 0.6), 1.0)
+			draw_circle(Vector2(x + 9.0, base_y - 58.0), 2.0, Color("#d66a4f", 0.75))
+		draw_rect(Rect2(Vector2.ZERO, size), Color("#00050c", 0.28), true)
+		draw_rect(rect.grow(-22), Color("#31414d", 0.35), false, 1.0)
+
 var day := 1
 var is_moon_night := false
 var game_over := false
@@ -32,6 +70,7 @@ var next_supply_request_day := 1
 var supply_travel_days := 3
 var current_save_slot := 1
 var pending_main_menu := true
+var dev_menu_visible := false
 
 var player_pos := Vector2(300, 420)
 var player_radius := 14.0
@@ -494,6 +533,11 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_F12:
+		_toggle_dev_menu()
+		return
+	if pending_main_menu:
+		return
 	if event.is_action_pressed("save_game"):
 		_save_game()
 	if event.is_action_pressed("load_game"):
@@ -2270,6 +2314,10 @@ func _load_game() -> void:
 	pending_main_menu = false
 	if has_node("UI/Root/MainMenu"):
 		$UI/Root/MainMenu.visible = false
+	if has_node("UI/Root/DevMenu"):
+		$UI/Root/DevMenu.visible = false
+	dev_menu_visible = false
+	_set_gameplay_hud_visible(true)
 	if is_instance_valid(game_state_manager) and game_state_manager.has_method("change_state"):
 		game_state_manager.call("change_state", GameStateManagerScript.MOON_SURFACE)
 	_play_ui_tone(760.0, 0.08, 0.07)
@@ -2283,6 +2331,10 @@ func _start_new_game() -> void:
 	pending_main_menu = false
 	if has_node("UI/Root/MainMenu"):
 		$UI/Root/MainMenu.visible = false
+	if has_node("UI/Root/DevMenu"):
+		$UI/Root/DevMenu.visible = false
+	dev_menu_visible = false
+	_set_gameplay_hud_visible(true)
 	if is_instance_valid(game_state_manager) and game_state_manager.has_method("change_state"):
 		game_state_manager.call("change_state", GameStateManagerScript.MOON_SURFACE)
 	if is_instance_valid(time_manager) and time_manager.has_method("set_time"):
@@ -3457,149 +3509,230 @@ func _eva_risk_text() -> String:
 	return _join_strings(risks, " / ") if not risks.is_empty() else "nominal"
 
 func _setup_main_menu() -> void:
-	var menu := PanelContainer.new()
+	var menu := Control.new()
 	menu.name = "MainMenu"
-	menu.position = Vector2(470, 70)
-	menu.size = Vector2(660, 800)
+	menu.set_anchors_preset(Control.PRESET_FULL_RECT)
 	$UI/Root.add_child(menu)
+
+	var background := TitleScreenBackground.new()
+	background.name = "TitleBackground"
+	background.set_anchors_preset(Control.PRESET_FULL_RECT)
+	menu.add_child(background)
+
+	var agency := Label.new()
+	agency.text = "国家深空生命科学中心\nNATIONAL DEEP SPACE\nLIFE SCIENCE CENTER"
+	agency.position = Vector2(86, 42)
+	agency.size = Vector2(360, 86)
+	agency.modulate = Color("#9fb4c4", 0.86)
+	agency.add_theme_font_size_override("font_size", 15)
+	menu.add_child(agency)
+
+	var version := Label.new()
+	version.text = "v0.4-dev"
+	version.position = Vector2(1468, 50)
+	version.size = Vector2(100, 28)
+	version.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	version.modulate = Color("#9fb4c4", 0.76)
+	version.add_theme_font_size_override("font_size", 16)
+	menu.add_child(version)
+
 	var box := VBoxContainer.new()
 	box.name = "Box"
+	box.position = Vector2(132, 176)
+	box.size = Vector2(590, 570)
 	box.add_theme_constant_override("separation", 10)
 	menu.add_child(box)
+
 	var title := Label.new()
 	title.text = "广寒前哨"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 34)
+	title.modulate = Color("#eef5fb")
+	title.add_theme_font_size_override("font_size", 76)
 	box.add_child(title)
+
+	var english_title := Label.new()
+	english_title.text = "GUANGHAN OUTPOST"
+	english_title.modulate = Color("#a7bed1")
+	english_title.add_theme_font_size_override("font_size", 25)
+	box.add_child(english_title)
+
 	var subtitle := Label.new()
-	subtitle.text = "月球生存、温室种植与基地扩建模拟"
-	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	subtitle.text = "让生命，在从未存在生命的地方生长。"
+	subtitle.custom_minimum_size = Vector2(0, 70)
+	subtitle.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	subtitle.modulate = Color("#d8e7f2", 0.9)
+	subtitle.add_theme_font_size_override("font_size", 22)
 	box.add_child(subtitle)
-	var apply := Button.new()
-	apply.text = "Apply to Project Guanghan"
-	apply.custom_minimum_size = Vector2(0, 44)
-	apply.pressed.connect(func():
-		get_tree().change_scene_to_file("res://scenes/application/ApplicationStartScene.tscn")
-	)
-	box.add_child(apply)
-	var continue_mission := Button.new()
-	continue_mission.text = "Continue Mission"
-	continue_mission.custom_minimum_size = Vector2(0, 40)
-	continue_mission.pressed.connect(func():
-		get_tree().change_scene_to_file(TrainingManagerScript.continue_scene_path())
-	)
-	box.add_child(continue_mission)
-	var archive_label := Label.new()
-	archive_label.text = "Archives"
-	archive_label.modulate = Color("#d8e7f2", 0.82)
-	box.add_child(archive_label)
-	for slot in range(1, SAVE_SLOTS + 1):
-		var row := HBoxContainer.new()
-		row.name = "SlotRow%d" % slot
-		box.add_child(row)
-		var choose := Button.new()
-		choose.name = "Slot%d" % slot
-		choose.custom_minimum_size = Vector2(380, 40)
-		choose.pressed.connect(_select_save_slot.bind(slot))
-		row.add_child(choose)
-		var load := Button.new()
-		load.text = "读取"
-		load.pressed.connect(func():
-			current_save_slot = slot
-			_load_game()
-		)
-		row.add_child(load)
-	var start := Button.new()
-	start.text = "从当前槽开始新任务"
-	start.custom_minimum_size = Vector2(0, 44)
-	start.text = "Dev Only: Start Survival Sandbox"
-	start.pressed.connect(_start_new_game)
-	box.add_child(start)
-	var arrival_dev := Button.new()
-	arrival_dev.text = "Dev Entry: Arrival Cinematic"
-	arrival_dev.custom_minimum_size = Vector2(0, 40)
-	arrival_dev.text = "Dev Only: Arrival Cinematic"
-	arrival_dev.pressed.connect(func():
-		get_tree().change_scene_to_file("res://scenes/arrival/ArrivalCinematicScene.tscn")
-	)
-	box.add_child(arrival_dev)
-	var training_dev := Button.new()
-	training_dev.text = "Dev Only: Training Start"
-	training_dev.custom_minimum_size = Vector2(0, 40)
-	training_dev.pressed.connect(func():
-		get_tree().change_scene_to_file("res://scenes/training/TrainingStartScene.tscn")
-	)
-	box.add_child(training_dev)
-	var power_repair_dev := Button.new()
-	power_repair_dev.text = "Dev Only: Training Module 03 Power Repair"
-	power_repair_dev.custom_minimum_size = Vector2(0, 40)
-	power_repair_dev.pressed.connect(func():
+
+	box.add_child(_make_title_button("申请加入广寒计划", _start_application_flow, true))
+	box.add_child(_make_title_button("继续任务", _continue_mission, _has_continue_mission()))
+	box.add_child(_make_title_button("档案", _show_archive_placeholder, true))
+	box.add_child(_make_title_button("设置", _show_settings_placeholder, true))
+	box.add_child(_make_title_button("退出", func(): get_tree().quit(), true))
+
+	var menu_notice := Label.new()
+	menu_notice.name = "MenuNotice"
+	menu_notice.custom_minimum_size = Vector2(0, 42)
+	menu_notice.modulate = Color("#9fb4c4", 0.78)
+	menu_notice.add_theme_font_size_override("font_size", 15)
+	box.add_child(menu_notice)
+
+	var footer := Label.new()
+	footer.text = "项目代号：广寒计划 | GH-OUTPOST-001"
+	footer.position = Vector2(54, 856)
+	footer.size = Vector2(520, 24)
+	footer.modulate = Color("#6f8493", 0.62)
+	footer.add_theme_font_size_override("font_size", 13)
+	menu.add_child(footer)
+
+	var dev_hint := Label.new()
+	dev_hint.text = "提示：在游戏中按 F12 可打开开发菜单"
+	dev_hint.position = Vector2(1180, 856)
+	dev_hint.size = Vector2(360, 24)
+	dev_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	dev_hint.modulate = Color("#86a9c4", 0.72)
+	dev_hint.add_theme_font_size_override("font_size", 13)
+	menu.add_child(dev_hint)
+
+	_setup_dev_menu()
+	_set_gameplay_hud_visible(false)
+	_refresh_main_menu()
+
+func _make_title_button(text: String, callback: Callable, enabled: bool) -> Button:
+	var button := Button.new()
+	button.text = text
+	button.custom_minimum_size = Vector2(0, 62)
+	button.disabled = not enabled
+	button.add_theme_font_size_override("font_size", 24)
+	if enabled:
+		button.pressed.connect(callback)
+	return button
+
+func _setup_dev_menu() -> void:
+	var panel := PanelContainer.new()
+	panel.name = "DevMenu"
+	panel.visible = false
+	panel.position = Vector2(1010, 96)
+	panel.size = Vector2(430, 620)
+	$UI/Root.add_child(panel)
+	var box := VBoxContainer.new()
+	box.name = "Box"
+	box.add_theme_constant_override("separation", 8)
+	panel.add_child(box)
+	var title := Label.new()
+	title.text = "开发菜单 / DEV MENU"
+	title.add_theme_font_size_override("font_size", 24)
+	title.modulate = Color("#eaf4ff")
+	box.add_child(title)
+	var note := Label.new()
+	note.text = "仅用于本地测试。F12 显示/隐藏。"
+	note.modulate = Color("#9fb4c4")
+	box.add_child(note)
+	box.add_child(_make_dev_button("Dev Only: Start Survival Sandbox", _start_new_game))
+	box.add_child(_make_dev_button("Dev Only: Arrival Cinematic", func(): get_tree().change_scene_to_file("res://scenes/arrival/ArrivalCinematicScene.tscn")))
+	box.add_child(_make_dev_button("Dev Only: Arrival Landing", func(): get_tree().change_scene_to_file("res://scenes/arrival/ArrivalLandingScene.tscn")))
+	box.add_child(_make_dev_button("Dev Only: Training Start", func(): get_tree().change_scene_to_file("res://scenes/training/TrainingStartScene.tscn")))
+	box.add_child(_make_dev_button("Dev Only: Training Module 01", func():
+		TrainingManagerScript.set_current_module("suit_control")
+		get_tree().change_scene_to_file("res://scenes/training/Training_01_SuitControl.tscn")
+	))
+	box.add_child(_make_dev_button("Dev Only: Training Module 02", func():
+		TrainingManagerScript.set_current_module("airlock_procedure")
+		get_tree().change_scene_to_file("res://scenes/training/Training_02_AirlockProcedure.tscn")
+	))
+	box.add_child(_make_dev_button("Dev Only: Training Module 03", func():
 		TrainingManagerScript.set_current_module("power_repair")
 		get_tree().change_scene_to_file("res://scenes/training/Training_03_PowerRepair.tscn")
-	)
-	box.add_child(power_repair_dev)
-	var life_support_dev := Button.new()
-	life_support_dev.text = "Dev Only: Training Module 04 Life Support"
-	life_support_dev.custom_minimum_size = Vector2(0, 40)
-	life_support_dev.pressed.connect(func():
+	))
+	box.add_child(_make_dev_button("Dev Only: Training Module 04", func():
 		TrainingManagerScript.set_current_module("life_support")
 		get_tree().change_scene_to_file("res://scenes/training/Training_04_LifeSupport.tscn")
-	)
-	box.add_child(life_support_dev)
-	var plant_diagnosis_dev := Button.new()
-	plant_diagnosis_dev.text = "Dev Only: Training Module 05 Plant Diagnosis"
-	plant_diagnosis_dev.custom_minimum_size = Vector2(0, 40)
-	plant_diagnosis_dev.pressed.connect(func():
+	))
+	box.add_child(_make_dev_button("Dev Only: Training Module 05", func():
 		TrainingManagerScript.set_current_module("plant_diagnosis")
 		get_tree().change_scene_to_file("res://scenes/training/Training_05_PlantDiagnosis.tscn")
-	)
-	box.add_child(plant_diagnosis_dev)
-	var assessment_dev := Button.new()
-	assessment_dev.text = "Dev Only: Final Assessment"
-	assessment_dev.custom_minimum_size = Vector2(0, 40)
-	assessment_dev.pressed.connect(func():
+	))
+	box.add_child(_make_dev_button("Dev Only: Final Assessment", func():
 		TrainingManagerScript.set_current_module("final_assessment")
 		get_tree().change_scene_to_file("res://scenes/training/FinalAssessmentScene.tscn")
-	)
-	box.add_child(assessment_dev)
-	var notice_dev := Button.new()
-	notice_dev.text = "Dev Only: Mission Assignment Notice"
-	notice_dev.custom_minimum_size = Vector2(0, 40)
-	notice_dev.pressed.connect(func():
+	))
+	box.add_child(_make_dev_button("Dev Only: Mission Assignment Notice", func():
 		TrainingManagerScript.mark_module_completed("final_assessment", "mission_assignment")
 		get_tree().change_scene_to_file("res://scenes/training/MissionAssignmentNoticeScene.tscn")
-	)
-	box.add_child(notice_dev)
-	var reset_training_dev := Button.new()
-	reset_training_dev.text = "Dev Only: Reset Training Progress"
-	reset_training_dev.custom_minimum_size = Vector2(0, 40)
-	reset_training_dev.pressed.connect(func():
+	))
+	box.add_child(_make_dev_button("Dev Only: Reset Training Progress", func():
 		TrainingManagerScript.reset_progress()
 		add_log("Training progress reset.")
-	)
-	box.add_child(reset_training_dev)
-	var settings := Button.new()
-	settings.text = "Settings"
-	settings.custom_minimum_size = Vector2(0, 36)
-	settings.pressed.connect(func():
-		add_log("Settings page is not available in this prototype.")
-	)
-	box.add_child(settings)
-	var exit_button := Button.new()
-	exit_button.text = "Exit"
-	exit_button.custom_minimum_size = Vector2(0, 36)
-	exit_button.pressed.connect(func():
-		get_tree().quit()
-	)
-	box.add_child(exit_button)
-	var close := Button.new()
-	close.text = "继续当前模拟"
-	close.pressed.connect(func():
-		pending_main_menu = false
-		menu.visible = false
-		_update_ui()
-	)
-	box.add_child(close)
+		_refresh_main_menu()
+	))
+	box.add_child(_make_dev_button("Dev Only: Clear Save", _clear_current_save))
+
+func _make_dev_button(text: String, callback: Callable) -> Button:
+	var button := Button.new()
+	button.text = text
+	button.custom_minimum_size = Vector2(0, 36)
+	button.pressed.connect(callback)
+	return button
+
+func _toggle_dev_menu() -> void:
+	if not has_node("UI/Root/DevMenu"):
+		return
+	dev_menu_visible = not dev_menu_visible
+	var panel: CanvasItem = $UI/Root/DevMenu
+	panel.visible = dev_menu_visible
+
+func _set_gameplay_hud_visible(visible: bool) -> void:
+	if is_instance_valid(ui_manager) and ui_manager.has_method("set_hud_visible"):
+		ui_manager.call("set_hud_visible", visible)
+
+func _start_application_flow() -> void:
+	get_tree().change_scene_to_file("res://scenes/application/ApplicationStartScene.tscn")
+
+func _continue_mission() -> void:
+	var progress := TrainingManagerScript.load_progress()
+	if _training_has_progress(progress):
+		get_tree().change_scene_to_file(TrainingManagerScript.continue_scene_path())
+		return
+	var latest_slot := _latest_save_slot()
+	if latest_slot > 0:
+		current_save_slot = latest_slot
+		_load_game()
+		return
+	add_log("没有可继续的任务档案。")
+	_refresh_main_menu()
+
+func _has_continue_mission() -> bool:
+	return _training_has_progress(TrainingManagerScript.load_progress()) or _latest_save_slot() > 0
+
+func _training_has_progress(progress: Dictionary) -> bool:
+	return bool(progress.get("TrainingStarted", false)) or bool(progress.get("FinalAssessmentCompleted", false)) or bool(progress.get("MissionAssignmentAccepted", false))
+
+func _latest_save_slot() -> int:
+	for slot in range(1, SAVE_SLOTS + 1):
+		if FileAccess.file_exists(_save_path(slot)):
+			return slot
+	return 0
+
+func _show_archive_placeholder() -> void:
+	_set_title_menu_notice("档案系统将在后续版本开放。")
+	add_log("档案页将在后续版本开放。")
+
+func _show_settings_placeholder() -> void:
+	_set_title_menu_notice("设置系统将在后续版本开放。")
+	add_log("设置页将在后续版本开放。")
+
+func _set_title_menu_notice(text: String) -> void:
+	if has_node("UI/Root/MainMenu/Box/MenuNotice"):
+		var label: Label = $UI/Root/MainMenu/Box/MenuNotice
+		label.text = text
+
+func _clear_current_save() -> void:
+	var path := _save_path(current_save_slot)
+	if FileAccess.file_exists(path):
+		var absolute_path := ProjectSettings.globalize_path(path)
+		DirAccess.remove_absolute(absolute_path)
+		add_log("Dev: cleared save slot %d." % current_save_slot)
+	else:
+		add_log("Dev: save slot %d is already empty." % current_save_slot)
 	_refresh_main_menu()
 
 func _select_crop(crop_name: String) -> void:
@@ -4036,12 +4169,9 @@ func _external_repair_target_pos() -> Vector2:
 func _refresh_main_menu() -> void:
 	if not has_node("UI/Root/MainMenu/Box"):
 		return
-	for slot in range(1, SAVE_SLOTS + 1):
-		var button_path := "UI/Root/MainMenu/Box/SlotRow%d/Slot%d" % [slot, slot]
-		if has_node(button_path):
-			var button: Button = get_node(button_path)
-			var marker := ">" if slot == current_save_slot else " "
-			button.text = "%s 存档槽 %d：%s" % [marker, slot, _slot_summary(slot)]
+	for child in $UI/Root/MainMenu/Box.get_children():
+		if child is Button and String(child.text).begins_with("继续任务"):
+			(child as Button).disabled = not _has_continue_mission()
 
 func _tech_button_text(tech_id: String) -> String:
 	var tech: Dictionary = tech_defs[tech_id]
