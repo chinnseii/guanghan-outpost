@@ -1289,3 +1289,105 @@ Still out of scope:
 - Final title art.
 - Fully implemented archive/settings pages.
 - Replacing scripted background with a polished bitmap/menu scene.
+
+## Sprint 05A Vertical Slice Polish Triage
+
+Status: complete.
+
+Completed:
+
+- Fixed the application candidate file status flow:
+  - Filling application: `待提交`.
+  - After submit: `审核中`.
+  - After preliminary review: `已通过资格初审`.
+  - During training: `训练序列中`.
+  - After final assessment: `已通过最终考核`.
+  - After moon assignment accepted: `已接受月面派遣`.
+- Added compatibility for old saves that still contain `已通过初步评估`.
+- Updated the review processing page to show the intended sequential steps and removed the extra mission archive lookup step.
+- Added a short hold after the final review processing step so all review lines are readable before the notice transition.
+- Added document metadata to Preliminary Eligibility Review and Mission Assignment Notice: document number, candidate name, status, issuing organization and date.
+- Kept Mission Assignment Notice date consistent with the current application date: `2068-04-12`.
+- Re-laid out Final Assessment so the power, life support, plant chamber and assessment terminal areas are visually separated.
+- Reduced ArrivalCinematic HUD presence, removed the normal-flow debug-like gaze line, made Earth smaller/brighter/colder, increased distant base warm-light readability and made the player feel smaller on the lunar surface.
+- Delayed the base-entry prompt during Earth observation until the observation text has faded.
+- Lightly unified training module locked-door treatment and label sizing.
+- Added reusable acceptance screenshot tool: `tools/capture_acceptance.gd`.
+
+Still out of scope:
+
+- New story content.
+- First plant sequence.
+- Crop or survival-system expansion.
+- Launch sequence, transfer scene or landing animation.
+
+## Sprint 06 Old Base & Last Plant
+
+Status: v0.1 accepted after acceptance polish.
+
+Completed:
+
+- Added Sprint 06 design document at `docs/sprints/SPRINT_06_OLD_BASE_AND_LAST_PLANT.md`.
+- Added `scripts/base/sprint06_base_scene.gd` as a focused scripted vertical-slice scene controller.
+- Added scenes:
+  - `scenes/base/BaseAirlockEntryScene.tscn`
+  - `scenes/base/OldBaseInteriorScene.tscn`
+  - `scenes/base/OldGreenhouseScene.tscn`
+  - `scenes/base/Day01EndScene.tscn`
+- Routed `ArrivalCinematicScene` and `ArrivalLandingScene` into the Sprint 06 base airlock flow.
+- Added scripted base airlock sequence with outer door close, pressure build, oxygen exchange and inner door unlock.
+- Added restrained first AI base line: `欢迎回来。` followed by `广寒前哨，等待新的开拓者，已经很久了。`
+- Added old base first room blockout with central console, old power panel, power restart console, life support console, greenhouse door, storage lockers and small lived-in details.
+- Added central console state summary and previous pioneer log fragment `17-A`.
+- Added scripted basic power restoration with lighting feedback.
+- Added scripted minimal life support restoration and greenhouse unlock.
+- Added old greenhouse blockout with dead hydroponic racks, plant monitor, diagnosis terminal, water panel, grow light and central last plant chamber.
+- Added last plant discovery, diagnosis, grow-light restoration, partial water cycle restoration and stabilization from `Critical` to `Stable`.
+- Added Day 01 End room and rest interaction.
+- Added Sprint 06 save state at `user://saves/sprint06_progress.json`.
+- Updated continue mission logic to resume Sprint 06 scenes based on saved progress.
+- Added Sprint 06 dev menu entries.
+- Updated `tools/capture_acceptance.gd` to generate Sprint 06 acceptance screenshots in `docs/screenshots/sprint06_acceptance/`.
+- Acceptance polish:
+  - Base airlock now has readable inner/outer door shapes, three-step pressure status lights and safer text placement.
+  - Old base room now has additional restrained lived-in details: bay ID, maintenance sticker, locker label, dust/footprints and log marker.
+  - Last plant `Critical` and `Stable` states now differ through plant color, leaf posture, chamber light, grow light and monitor status.
+  - Day 01 End room now reads more like the first night in the old base, with a clearer rest pod, small warm light, Earth window and personal details.
+
+Still out of scope:
+
+- Full base-building.
+- Full crop growth or harvest systems.
+- Inventory economy.
+- Residents.
+- Tech tree.
+- Robot automation.
+- Full life-support or electrical simulation.
+
+## Sprint 07 Day 02 First Routine & Earth Report
+
+Status: first playable pass complete.
+
+Completed:
+
+- Added Sprint 07 design document at `docs/sprints/SPRINT_07_DAY02_ROUTINE_EARTH_REPORT.md`.
+- Added `Day02StartScene` and `Day02EndScene`.
+- Day 01 rest now transitions into the Day 02 morning sequence.
+- Added restrained morning AI status briefing.
+- Added Day 02 HUD checklist without introducing a full quest system.
+- Added daily inspections for power, life support, water cycle and the last plant.
+- Added Earth report terminal, report preview, send flow and ground acknowledgement.
+- Added Day 02 end/rest flow.
+- Added Day 02 save fields to the existing Sprint 06 progress save.
+- Updated continue-mission routing for Day 02 states.
+- Added Day 02 developer menu entries.
+- Updated the acceptance screenshot tool to output Sprint 07 screenshots in `docs/screenshots/sprint07_acceptance/`.
+
+Still out of scope:
+
+- Full time system.
+- Full resource consumption.
+- Full crop growth or harvest systems.
+- Full communications system.
+- Base-building, residents, tech tree, automation or mining.
+- Formal Day 03 gameplay.

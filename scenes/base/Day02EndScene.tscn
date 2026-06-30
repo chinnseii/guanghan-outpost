@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/base/sprint06_base_scene.gd" id="1_base"]
+
+[node name="Day02EndScene" type="Node2D"]
+script = ExtResource("1_base")
+scene_kind = "day02_end"

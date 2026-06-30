@@ -41,6 +41,16 @@ func _build_notice() -> void:
 	notice_panel.add_theme_constant_override("separation", 16)
 	panel.add_child(notice_panel)
 
+	var meta := Label.new()
+	meta.text = "文书编号：GHO-MA-2068-0412\n候选人：%s\n档案状态：已通过最终考核\n签发单位：广寒计划任务委员会\n签发日期：2068-04-12" % TrainingManagerScript.player_name()
+	meta.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	meta.modulate = Color("#9fb2c0")
+	meta.add_theme_font_size_override("font_size", 16)
+	notice_panel.add_child(meta)
+
+	var separator := HSeparator.new()
+	notice_panel.add_child(separator)
+
 	var body := Label.new()
 	body.text = "致 %s：\n\n你已完成国家深空生命科学中心训练序列，\n并通过最终考核。\n\n经广寒计划任务委员会确认，\n你将被派往月球 · 广寒前哨，\n执行长期驻留与生命支持建设任务。\n\n任务地点：月球 · 广寒前哨\n任务类型：长期驻留 / 生命支持建设\n任务身份：常驻开拓者\n\n广寒前哨已经等待新的开拓者很久了。" % TrainingManagerScript.player_name()
 	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

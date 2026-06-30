@@ -6,6 +6,7 @@ const TimeManagerScript := preload("res://scripts/time_manager.gd")
 const EventManagerScript := preload("res://scripts/event_manager.gd")
 const AudioFeedbackScript := preload("res://scripts/audio_feedback.gd")
 const AudioManagerScript := preload("res://scripts/audio_manager.gd")
+const BASE_AIRLOCK_SCENE := "res://scenes/base/BaseAirlockEntryScene.tscn"
 
 var player_x := 920.0
 var player_facing := 1.0
@@ -14,10 +15,11 @@ var player_input_enabled := true
 var debug_visible := false
 var observe_hold := 0.0
 var observe_triggered := false
-var hud_alpha := 0.58
+var hud_alpha := 0.34
 var dialogue_alpha := 0.0
 var dialogue_text := ""
 var prompt_text := "停下，望向地球"
+var entry_prompt_delay := 0.0
 var walk_phase := 0.0
 var camera_lock_time := 0.0
 
@@ -98,7 +100,7 @@ func _setup_ui() -> void:
 	hud.name = "MinimalHUD"
 	hud.position = Vector2(28, 726)
 	hud.size = Vector2(300, 118)
-	hud.modulate = Color("#c7d8e4", 0.58)
+	hud.modulate = Color("#c7d8e4", 0.34)
 	hud.add_theme_font_size_override("font_size", 16)
 	root.add_child(hud)
 	var dialogue := Label.new()
@@ -134,9 +136,9 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("interact") and observe_triggered:
+	if event.is_action_pressed("interact") and observe_triggered and _entry_prompt_ready():
 		_save_cinematic()
-		get_tree().change_scene_to_file("res://scenes/arrival/ArrivalLandingScene.tscn")
+		get_tree().change_scene_to_file(BASE_AIRLOCK_SCENE)
 	if event.is_action_pressed("save_game"):
 		_save_cinematic()
 	if event.is_action_pressed("load_game"):
@@ -156,8 +158,12 @@ func _process_movement(delta: float) -> void:
 
 func _process_observe(delta: float) -> void:
 	if observe_triggered:
-		hud_alpha = move_toward(hud_alpha, 0.58, delta * 0.22)
-		dialogue_alpha = move_toward(dialogue_alpha, 0.0, delta * 0.10)
+		hud_alpha = move_toward(hud_alpha, 0.12, delta * 0.22)
+		entry_prompt_delay = max(0.0, entry_prompt_delay - delta)
+		if entry_prompt_delay > 1.0:
+			dialogue_alpha = 1.0
+		else:
+			dialogue_alpha = move_toward(dialogue_alpha, 0.0, delta * 1.35)
 		return
 	if player_moving:
 		observe_hold = 0.0
@@ -168,8 +174,9 @@ func _process_observe(delta: float) -> void:
 
 func _trigger_observe_earth() -> void:
 	observe_triggered = true
-	hud_alpha = 0.24
+	hud_alpha = 0.08
 	dialogue_alpha = 1.0
+	entry_prompt_delay = 4.2
 	camera_lock_time = 3.2
 	dialogue_text = "那里，是地球。\n距离：384,400公里。\n预计通信延迟：1.3秒。"
 	event_manager.call("trigger", "observe_earth", {"scene": "ArrivalCinematicScene"}, true)
@@ -193,7 +200,7 @@ func _update_ui() -> void:
 	dialogue.modulate.a = dialogue_alpha
 	var prompt: Label = $UI/Root/Prompt
 	if observe_triggered:
-		prompt_text = "E / Enter 前往基地气闸"
+		prompt_text = "E / Enter 前往基地气闸" if _entry_prompt_ready() else ""
 	else:
 		var left: float = max(0.0, 5.0 - observe_hold)
 		prompt_text = "停下，望向地球 %.1fs" % left
@@ -206,6 +213,9 @@ func _update_ui() -> void:
 		clock_text,
 		"true" if observe_triggered else "false"
 	]
+
+func _entry_prompt_ready() -> bool:
+	return entry_prompt_delay <= 0.0 and dialogue_alpha <= 0.08
 
 func _draw() -> void:
 	_draw_sky()
@@ -220,18 +230,19 @@ func _draw_sky() -> void:
 		var y := float(28 + (i * 53) % 360)
 		var alpha := 0.22 + float(i % 5) * 0.08
 		draw_circle(Vector2(x, y), 1.0 + float(i % 2), Color("#d9e8ff", alpha))
-	_draw_earth(Vector2(860, 150), 64.0)
+	_draw_earth(Vector2(860, 146), 50.0)
 
 func _draw_earth(center: Vector2, radius: float) -> void:
-	draw_circle(center, radius + 24.0, Color("#63c9ff", 0.06))
-	draw_circle(center, radius + 14.0, Color("#7edbff", 0.12))
-	draw_circle(center, radius + 5.0, Color("#b6efff", 0.18))
-	draw_circle(center, radius, Color("#2f98e5"))
-	draw_circle(center + Vector2(-15, -9), 18, Color("#f0fbff", 0.86))
-	draw_circle(center + Vector2(16, 12), 13, Color("#71df93", 0.88))
-	draw_circle(center + Vector2(4, -24), 9, Color("#e5f7ff", 0.74))
-	draw_arc(center, radius + 4.0, 0.0, TAU, 72, Color("#d3f6ff", 0.62), 2)
-	draw_arc(center, radius + 12.0, -0.4, 2.8, 48, Color("#72dfff", 0.30), 3)
+	draw_circle(center, radius + 34.0, Color("#63c9ff", 0.035))
+	draw_circle(center, radius + 18.0, Color("#7edbff", 0.075))
+	draw_circle(center, radius + 4.0, Color("#c8f4ff", 0.12))
+	draw_circle(center, radius, Color("#43adf2"))
+	draw_circle(center + Vector2(-10, -7), 14, Color("#f3fbff", 0.78))
+	draw_circle(center + Vector2(12, 10), 11, Color("#8ad7a6", 0.70))
+	draw_circle(center + Vector2(0, -19), 7, Color("#e8f8ff", 0.60))
+	draw_circle(center + Vector2(17, -13), 8, Color("#e7f7ff", 0.28))
+	draw_circle(center + Vector2(-22, 18), 14, Color("#0a1a2a", 0.22))
+	draw_arc(center, radius + 2.0, 0.6, 5.2, 72, Color("#d3f6ff", 0.26), 1)
 
 func _draw_distant_layer() -> void:
 	draw_polygon(
@@ -244,8 +255,11 @@ func _draw_distant_layer() -> void:
 	draw_rect(Rect2(base + Vector2(44, -28), Vector2(58, 30)), Color("#1d232c"))
 	draw_rect(Rect2(base + Vector2(138, -18), Vector2(74, 20)), Color("#1b2028"))
 	for i in range(6):
-		draw_circle(base + Vector2(32 + i * 36, 32), 5, Color("#e9b763", 0.92))
-	draw_circle(base + Vector2(124, 2), 70, Color("#e9b763", 0.06))
+		var light_pos := base + Vector2(32 + i * 36, 32)
+		draw_circle(light_pos, 3, Color("#f3c46e", 0.95))
+		draw_circle(light_pos, 11, Color("#e9b763", 0.16))
+	draw_circle(base + Vector2(124, 2), 82, Color("#e9b763", 0.085))
+	draw_line(base + Vector2(22, 42), base + Vector2(236, 42), Color("#f0c766", 0.18), 2)
 
 func _draw_midground() -> void:
 	draw_polygon(
@@ -297,16 +311,17 @@ func _draw_transport_ship() -> void:
 func _draw_player() -> void:
 	var feet := Vector2(player_x, 748)
 	var bob := sin(walk_phase) * 2.0 if player_moving else 0.0
-	draw_ellipse(feet + Vector2(0, 16), 20.0, 5.0, Color("#020305", 0.35))
-	draw_rect(Rect2(feet + Vector2(-11, -57 + bob), Vector2(22, 40)), Color("#cfd9e1"))
-	draw_rect(Rect2(feet + Vector2(-8, -52 + bob), Vector2(16, 22)), Color("#aeb9c4"))
-	draw_circle(feet + Vector2(0, -70 + bob), 18, Color("#e5edf2"))
-	draw_circle(feet + Vector2(0, -70 + bob), 10, Color("#98aabb"))
-	draw_line(feet + Vector2(-10, -28 + bob), feet + Vector2(-20, -7 + bob), Color("#c3cdd4"), 5)
-	draw_line(feet + Vector2(10, -28 + bob), feet + Vector2(20, -7 + bob), Color("#c3cdd4"), 5)
-	draw_line(feet + Vector2(-7, -19 + bob), feet + Vector2(-13, 5), Color("#c8d1d8"), 5)
-	draw_line(feet + Vector2(7, -19 + bob), feet + Vector2(13, 5), Color("#c8d1d8"), 5)
-	draw_line(feet + Vector2(0, -88 + bob), Vector2(860, 214), Color("#74cfff", 0.10), 1)
+	draw_ellipse(feet + Vector2(0, 13), 16.0, 4.0, Color("#020305", 0.35))
+	draw_rect(Rect2(feet + Vector2(-8, -46 + bob), Vector2(16, 32)), Color("#cfd9e1"))
+	draw_rect(Rect2(feet + Vector2(-5, -38 + bob), Vector2(10, 18)), Color("#8795a0"))
+	draw_rect(Rect2(feet + Vector2(-10, -36 + bob), Vector2(20, 15)), Color("#b8c2ca", 0.9))
+	draw_circle(feet + Vector2(0, -56 + bob), 14, Color("#e5edf2"))
+	draw_circle(feet + Vector2(0, -56 + bob), 8, Color("#ccd7df"))
+	draw_line(feet + Vector2(-5, -62 + bob), feet + Vector2(5, -62 + bob), Color("#8da0ad", 0.65), 2)
+	draw_line(feet + Vector2(-8, -23 + bob), feet + Vector2(-15, -5 + bob), Color("#c3cdd4"), 4)
+	draw_line(feet + Vector2(8, -23 + bob), feet + Vector2(15, -5 + bob), Color("#c3cdd4"), 4)
+	draw_line(feet + Vector2(-5, -14 + bob), feet + Vector2(-10, 4), Color("#c8d1d8"), 4)
+	draw_line(feet + Vector2(5, -14 + bob), feet + Vector2(10, 4), Color("#c8d1d8"), 4)
 
 func _save_cinematic() -> void:
 	var data := {
@@ -338,3 +353,4 @@ func _load_cinematic() -> void:
 	observe_triggered = bool(data.get("observe_triggered", event_manager.call("has_fired", "observe_earth")))
 	observe_hold = 0.0
 	dialogue_alpha = 0.0
+	entry_prompt_delay = 0.0

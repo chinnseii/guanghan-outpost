@@ -196,25 +196,28 @@ class FinalAssessmentRoomBlockout:
 			var light_rect := Rect2(Vector2(light_x, room.position.y + 16), Vector2(106, 8))
 			draw_rect(light_rect, light_color, true)
 			draw_rect(light_rect.grow(5), Color(light_color.r, light_color.g, light_color.b, 0.14 if power_on else 0.05), true)
+		var power_zone := Rect2(Vector2(42, 76), Vector2(218, 282))
+		var life_zone := Rect2(Vector2(284, 76), Vector2(226, 282))
+		var plant_zone := Rect2(Vector2(534, 76), Vector2(208, 282))
+		var terminal_zone := Rect2(Vector2(250, 382), Vector2(292, 96))
 		if life_stable:
-			draw_rect(Rect2(Vector2(250, 94), Vector2(244, 236)), Color("#9fd7ff", 0.035), true)
+			draw_rect(life_zone.grow(-10), Color("#9fd7ff", 0.035), true)
 		if plant_stable:
-			draw_rect(Rect2(Vector2(532, 92), Vector2(206, 262)), Color("#7dbd75", 0.035), true)
-		draw_rect(Rect2(Vector2(42, 72), Vector2(190, 250)), Color("#1c2833"), true)
-		draw_rect(Rect2(Vector2(250, 72), Vector2(246, 286)), Color("#1a2b38"), true)
-		draw_rect(Rect2(Vector2(520, 72), Vector2(222, 306)), Color("#18262e"), true)
-		draw_rect(Rect2(Vector2(288, 386), Vector2(236, 86)), Color("#1d2832"), true)
-		draw_rect(Rect2(Vector2(42, 72), Vector2(190, 250)), Color("#5d6f7d", 0.45), false, 2.0)
-		draw_rect(Rect2(Vector2(250, 72), Vector2(246, 286)), Color("#5d6f7d", 0.45), false, 2.0)
-		draw_rect(Rect2(Vector2(520, 72), Vector2(222, 306)), Color("#5d6f7d", 0.45), false, 2.0)
-		draw_rect(Rect2(Vector2(288, 386), Vector2(236, 86)), Color("#5d6f7d", 0.45), false, 2.0)
-		draw_string(ThemeDB.fallback_font, Vector2(58, 96), "供电区", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color("#8fa3b2"))
-		draw_string(ThemeDB.fallback_font, Vector2(266, 96), "生命支持区", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color("#8fa3b2"))
-		draw_string(ThemeDB.fallback_font, Vector2(536, 96), "植物舱区", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color("#8fa3b2"))
-		draw_string(ThemeDB.fallback_font, Vector2(306, 410), "考核终端区", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color("#8fa3b2"))
+			draw_rect(plant_zone.grow(-10), Color("#7dbd75", 0.035), true)
+		_draw_assessment_zone(power_zone, Color("#1c2833"), "供电区", Vector2(58, 100))
+		_draw_assessment_zone(life_zone, Color("#1a2b38"), "生命支持区", Vector2(300, 100))
+		_draw_assessment_zone(plant_zone, Color("#18262e"), "植物舱区", Vector2(550, 100))
+		_draw_assessment_zone(terminal_zone, Color("#1d2832"), "考核终端区", Vector2(270, 406))
+
+	func _draw_assessment_zone(zone: Rect2, fill: Color, label: String, label_pos: Vector2) -> void:
+		draw_rect(zone, fill, true)
+		draw_rect(zone, Color("#5d6f7d", 0.45), false, 2.0)
+		draw_string(ThemeDB.fallback_font, label_pos, label, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color("#8fa3b2"))
 
 class TrainingTargetVisual:
 	extends Control
+
+	const LABEL_FONT_SIZE := 12
 
 	var kind := "marker"
 	var label_text := ""
@@ -321,7 +324,8 @@ class TrainingTargetVisual:
 		draw_rect(Rect2(Vector2(0, 12), Vector2(6, size.y - 24)), edge, true)
 		draw_rect(Rect2(Vector2(size.x - 6, 12), Vector2(6, size.y - 24)), edge, true)
 		if locked:
-			draw_string(ThemeDB.fallback_font, Vector2(12, size.y * 0.5), "锁定", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color("#8fa3b2"))
+			draw_rect(Rect2(Vector2(12, size.y * 0.5 - 14), Vector2(size.x - 24, 22)), Color("#0d1822", 0.72), true)
+			draw_string(ThemeDB.fallback_font, Vector2(18, size.y * 0.5 + 4), "锁定", HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_FONT_SIZE, Color("#9fb2c0"))
 
 	func _draw_status_display() -> void:
 		draw_rect(Rect2(Vector2.ZERO, size), Color("#1a2b38"), true)
@@ -561,7 +565,7 @@ class TrainingTargetVisual:
 		if label_text.is_empty():
 			return
 		var font := ThemeDB.fallback_font
-		var font_size := 13
+		var font_size := LABEL_FONT_SIZE
 		draw_string(font, Vector2(8, -6), label_text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color("#d8e7f2"))
 		if active:
 			draw_string(font, Vector2(8, size.y + 18), "E 交互", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color("#f0c766"))
@@ -978,83 +982,83 @@ func _assessment_room_target(target: Dictionary) -> Dictionary:
 		"terminal":
 			room_target["kind"] = "assessment_terminal"
 			room_target["label"] = "考核终端"
-			room_target["position"] = Vector2(336, 384)
-			room_target["size"] = Vector2(146, 96)
+			room_target["position"] = Vector2(326, 394)
+			room_target["size"] = Vector2(160, 82)
 		"tools":
 			room_target["kind"] = "tool_station"
 			room_target["label"] = "工具台"
-			room_target["position"] = Vector2(74, 226)
+			room_target["position"] = Vector2(70, 270)
 			room_target["size"] = Vector2(118, 84)
 		"panel":
 			room_target["kind"] = "power_panel"
 			room_target["label"] = "故障供电面板"
-			room_target["position"] = Vector2(82, 112)
-			room_target["size"] = Vector2(132, 94)
+			room_target["position"] = Vector2(72, 124)
+			room_target["size"] = Vector2(128, 88)
 		"power_console":
 			room_target["kind"] = "power_console"
 			room_target["label"] = "供电控制台"
-			room_target["position"] = Vector2(82, 334)
-			room_target["size"] = Vector2(132, 88)
+			room_target["position"] = Vector2(190, 272)
+			room_target["size"] = Vector2(118, 84)
 		"test_light":
 			room_target["kind"] = "test_light"
 			room_target["label"] = "测试灯"
-			room_target["position"] = Vector2(188, 118)
-			room_target["size"] = Vector2(72, 76)
+			room_target["position"] = Vector2(198, 126)
+			room_target["size"] = Vector2(64, 70)
 		"life_console":
 			room_target["kind"] = "life_console"
 			room_target["label"] = "生命支持控制台"
-			room_target["position"] = Vector2(302, 250)
-			room_target["size"] = Vector2(132, 88)
+			room_target["position"] = Vector2(318, 294)
+			room_target["size"] = Vector2(118, 74)
 		"oxygen":
 			room_target["kind"] = "life_status"
 			room_target["label"] = "氧气状态"
-			room_target["position"] = Vector2(276, 112)
-			room_target["size"] = Vector2(96, 66)
+			room_target["position"] = Vector2(310, 120)
+			room_target["size"] = Vector2(86, 60)
 		"water":
 			room_target["kind"] = "life_status"
 			room_target["label"] = "水循环"
-			room_target["position"] = Vector2(388, 112)
-			room_target["size"] = Vector2(96, 66)
+			room_target["position"] = Vector2(416, 120)
+			room_target["size"] = Vector2(86, 60)
 		"power_display":
 			room_target["kind"] = "life_status"
 			room_target["label"] = "电力状态"
-			room_target["position"] = Vector2(276, 188)
-			room_target["size"] = Vector2(96, 66)
+			room_target["position"] = Vector2(310, 202)
+			room_target["size"] = Vector2(86, 60)
 		"temperature":
 			room_target["kind"] = "life_status"
 			room_target["label"] = "温度状态"
-			room_target["position"] = Vector2(388, 188)
-			room_target["size"] = Vector2(96, 66)
+			room_target["position"] = Vector2(416, 202)
+			room_target["size"] = Vector2(86, 60)
 		"life_core":
 			room_target["kind"] = "life_core"
 			room_target["label"] = "生命支持核心"
-			room_target["position"] = Vector2(418, 252)
-			room_target["size"] = Vector2(72, 88)
+			room_target["position"] = Vector2(446, 292)
+			room_target["size"] = Vector2(58, 74)
 		"plant":
 			room_target["kind"] = "plant_chamber"
 			room_target["label"] = "植物舱"
-			room_target["position"] = Vector2(542, 154)
-			room_target["size"] = Vector2(116, 142)
+			room_target["position"] = Vector2(558, 172)
+			room_target["size"] = Vector2(104, 130)
 		"scanner":
 			room_target["kind"] = "plant_scanner"
 			room_target["label"] = "植物扫描器"
-			room_target["position"] = Vector2(670, 128)
-			room_target["size"] = Vector2(82, 88)
+			room_target["position"] = Vector2(672, 146)
+			room_target["size"] = Vector2(78, 84)
 		"light_console":
 			room_target["kind"] = "plant_console"
 			room_target["label"] = "补光控制台"
-			room_target["position"] = Vector2(662, 254)
-			room_target["size"] = Vector2(100, 82)
+			room_target["position"] = Vector2(666, 292)
+			room_target["size"] = Vector2(94, 78)
 		"grow_light":
 			room_target["kind"] = "grow_light"
 			room_target["label"] = "补光灯"
-			room_target["position"] = Vector2(542, 102)
-			room_target["size"] = Vector2(116, 60)
+			room_target["position"] = Vector2(558, 104)
+			room_target["size"] = Vector2(104, 54)
 		"plant_status":
 			room_target["kind"] = "plant_status"
 			room_target["label"] = "植物状态"
-			room_target["position"] = Vector2(546, 304)
-			room_target["size"] = Vector2(108, 66)
+			room_target["position"] = Vector2(558, 314)
+			room_target["size"] = Vector2(96, 60)
 	return room_target
 
 func _move_player(delta: float) -> void:

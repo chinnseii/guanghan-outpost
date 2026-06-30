@@ -35,6 +35,7 @@ var step := "identity"
 var review_lines: Array[String] = []
 var review_index := 0
 var review_timer := 0.0
+var review_complete_hold := 0.0
 var is_reviewing := false
 
 var page_body: VBoxContainer
@@ -64,19 +65,22 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if not is_reviewing:
 		return
+	if review_index >= review_lines.size():
+		review_complete_hold += delta
+		if review_complete_hold < 1.25:
+			return
+		is_reviewing = false
+		profile.set("candidate_file_status", "已通过资格初审")
+		profile.set("current_application_step", "notice")
+		_save_profile()
+		_show_step("notice")
+		return
 	review_timer += delta
 	if review_timer < 0.58:
 		return
 	review_timer = 0.0
-	if review_index < review_lines.size():
-		status_label.text += "\n" + review_lines[review_index]
-		review_index += 1
-	else:
-		is_reviewing = false
-		profile.set("candidate_file_status", "已通过初步评估")
-		profile.set("current_application_step", "notice")
-		_save_profile()
-		_show_step("notice")
+	status_label.text += "\n" + review_lines[review_index]
+	review_index += 1
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
@@ -346,7 +350,7 @@ func _show_review() -> void:
 
 func _start_review_sequence() -> void:
 	profile.set("application_submitted", true)
-	profile.set("candidate_file_status", "已提交")
+	profile.set("candidate_file_status", "审核中")
 	profile.set("current_application_step", "review")
 	_save_profile()
 	_clear_container(page_body)
@@ -363,24 +367,30 @@ func _start_review_sequence() -> void:
 		"正在进行资格审核",
 		"正在匹配教育背景",
 		"正在生成训练计划",
-		"正在调取广寒前哨任务档案",
 		"正在建立候选人档案",
 		"审核完成",
 	]
 	review_index = 0
 	review_timer = 0.0
+	review_complete_hold = 0.0
 	is_reviewing = true
 
 func _show_notice() -> void:
+	profile.set("candidate_file_status", "已通过资格初审")
 	_add_page_title("资格初审结果", "PRELIMINARY ELIGIBILITY REVIEW")
 	var panel := _add_panel(page_body)
-	panel.custom_minimum_size = Vector2(920, 500)
+	panel.custom_minimum_size = Vector2(980, 540)
 	var title := Label.new()
 	title.text = "国家深空生命科学中心\n资格初审结果"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.modulate = Color("#eaf4ff")
 	title.add_theme_font_size_override("font_size", 28)
 	panel.add_child(title)
+	_add_note_to(panel, "文书编号：GHO-REV-2068-0421    签发日期：2068-04-12")
+	_add_note_to(panel, "候选人：%s    档案状态：%s    签发单位：广寒计划常驻开拓者选拔委员会" % [
+		_display_name(),
+		String(profile.get("candidate_file_status")),
+	])
 	_add_body_to(panel, "致 %s：\n\n经广寒计划常驻开拓者选拔委员会初步审核，\n你的申请已通过资格初审。\n\n你将进入国家深空生命科学中心训练序列。\n\n训练完成并通过最终考核后，\n你才可能被正式派往月球广寒前哨，\n执行长期驻留与生命支持建设任务。\n\n广寒计划不是一次普通申请。\n这只是第一步。" % _display_name())
 	_add_footer_button("返回主菜单", func():
 		get_tree().change_scene_to_file("res://scenes/main.tscn")
@@ -391,6 +401,7 @@ func _show_notice() -> void:
 	training.modulate = Color("#9ac7e8")
 	training.pressed.connect(func():
 		profile.set("current_application_step", "training_start")
+		profile.set("candidate_file_status", "训练序列中")
 		_save_profile()
 		get_tree().change_scene_to_file("res://scenes/training/TrainingStartScene.tscn")
 	)
@@ -678,6 +689,12 @@ func _normalize_profile_defaults() -> void:
 		profile.set("gender_display", "男")
 	if String(profile.get("candidate_file_status")).is_empty() or String(profile.get("candidate_file_status")) == "待建立":
 		profile.set("candidate_file_status", "待提交")
+	if String(profile.get("candidate_file_status")) == "已通过初步评估":
+		var current_step := String(profile.get("current_application_step"))
+		if current_step == "notice" or current_step == "training_start":
+			profile.set("candidate_file_status", "已通过资格初审")
+		else:
+			profile.set("candidate_file_status", "待提交")
 	if String(profile.get("education_background")).is_empty():
 		profile.set("education_background", EDUCATION_OPTIONS[0])
 

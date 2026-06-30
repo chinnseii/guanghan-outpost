@@ -24,3 +24,8 @@ window/size/viewport_width=1600
 window/size/viewport_height=900
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
+
+[editor]
+
+movie_writer/movie_file="C:/Users/csw83/Documents/Codex/tools/movie/a.avi"
+movie_writer/disable_vsync=true

@@ -2,6 +2,7 @@ extends Node2D
 
 const TILE := 64
 const SAVE_PATH := "user://arrival_prototype_save.json"
+const BASE_AIRLOCK_SCENE := "res://scenes/base/BaseAirlockEntryScene.tscn"
 const PLAYER_SCENE := preload("res://scenes/player.tscn")
 const GameStateManagerScript := preload("res://scripts/game_state_manager.gd")
 const TimeManagerScript := preload("res://scripts/time_manager.gd")
@@ -319,7 +320,7 @@ func _trigger_observe_earth() -> void:
 
 func _update_prompt() -> void:
 	if airlock_rect.has_point(player_pos):
-		prompt_text = "E 进入气闸"
+		prompt_text = "E / Enter 进入基地气闸"
 	elif observe_rect.has_point(player_pos) and not observe_triggered:
 		var left: float = max(0.0, 5.0 - observe_hold)
 		prompt_text = "停下，望向地球 %.1fs" % left
@@ -332,7 +333,7 @@ func _try_interact() -> void:
 		game_state_manager.call("change_state", GameStateManagerScript.BASE_INTERIOR)
 		event_manager.call("trigger", "entered_airlock", {}, true)
 		_save_arrival()
-		get_tree().change_scene_to_file("res://scenes/base/BaseInterior_Test.tscn")
+		get_tree().change_scene_to_file(BASE_AIRLOCK_SCENE)
 
 func _update_camera() -> void:
 	var composition_target := player_pos + Vector2(140, -105)

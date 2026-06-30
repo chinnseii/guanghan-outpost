@@ -2,9 +2,157 @@
 
 一个用于逐步迭代的 Godot 4 月球基地农业生存原型。
 
-## 当前版本：V0.4-dev 主菜单与训练流程
+## 当前版本：V0.6-dev 旧基地与最后一株植物
 
-当前主线版本把正式玩家入口和开发入口分离：启动后进入 MAIN-001 风格的安静标题屏，正常菜单只显示申请、继续、档案、设置和退出；所有测试入口移动到 F12 开发菜单。Sprint 04 国家训练序列已经包含五个脚本训练模块、最终考核、任务派遣通知和接受派遣后的黑屏到抵达淡入流程。
+当前主线版本把正式玩家入口和开发入口分离：启动后进入 MAIN-001 风格的安静标题屏，正常菜单只显示申请、继续、档案、设置和退出；所有测试入口移动到 F12 开发菜单。Sprint 04 国家训练序列已经包含五个脚本训练模块、最终考核、任务派遣通知和接受派遣后的黑屏到抵达淡入流程。Sprint 05A 聚焦现有开场竖切打磨。Sprint 06 新增玩家抵达月球后进入旧基地、恢复基础系统、发现并稳定最后一株植物的第一小时核心体验。
+
+### Sprint 07 Day 02 日常巡检与对地报告
+
+已完成第一版：
+
+- 新增 Sprint 07 规格文档：`docs/sprints/SPRINT_07_DAY02_ROUTINE_EARTH_REPORT.md`
+- 新增 `Day02StartScene` 和 `Day02EndScene`。
+- Day 01 休息后会进入 Day 02 早间淡入与 AI 状态简报。
+- Day 02 复用旧基地和旧温室，不新增完整经营系统。
+- 中央控制台可生成 D02 状态摘要和今日巡检清单。
+- 今日巡检包含：
+  - 检查供电面板
+  - 检查生命支持控制台
+  - 检查水循环状态
+  - 检查最后一株植物
+  - 发送 Day 02 对地报告
+- 前四项巡检可按任意顺序完成，全部完成后才解锁对地报告。
+- 对地报告终端支持报告预览、发送、通信延迟与地面确认。
+- Day 02 可返回居住舱休息并显示 `第 2 天结束`。
+- Day 02 状态保存到 `user://saves/sprint06_progress.json`。
+- F12 开发菜单新增 Day 02 Start / Day 02 End 入口。
+- 验收截图工具现在输出到 `docs/screenshots/sprint07_acceptance/`。
+
+仍不包含：
+
+- 完整时间系统。
+- 完整资源消耗。
+- 完整种植成长。
+- 完整通信系统。
+- Day 03 正式内容。
+
+### Sprint 06 旧基地与最后一株植物
+
+已完成：
+
+- 新增 Sprint 06 规格文档：`docs/sprints/SPRINT_06_OLD_BASE_AND_LAST_PLANT.md`
+- 新增正式链路：
+  - `ArrivalCinematicScene`
+  - `BaseAirlockEntryScene`
+  - `OldBaseInteriorScene`
+  - `OldGreenhouseScene`
+  - `Day01EndScene`
+- `ArrivalCinematicScene` 的 `E / Enter 前往基地气闸` 现在进入旧基地气闸流程。
+- `ArrivalLandingScene` 的基地气闸入口也接到新气闸流程。
+- 新增旧基地气闸 scripted sequence：
+  - 外舱门已关闭。
+  - 舱压建立中。
+  - 氧气交换完成。
+  - 内舱门已解锁。
+- 进入旧基地后 AI 克制显示：
+  - `欢迎回来。`
+  - `广寒前哨，等待新的开拓者，已经很久了。`
+- 新增旧基地第一房间灰盒：
+  - 气闸出口
+  - 中央控制台
+  - 旧供电面板
+  - 供电重启控制台
+  - 生命支持控制台
+  - 通往旧温室的门
+  - 旧储物柜、值班表和少量灰尘痕迹
+- 新增旧基地 scripted 状态：
+  - `BaseEntered`
+  - `BasePowerRestored`
+  - `MinimalLifeSupportStable`
+  - `GreenhouseUnlocked`
+  - `LastPlantDiscovered`
+  - `LastPlantDiagnosed`
+  - `GrowLightRestored`
+  - `PartialWaterCycleRestored`
+  - `LastPlantStable`
+  - `Day01Completed`
+- 中央控制台可查看基地状态摘要，并显示第一条前人日志碎片 `17-A`。
+- 可按顺序恢复基础供电、最低生命支持，并解锁旧温室门。
+- 新增旧温室灰盒：
+  - 旧水培架
+  - 枯萎植物槽
+  - 损坏补光灯
+  - 水循环面板
+  - 植物监测屏
+  - 诊断终端
+  - 中央植物舱与最后一株植物
+- 玩家可以发现、观察、诊断最后一株植物，恢复补光和最低水循环。
+- 最后一株植物可以从 `Critical` 稳定为 `Stable`，不显示经验值、奖励或成就。
+- 新增 Day 01 End 居住舱角落与休息交互。
+- Sprint 06 状态保存到 `user://saves/sprint06_progress.json`。
+- 主菜单“继续任务”可识别 Sprint 06 存档。
+- F12 开发菜单新增 Sprint 06 场景入口。
+- 验收截图工具已更新为 Sprint 06，输出到 `docs/screenshots/sprint06_acceptance/`。
+- Sprint 06 验收补丁已完成：
+  - 气闸加入内外舱门形状、三段状态灯和更安全的流程文本位置。
+  - 旧基地加入 `GHO-03 / LIFE SUPPORT BAY` 标识、维护贴纸、储物柜标签、脚印灰尘和 `LOG 17-A` 标记。
+  - 最后一株植物的 `Critical` / `Stable` 状态现在有更明确的颜色、叶片姿态、补光和监测屏差异。
+  - Day 01 End 房间加入更清晰的休息舱、床边暖光、地球窗、旧杯子、墙面便签和个人储物箱。
+
+截图命令：
+
+```powershell
+& "C:\Users\csw83\Documents\Codex\tools\Godot_v4.7-stable_win64_console.exe" --audio-driver Dummy --path . -s tools/capture_acceptance.gd
+```
+
+仍不包含：
+
+- 完整基地建造。
+- 完整种植系统。
+- 作物成长周期或收获系统。
+- 库存经济。
+- 居民系统。
+- 科技树。
+- 机器人自动化。
+- 完整长期生命支持模拟。
+- 完整电网系统。
+
+### Sprint 05A 竖切打磨
+
+已完成：
+
+- 修正申请档案状态流转：
+  - 填写申请：`待提交`
+  - 提交后审核：`审核中`
+  - 资格初审后：`已通过资格初审`
+  - 进入训练：`训练序列中`
+  - 最终考核后：`已通过最终考核`
+  - 接受月面派遣后：`已接受月面派遣`
+- 旧存档中的 `已通过初步评估` 会转换为当前正确状态，不再出现在申请表填写页。
+- 申请审核页按顺序显示：申请已提交、资格审核、教育背景匹配、训练计划生成、候选人档案建立、审核完成。
+- 资格初审结果和任务派遣通知补充文书编号、候选人、档案状态、签发单位和日期。
+- 任务派遣通知日期暂与申请系统保持一致：`2068-04-12`。
+- 最终考核房间重新分区，供电、生命支持、植物舱和考核终端在画面中更分离，减少标签拥挤。
+- 抵达月球场景降低 HUD 存在感，去除玩家到地球的调试感连线，缩小并提亮地球冷光，增强远处基地暖灯，让玩家更像站在月面凝视地球。
+- 抵达月球的地球观察文本会先单独显示，结束后才显示 `E / Enter 前往基地气闸`。
+- 训练模块门、锁定状态和标签字号做了轻量统一。
+- 保留验收截图工具：`tools/capture_acceptance.gd`，用于生成当前竖切验收截图。
+
+截图命令：
+
+```powershell
+& "C:\Users\csw83\Documents\Codex\tools\Godot_v4.7-stable_win64_console.exe" --audio-driver Dummy --path . -s tools/capture_acceptance.gd
+```
+
+注意：截图需要非 headless 模式；`--headless` 下 Godot dummy viewport 无法保存画面。
+
+仍不包含：
+
+- 新剧情内容。
+- 第一株植物序列。
+- 作物系统扩展。
+- 完整生存系统。
+- 发射动画或地月转移段。
 
 ## 当前方向更新
 

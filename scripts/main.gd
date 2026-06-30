@@ -3630,6 +3630,12 @@ func _setup_dev_menu() -> void:
 	box.add_child(_make_dev_button("Dev Only: Start Survival Sandbox", _start_new_game))
 	box.add_child(_make_dev_button("Dev Only: Arrival Cinematic", func(): get_tree().change_scene_to_file("res://scenes/arrival/ArrivalCinematicScene.tscn")))
 	box.add_child(_make_dev_button("Dev Only: Arrival Landing", func(): get_tree().change_scene_to_file("res://scenes/arrival/ArrivalLandingScene.tscn")))
+	box.add_child(_make_dev_button("Dev Only: Base Airlock Entry", func(): get_tree().change_scene_to_file("res://scenes/base/BaseAirlockEntryScene.tscn")))
+	box.add_child(_make_dev_button("Dev Only: Old Base Interior", func(): get_tree().change_scene_to_file("res://scenes/base/OldBaseInteriorScene.tscn")))
+	box.add_child(_make_dev_button("Dev Only: Old Greenhouse", func(): get_tree().change_scene_to_file("res://scenes/base/OldGreenhouseScene.tscn")))
+	box.add_child(_make_dev_button("Dev Only: Day 01 End", func(): get_tree().change_scene_to_file("res://scenes/base/Day01EndScene.tscn")))
+	box.add_child(_make_dev_button("Dev Only: Day 02 Start", func(): get_tree().change_scene_to_file("res://scenes/base/Day02StartScene.tscn")))
+	box.add_child(_make_dev_button("Dev Only: Day 02 End", func(): get_tree().change_scene_to_file("res://scenes/base/Day02EndScene.tscn")))
 	box.add_child(_make_dev_button("Dev Only: Training Start", func(): get_tree().change_scene_to_file("res://scenes/training/TrainingStartScene.tscn")))
 	box.add_child(_make_dev_button("Dev Only: Training Module 01", func():
 		TrainingManagerScript.set_current_module("suit_control")
@@ -3689,7 +3695,7 @@ func _start_application_flow() -> void:
 
 func _continue_mission() -> void:
 	var progress := TrainingManagerScript.load_progress()
-	if _training_has_progress(progress):
+	if _training_has_progress(progress) or _sprint06_has_progress():
 		get_tree().change_scene_to_file(TrainingManagerScript.continue_scene_path())
 		return
 	var latest_slot := _latest_save_slot()
@@ -3701,10 +3707,13 @@ func _continue_mission() -> void:
 	_refresh_main_menu()
 
 func _has_continue_mission() -> bool:
-	return _training_has_progress(TrainingManagerScript.load_progress()) or _latest_save_slot() > 0
+	return _training_has_progress(TrainingManagerScript.load_progress()) or _sprint06_has_progress() or _latest_save_slot() > 0
 
 func _training_has_progress(progress: Dictionary) -> bool:
 	return bool(progress.get("TrainingStarted", false)) or bool(progress.get("FinalAssessmentCompleted", false)) or bool(progress.get("MissionAssignmentAccepted", false))
+
+func _sprint06_has_progress() -> bool:
+	return FileAccess.file_exists("user://saves/sprint06_progress.json")
 
 func _latest_save_slot() -> int:
 	for slot in range(1, SAVE_SLOTS + 1):

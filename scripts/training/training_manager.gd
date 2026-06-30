@@ -2,6 +2,7 @@ extends Node
 class_name TrainingManager
 
 const SAVE_PATH := "user://saves/training_progress.json"
+const APPLICATION_PROFILE_PATH := "user://saves/application_profile.json"
 
 const START_SCENE := "res://scenes/training/TrainingStartScene.tscn"
 const MODULE_01 := "res://scenes/training/Training_01_SuitControl.tscn"
@@ -13,6 +14,13 @@ const FINAL_ASSESSMENT := "res://scenes/training/FinalAssessmentScene.tscn"
 const MISSION_NOTICE := "res://scenes/training/MissionAssignmentNoticeScene.tscn"
 const BLACK_SCREEN := "res://scenes/training/AssignmentBlackScreenScene.tscn"
 const ARRIVAL_CINEMATIC := "res://scenes/arrival/ArrivalCinematicScene.tscn"
+const BASE_AIRLOCK := "res://scenes/base/BaseAirlockEntryScene.tscn"
+const OLD_BASE_INTERIOR := "res://scenes/base/OldBaseInteriorScene.tscn"
+const OLD_GREENHOUSE := "res://scenes/base/OldGreenhouseScene.tscn"
+const DAY01_END := "res://scenes/base/Day01EndScene.tscn"
+const DAY02_START := "res://scenes/base/Day02StartScene.tscn"
+const DAY02_END := "res://scenes/base/Day02EndScene.tscn"
+const SPRINT06_SAVE_PATH := "user://saves/sprint06_progress.json"
 
 const MODULE_SCENES := {
 	"suit_control": MODULE_01,
@@ -71,6 +79,7 @@ static func start_training() -> void:
 	data["CurrentTrainingModule"] = "suit_control"
 	data["CurrentSceneAfterTraining"] = MODULE_01
 	save_progress(data)
+	update_candidate_file_status("训练序列中")
 
 static func set_current_module(module_id: String) -> void:
 	var data := load_progress()
@@ -102,6 +111,8 @@ static func mark_module_completed(module_id: String, next_module_id: String) -> 
 	data["CurrentTrainingModule"] = next_module_id
 	data["CurrentSceneAfterTraining"] = String(MODULE_SCENES.get(next_module_id, START_SCENE))
 	save_progress(data)
+	if module_id == "final_assessment":
+		update_candidate_file_status("已通过最终考核")
 
 static func accept_assignment(opening_stage := "AssignmentBlackScreen") -> void:
 	var data := load_progress()
@@ -110,6 +121,29 @@ static func accept_assignment(opening_stage := "AssignmentBlackScreen") -> void:
 	data["CurrentTrainingModule"] = "assignment_black_screen"
 	data["CurrentSceneAfterTraining"] = BLACK_SCREEN
 	save_progress(data)
+	update_candidate_file_status("已接受月面派遣")
+
+static func update_candidate_file_status(status: String) -> void:
+	var data: Dictionary = {}
+	if FileAccess.file_exists(APPLICATION_PROFILE_PATH):
+		var read_file := FileAccess.open(APPLICATION_PROFILE_PATH, FileAccess.READ)
+		if read_file != null:
+			var parsed: Variant = JSON.parse_string(read_file.get_as_text())
+			if typeof(parsed) == TYPE_DICTIONARY:
+				data = parsed as Dictionary
+	if data.is_empty():
+		data = {
+			"PlayerName": "",
+			"ApplicationID": "GHO-APP-2068-0421",
+			"CandidateFileStatus": status,
+			"MissionIdentity": "常驻开拓者候选人",
+		}
+	else:
+		data["CandidateFileStatus"] = status
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("user://saves"))
+	var write_file := FileAccess.open(APPLICATION_PROFILE_PATH, FileAccess.WRITE)
+	if write_file != null:
+		write_file.store_string(JSON.stringify(data, "\t"))
 
 static func set_opening_flow_stage(opening_stage: String, scene_path: String) -> void:
 	var data := load_progress()
@@ -119,6 +153,9 @@ static func set_opening_flow_stage(opening_stage: String, scene_path: String) ->
 	save_progress(data)
 
 static func continue_scene_path() -> String:
+	var base_scene := _base_continue_scene_path()
+	if not base_scene.is_empty():
+		return base_scene
 	var data := load_progress()
 	if bool(data.get("MissionAssignmentAccepted", false)):
 		if String(data.get("OpeningFlowStage", "")) == "AwaitingArrivalCinematic":
@@ -129,6 +166,30 @@ static func continue_scene_path() -> String:
 	if bool(data.get("TrainingStarted", false)):
 		return String(data.get("CurrentSceneAfterTraining", START_SCENE))
 	return "res://scenes/application/ApplicationStartScene.tscn"
+
+static func _base_continue_scene_path() -> String:
+	if not FileAccess.file_exists(SPRINT06_SAVE_PATH):
+		return ""
+	var file := FileAccess.open(SPRINT06_SAVE_PATH, FileAccess.READ)
+	if file == null:
+		return ""
+	var parsed: Variant = JSON.parse_string(file.get_as_text())
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return ""
+	var data: Dictionary = parsed as Dictionary
+	if bool(data.get("Day02Completed", false)) or bool(data.get("Day02ReportSent", false)):
+		return DAY02_END
+	if bool(data.get("Day02Started", false)):
+		return OLD_BASE_INTERIOR
+	if bool(data.get("Day01Completed", false)):
+		return DAY02_START
+	if bool(data.get("LastPlantStable", false)):
+		return DAY01_END
+	if bool(data.get("GreenhouseUnlocked", false)) or bool(data.get("LastPlantDiscovered", false)) or bool(data.get("LastPlantDiagnosed", false)):
+		return OLD_GREENHOUSE
+	if bool(data.get("BaseEntered", false)):
+		return OLD_BASE_INTERIOR
+	return ""
 
 static func player_name() -> String:
 	var path := "user://saves/application_profile.json"
