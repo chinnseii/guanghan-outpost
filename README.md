@@ -468,3 +468,12 @@ Scope note:
 - Pressing E at the active exit advances directly to the next training module.
 - Player start position was nudged farther inside the training room.
 - Marker zone completion now checks the trainee's feet inside the visible marker rectangle instead of using a loose distance trigger.
+
+## Sprint 04 Module 02: Airlock Procedure
+
+- Module 02 now uses a training-room blockout with three readable zones: interior training room, airlock chamber and exterior simulation zone.
+- Airlock objects are visually distinct: inner door, chamber, pressure console, pressure status display, outer door and exterior simulation zone.
+- The staged flow is scripted: enter chamber, close inner door, start pressure simulation, wait for stable pressure, open outer door and enter exterior simulation zone.
+- Wrong-order actions show calm procedural hints instead of failure or damage.
+- HUD now reports airlock pressure status as `未启动 / 稳定中 / 稳定`.
+- This remains a training simulation only; no real oxygen consumption, decompression damage or full EVA system was added.

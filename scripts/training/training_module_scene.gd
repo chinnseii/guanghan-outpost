@@ -29,6 +29,37 @@ class TrainingRoomBlockout:
 		draw_rect(Rect2(Vector2(room.end.x - 180, room.position.y + 72), Vector2(94, 42)), panel_color, true)
 		draw_rect(Rect2(Vector2(room.end.x - 182, room.position.y + 74), Vector2(90, 6)), Color("#67b7e8", 0.55), true)
 
+class AirlockRoomBlockout:
+	extends Control
+
+	func _draw() -> void:
+		var rect := Rect2(Vector2.ZERO, size)
+		draw_rect(rect, Color("#07111b"), true)
+		var room := Rect2(Vector2(24, 24), size - Vector2(48, 48))
+		draw_rect(room, Color("#17212b"), true)
+		for x in range(int(room.position.x), int(room.end.x), 48):
+			draw_line(Vector2(x, room.position.y), Vector2(x, room.end.y), Color("#2f3f4c", 0.52), 1.0)
+		for y in range(int(room.position.y), int(room.end.y), 48):
+			draw_line(Vector2(room.position.x, y), Vector2(room.end.x, y), Color("#2f3f4c", 0.52), 1.0)
+		var interior := Rect2(Vector2(44, 68), Vector2(220, size.y - 136))
+		var chamber := Rect2(Vector2(286, 86), Vector2(204, size.y - 172))
+		var exterior := Rect2(Vector2(512, 68), Vector2(size.x - 572, size.y - 136))
+		draw_rect(interior, Color("#1c2833"), true)
+		draw_rect(chamber, Color("#202f3a"), true)
+		draw_rect(exterior, Color("#121b24"), true)
+		draw_rect(interior, Color("#5d6f7d"), false, 3.0)
+		draw_rect(chamber, Color("#6f8493"), false, 3.0)
+		draw_rect(exterior, Color("#5b7180"), false, 3.0)
+		draw_line(Vector2(276, room.position.y + 42), Vector2(276, room.end.y - 42), Color("#405261"), 4.0)
+		draw_line(Vector2(500, room.position.y + 42), Vector2(500, room.end.y - 42), Color("#405261"), 4.0)
+		for light_x in [100, 340, 590]:
+			var light_rect := Rect2(Vector2(light_x, room.position.y + 16), Vector2(86, 8))
+			draw_rect(light_rect, Color("#87d9ff", 0.38), true)
+			draw_rect(light_rect.grow(4), Color("#87d9ff", 0.1), true)
+		draw_string(ThemeDB.fallback_font, interior.position + Vector2(16, 24), "训练室内部", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color("#8fa3b2"))
+		draw_string(ThemeDB.fallback_font, chamber.position + Vector2(16, 24), "气闸舱", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color("#8fa3b2"))
+		draw_string(ThemeDB.fallback_font, exterior.position + Vector2(16, 24), "外部模拟区", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color("#8fa3b2"))
+
 class TrainingTargetVisual:
 	extends Control
 
@@ -46,8 +77,16 @@ class TrainingTargetVisual:
 		match kind:
 			"marker":
 				_draw_marker()
+			"zone":
+				_draw_zone()
 			"terminal":
 				_draw_terminal()
+			"pressure_console":
+				_draw_terminal()
+			"door":
+				_draw_door()
+			"status_display":
+				_draw_status_display()
 			"exit":
 				_draw_exit()
 			_:
@@ -83,6 +122,31 @@ class TrainingTargetVisual:
 		draw_rect(Rect2(Vector2(30, 54), Vector2(18, 10)), Color("#f0c766"), true)
 		draw_rect(Rect2(Vector2(56, 54), Vector2(18, 10)), Color("#6fa7c8"), true)
 		draw_rect(Rect2(Vector2(82, 54), Vector2(18, 10)), Color("#8fa3b2"), true)
+
+	func _draw_zone() -> void:
+		var c := Color("#f0c766") if highlighted else Color("#4fb7f0")
+		draw_rect(Rect2(Vector2.ZERO, size), Color("#12324a", 0.2 if highlighted else 0.09), true)
+		draw_rect(Rect2(Vector2.ZERO, size), c, false, 2.0)
+		for x in range(12, int(size.x), 28):
+			draw_line(Vector2(x, 8), Vector2(x + 10, 8), c, 1.5)
+			draw_line(Vector2(x, size.y - 8), Vector2(x + 10, size.y - 8), c, 1.5)
+
+	func _draw_door() -> void:
+		var edge := Color("#f0c766", 0.7) if highlighted and not locked else Color("#89d8ff", 0.3)
+		draw_rect(Rect2(Vector2(0, 0), size), Color("#2c3740"), true)
+		draw_rect(Rect2(Vector2(8, 8), size - Vector2(16, 16)), Color("#18232e"), true)
+		draw_line(Vector2(size.x * 0.5, 10), Vector2(size.x * 0.5, size.y - 10), Color("#d8e7f2", 0.45), 2.0)
+		draw_rect(Rect2(Vector2(0, 12), Vector2(6, size.y - 24)), edge, true)
+		draw_rect(Rect2(Vector2(size.x - 6, 12), Vector2(6, size.y - 24)), edge, true)
+		if locked:
+			draw_string(ThemeDB.fallback_font, Vector2(12, size.y * 0.5), "LOCK", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color("#8fa3b2"))
+
+	func _draw_status_display() -> void:
+		draw_rect(Rect2(Vector2.ZERO, size), Color("#1a2b38"), true)
+		draw_rect(Rect2(Vector2(6, 6), size - Vector2(12, 12)), Color("#0d1822"), true)
+		draw_rect(Rect2(Vector2(12, 14), Vector2(size.x - 24, 5)), Color("#89d8ff", 0.65), true)
+		draw_rect(Rect2(Vector2(12, 30), Vector2(size.x - 42, 4)), Color("#d8e7f2", 0.45), true)
+		draw_rect(Rect2(Vector2(12, 44), Vector2(size.x - 62, 4)), Color("#f0c766", 0.35), true)
 
 	func _draw_exit() -> void:
 		var edge := Color("#f0c766", 0.7) if highlighted and not locked else Color("#89d8ff", 0.28)
@@ -141,6 +205,7 @@ var target_nodes: Dictionary = {}
 var prompt_label: Label
 var completed := false
 var show_trigger_debug := false
+var wait_timer := 0.0
 var player_speed := 280.0
 
 func _ready() -> void:
@@ -153,6 +218,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	_move_player(delta)
 	if not completed:
+		_check_wait_step(delta)
 		_check_auto_steps()
 	_update_room_prompt()
 
@@ -264,6 +330,8 @@ func _build_training_area() -> void:
 	var floor: Control
 	if module_id == "suit_control":
 		floor = TrainingRoomBlockout.new()
+	elif module_id == "airlock_procedure":
+		floor = AirlockRoomBlockout.new()
 	else:
 		var flat_floor := ColorRect.new()
 		flat_floor.color = Color("#0b1721")
@@ -274,8 +342,10 @@ func _build_training_area() -> void:
 	for target: Dictionary in module_data.get("targets", []):
 		if module_id == "suit_control":
 			target = _suit_room_target(target)
+		elif module_id == "airlock_procedure":
+			target = _airlock_room_target(target)
 		var node: Control
-		if module_id == "suit_control":
+		if module_id == "suit_control" or module_id == "airlock_procedure":
 			var visual := TrainingTargetVisual.new()
 			visual.kind = String(target.get("kind", target.get("id", "target")))
 			visual.label_text = String(target.get("label", ""))
@@ -289,7 +359,7 @@ func _build_training_area() -> void:
 		node.size = target.get("size", Vector2(108, 70))
 		training_area.add_child(node)
 		target_nodes[node.name] = node
-		if module_id != "suit_control":
+		if module_id != "suit_control" and module_id != "airlock_procedure":
 			var label := Label.new()
 			label.text = String(target.get("label", node.name))
 			label.position = Vector2(8, 8)
@@ -297,7 +367,7 @@ func _build_training_area() -> void:
 			label.add_theme_font_size_override("font_size", 13)
 			node.add_child(label)
 
-	if module_id == "suit_control":
+	if module_id == "suit_control" or module_id == "airlock_procedure":
 		player = TraineeVisual.new()
 	else:
 		var player_block := ColorRect.new()
@@ -335,6 +405,47 @@ func _suit_room_target(target: Dictionary) -> Dictionary:
 			room_target["size"] = Vector2(96, 150)
 	return room_target
 
+func _airlock_room_target(target: Dictionary) -> Dictionary:
+	var id := String(target.get("id", ""))
+	var room_target := target.duplicate()
+	match id:
+		"chamber":
+			room_target["kind"] = "zone"
+			room_target["label"] = "气闸室"
+			room_target["position"] = Vector2(300, 170)
+			room_target["size"] = Vector2(176, 214)
+		"inner_door":
+			room_target["kind"] = "door"
+			room_target["label"] = "内舱门"
+			room_target["position"] = Vector2(254, 220)
+			room_target["size"] = Vector2(54, 116)
+		"console":
+			room_target["kind"] = "pressure_console"
+			room_target["label"] = "舱压控制台"
+			room_target["position"] = Vector2(326, 92)
+			room_target["size"] = Vector2(126, 88)
+		"pressure_display":
+			room_target["kind"] = "status_display"
+			room_target["label"] = "舱压状态"
+			room_target["position"] = Vector2(504, 96)
+			room_target["size"] = Vector2(132, 72)
+		"outer_door":
+			room_target["kind"] = "door"
+			room_target["label"] = "外舱门"
+			room_target["position"] = Vector2(482, 220)
+			room_target["size"] = Vector2(54, 116)
+		"exterior":
+			room_target["kind"] = "zone"
+			room_target["label"] = "外部模拟区"
+			room_target["position"] = Vector2(554, 190)
+			room_target["size"] = Vector2(160, 190)
+		"exit":
+			room_target["kind"] = "exit"
+			room_target["label"] = "训练出口"
+			room_target["position"] = Vector2(684, 388)
+			room_target["size"] = Vector2(74, 106)
+	return room_target
+
 func _move_player(delta: float) -> void:
 	var direction := Vector2.ZERO
 	direction.x = Input.get_axis("ui_left", "ui_right")
@@ -353,6 +464,15 @@ func _check_auto_steps() -> void:
 	if _is_inside_target_area(String(step.get("target", ""))):
 		_complete_step()
 
+func _check_wait_step(delta: float) -> void:
+	var step := _current_step()
+	if step.is_empty() or String(step.get("type", "")) != "wait":
+		return
+	wait_timer += delta
+	if wait_timer >= float(step.get("duration", 1.5)):
+		wait_timer = 0.0
+		_complete_step()
+
 func _try_interact() -> void:
 	var step := _current_step()
 	if step.is_empty():
@@ -362,7 +482,17 @@ func _try_interact() -> void:
 		hint_label.text = "请在左侧选择诊断结果。"
 		return
 	var target := String(step.get("target", ""))
+	if step_type == "move":
+		if _is_inside_target_area(target):
+			_complete_step()
+		else:
+			hint_label.text = String(step.get("hint", "请移动至目标区域。"))
+		return
 	if not _is_near(target):
+		var wrong_order_hint := _wrong_order_hint()
+		if not wrong_order_hint.is_empty():
+			hint_label.text = wrong_order_hint
+			return
 		hint_label.text = "请先移动至目标区域。"
 		return
 	if _blocked_by_order(step):
@@ -382,8 +512,13 @@ func _complete_step() -> void:
 		return
 	if step.has("state_key"):
 		module_data["state"][String(step["state_key"])] = step.get("state_value", true)
+	if step.has("state_updates"):
+		var updates: Dictionary = step.get("state_updates", {})
+		for key in updates.keys():
+			module_data["state"][String(key)] = updates[key]
 	_add_log(String(step.get("line", "")))
 	step_index += 1
+	wait_timer = 0.0
 	if String(step.get("type", "")) == "diagnosis":
 		diagnosis_panel.visible = false
 	if step_index >= (module_data.get("steps", []) as Array).size():
@@ -417,6 +552,21 @@ func _blocked_by_order(step: Dictionary) -> bool:
 			return true
 	return false
 
+func _wrong_order_hint() -> String:
+	if module_id != "airlock_procedure":
+		return ""
+	var state: Dictionary = module_data.get("state", {})
+	if target_nodes.has("outer_door") and _is_near("outer_door"):
+		if not bool(state.get("InnerDoorClosed", false)):
+			return "流程顺序错误。请先关闭内舱门。"
+		if not bool(state.get("PressureStable", false)):
+			return "舱压尚未稳定。外舱门保持锁定。"
+	if target_nodes.has("console") and _is_near("console") and not bool(state.get("InnerDoorClosed", false)):
+		return "流程顺序错误。请先关闭内舱门。"
+	if target_nodes.has("inner_door") and _is_near("inner_door") and bool(state.get("InnerDoorClosed", false)):
+		return "内舱门已关闭。请继续舱压流程。"
+	return ""
+
 func _is_near(target_id: String) -> bool:
 	if not target_nodes.has(target_id):
 		return false
@@ -448,7 +598,7 @@ func _update_room_prompt() -> void:
 		if node is TrainingTargetVisual:
 			node.highlighted = node.name == target_id
 			node.active = false
-			node.locked = node.name == "exit" and target_id != "exit"
+			node.locked = _target_locked(String(node.name), target_id)
 			node.modulate = Color(1, 1, 1, 1) if node.highlighted else Color(0.72, 0.78, 0.84, 0.72)
 			node.show_trigger_debug = show_trigger_debug and node.kind == "marker"
 			node.queue_redraw()
@@ -464,11 +614,34 @@ func _update_room_prompt() -> void:
 		target.active = near and String(step.get("type", "")) == "interact"
 		target.queue_redraw()
 	if near and String(step.get("type", "")) == "interact":
-		prompt_label.text = "E 使用训练终端" if target_id == "terminal" else "E 交互"
+		prompt_label.text = _interaction_prompt(target_id)
 		prompt_label.position = target.position + Vector2(8, target.size.y + 20)
 		prompt_label.visible = true
 	else:
 		prompt_label.visible = false
+
+func _target_locked(node_name: String, target_id: String) -> bool:
+	if node_name == "exit":
+		return target_id != "exit"
+	if module_id == "airlock_procedure" and node_name == "outer_door":
+		var state: Dictionary = module_data.get("state", {})
+		return not bool(state.get("PressureStable", false))
+	return false
+
+func _interaction_prompt(target_id: String) -> String:
+	if module_id == "airlock_procedure":
+		match target_id:
+			"inner_door":
+				return "E 关闭内舱门"
+			"console":
+				return "E 使用舱压控制台"
+			"outer_door":
+				return "E 打开外舱门"
+			"exit":
+				return "E 进入下一模块"
+	if target_id == "terminal":
+		return "E 使用训练终端"
+	return "E 交互"
 
 func _show_diagnosis_options(options: Array, correct: String) -> void:
 	diagnosis_panel.visible = true
@@ -489,9 +662,14 @@ func _update_hud() -> void:
 	var step := _current_step()
 	var objective := String(step.get("objective", "训练流程已完成。")) if not completed else "训练流程已完成。"
 	objective_label.text = "当前目标：%s" % objective
-	hud_label.text = String(module_data.get("hud", "氧气模拟值：98%\n电力模拟值：稳定\n生命支持状态：训练环境"))
+	if module_id == "airlock_procedure":
+		hud_label.text = _airlock_hud_text()
+	else:
+		hud_label.text = String(module_data.get("hud", "氧气模拟值：98%\n电力模拟值：稳定\n生命支持状态：训练环境"))
 	if module_id == "suit_control" and not completed:
 		hint_label.text = _suit_control_hint(step)
+	elif module_id == "airlock_procedure" and not completed:
+		hint_label.text = _airlock_hint(step)
 	else:
 		hint_label.text = String(step.get("hint", "移动至目标区域，按 E 交互。")) if not completed else "训练记录已保存。"
 	if String(step.get("type", "")) == "diagnosis":
@@ -506,6 +684,31 @@ func _suit_control_hint(step: Dictionary) -> String:
 		"exit":
 			return "训练记录完成。请前往训练出口并按 E。"
 	return "请按当前目标执行训练流程。"
+
+func _airlock_hud_text() -> String:
+	var state: Dictionary = module_data.get("state", {})
+	var pressure_status := "未启动"
+	if bool(state.get("PressureStable", false)):
+		pressure_status = "稳定"
+	elif bool(state.get("PressureSimulationStarted", false)):
+		pressure_status = "稳定中"
+	return "氧气模拟值：98%%\n电力模拟值：稳定\n舱压状态：%s\n提示信息：按当前流程执行。" % pressure_status
+
+func _airlock_hint(step: Dictionary) -> String:
+	match String(step.get("target", "")):
+		"chamber":
+			return "请移动至气闸室内部。"
+		"inner_door":
+			return "请靠近内舱门控制面板并按 E。"
+		"console":
+			return "请使用舱压控制台。"
+		"outer_door":
+			return "请靠近外舱门并按 E。"
+		"exterior":
+			return "请移动至外部模拟区。"
+	if String(step.get("type", "")) == "wait":
+		return "请等待舱压状态稳定。"
+	return "请按气闸流程继续。"
 
 func _add_log(line: String) -> void:
 	if line.is_empty():
@@ -584,19 +787,24 @@ func _airlock_config() -> Dictionary:
 		"subtitle": "AIRLOCK PROCEDURE",
 		"next_module": "power_repair",
 		"next_scene": TrainingManagerScript.MODULE_03,
+		"player_start": Vector2(112, 310),
+		"player_size": Vector2(42, 54),
 		"targets": [
 			{"id": "chamber", "label": "气闸室", "position": Vector2(210, 250), "color": Color("#223d52")},
 			{"id": "inner_door", "label": "内舱门", "position": Vector2(80, 250), "color": Color("#3d4e62")},
 			{"id": "console", "label": "舱压控制台", "position": Vector2(410, 150), "color": Color("#31536f")},
+			{"id": "pressure_display", "label": "舱压状态", "position": Vector2(500, 100), "color": Color("#244563")},
 			{"id": "outer_door", "label": "外舱门", "position": Vector2(610, 250), "color": Color("#3d4e62")},
-			{"id": "exit", "label": "流程出口", "position": Vector2(710, 410), "color": Color("#274f43")},
+			{"id": "exterior", "label": "外部模拟区", "position": Vector2(560, 240), "color": Color("#244563")},
+			{"id": "exit", "label": "训练出口", "position": Vector2(710, 410), "color": Color("#4d6473")},
 		],
 		"steps": [
-			{"type": "move", "target": "chamber", "objective": "进入气闸室", "line": "进入气闸室。"},
-			{"type": "interact", "target": "inner_door", "objective": "关闭内舱门", "line": "关闭内舱门。", "state_key": "InnerDoorClosed"},
-			{"type": "interact", "target": "console", "objective": "启动舱压模拟", "line": "舱压模拟开始。\n舱压稳定。", "state_key": "PressureStable", "requires": {"InnerDoorClosed": true}},
-			{"type": "interact", "target": "outer_door", "objective": "打开外舱门", "line": "外舱门已解锁。", "state_key": "OuterDoorUnlocked", "requires": {"InnerDoorClosed": true, "PressureStable": true}, "blocked_hint": "流程顺序错误。请先关闭内舱门并等待舱压稳定。"},
-			{"type": "interact", "target": "exit", "objective": "退出气闸", "line": "流程完成。"},
+			{"type": "move", "target": "chamber", "objective": "进入气闸室", "line": "进入气闸室。", "state_key": "PlayerInsideAirlock"},
+			{"type": "interact", "target": "inner_door", "objective": "关闭内舱门", "line": "内舱门已关闭。", "state_key": "InnerDoorClosed"},
+			{"type": "interact", "target": "console", "objective": "启动舱压模拟", "line": "舱压模拟开始。", "state_key": "PressureSimulationStarted", "requires": {"InnerDoorClosed": true}},
+			{"type": "wait", "target": "pressure_display", "objective": "等待舱压稳定", "line": "舱压稳定。\n外舱门已解锁。", "duration": 1.6, "state_updates": {"PressureStable": true, "OuterDoorUnlocked": true}},
+			{"type": "interact", "target": "outer_door", "objective": "打开外舱门", "line": "外舱门已打开。", "state_key": "OuterDoorOpen", "requires": {"InnerDoorClosed": true, "PressureStable": true}, "blocked_hint": "舱压尚未稳定。外舱门保持锁定。"},
+			{"type": "move", "target": "exterior", "objective": "进入外部模拟区", "line": "气闸流程完成。", "state_key": "Module02Completed"},
 		],
 	})
 	return data
@@ -703,3 +911,4 @@ func _assessment_config() -> Dictionary:
 		],
 	})
 	return data
+

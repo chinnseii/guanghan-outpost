@@ -1094,3 +1094,29 @@ Still out of scope:
 
 - New training systems.
 - Full survival, oxygen, power, repair or crop simulation.
+
+## Sprint 04 Module 02: Airlock Procedure
+
+Status: complete first playable pass.
+
+Completed:
+
+- Converted Module 02 from abstract blocks into a readable airlock training-room blockout.
+- Added three visual zones: training room interior, airlock chamber and exterior simulation zone.
+- Added semantic placeholder objects:
+  - Inner door.
+  - Airlock chamber.
+  - Pressure console.
+  - Pressure status display.
+  - Outer door.
+  - Exterior simulation zone.
+- Implemented staged flow: enter chamber, close inner door, start pressure simulation, wait for stable pressure, open outer door and enter exterior simulation zone.
+- Added scripted `PressureSimulationStarted`, `PressureStable`, `OuterDoorUnlocked`, `OuterDoorOpen` and `Module02Completed` state updates.
+- Added calm wrong-order hints for trying the outer door or pressure console too early.
+- Updated the HUD pressure status through `未启动`, `稳定中` and `稳定`.
+
+Still out of scope:
+
+- Real oxygen consumption.
+- Real decompression damage.
+- Full EVA, suit pressure or base airlock simulation.
