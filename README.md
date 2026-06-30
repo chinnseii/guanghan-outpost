@@ -392,7 +392,7 @@ Implemented:
 - `TrainingStartScene` for Sprint 04 handoff; `TrainingPlaceholderScene` remains only as a compatibility/dev entry.
 - Player profile save file: `user://saves/application_profile.json`.
 
-Out of scope remains training gameplay, final assessment, launch, inventory, mining, robots, tech tree, RPG stats and education-background buffs.
+Out of scope remains launch, inventory, mining, robots, tech tree, RPG stats and education-background buffs for the application flow.
 
 ## Sprint 03 Revision 02: Application Result Flow
 
@@ -509,3 +509,13 @@ Scope note:
 - Wrong diagnosis gives calm feedback and asks the player to re-check scan information.
 - Main menu now includes `Dev Only: Training Module 05 Plant Diagnosis` for direct testing.
 - This remains a scripted diagnosis module only; no crop growth, watering, nutrients, harvest or greenhouse management system was added.
+
+## Sprint 04 Final Assessment
+
+- Final Assessment now uses a TR-001-style controlled simulation chamber instead of abstract colored blocks.
+- The room combines readable zones for 供电区, 生命支持区, 植物舱区 and 考核终端区.
+- The staged assessment is scripted: read the assessment terminal, get the repair tool, inspect and repair the power panel, restart power, stabilize life support, observe and scan the plant chamber, choose `光照不足`, adjust grow light, wait for plant stability and submit the result at the assessment terminal.
+- HUD status combines power, life support, plant state, oxygen and power simulation values.
+- Wrong-order actions show calm assessment hints, including life support before power, plant scan before life support stability, grow-light adjustment before diagnosis and submission before all systems are stable.
+- Completion routes to `MissionAssignmentNoticeScene`; it does not launch the player to the Moon.
+- This remains a scripted final assessment only; no scoring, fail state, death, random events, full oxygen system, full power system or crop simulation was added.

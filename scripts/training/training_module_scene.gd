@@ -169,6 +169,50 @@ class PlantDiagnosisRoomBlockout:
 		draw_line(Vector2(room.position.x + 238, room.position.y + 122), Vector2(room.end.x - 238, room.position.y + 122), Color("#4f6473", 0.42), 3.0)
 		draw_line(Vector2(room.position.x + 238, room.position.y + 138), Vector2(room.end.x - 238, room.position.y + 138), Color("#4f6473", 0.24), 2.0)
 
+class FinalAssessmentRoomBlockout:
+	extends Control
+
+	var power_on := false
+	var life_stable := false
+	var plant_stable := false
+
+	func _draw() -> void:
+		var rect := Rect2(Vector2.ZERO, size)
+		draw_rect(rect, Color("#07111b"), true)
+		var room := Rect2(Vector2(24, 24), size - Vector2(48, 48))
+		draw_rect(room, Color("#17222c"), true)
+		for x in range(int(room.position.x), int(room.end.x), 48):
+			draw_line(Vector2(x, room.position.y), Vector2(x, room.end.y), Color("#31414d", 0.52), 1.0)
+		for y in range(int(room.position.y), int(room.end.y), 48):
+			draw_line(Vector2(room.position.x, y), Vector2(room.end.x, y), Color("#31414d", 0.52), 1.0)
+		draw_rect(room, Color("#5d6f7d"), false, 4.0)
+		draw_rect(room.grow(-10), Color("#2a3844"), false, 2.0)
+		draw_rect(Rect2(room.position, Vector2(room.size.x, 28)), Color("#25313c"), true)
+		draw_rect(Rect2(Vector2(room.position.x, room.end.y - 28), Vector2(room.size.x, 28)), Color("#25313c"), true)
+		draw_rect(Rect2(room.position, Vector2(28, room.size.y)), Color("#25313c"), true)
+		draw_rect(Rect2(Vector2(room.end.x - 28, room.position.y), Vector2(28, room.size.y)), Color("#25313c"), true)
+		var light_color := Color("#f0c766", 0.5) if power_on else Color("#4f6473", 0.18)
+		for light_x in [116, 334, 552]:
+			var light_rect := Rect2(Vector2(light_x, room.position.y + 16), Vector2(106, 8))
+			draw_rect(light_rect, light_color, true)
+			draw_rect(light_rect.grow(5), Color(light_color.r, light_color.g, light_color.b, 0.14 if power_on else 0.05), true)
+		if life_stable:
+			draw_rect(Rect2(Vector2(250, 94), Vector2(244, 236)), Color("#9fd7ff", 0.035), true)
+		if plant_stable:
+			draw_rect(Rect2(Vector2(532, 92), Vector2(206, 262)), Color("#7dbd75", 0.035), true)
+		draw_rect(Rect2(Vector2(42, 72), Vector2(190, 250)), Color("#1c2833"), true)
+		draw_rect(Rect2(Vector2(250, 72), Vector2(246, 286)), Color("#1a2b38"), true)
+		draw_rect(Rect2(Vector2(520, 72), Vector2(222, 306)), Color("#18262e"), true)
+		draw_rect(Rect2(Vector2(288, 386), Vector2(236, 86)), Color("#1d2832"), true)
+		draw_rect(Rect2(Vector2(42, 72), Vector2(190, 250)), Color("#5d6f7d", 0.45), false, 2.0)
+		draw_rect(Rect2(Vector2(250, 72), Vector2(246, 286)), Color("#5d6f7d", 0.45), false, 2.0)
+		draw_rect(Rect2(Vector2(520, 72), Vector2(222, 306)), Color("#5d6f7d", 0.45), false, 2.0)
+		draw_rect(Rect2(Vector2(288, 386), Vector2(236, 86)), Color("#5d6f7d", 0.45), false, 2.0)
+		draw_string(ThemeDB.fallback_font, Vector2(58, 96), "供电区", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color("#8fa3b2"))
+		draw_string(ThemeDB.fallback_font, Vector2(266, 96), "生命支持区", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color("#8fa3b2"))
+		draw_string(ThemeDB.fallback_font, Vector2(536, 96), "植物舱区", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color("#8fa3b2"))
+		draw_string(ThemeDB.fallback_font, Vector2(306, 410), "考核终端区", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color("#8fa3b2"))
+
 class TrainingTargetVisual:
 	extends Control
 
@@ -223,6 +267,8 @@ class TrainingTargetVisual:
 				_draw_grow_light()
 			"plant_status":
 				_draw_plant_status_display()
+			"assessment_terminal":
+				_draw_assessment_terminal()
 			"exit":
 				_draw_exit()
 			_:
@@ -480,6 +526,22 @@ class TrainingTargetVisual:
 		draw_rect(Rect2(Vector2(14, 50), Vector2(size.x - 58, 4)), Color("#8fa3b2", 0.3), true)
 		draw_circle(Vector2(size.x - 18, 18), 5.0, Color("#7dbd75", 0.85) if stable_state else Color("#d66a4f", 0.85))
 
+	func _draw_assessment_terminal() -> void:
+		if highlighted:
+			draw_rect(Rect2(Vector2(-8, -8), size + Vector2(16, 16)), Color("#f0c766", 0.12), true)
+			draw_rect(Rect2(Vector2(-8, -8), size + Vector2(16, 16)), Color("#f0c766", 0.55), false, 2.0)
+		draw_rect(Rect2(Vector2(8, 28), Vector2(size.x - 16, size.y - 34)), Color("#303b44"), true)
+		draw_rect(Rect2(Vector2(18, 8), Vector2(size.x - 36, 42)), Color("#101d28"), true)
+		var screen := Color("#236fa8", 0.78)
+		if status_text == "ready":
+			screen = Color("#f0c766", 0.7)
+		elif status_text == "complete":
+			screen = Color("#d8e7f2", 0.78)
+		draw_rect(Rect2(Vector2(26, 16), Vector2(size.x - 52, 24)), screen, true)
+		draw_rect(Rect2(Vector2(24, 60), Vector2(size.x - 48, 6)), Color("#8fa3b2", 0.45), true)
+		draw_rect(Rect2(Vector2(24, 74), Vector2(size.x - 72, 5)), Color("#f0c766", 0.45), true)
+		draw_rect(Rect2(Vector2(24, 88), Vector2(size.x - 92, 5)), Color("#6fa7c8", 0.42), true)
+
 	func _draw_exit() -> void:
 		var edge := Color("#f0c766", 0.7) if highlighted and not locked else Color("#89d8ff", 0.28)
 		draw_rect(Rect2(Vector2(14, 0), Vector2(size.x - 28, size.y)), Color("#34414c"), true)
@@ -671,6 +733,8 @@ func _build_training_area() -> void:
 		floor = LifeSupportRoomBlockout.new()
 	elif module_id == "plant_diagnosis":
 		floor = PlantDiagnosisRoomBlockout.new()
+	elif module_id == "final_assessment":
+		floor = FinalAssessmentRoomBlockout.new()
 	else:
 		var flat_floor := ColorRect.new()
 		flat_floor.color = Color("#0b1721")
@@ -690,8 +754,10 @@ func _build_training_area() -> void:
 			target = _life_support_room_target(target)
 		elif module_id == "plant_diagnosis":
 			target = _plant_room_target(target)
+		elif module_id == "final_assessment":
+			target = _assessment_room_target(target)
 		var node: Control
-		if module_id == "suit_control" or module_id == "airlock_procedure" or module_id == "power_repair" or module_id == "life_support" or module_id == "plant_diagnosis":
+		if module_id == "suit_control" or module_id == "airlock_procedure" or module_id == "power_repair" or module_id == "life_support" or module_id == "plant_diagnosis" or module_id == "final_assessment":
 			var visual := TrainingTargetVisual.new()
 			visual.kind = String(target.get("kind", target.get("id", "target")))
 			visual.label_text = String(target.get("label", ""))
@@ -705,7 +771,7 @@ func _build_training_area() -> void:
 		node.size = target.get("size", Vector2(108, 70))
 		training_area.add_child(node)
 		target_nodes[node.name] = node
-		if module_id != "suit_control" and module_id != "airlock_procedure" and module_id != "power_repair" and module_id != "life_support" and module_id != "plant_diagnosis":
+		if module_id != "suit_control" and module_id != "airlock_procedure" and module_id != "power_repair" and module_id != "life_support" and module_id != "plant_diagnosis" and module_id != "final_assessment":
 			var label := Label.new()
 			label.text = String(target.get("label", node.name))
 			label.position = Vector2(8, 8)
@@ -713,7 +779,7 @@ func _build_training_area() -> void:
 			label.add_theme_font_size_override("font_size", 13)
 			node.add_child(label)
 
-	if module_id == "suit_control" or module_id == "airlock_procedure" or module_id == "power_repair" or module_id == "life_support" or module_id == "plant_diagnosis":
+	if module_id == "suit_control" or module_id == "airlock_procedure" or module_id == "power_repair" or module_id == "life_support" or module_id == "plant_diagnosis" or module_id == "final_assessment":
 		player = TraineeVisual.new()
 	else:
 		var player_block := ColorRect.new()
@@ -905,6 +971,92 @@ func _plant_room_target(target: Dictionary) -> Dictionary:
 			room_target["size"] = Vector2(74, 106)
 	return room_target
 
+func _assessment_room_target(target: Dictionary) -> Dictionary:
+	var id := String(target.get("id", ""))
+	var room_target := target.duplicate()
+	match id:
+		"terminal":
+			room_target["kind"] = "assessment_terminal"
+			room_target["label"] = "考核终端"
+			room_target["position"] = Vector2(336, 384)
+			room_target["size"] = Vector2(146, 96)
+		"tools":
+			room_target["kind"] = "tool_station"
+			room_target["label"] = "工具台"
+			room_target["position"] = Vector2(74, 226)
+			room_target["size"] = Vector2(118, 84)
+		"panel":
+			room_target["kind"] = "power_panel"
+			room_target["label"] = "故障供电面板"
+			room_target["position"] = Vector2(82, 112)
+			room_target["size"] = Vector2(132, 94)
+		"power_console":
+			room_target["kind"] = "power_console"
+			room_target["label"] = "供电控制台"
+			room_target["position"] = Vector2(82, 334)
+			room_target["size"] = Vector2(132, 88)
+		"test_light":
+			room_target["kind"] = "test_light"
+			room_target["label"] = "测试灯"
+			room_target["position"] = Vector2(188, 118)
+			room_target["size"] = Vector2(72, 76)
+		"life_console":
+			room_target["kind"] = "life_console"
+			room_target["label"] = "生命支持控制台"
+			room_target["position"] = Vector2(302, 250)
+			room_target["size"] = Vector2(132, 88)
+		"oxygen":
+			room_target["kind"] = "life_status"
+			room_target["label"] = "氧气状态"
+			room_target["position"] = Vector2(276, 112)
+			room_target["size"] = Vector2(96, 66)
+		"water":
+			room_target["kind"] = "life_status"
+			room_target["label"] = "水循环"
+			room_target["position"] = Vector2(388, 112)
+			room_target["size"] = Vector2(96, 66)
+		"power_display":
+			room_target["kind"] = "life_status"
+			room_target["label"] = "电力状态"
+			room_target["position"] = Vector2(276, 188)
+			room_target["size"] = Vector2(96, 66)
+		"temperature":
+			room_target["kind"] = "life_status"
+			room_target["label"] = "温度状态"
+			room_target["position"] = Vector2(388, 188)
+			room_target["size"] = Vector2(96, 66)
+		"life_core":
+			room_target["kind"] = "life_core"
+			room_target["label"] = "生命支持核心"
+			room_target["position"] = Vector2(418, 252)
+			room_target["size"] = Vector2(72, 88)
+		"plant":
+			room_target["kind"] = "plant_chamber"
+			room_target["label"] = "植物舱"
+			room_target["position"] = Vector2(542, 154)
+			room_target["size"] = Vector2(116, 142)
+		"scanner":
+			room_target["kind"] = "plant_scanner"
+			room_target["label"] = "植物扫描器"
+			room_target["position"] = Vector2(670, 128)
+			room_target["size"] = Vector2(82, 88)
+		"light_console":
+			room_target["kind"] = "plant_console"
+			room_target["label"] = "补光控制台"
+			room_target["position"] = Vector2(662, 254)
+			room_target["size"] = Vector2(100, 82)
+		"grow_light":
+			room_target["kind"] = "grow_light"
+			room_target["label"] = "补光灯"
+			room_target["position"] = Vector2(542, 102)
+			room_target["size"] = Vector2(116, 60)
+		"plant_status":
+			room_target["kind"] = "plant_status"
+			room_target["label"] = "植物状态"
+			room_target["position"] = Vector2(546, 304)
+			room_target["size"] = Vector2(108, 66)
+	return room_target
+
 func _move_player(delta: float) -> void:
 	var direction := Vector2.ZERO
 	direction.x = Input.get_axis("ui_left", "ui_right")
@@ -912,7 +1064,7 @@ func _move_player(delta: float) -> void:
 	if direction.length() > 1.0:
 		direction = direction.normalized()
 	player.position += direction * player_speed * delta
-	var use_wall_margin := module_id == "suit_control" or module_id == "power_repair" or module_id == "life_support" or module_id == "plant_diagnosis"
+	var use_wall_margin := module_id == "suit_control" or module_id == "power_repair" or module_id == "life_support" or module_id == "plant_diagnosis" or module_id == "final_assessment"
 	var margin := 36.0 if use_wall_margin else 8.0
 	player.position.x = clamp(player.position.x, margin, max(margin, training_area.size.x - player.size.x - margin))
 	player.position.y = clamp(player.position.y, margin, max(margin, training_area.size.y - player.size.y - margin))
@@ -1048,6 +1200,17 @@ func _wrong_order_hint() -> String:
 			return "请先确认植物异常原因。"
 		if target_nodes.has("exit") and _is_near("exit") and not bool(state.get("PlantStable", false)):
 			return "训练模块尚未完成。"
+	if module_id == "final_assessment":
+		if target_nodes.has("life_console") and _is_near("life_console") and not bool(state.get("PowerRestored", false)):
+			return "供电尚未恢复。生命支持系统无法进入稳定流程。"
+		if (target_nodes.has("plant") and _is_near("plant")) or (target_nodes.has("scanner") and _is_near("scanner")):
+			if not bool(state.get("LifeSupportStable", false)):
+				return "生命支持状态尚未稳定。植物舱诊断结果可能不可靠。"
+		if target_nodes.has("light_console") and _is_near("light_console") and String(state.get("CorrectDiagnosis", "")) != "LightInsufficient":
+			return "请先确认植物异常原因。"
+		if target_nodes.has("terminal") and _is_near("terminal") and bool(state.get("AssessmentBriefingRead", false)):
+			if not (bool(state.get("PowerRestored", false)) and bool(state.get("LifeSupportStable", false)) and bool(state.get("PlantStable", false))):
+				return "考核结果不完整。请确认供电、生命支持与植物舱状态。"
 	return ""
 
 func _is_near(target_id: String) -> bool:
@@ -1090,6 +1253,8 @@ func _update_room_prompt() -> void:
 				node.status_text = _life_support_visual_status(String(node.name))
 			if module_id == "plant_diagnosis":
 				node.status_text = _plant_visual_status(String(node.name))
+			if module_id == "final_assessment":
+				node.status_text = _assessment_visual_status(String(node.name))
 			if module_id == "airlock_procedure" and node.name == "pressure_display":
 				node.status_text = "舱压：%s" % _airlock_pressure_status()
 			node.queue_redraw()
@@ -1106,6 +1271,12 @@ func _update_room_prompt() -> void:
 		var state: Dictionary = module_data.get("state", {})
 		floor_node.set("plant_stable", bool(state.get("PlantStable", false)))
 		floor_node.set("grow_light_on", bool(state.get("GrowLightAdjusted", false)))
+		floor_node.queue_redraw()
+	if module_id == "final_assessment" and floor_node != null:
+		var state: Dictionary = module_data.get("state", {})
+		floor_node.set("power_on", bool(state.get("PowerRestored", false)))
+		floor_node.set("life_stable", bool(state.get("LifeSupportStable", false)))
+		floor_node.set("plant_stable", bool(state.get("PlantStable", false)))
 		floor_node.queue_redraw()
 	if completed or step.is_empty():
 		prompt_label.visible = false
@@ -1178,6 +1349,33 @@ func _interaction_prompt(target_id: String) -> String:
 				return "E 调整补光"
 			"exit":
 				return "E 进入最终考核"
+	if module_id == "final_assessment":
+		match target_id:
+			"terminal":
+				var state: Dictionary = module_data.get("state", {})
+				if bool(state.get("PowerRestored", false)) and bool(state.get("LifeSupportStable", false)) and bool(state.get("PlantStable", false)):
+					return "E 提交考核结果"
+				return "E 读取考核终端"
+			"tools":
+				return "E 取用维修工具"
+			"panel":
+				var state: Dictionary = module_data.get("state", {})
+				if bool(state.get("PowerPanelInspected", false)):
+					return "E 维修供电面板"
+				return "E 检查供电面板"
+			"power_console":
+				return "E 重启供电"
+			"life_console":
+				var state: Dictionary = module_data.get("state", {})
+				if bool(state.get("LifeSupportConsoleOpened", false)):
+					return "E 启动稳定程序"
+				return "E 打开生命支持控制台"
+			"plant":
+				return "E 观察植物"
+			"scanner":
+				return "E 使用扫描器"
+			"light_console":
+				return "E 调整补光"
 	if target_id == "terminal":
 		return "E 使用训练终端"
 	return "E 交互"
@@ -1209,6 +1407,8 @@ func _update_hud() -> void:
 		hud_label.text = _life_support_hud_text()
 	elif module_id == "plant_diagnosis":
 		hud_label.text = _plant_hud_text()
+	elif module_id == "final_assessment":
+		hud_label.text = _assessment_hud_text()
 	else:
 		hud_label.text = String(module_data.get("hud", "氧气模拟值：98%\n电力模拟值：稳定\n生命支持状态：训练环境"))
 	if module_id == "suit_control" and not completed:
@@ -1221,6 +1421,8 @@ func _update_hud() -> void:
 		hint_label.text = _life_support_hint(step)
 	elif module_id == "plant_diagnosis" and not completed:
 		hint_label.text = _plant_hint(step)
+	elif module_id == "final_assessment" and not completed:
+		hint_label.text = _assessment_hint(step)
 	else:
 		hint_label.text = String(step.get("hint", "移动至目标区域，按 E 交互。")) if not completed else "训练记录已保存。"
 	if String(step.get("type", "")) == "diagnosis":
@@ -1418,6 +1620,134 @@ func _plant_hint(step: Dictionary) -> String:
 		return "请等待植物状态恢复稳定。"
 	return "请按植物诊断流程继续。"
 
+func _assessment_hud_text() -> String:
+	return "供电状态：%s\n生命支持状态：%s\n植物舱状态：%s\n氧气模拟值：%s\n电力模拟值：%s\n提示信息：%s" % [
+		_assessment_power_status(),
+		_assessment_life_status(),
+		_assessment_plant_status(),
+		String((module_data.get("state", {}) as Dictionary).get("OxygenStatus", "偏低")),
+		String((module_data.get("state", {}) as Dictionary).get("PowerStatus", "故障")),
+		_assessment_hint(_current_step()),
+	]
+
+func _assessment_power_status() -> String:
+	var state: Dictionary = module_data.get("state", {})
+	if bool(state.get("PowerRestored", false)):
+		return "稳定"
+	if bool(state.get("PowerPanelRepaired", false)):
+		return "待重启"
+	if bool(state.get("PowerPanelInspected", false)):
+		return "维修中"
+	return "故障"
+
+func _assessment_life_status() -> String:
+	var state: Dictionary = module_data.get("state", {})
+	if bool(state.get("LifeSupportStable", false)):
+		return "稳定"
+	if bool(state.get("StabilizationStarted", false)):
+		return "稳定中"
+	return "未稳定"
+
+func _assessment_plant_status() -> String:
+	var state: Dictionary = module_data.get("state", {})
+	if bool(state.get("PlantStable", false)):
+		return "稳定"
+	if bool(state.get("GrowLightAdjusted", false)):
+		return "稳定中"
+	return "异常"
+
+func _assessment_visual_status(node_name: String) -> String:
+	var state: Dictionary = module_data.get("state", {})
+	match node_name:
+		"terminal":
+			if bool(state.get("FinalAssessmentCompleted", false)):
+				return "complete"
+			if bool(state.get("PowerRestored", false)) and bool(state.get("LifeSupportStable", false)) and bool(state.get("PlantStable", false)):
+				return "ready"
+		"panel":
+			if bool(state.get("PowerPanelRepaired", false)):
+				return "repaired"
+			if bool(state.get("PowerPanelInspected", false)):
+				return "repairing"
+		"power_console":
+			if bool(state.get("PowerRestored", false)):
+				return "restored"
+		"test_light":
+			if bool(state.get("TestLightOn", false)) or bool(state.get("PowerRestored", false)):
+				return "on"
+		"life_console":
+			if bool(state.get("LifeSupportStable", false)):
+				return "stable"
+			if bool(state.get("StabilizationStarted", false)):
+				return "stabilizing"
+			return "open" if bool(state.get("LifeSupportConsoleOpened", false)) else ""
+		"oxygen", "temperature":
+			if bool(state.get("LifeSupportStable", false)):
+				return "stable"
+			if bool(state.get("StabilizationStarted", false)):
+				return "stabilizing"
+			return "low"
+		"water", "power_display":
+			return "stable"
+		"life_core":
+			if bool(state.get("LifeSupportStable", false)):
+				return "stable"
+			if bool(state.get("StabilizationStarted", false)):
+				return "stabilizing"
+		"plant", "plant_status":
+			if bool(state.get("PlantStable", false)):
+				return "stable"
+			if bool(state.get("GrowLightAdjusted", false)):
+				return "stabilizing"
+			return "abnormal"
+		"scanner":
+			if bool(state.get("PlantScanned", false)):
+				return "scanned"
+		"grow_light":
+			if bool(state.get("GrowLightAdjusted", false)):
+				return "on"
+		"light_console":
+			if bool(state.get("PlantStable", false)):
+				return "stable"
+	return ""
+
+func _assessment_hint(step: Dictionary) -> String:
+	match String(step.get("target", "")):
+		"terminal":
+			var state: Dictionary = module_data.get("state", {})
+			if bool(state.get("PowerRestored", false)) and bool(state.get("LifeSupportStable", false)) and bool(state.get("PlantStable", false)):
+				return "请回到考核终端提交结果。"
+			return "请先读取考核终端，确认模拟事故。"
+		"tools":
+			return "请先取得维修工具。"
+		"panel":
+			var state: Dictionary = module_data.get("state", {})
+			if bool(state.get("PowerPanelInspected", false)):
+				return "请维修故障供电面板。"
+			return "请检查故障供电面板。"
+		"power_console":
+			return "请重启训练舱供电。"
+		"life_console":
+			var state: Dictionary = module_data.get("state", {})
+			if bool(state.get("LifeSupportConsoleOpened", false)):
+				return "请启动生命支持稳定程序。"
+			return "请打开生命支持控制台。"
+		"life_core":
+			return "请等待生命支持系统稳定。"
+		"plant":
+			return "请观察植物舱状态。"
+		"scanner":
+			return "请使用植物扫描器。"
+		"light_console":
+			return "请调整补光方案。"
+		"plant_status":
+			return "请等待植物舱状态稳定。"
+	if String(step.get("type", "")) == "diagnosis":
+		return "请根据扫描结果选择植物异常原因。"
+	if String(step.get("type", "")) == "wait":
+		return "请等待模拟状态稳定。"
+	return "请按最终考核流程处理模拟事故。"
+
 func _add_log(line: String) -> void:
 	if line.is_empty():
 		return
@@ -1613,25 +1943,42 @@ func _assessment_config() -> Dictionary:
 		"next_module": "mission_assignment",
 		"next_scene": TrainingManagerScript.MISSION_NOTICE,
 		"next_button": "查看任务派遣通知",
-		"hud": "模拟事故开始。\n供电下降。\n生命支持不稳定。\n植物舱状态异常。",
+		"player_start": Vector2(382, 430),
+		"player_size": Vector2(42, 54),
+		"hud": "供电状态：故障\n生命支持状态：未稳定\n植物舱状态：异常\n提示信息：读取考核终端。",
 		"targets": [
-			{"id": "tools", "label": "工具台", "position": Vector2(90, 360), "color": Color("#4b4f37")},
-			{"id": "panel", "label": "供电面板", "position": Vector2(290, 180), "color": Color("#5b3c3c")},
-			{"id": "power_console", "label": "供电控制台", "position": Vector2(520, 170), "color": Color("#31536f")},
-			{"id": "life_console", "label": "生命支持控制台", "position": Vector2(570, 330), "color": Color("#31536f")},
-			{"id": "plant", "label": "植物舱", "position": Vector2(300, 360), "color": Color("#2d5b3f")},
-			{"id": "terminal", "label": "考核终端", "position": Vector2(700, 420), "color": Color("#274f43")},
+			{"id": "terminal", "label": "考核终端"},
+			{"id": "tools", "label": "工具台"},
+			{"id": "panel", "label": "故障供电面板"},
+			{"id": "power_console", "label": "供电控制台"},
+			{"id": "test_light", "label": "测试灯"},
+			{"id": "life_console", "label": "生命支持控制台"},
+			{"id": "oxygen", "label": "氧气状态"},
+			{"id": "water", "label": "水循环"},
+			{"id": "power_display", "label": "电力状态"},
+			{"id": "temperature", "label": "温度状态"},
+			{"id": "life_core", "label": "生命支持核心"},
+			{"id": "plant", "label": "植物舱"},
+			{"id": "scanner", "label": "植物扫描器"},
+			{"id": "light_console", "label": "补光控制台"},
+			{"id": "grow_light", "label": "补光灯"},
+			{"id": "plant_status", "label": "植物状态"},
 		],
 		"steps": [
-			{"type": "interact", "target": "tools", "objective": "从工具台取得维修工具", "line": "已取得维修工具。", "state_key": "HasTool"},
-			{"type": "interact", "target": "panel", "objective": "修复供电面板", "line": "供电面板维修完成。", "state_key": "PowerPanelRepaired", "requires": {"HasTool": true}, "blocked_hint": "流程不完整。请先取得维修工具。"},
-			{"type": "interact", "target": "power_console", "objective": "重启供电", "line": "供电恢复。", "state_key": "PowerRestored", "requires": {"PowerPanelRepaired": true}},
-			{"type": "interact", "target": "life_console", "objective": "打开生命支持控制台", "line": "生命支持控制台已打开。", "requires": {"PowerRestored": true}, "blocked_hint": "生命支持稳定通常依赖供电状态。"},
-			{"type": "interact", "target": "life_console", "objective": "启动稳定程序", "line": "生命支持稳定。", "state_key": "LifeSupportStable", "requires": {"PowerRestored": true}},
-			{"type": "interact", "target": "plant", "objective": "扫描植物舱", "line": "植物舱状态异常。叶片颜色偏浅。"},
-			{"type": "diagnosis", "objective": "判断植物异常", "line": "诊断结论：光照不足。", "options": ["缺水", "光照不足", "根区温度异常"], "correct": "光照不足"},
-			{"type": "interact", "target": "plant", "objective": "调整补光方案", "line": "植物舱状态稳定。", "state_key": "PlantStable"},
-			{"type": "interact", "target": "terminal", "objective": "返回考核终端提交结果", "line": "最终考核完成。\n\n供电恢复。\n生命支持稳定。\n植物舱状态稳定。\n\n候选人具备进入月面长期驻留任务训练后阶段的基础资格。", "requires": {"PowerRestored": true, "LifeSupportStable": true, "PlantStable": true}, "blocked_hint": "流程不完整。请检查供电、生命支持与植物舱状态。"},
+			{"type": "interact", "target": "terminal", "objective": "读取考核终端", "line": "最终考核开始。\n\n模拟事故：\n供电下降。\n生命支持不稳定。\n植物舱状态异常。\n\n考核目标：\n恢复供电。\n稳定生命支持。\n处理植物舱异常。\n提交考核结果。", "state_updates": {"FinalAssessmentStarted": true, "AssessmentBriefingRead": true, "PowerStatus": "故障", "LifeSupportStatus": "未稳定", "PlantStatus": "异常", "OxygenStatus": "偏低", "WaterStatus": "稳定", "TemperatureStatus": "偏低", "TestLightOn": false, "GrowLightStatus": "偏低"}},
+			{"type": "interact", "target": "tools", "objective": "获取维修工具", "line": "维修工具已取用。", "state_key": "HasRepairTool"},
+			{"type": "interact", "target": "panel", "objective": "检查故障供电面板", "line": "检测到主供电回路未闭合。\n生命支持系统供电不足。", "state_key": "PowerPanelInspected", "requires": {"HasRepairTool": true}, "blocked_hint": "未检测到维修工具。请先前往工具台。"},
+			{"type": "interact", "target": "panel", "objective": "维修供电面板", "line": "维修中……\n供电面板维修完成。", "state_updates": {"PowerPanelRepaired": true, "PowerStatus": "待重启"}, "requires": {"HasRepairTool": true, "PowerPanelInspected": true}, "blocked_hint": "请先检查故障供电面板。"},
+			{"type": "interact", "target": "power_console", "objective": "重启供电", "line": "供电恢复。\n生命支持系统可进入稳定流程。", "state_updates": {"PowerRestored": true, "PowerStatus": "稳定", "TestLightOn": true}, "requires": {"PowerPanelRepaired": true}, "blocked_hint": "供电面板尚未修复。无法重启供电。"},
+			{"type": "interact", "target": "life_console", "objective": "打开生命支持控制台", "line": "检测到氧气偏低。\n检测到温度偏低。\n水循环与电力状态稳定。", "state_updates": {"LifeSupportConsoleOpened": true, "LifeSupportStatusRead": true, "LifeSupportStatus": "未稳定", "OxygenStatus": "偏低", "WaterStatus": "稳定", "TemperatureStatus": "偏低"}, "requires": {"PowerRestored": true}, "blocked_hint": "供电尚未恢复。生命支持系统无法进入稳定流程。"},
+			{"type": "interact", "target": "life_console", "objective": "启动生命支持稳定程序", "line": "稳定程序启动。\n正在调整氧气输出与温控系统。", "state_updates": {"StabilizationStarted": true, "LifeSupportStatus": "稳定中"}, "requires": {"PowerRestored": true, "LifeSupportConsoleOpened": true}, "blocked_hint": "供电尚未恢复。生命支持系统无法进入稳定流程。"},
+			{"type": "wait", "target": "life_core", "objective": "等待生命支持稳定", "line": "氧气状态：稳定。\n水循环状态：稳定。\n电力状态：稳定。\n温度状态：稳定。\n生命支持状态：稳定。", "duration": 1.4, "state_updates": {"LifeSupportStable": true, "LifeSupportStatus": "稳定", "OxygenStatus": "稳定", "WaterStatus": "稳定", "TemperatureStatus": "稳定"}},
+			{"type": "interact", "target": "plant", "objective": "观察植物舱", "line": "叶片颜色偏浅。\n植株姿态轻微下垂。\n\n植物舱仍处于异常状态。\n请进行诊断。", "state_updates": {"PlantObserved": true, "PlantStatus": "异常"}, "requires": {"LifeSupportStable": true}, "blocked_hint": "生命支持状态尚未稳定。植物舱诊断结果可能不可靠。"},
+			{"type": "interact", "target": "scanner", "objective": "扫描训练植物", "line": "扫描完成。\n叶绿素反应偏低。\n根区温度正常。\n水分状态正常。", "state_updates": {"PlantScanned": true, "ScannerResult": "叶绿素反应偏低；根区温度正常；水分状态正常"}, "requires": {"PlantObserved": true, "LifeSupportStable": true}, "blocked_hint": "生命支持状态尚未稳定。植物舱诊断结果可能不可靠。"},
+			{"type": "diagnosis", "objective": "选择植物异常原因", "line": "诊断确认：光照不足。", "options": ["缺水", "光照不足", "根区温度异常"], "correct": "光照不足", "wrong_hint": "诊断结果不匹配。\n请重新查看扫描信息。", "state_updates": {"CorrectDiagnosis": "LightInsufficient", "DiagnosisSelected": true}, "requires": {"PlantScanned": true}},
+			{"type": "interact", "target": "light_console", "objective": "调整补光方案", "line": "补光方案已调整。\n植物状态正在恢复。", "state_updates": {"GrowLightAdjusted": true, "GrowLightStatus": "稳定", "PlantStatus": "稳定中"}, "requires": {"CorrectDiagnosis": "LightInsufficient"}, "blocked_hint": "请先确认植物异常原因。"},
+			{"type": "wait", "target": "plant_status", "objective": "等待植物状态稳定", "line": "植物状态：稳定。\n叶片反应：恢复中。\n补光输出：正常。", "duration": 1.4, "state_updates": {"PlantStable": true, "PlantStatus": "稳定"}},
+			{"type": "interact", "target": "terminal", "objective": "提交考核结果", "line": "最终考核完成。\n\n供电恢复。\n生命支持稳定。\n植物舱状态稳定。\n\n候选人具备进入月面长期驻留任务后续阶段的基础资格。", "state_key": "FinalAssessmentCompleted", "requires": {"PowerRestored": true, "LifeSupportStable": true, "PlantStable": true}, "blocked_hint": "考核结果不完整。请确认供电、生命支持与植物舱状态。"},
 		],
 	})
 	return data

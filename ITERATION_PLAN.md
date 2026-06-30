@@ -1201,3 +1201,40 @@ Still out of scope:
 - Full crop growth, watering, nutrients or greenhouse management.
 - Harvest, yield, inventory or random plant disease.
 - Magical growth or rapid recovery visuals.
+
+## Sprint 04 Final Assessment
+
+Status: complete first playable pass.
+
+Completed:
+
+- Converted Final Assessment from abstract blocks into a TR-001-style controlled simulation chamber.
+- Added readable assessment zones:
+  - Power repair area.
+  - Life support area.
+  - Plant chamber area.
+  - Assessment terminal area.
+- Added semantic placeholder props:
+  - Assessment terminal.
+  - Tool station.
+  - Damaged power panel.
+  - Power restart console.
+  - Test light.
+  - Life support console and status displays.
+  - Life support core.
+  - Plant chamber.
+  - Plant scanner.
+  - Grow light and light console.
+  - Plant status display.
+- Implemented staged flow: read assessment terminal, get repair tool, inspect power panel, repair power panel, restart power, open life support console, stabilize life support, observe plant chamber, scan plant, select diagnosis, adjust grow light, wait for plant stability and submit the assessment result.
+- Added scripted state updates for `FinalAssessmentStarted`, `AssessmentBriefingRead`, `HasRepairTool`, `PowerPanelInspected`, `PowerPanelRepaired`, `PowerRestored`, `LifeSupportConsoleOpened`, `LifeSupportStable`, `PlantObserved`, `PlantScanned`, `CorrectDiagnosis`, `GrowLightAdjusted`, `PlantStable` and `FinalAssessmentCompleted`.
+- Added simulated status fields for power, oxygen, water, temperature, life support, plant status, test light and grow light.
+- Added combined HUD feedback for power, life support and plant chamber state.
+- Added calm wrong-order hints for life support before power, plant diagnosis before life support stability, grow-light adjustment before diagnosis and result submission before all systems are stable.
+- Final Assessment completion routes to `MissionAssignmentNoticeScene`, not Moon arrival.
+
+Still out of scope:
+
+- Full oxygen, power, crop, plant growth or survival simulation.
+- Scoring, failure, death, random events or stress penalties.
+- Launch sequence or direct Moon assignment acceptance.
