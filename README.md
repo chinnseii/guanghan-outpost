@@ -478,3 +478,12 @@ Scope note:
 - HUD now reports airlock pressure status as `未启动 / 稳定中 / 稳定`.
 - This remains a training simulation only; no real oxygen consumption, decompression damage or full EVA system was added.
 - Module 02 polish: chamber walls are thicker, the chamber floor tone is clearer, door locks use `锁定`, and the pressure display now shows `舱压：未启动 / 稳定中 / 稳定`.
+
+## Sprint 04 Module 03: Power Repair
+
+- Module 03 now uses the TR-001 training-room visual standard instead of abstract colored blocks.
+- The room includes semantic placeholder props for tool station, damaged power panel, power restart console, test light and training exit.
+- The staged flow is scripted: get repair tool, inspect the damaged panel, repair the panel, restart power, observe the test light and exit to the next module.
+- HUD power state updates through `故障 / 维修中 / 稳定`.
+- Wrong-order actions show calm procedural hints; there is no failure screen or punishment.
+- This remains a scripted training simulation only; no full electrical grid, tool inventory, durability or repair minigame was added.

@@ -68,6 +68,40 @@ class AirlockRoomBlockout:
 		draw_string(ThemeDB.fallback_font, chamber.position + Vector2(16, 24), "气闸舱", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color("#8fa3b2"))
 		draw_string(ThemeDB.fallback_font, exterior.position + Vector2(16, 24), "外部模拟区", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color("#8fa3b2"))
 
+class PowerRepairRoomBlockout:
+	extends Control
+
+	var power_on := false
+
+	func _draw() -> void:
+		var rect := Rect2(Vector2.ZERO, size)
+		draw_rect(rect, Color("#07111b"), true)
+		var room := Rect2(Vector2(24, 24), size - Vector2(48, 48))
+		draw_rect(room, Color("#17222c"), true)
+		for x in range(int(room.position.x), int(room.end.x), 48):
+			draw_line(Vector2(x, room.position.y), Vector2(x, room.end.y), Color("#31414d", 0.55), 1.0)
+		for y in range(int(room.position.y), int(room.end.y), 48):
+			draw_line(Vector2(room.position.x, y), Vector2(room.end.x, y), Color("#31414d", 0.55), 1.0)
+		draw_rect(room, Color("#5d6f7d"), false, 4.0)
+		draw_rect(room.grow(-10), Color("#2a3844"), false, 2.0)
+		draw_rect(Rect2(room.position, Vector2(room.size.x, 28)), Color("#25313c"), true)
+		draw_rect(Rect2(Vector2(room.position.x, room.end.y - 28), Vector2(room.size.x, 28)), Color("#25313c"), true)
+		draw_rect(Rect2(room.position, Vector2(28, room.size.y)), Color("#25313c"), true)
+		draw_rect(Rect2(Vector2(room.end.x - 28, room.position.y), Vector2(28, room.size.y)), Color("#25313c"), true)
+		var light_color := Color("#f0c766", 0.42) if power_on else Color("#4f6473", 0.22)
+		for light_x in [138, size.x * 0.5 - 42, size.x - 242]:
+			var light_rect := Rect2(Vector2(light_x, room.position.y + 16), Vector2(96, 8))
+			draw_rect(light_rect, light_color, true)
+			draw_rect(light_rect.grow(5), Color(light_color.r, light_color.g, light_color.b, 0.12), true)
+		if power_on:
+			draw_rect(room.grow(-42), Color("#f0c766", 0.035), true)
+		draw_rect(Rect2(Vector2(room.position.x + 72, room.end.y - 78), Vector2(132, 36)), Color("#344653"), true)
+		draw_rect(Rect2(Vector2(room.position.x + 82, room.end.y - 70), Vector2(34, 8)), Color("#8fa3b2", 0.55), true)
+		draw_rect(Rect2(Vector2(room.end.x - 210, room.position.y + 78), Vector2(126, 44)), Color("#344653"), true)
+		draw_rect(Rect2(Vector2(room.end.x - 198, room.position.y + 88), Vector2(42, 6)), Color("#67b7e8", 0.45), true)
+		draw_line(Vector2(room.position.x + 250, room.position.y + 120), Vector2(room.end.x - 235, room.position.y + 120), Color("#4f6473", 0.5), 3.0)
+		draw_line(Vector2(room.position.x + 250, room.position.y + 132), Vector2(room.end.x - 235, room.position.y + 132), Color("#4f6473", 0.25), 2.0)
+
 class TrainingTargetVisual:
 	extends Control
 
@@ -96,6 +130,14 @@ class TrainingTargetVisual:
 				_draw_door()
 			"status_display":
 				_draw_status_display()
+			"tool_station":
+				_draw_tool_station()
+			"power_panel":
+				_draw_power_panel()
+			"power_console":
+				_draw_power_console()
+			"test_light":
+				_draw_test_light()
 			"exit":
 				_draw_exit()
 			_:
@@ -159,6 +201,59 @@ class TrainingTargetVisual:
 		var text := status_text if not status_text.is_empty() else "舱压：未启动"
 		draw_string(ThemeDB.fallback_font, Vector2(12, size.y - 12), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color("#d8e7f2"))
 
+	func _draw_tool_station() -> void:
+		if highlighted:
+			draw_rect(Rect2(Vector2(-8, -8), size + Vector2(16, 16)), Color("#f0c766", 0.12), true)
+			draw_rect(Rect2(Vector2(-8, -8), size + Vector2(16, 16)), Color("#f0c766", 0.55), false, 2.0)
+		draw_rect(Rect2(Vector2(6, 34), Vector2(size.x - 12, size.y - 40)), Color("#303d47"), true)
+		draw_rect(Rect2(Vector2(0, 24), Vector2(size.x, 16)), Color("#52616c"), true)
+		draw_rect(Rect2(Vector2(18, 8), Vector2(26, 18)), Color("#7d8b94"), true)
+		draw_rect(Rect2(Vector2(58, 10), Vector2(46, 8)), Color("#f0c766", 0.7), true)
+		draw_line(Vector2(64, 18), Vector2(96, 30), Color("#d8e7f2", 0.65), 3.0)
+		draw_rect(Rect2(Vector2(22, 54), Vector2(18, 18)), Color("#1a2b38"), true)
+		draw_rect(Rect2(Vector2(52, 54), Vector2(18, 18)), Color("#1a2b38"), true)
+
+	func _draw_power_panel() -> void:
+		var warn := highlighted or status_text == "repairing"
+		var restored := status_text == "repaired" or status_text == "restored"
+		draw_rect(Rect2(Vector2.ZERO, size), Color("#2f343a"), true)
+		draw_rect(Rect2(Vector2(8, 8), size - Vector2(16, 16)), Color("#161f27"), true)
+		var edge := Color("#f0c766", 0.72) if warn else Color("#b45a56", 0.55)
+		if restored:
+			edge = Color("#d8e7f2", 0.65)
+		draw_rect(Rect2(Vector2.ZERO, size), edge, false, 3.0)
+		for i in range(4):
+			var x := 18 + i * 28
+			draw_rect(Rect2(Vector2(x, 20), Vector2(16, 42)), Color("#344653"), true)
+			draw_line(Vector2(x + 4, 28), Vector2(x + 12, 52), Color("#b45a56", 0.65 if not restored else 0.2), 2.0)
+		draw_rect(Rect2(Vector2(18, size.y - 26), Vector2(size.x - 36, 6)), Color("#f0c766", 0.62 if warn else 0.2), true)
+
+	func _draw_power_console() -> void:
+		if highlighted:
+			draw_rect(Rect2(Vector2(-8, -8), size + Vector2(16, 16)), Color("#f0c766", 0.12), true)
+			draw_rect(Rect2(Vector2(-8, -8), size + Vector2(16, 16)), Color("#f0c766", 0.55), false, 2.0)
+		draw_rect(Rect2(Vector2(10, 32), Vector2(size.x - 20, size.y - 38)), Color("#303b44"), true)
+		draw_rect(Rect2(Vector2(22, 8), Vector2(size.x - 44, 38)), Color("#101d28"), true)
+		var screen := Color("#f0c766", 0.62) if status_text == "restored" else Color("#236fa8")
+		draw_rect(Rect2(Vector2(30, 16), Vector2(size.x - 60, 20)), screen, true)
+		draw_rect(Rect2(Vector2(32, 58), Vector2(18, 10)), Color("#f0c766", 0.8), true)
+		draw_rect(Rect2(Vector2(60, 58), Vector2(18, 10)), Color("#6fa7c8"), true)
+		draw_rect(Rect2(Vector2(88, 58), Vector2(18, 10)), Color("#8fa3b2"), true)
+
+	func _draw_test_light() -> void:
+		var on := status_text == "on"
+		if highlighted:
+			draw_rect(Rect2(Vector2(-8, -8), size + Vector2(16, 16)), Color("#f0c766", 0.1), true)
+			draw_rect(Rect2(Vector2(-8, -8), size + Vector2(16, 16)), Color("#f0c766", 0.45), false, 2.0)
+		var center := size * 0.5
+		draw_rect(Rect2(Vector2(8, size.y - 18), Vector2(size.x - 16, 12)), Color("#303b44"), true)
+		draw_line(Vector2(center.x, 8), Vector2(center.x, size.y - 22), Color("#5d6f7d"), 4.0)
+		var glow := Color("#f0c766", 0.85) if on else Color("#5d6f7d", 0.35)
+		draw_circle(center + Vector2(0, -6), 18, Color(glow.r, glow.g, glow.b, 0.22 if on else 0.1))
+		draw_circle(center + Vector2(0, -6), 10, glow)
+		if on:
+			draw_circle(center + Vector2(0, -6), 28, Color("#f0c766", 0.08))
+
 	func _draw_exit() -> void:
 		var edge := Color("#f0c766", 0.7) if highlighted and not locked else Color("#89d8ff", 0.28)
 		draw_rect(Rect2(Vector2(14, 0), Vector2(size.x - 28, size.y)), Color("#34414c"), true)
@@ -207,6 +302,7 @@ var module_data: Dictionary = {}
 var step_index := 0
 var player: Control
 var training_area: Control
+var floor_node: Control
 var objective_label: Label
 var hud_label: Label
 var hint_label: Label
@@ -343,20 +439,25 @@ func _build_training_area() -> void:
 		floor = TrainingRoomBlockout.new()
 	elif module_id == "airlock_procedure":
 		floor = AirlockRoomBlockout.new()
+	elif module_id == "power_repair":
+		floor = PowerRepairRoomBlockout.new()
 	else:
 		var flat_floor := ColorRect.new()
 		flat_floor.color = Color("#0b1721")
 		floor = flat_floor
 	floor.set_anchors_preset(Control.PRESET_FULL_RECT)
 	training_area.add_child(floor)
+	floor_node = floor
 
 	for target: Dictionary in module_data.get("targets", []):
 		if module_id == "suit_control":
 			target = _suit_room_target(target)
 		elif module_id == "airlock_procedure":
 			target = _airlock_room_target(target)
+		elif module_id == "power_repair":
+			target = _power_room_target(target)
 		var node: Control
-		if module_id == "suit_control" or module_id == "airlock_procedure":
+		if module_id == "suit_control" or module_id == "airlock_procedure" or module_id == "power_repair":
 			var visual := TrainingTargetVisual.new()
 			visual.kind = String(target.get("kind", target.get("id", "target")))
 			visual.label_text = String(target.get("label", ""))
@@ -370,7 +471,7 @@ func _build_training_area() -> void:
 		node.size = target.get("size", Vector2(108, 70))
 		training_area.add_child(node)
 		target_nodes[node.name] = node
-		if module_id != "suit_control" and module_id != "airlock_procedure":
+		if module_id != "suit_control" and module_id != "airlock_procedure" and module_id != "power_repair":
 			var label := Label.new()
 			label.text = String(target.get("label", node.name))
 			label.position = Vector2(8, 8)
@@ -378,7 +479,7 @@ func _build_training_area() -> void:
 			label.add_theme_font_size_override("font_size", 13)
 			node.add_child(label)
 
-	if module_id == "suit_control" or module_id == "airlock_procedure":
+	if module_id == "suit_control" or module_id == "airlock_procedure" or module_id == "power_repair":
 		player = TraineeVisual.new()
 	else:
 		var player_block := ColorRect.new()
@@ -457,6 +558,37 @@ func _airlock_room_target(target: Dictionary) -> Dictionary:
 			room_target["size"] = Vector2(74, 106)
 	return room_target
 
+func _power_room_target(target: Dictionary) -> Dictionary:
+	var id := String(target.get("id", ""))
+	var room_target := target.duplicate()
+	match id:
+		"tools":
+			room_target["kind"] = "tool_station"
+			room_target["label"] = "工具台"
+			room_target["position"] = Vector2(92, 348)
+			room_target["size"] = Vector2(132, 92)
+		"panel":
+			room_target["kind"] = "power_panel"
+			room_target["label"] = "故障供电面板"
+			room_target["position"] = Vector2(326, 116)
+			room_target["size"] = Vector2(140, 104)
+		"console":
+			room_target["kind"] = "power_console"
+			room_target["label"] = "供电控制台"
+			room_target["position"] = Vector2(586, 194)
+			room_target["size"] = Vector2(136, 92)
+		"light":
+			room_target["kind"] = "test_light"
+			room_target["label"] = "测试灯"
+			room_target["position"] = Vector2(434, 312)
+			room_target["size"] = Vector2(86, 92)
+		"exit":
+			room_target["kind"] = "exit"
+			room_target["label"] = "训练出口"
+			room_target["position"] = Vector2(684, 388)
+			room_target["size"] = Vector2(74, 106)
+	return room_target
+
 func _move_player(delta: float) -> void:
 	var direction := Vector2.ZERO
 	direction.x = Input.get_axis("ui_left", "ui_right")
@@ -464,7 +596,8 @@ func _move_player(delta: float) -> void:
 	if direction.length() > 1.0:
 		direction = direction.normalized()
 	player.position += direction * player_speed * delta
-	var margin := 36.0 if module_id == "suit_control" else 8.0
+	var use_wall_margin := module_id == "suit_control" or module_id == "power_repair"
+	var margin := 36.0 if use_wall_margin else 8.0
 	player.position.x = clamp(player.position.x, margin, max(margin, training_area.size.x - player.size.x - margin))
 	player.position.y = clamp(player.position.y, margin, max(margin, training_area.size.y - player.size.y - margin))
 
@@ -564,18 +697,27 @@ func _blocked_by_order(step: Dictionary) -> bool:
 	return false
 
 func _wrong_order_hint() -> String:
-	if module_id != "airlock_procedure":
-		return ""
 	var state: Dictionary = module_data.get("state", {})
-	if target_nodes.has("outer_door") and _is_near("outer_door"):
-		if not bool(state.get("InnerDoorClosed", false)):
+	if module_id == "airlock_procedure":
+		if target_nodes.has("outer_door") and _is_near("outer_door"):
+			if not bool(state.get("InnerDoorClosed", false)):
+				return "流程顺序错误。请先关闭内舱门。"
+			if not bool(state.get("PressureStable", false)):
+				return "舱压尚未稳定。外舱门保持锁定。"
+		if target_nodes.has("console") and _is_near("console") and not bool(state.get("InnerDoorClosed", false)):
 			return "流程顺序错误。请先关闭内舱门。"
-		if not bool(state.get("PressureStable", false)):
-			return "舱压尚未稳定。外舱门保持锁定。"
-	if target_nodes.has("console") and _is_near("console") and not bool(state.get("InnerDoorClosed", false)):
-		return "流程顺序错误。请先关闭内舱门。"
-	if target_nodes.has("inner_door") and _is_near("inner_door") and bool(state.get("InnerDoorClosed", false)):
-		return "内舱门已关闭。请继续舱压流程。"
+		if target_nodes.has("inner_door") and _is_near("inner_door") and bool(state.get("InnerDoorClosed", false)):
+			return "内舱门已关闭。请继续舱压流程。"
+	if module_id == "power_repair":
+		if target_nodes.has("panel") and _is_near("panel") and not bool(state.get("HasRepairTool", false)):
+			return "未检测到维修工具。请先前往工具台。"
+		if target_nodes.has("console") and _is_near("console"):
+			if not bool(state.get("PowerPanelInspected", false)):
+				return "请先检查故障供电面板。"
+			if not bool(state.get("PowerPanelRepaired", false)):
+				return "供电面板尚未修复。无法重启供电。"
+		if target_nodes.has("exit") and _is_near("exit") and not bool(state.get("TestLightOn", false)):
+			return "训练模块尚未完成。"
 	return ""
 
 func _is_near(target_id: String) -> bool:
@@ -612,9 +754,15 @@ func _update_room_prompt() -> void:
 			node.locked = _target_locked(String(node.name), target_id)
 			node.modulate = Color(1, 1, 1, 1) if node.highlighted else Color(0.72, 0.78, 0.84, 0.72)
 			node.show_trigger_debug = show_trigger_debug and node.kind == "marker"
+			if module_id == "power_repair":
+				node.status_text = _power_visual_status(String(node.name))
 			if module_id == "airlock_procedure" and node.name == "pressure_display":
 				node.status_text = "舱压：%s" % _airlock_pressure_status()
 			node.queue_redraw()
+	if module_id == "power_repair" and floor_node != null:
+		var state: Dictionary = module_data.get("state", {})
+		floor_node.set("power_on", bool(state.get("PowerRestored", false)))
+		floor_node.queue_redraw()
 	if completed or step.is_empty():
 		prompt_label.visible = false
 		return
@@ -652,6 +800,19 @@ func _interaction_prompt(target_id: String) -> String:
 				return "E 打开外舱门"
 			"exit":
 				return "E 进入下一模块"
+	if module_id == "power_repair":
+		match target_id:
+			"tools":
+				return "E 取用维修工具"
+			"panel":
+				var state: Dictionary = module_data.get("state", {})
+				if bool(state.get("PowerPanelInspected", false)):
+					return "E 维修供电面板"
+				return "E 检查供电面板"
+			"console":
+				return "E 重启供电"
+			"exit":
+				return "E 进入下一模块"
 	if target_id == "terminal":
 		return "E 使用训练终端"
 	return "E 交互"
@@ -677,12 +838,16 @@ func _update_hud() -> void:
 	objective_label.text = "当前目标：%s" % objective
 	if module_id == "airlock_procedure":
 		hud_label.text = _airlock_hud_text()
+	elif module_id == "power_repair":
+		hud_label.text = _power_hud_text()
 	else:
 		hud_label.text = String(module_data.get("hud", "氧气模拟值：98%\n电力模拟值：稳定\n生命支持状态：训练环境"))
 	if module_id == "suit_control" and not completed:
 		hint_label.text = _suit_control_hint(step)
 	elif module_id == "airlock_procedure" and not completed:
 		hint_label.text = _airlock_hint(step)
+	elif module_id == "power_repair" and not completed:
+		hint_label.text = _power_hint(step)
 	else:
 		hint_label.text = String(step.get("hint", "移动至目标区域，按 E 交互。")) if not completed else "训练记录已保存。"
 	if String(step.get("type", "")) == "diagnosis":
@@ -725,6 +890,52 @@ func _airlock_hint(step: Dictionary) -> String:
 	if String(step.get("type", "")) == "wait":
 		return "请等待舱压状态稳定。"
 	return "请按气闸流程继续。"
+
+func _power_hud_text() -> String:
+	return "氧气模拟值：98%%\n电力模拟值：%s\n生命支持状态：训练环境\n提示信息：%s" % [_power_status(), _power_hint(_current_step())]
+
+func _power_status() -> String:
+	var state: Dictionary = module_data.get("state", {})
+	if bool(state.get("PowerRestored", false)) or bool(state.get("TestLightOn", false)):
+		return "稳定"
+	if bool(state.get("PowerPanelRepaired", false)) or bool(state.get("PowerPanelInspected", false)):
+		return "维修中"
+	return "故障"
+
+func _power_visual_status(node_name: String) -> String:
+	var state: Dictionary = module_data.get("state", {})
+	match node_name:
+		"panel":
+			if bool(state.get("PowerPanelRepaired", false)):
+				return "repaired"
+			if bool(state.get("PowerPanelInspected", false)):
+				return "repairing"
+		"console":
+			if bool(state.get("PowerRestored", false)):
+				return "restored"
+		"light":
+			if bool(state.get("TestLightOn", false)) or bool(state.get("PowerRestored", false)):
+				return "on"
+	return ""
+
+func _power_hint(step: Dictionary) -> String:
+	var state: Dictionary = module_data.get("state", {})
+	match String(step.get("target", "")):
+		"tools":
+			return "请前往工具台，取用维修工具。"
+		"panel":
+			if bool(state.get("PowerPanelInspected", false)):
+				return "请使用维修工具修复供电面板。"
+			return "请靠近故障供电面板并按 E。"
+		"console":
+			return "请前往供电控制台，重启训练舱供电。"
+		"light":
+			return "请确认测试灯已亮起。"
+		"exit":
+			return "训练记录完成。请前往训练出口并按 E。"
+	if String(step.get("type", "")) == "wait":
+		return "请观察测试灯恢复。"
+	return "请按供电维修流程继续。"
 
 func _add_log(line: String) -> void:
 	if line.is_empty():
@@ -832,19 +1043,23 @@ func _power_config() -> Dictionary:
 		"subtitle": "POWER REPAIR",
 		"next_module": "life_support",
 		"next_scene": TrainingManagerScript.MODULE_04,
+		"player_start": Vector2(372, 396),
+		"player_size": Vector2(42, 54),
 		"hud": "氧气模拟值：97%\n电力模拟值：下降\n生命支持状态：待供电恢复\n提示信息：先取得工具。",
 		"targets": [
 			{"id": "tools", "label": "工具台", "position": Vector2(110, 350), "color": Color("#4b4f37")},
 			{"id": "panel", "label": "故障供电面板", "position": Vector2(390, 170), "color": Color("#5b3c3c")},
 			{"id": "console", "label": "供电控制台", "position": Vector2(620, 220), "color": Color("#31536f")},
 			{"id": "light", "label": "测试灯", "position": Vector2(660, 410), "color": Color("#413f31")},
+			{"id": "exit", "label": "训练出口", "position": Vector2(710, 410), "color": Color("#4d6473")},
 		],
 		"steps": [
-			{"type": "interact", "target": "tools", "objective": "从工具台取用维修工具", "line": "请从工具台取用维修工具。", "state_key": "HasTool"},
-			{"type": "interact", "target": "panel", "objective": "检查损坏的供电面板", "line": "检测到供电面板故障。", "requires": {"HasTool": true}, "blocked_hint": "没有维修工具。请先从工具台取用。"},
-			{"type": "interact", "target": "panel", "objective": "执行维修交互", "line": "开始维修。\n维修完成。", "state_key": "PowerPanelRepaired", "requires": {"HasTool": true}},
-			{"type": "interact", "target": "console", "objective": "在控制台重启供电", "line": "请重启供电。\n供电恢复。", "state_key": "PowerRestored", "requires": {"PowerPanelRepaired": true}},
-			{"type": "interact", "target": "light", "objective": "观察测试灯亮起", "line": "测试灯开启。模块完成。", "requires": {"PowerRestored": true}},
+			{"type": "interact", "target": "tools", "objective": "获取维修工具", "line": "维修工具已取用。", "state_updates": {"Module03Started": true, "HasRepairTool": true}},
+			{"type": "interact", "target": "panel", "objective": "检查供电面板", "line": "检测到供电面板故障。\n主供电回路未闭合。", "state_key": "PowerPanelInspected", "requires": {"HasRepairTool": true}, "blocked_hint": "未检测到维修工具。请先前往工具台。"},
+			{"type": "interact", "target": "panel", "objective": "维修供电面板", "line": "维修中……\n供电面板维修完成。", "state_key": "PowerPanelRepaired", "requires": {"HasRepairTool": true, "PowerPanelInspected": true}, "blocked_hint": "请先检查故障供电面板。"},
+			{"type": "interact", "target": "console", "objective": "重启供电", "line": "供电重启中……\n供电恢复。", "state_key": "PowerRestored", "requires": {"PowerPanelRepaired": true}, "blocked_hint": "供电面板尚未修复。无法重启供电。"},
+			{"type": "wait", "target": "light", "objective": "确认灯光恢复", "line": "测试灯已亮起。\n训练舱供电状态：稳定。", "duration": 1.2, "state_key": "TestLightOn", "requires": {"PowerRestored": true}},
+			{"type": "interact", "target": "exit", "objective": "进入下一训练模块", "line": "供电维修训练完成。", "state_key": "Module03Completed", "requires": {"TestLightOn": true}, "blocked_hint": "训练模块尚未完成。"},
 		],
 	})
 	return data

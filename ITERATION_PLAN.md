@@ -1122,3 +1122,28 @@ Still out of scope:
 - Real oxygen consumption.
 - Real decompression damage.
 - Full EVA, suit pressure or base airlock simulation.
+
+## Sprint 04 Module 03: Power Repair
+
+Status: complete first playable pass.
+
+Completed:
+
+- Converted Module 03 from abstract colored blocks into a TR-001-style training room blockout.
+- Added semantic placeholder props:
+  - Tool station.
+  - Damaged power panel.
+  - Power restart console.
+  - Test light.
+  - Training exit.
+- Implemented staged flow: get repair tool, inspect panel, repair panel, restart power, observe test light and exit.
+- Added scripted state updates for `Module03Started`, `HasRepairTool`, `PowerPanelInspected`, `PowerPanelRepaired`, `PowerRestored`, `TestLightOn` and `Module03Completed`.
+- Added HUD power status progression through `故障`, `维修中` and `稳定`.
+- Added calm wrong-order hints for repairing without tools, restarting before repair and exiting before completion.
+- Test light and room lighting now shift to restrained warm/cool-white feedback after power restoration.
+
+Still out of scope:
+
+- Full electrical grid simulation.
+- Tool inventory, equipment durability or repair minigame.
+- Real oxygen, pressure or EVA systems.
