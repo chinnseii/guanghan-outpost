@@ -982,7 +982,7 @@ Completed:
 - Removed the immediate accept-mission black screen route from Sprint 03.
 - Result page now states that official Moon assignment can happen only after national training and final assessment.
 - Result page buttons are `进入训练序列` and `返回主菜单`.
-- `进入训练序列` goes to `TrainingPlaceholderScene` for now.
+- `进入训练序列` now goes to `TrainingStartScene`.
 
 ## Sprint 03 Minor Patch Before Acceptance
 
@@ -1020,3 +1020,58 @@ Still out of scope:
 
 - Sprint 04 training gameplay.
 - Any application-flow redesign beyond this acceptance polish.
+
+## Sprint 04 National Training
+
+Status: complete first playable pass.
+
+Completed:
+
+- Added `TrainingManager` for training progress save/load at `user://saves/training_progress.json`.
+- Added `TrainingStartScene` as the normal handoff after Sprint 03 preliminary eligibility review.
+- Added scripted training modules:
+  - Suit Control
+  - Airlock Procedure
+  - Power Repair
+  - Life Support
+  - Plant Diagnosis
+- Added `FinalAssessmentScene` as a small scripted incident sequence, not a quiz and not a full simulation.
+- Added `MissionAssignmentNoticeScene`, gated behind final assessment completion.
+- Added temporary decline and accept assignment paths.
+- Added assignment black screen text with 17 pioneers, shown only after accepting the moon assignment.
+- Added transition from the black screen into `ArrivalCinematicScene`.
+- Updated `Continue Mission` to route to the current application/training state.
+- Added clearly marked Dev Only training entries in the main menu.
+
+Implementation scope:
+
+- Oxygen, power, life support and plant values are scripted training states only.
+- No full survival system, full crop system, launch animation, mining, automation, tech tree or resident system was added.
+
+Next polish candidates:
+
+- Replace training target rectangles with more readable room props.
+- Add small terminal beeps and restrained status animations.
+- Add a compact progress overview on TrainingStartScene.
+
+## TR-001 Training Room Visual Blockout
+
+Status: complete for Training Module 01.
+
+Completed:
+
+- Converted Training Module 01's right-side play area from abstract target blocks into a readable training room blockout.
+- Added scripted placeholder room visuals: floor tile grid, cool-grey wall boundary, overhead training lights and small wall equipment panels.
+- Replaced the module-one target blocks with semantic placeholder props:
+  - Training console with screen and controls.
+  - Floor marker/decal with dashed outline and target reticle.
+  - Airlock-style training exit door using cold white/blue and weak amber highlight instead of green.
+- Replaced the player square with a simplified astronaut trainee silhouette.
+- Added a local `E 交互` / `E 使用训练终端` room prompt near interactable targets.
+- Kept the left side as a training control HUD and kept the existing movement/interact/module-complete logic.
+
+Still out of scope:
+
+- Full oxygen, power, repair, crop or scoring systems.
+- Complex animation or final art.
+- Expanding later training modules beyond the shared visual direction.

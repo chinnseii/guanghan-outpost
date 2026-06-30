@@ -16,6 +16,7 @@ const SaveManagerScript := preload("res://scripts/save_manager.gd")
 const AudioFeedbackScript := preload("res://scripts/audio_feedback.gd")
 const RobotTaskManagerScript := preload("res://scripts/robot_task_manager.gd")
 const GameStateManagerScript := preload("res://scripts/game_state_manager.gd")
+const TrainingManagerScript := preload("res://scripts/training/training_manager.gd")
 const TimeManagerScript := preload("res://scripts/time_manager.gd")
 const CameraManagerScript := preload("res://scripts/camera_manager.gd")
 const UIManagerScript := preload("res://scripts/ui_manager.gd")
@@ -3458,8 +3459,8 @@ func _eva_risk_text() -> String:
 func _setup_main_menu() -> void:
 	var menu := PanelContainer.new()
 	menu.name = "MainMenu"
-	menu.position = Vector2(500, 150)
-	menu.size = Vector2(620, 680)
+	menu.position = Vector2(470, 70)
+	menu.size = Vector2(660, 800)
 	$UI/Root.add_child(menu)
 	var box := VBoxContainer.new()
 	box.name = "Box"
@@ -3485,7 +3486,7 @@ func _setup_main_menu() -> void:
 	continue_mission.text = "Continue Mission"
 	continue_mission.custom_minimum_size = Vector2(0, 40)
 	continue_mission.pressed.connect(func():
-		get_tree().change_scene_to_file("res://scenes/application/ApplicationStartScene.tscn")
+		get_tree().change_scene_to_file(TrainingManagerScript.continue_scene_path())
 	)
 	box.add_child(continue_mission)
 	var archive_label := Label.new()
@@ -3522,6 +3523,37 @@ func _setup_main_menu() -> void:
 		get_tree().change_scene_to_file("res://scenes/arrival/ArrivalCinematicScene.tscn")
 	)
 	box.add_child(arrival_dev)
+	var training_dev := Button.new()
+	training_dev.text = "Dev Only: Training Start"
+	training_dev.custom_minimum_size = Vector2(0, 40)
+	training_dev.pressed.connect(func():
+		get_tree().change_scene_to_file("res://scenes/training/TrainingStartScene.tscn")
+	)
+	box.add_child(training_dev)
+	var assessment_dev := Button.new()
+	assessment_dev.text = "Dev Only: Final Assessment"
+	assessment_dev.custom_minimum_size = Vector2(0, 40)
+	assessment_dev.pressed.connect(func():
+		TrainingManagerScript.set_current_module("final_assessment")
+		get_tree().change_scene_to_file("res://scenes/training/FinalAssessmentScene.tscn")
+	)
+	box.add_child(assessment_dev)
+	var notice_dev := Button.new()
+	notice_dev.text = "Dev Only: Mission Assignment Notice"
+	notice_dev.custom_minimum_size = Vector2(0, 40)
+	notice_dev.pressed.connect(func():
+		TrainingManagerScript.mark_module_completed("final_assessment", "mission_assignment")
+		get_tree().change_scene_to_file("res://scenes/training/MissionAssignmentNoticeScene.tscn")
+	)
+	box.add_child(notice_dev)
+	var reset_training_dev := Button.new()
+	reset_training_dev.text = "Dev Only: Reset Training Progress"
+	reset_training_dev.custom_minimum_size = Vector2(0, 40)
+	reset_training_dev.pressed.connect(func():
+		TrainingManagerScript.reset_progress()
+		add_log("Training progress reset.")
+	)
+	box.add_child(reset_training_dev)
 	var settings := Button.new()
 	settings.text = "Settings"
 	settings.custom_minimum_size = Vector2(0, 36)

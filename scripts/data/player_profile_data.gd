@@ -18,7 +18,7 @@ class_name PlayerProfileData
 @export var application_submitted := false
 @export var application_accepted := false
 @export var current_application_step := "identity"
-@export var next_scene_after_application := "res://scenes/application/TrainingPlaceholderScene.tscn"
+@export var next_scene_after_application := "res://scenes/training/TrainingStartScene.tscn"
 
 func to_dictionary() -> Dictionary:
 	return {

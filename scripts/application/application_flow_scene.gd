@@ -390,9 +390,9 @@ func _show_notice() -> void:
 	training.custom_minimum_size = Vector2(240, 46)
 	training.modulate = Color("#9ac7e8")
 	training.pressed.connect(func():
-		profile.set("current_application_step", "training_placeholder")
+		profile.set("current_application_step", "training_start")
 		_save_profile()
-		get_tree().change_scene_to_file("res://scenes/application/TrainingPlaceholderScene.tscn")
+		get_tree().change_scene_to_file("res://scenes/training/TrainingStartScene.tscn")
 	)
 	footer.add_child(training)
 

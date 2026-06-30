@@ -20,6 +20,13 @@ func _ready() -> void:
 	body.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	body.add_theme_font_size_override("font_size", 22)
 	box.add_child(body)
+	var start_training := Button.new()
+	start_training.text = "进入国家训练序列"
+	start_training.custom_minimum_size = Vector2(0, 46)
+	start_training.pressed.connect(func():
+		get_tree().change_scene_to_file("res://scenes/training/TrainingStartScene.tscn")
+	)
+	box.add_child(start_training)
 	var arrival := Button.new()
 	arrival.text = "开发入口：进入月球抵达原型"
 	arrival.custom_minimum_size = Vector2(0, 46)

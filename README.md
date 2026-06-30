@@ -389,7 +389,7 @@ Implemented:
 - Preliminary eligibility review result page with player name.
 - `进入训练序列` handoff after preliminary approval.
 - Accept mission / withdraw mission assignment and the 17-pioneer black screen are deferred until after training/final assessment.
-- `TrainingPlaceholderScene` for Sprint 04 handoff, with a Dev Only button into ArrivalCinematicScene.
+- `TrainingStartScene` for Sprint 04 handoff; `TrainingPlaceholderScene` remains only as a compatibility/dev entry.
 - Player profile save file: `user://saves/application_profile.json`.
 
 Out of scope remains training gameplay, final assessment, launch, inventory, mining, robots, tech tree, RPG stats and education-background buffs.
@@ -400,7 +400,7 @@ Out of scope remains training gameplay, final assessment, launch, inventory, min
 - The former admission/final-choice flow is replaced by `资格初审结果 / PRELIMINARY ELIGIBILITY REVIEW`.
 - The result page explains that Moon assignment is only possible after national training and final assessment.
 - Buttons are `进入训练序列` and `返回主菜单`.
-- `进入训练序列` currently opens `TrainingPlaceholderScene`.
+- `进入训练序列` now opens `TrainingStartScene`.
 - The accept-mission black screen has been removed from the Sprint 03 route and deferred to a later sprint.
 
 ## APP-002A Application UI Update
@@ -430,3 +430,32 @@ Out of scope remains training gameplay, final assessment, launch, inventory, min
 - Layout margins were adjusted for clean use at 1600x900 and better usability at 1280x720.
 - Submit confirmation checkboxes now use brighter unchecked outlines and restrained blue checked highlights.
 - Submit behavior is unchanged: `提交申请` stays disabled until all three confirmation statements are checked.
+
+## Sprint 04 National Training
+
+Sprint 04 adds the formal national training sequence after preliminary eligibility review.
+
+Implemented:
+
+- `TrainingStartScene` replaces the old placeholder as the normal training entry.
+- Five scripted training modules: suit control, airlock procedure, power repair, life support and plant diagnosis.
+- Final assessment as a small scripted incident sequence using the same training interactions.
+- Mission assignment notice appears only after final assessment completion.
+- Accepting the moon assignment sets training state, shows the quiet 17-pioneer black screen, then transitions to `ArrivalCinematicScene`.
+- Temporary decline keeps the candidate file and returns to the menu.
+- Training progress is saved to `user://saves/training_progress.json` and `Continue Mission` routes to the current training state.
+- Dev Only menu entries are available for Training Start, Final Assessment, Mission Assignment Notice, reset training progress and Arrival Cinematic.
+
+Scope note:
+
+- Oxygen, power, life support and plant status in Sprint 04 are scripted simulation values only.
+- No full survival system, crop growth system, launch animation, mining, automation, tech tree or resident system is implemented in this sprint.
+
+## TR-001 Training Room Visual Blockout
+
+- Training Module 01 now uses a playable national training room blockout instead of a flat UI board.
+- The room includes floor tiles, wall boundaries, overhead lights, wall equipment, a training console, a floor marker and an airlock-style exit door.
+- The trainee is shown as a simplified astronaut figure rather than a plain square.
+- The exit no longer uses green as its primary read; green remains reserved for life/plant semantics.
+- The left panel remains the training control HUD, while the right side reads as the gameplay space.
+- This pass is visual/readability only; no full oxygen, power, repair, crop, scoring or survival systems were added.
