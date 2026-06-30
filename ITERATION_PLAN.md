@@ -1391,3 +1391,32 @@ Still out of scope:
 - Full communications system.
 - Base-building, residents, tech tree, automation or mining.
 - Formal Day 03 gameplay.
+
+## Sprint 08 Week One Survival Rhythm
+
+Status: first playable pass complete.
+
+Completed:
+
+- Added Sprint 08 design document at `docs/sprints/SPRINT_08_WEEK_ONE_SURVIVAL_RHYTHM.md`.
+- Added `WeekRoutineStartScene` and `WeekRoutineEndScene`.
+- Day 02 now advances into Day 03 instead of stopping at the placeholder.
+- Added reusable daily routine flow for Day 03 through Day 07.
+- Added day-specific focus text:
+  - Day 03: stable repeated routine.
+  - Day 04: low-flow water cycle concern.
+  - Day 05: power-load limit.
+  - Day 06: slight last-plant recovery signal.
+  - Day 07: first week review.
+- Added daily and weekly Earth report flow.
+- Added Week One completion state and archive flags.
+- Updated continue-mission routing for Day 03-07 and WeekOneCompleted.
+- Added Week Routine developer menu entries.
+- Updated acceptance screenshot output to `docs/screenshots/sprint08_acceptance/`.
+
+Still out of scope:
+
+- Full farming system.
+- Full resource simulation.
+- Full inventory, supply, construction, tech-tree or automation systems.
+- Random disasters, failure/death systems or formal Day 08 content.

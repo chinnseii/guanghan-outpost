@@ -20,6 +20,8 @@ const OLD_GREENHOUSE := "res://scenes/base/OldGreenhouseScene.tscn"
 const DAY01_END := "res://scenes/base/Day01EndScene.tscn"
 const DAY02_START := "res://scenes/base/Day02StartScene.tscn"
 const DAY02_END := "res://scenes/base/Day02EndScene.tscn"
+const WEEK_ROUTINE_START := "res://scenes/base/WeekRoutineStartScene.tscn"
+const WEEK_ROUTINE_END := "res://scenes/base/WeekRoutineEndScene.tscn"
 const SPRINT06_SAVE_PATH := "user://saves/sprint06_progress.json"
 
 const MODULE_SCENES := {
@@ -177,6 +179,15 @@ static func _base_continue_scene_path() -> String:
 	if typeof(parsed) != TYPE_DICTIONARY:
 		return ""
 	var data: Dictionary = parsed as Dictionary
+	if bool(data.get("WeekOneCompleted", false)):
+		return WEEK_ROUTINE_END
+	var current_day := int(data.get("CurrentDay", data.get("DayNumber", 2)))
+	if current_day >= 3 and current_day <= 7:
+		if bool(data.get("DailyReportSent", false)) or bool(data.get("DayCompleted", false)):
+			return WEEK_ROUTINE_END
+		if bool(data.get("DayStarted", false)):
+			return OLD_BASE_INTERIOR
+		return WEEK_ROUTINE_START
 	if bool(data.get("Day02Completed", false)) or bool(data.get("Day02ReportSent", false)):
 		return DAY02_END
 	if bool(data.get("Day02Started", false)):

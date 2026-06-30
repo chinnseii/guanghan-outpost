@@ -1,12 +1,14 @@
 extends SceneTree
 
-const OUT_DIR := "res://docs/screenshots/sprint07_acceptance"
+const OUT_DIR := "res://docs/screenshots/sprint08_acceptance"
 const BASE_AIRLOCK_SCENE := "res://scenes/base/BaseAirlockEntryScene.tscn"
 const OLD_BASE_INTERIOR_SCENE := "res://scenes/base/OldBaseInteriorScene.tscn"
 const OLD_GREENHOUSE_SCENE := "res://scenes/base/OldGreenhouseScene.tscn"
 const DAY01_END_SCENE := "res://scenes/base/Day01EndScene.tscn"
 const DAY02_START_SCENE := "res://scenes/base/Day02StartScene.tscn"
 const DAY02_END_SCENE := "res://scenes/base/Day02EndScene.tscn"
+const WEEK_ROUTINE_START_SCENE := "res://scenes/base/WeekRoutineStartScene.tscn"
+const WEEK_ROUTINE_END_SCENE := "res://scenes/base/WeekRoutineEndScene.tscn"
 
 var scene_instance: Node
 
@@ -17,51 +19,80 @@ func _initialize() -> void:
 
 func _run() -> void:
 	_prepare_output()
-	_write_sprint06_state(_day02_base_state({}))
-	await _load_and_wait(DAY02_START_SCENE)
+	_write_sprint06_state(_week_base_state({"CurrentDay": 3, "DayNumber": 3}))
+	await _load_and_wait(WEEK_ROUTINE_START_SCENE)
 	await create_timer(1.4).timeout
-	await _capture("01_day02_start.png")
+	await _capture("01_day03_start.png")
 
-	_write_sprint06_state(_day02_base_state({
-		"Day02Started": true,
+	_write_sprint06_state(_week_base_state({
+		"CurrentDay": 3,
+		"DayNumber": 3,
+		"DayStarted": true,
+		"DailyConsoleChecked": true,
 	}))
 	await _load_and_wait(OLD_BASE_INTERIOR_SCENE)
-	await _capture("02_day02_old_base_checklist.png")
+	await _capture("02_day03_routine_checklist.png")
 
-	_write_sprint06_state(_day02_base_state({
-		"Day02Started": true,
-		"Day02ConsoleChecked": true,
-		"Day02PowerChecked": true,
-		"Day02LifeSupportChecked": true,
+	_write_sprint06_state(_week_base_state({
+		"CurrentDay": 4,
+		"DayNumber": 4,
+		"DayStarted": true,
+		"DailyConsoleChecked": true,
 	}))
 	await _load_and_wait(OLD_GREENHOUSE_SCENE)
-	await _capture("03_day02_greenhouse_inspection.png")
+	await _capture("03_day04_water_cycle_focus.png")
 
-	_write_sprint06_state(_day02_base_state({
-		"Day02Started": true,
-		"Day02ConsoleChecked": true,
-		"Day02PowerChecked": true,
-		"Day02LifeSupportChecked": true,
-		"Day02WaterChecked": true,
-		"Day02LastPlantChecked": true,
-		"Day02InspectionsComplete": true,
+	_write_sprint06_state(_week_base_state({
+		"CurrentDay": 5,
+		"DayNumber": 5,
+		"DayStarted": true,
+		"DailyConsoleChecked": true,
+		"DailyPowerChecked": true,
+		"DailySpecialChecked": true,
+		"DailyPlantChecked": true,
+		"DailyInspectionsComplete": true,
 	}))
 	await _load_and_wait(OLD_BASE_INTERIOR_SCENE)
-	await _capture("04_day02_report_ready.png")
+	await _capture("04_day05_power_load_report_ready.png")
 
-	_write_sprint06_state(_day02_base_state({
-		"Day02Started": true,
-		"Day02ConsoleChecked": true,
-		"Day02PowerChecked": true,
-		"Day02LifeSupportChecked": true,
-		"Day02WaterChecked": true,
-		"Day02LastPlantChecked": true,
-		"Day02InspectionsComplete": true,
-		"Day02ReportPreviewed": true,
-		"Day02ReportSent": true,
+	_write_sprint06_state(_week_base_state({
+		"CurrentDay": 6,
+		"DayNumber": 6,
+		"DayStarted": true,
+		"DailyConsoleChecked": true,
+		"DailySpecialChecked": true,
 	}))
-	await _load_and_wait(DAY02_END_SCENE)
-	await _capture("05_day02_end_room.png")
+	await _load_and_wait(OLD_GREENHOUSE_SCENE)
+	await _capture("05_day06_last_plant_recovery.png")
+
+	_write_sprint06_state(_week_base_state({
+		"CurrentDay": 7,
+		"DayNumber": 7,
+		"DayStarted": true,
+		"DailyConsoleChecked": true,
+		"DailyPowerChecked": true,
+		"DailyLifeSupportChecked": true,
+		"DailyPlantChecked": true,
+		"DailyInspectionsComplete": true,
+	}))
+	await _load_and_wait(OLD_BASE_INTERIOR_SCENE)
+	await _capture("06_day07_weekly_report_ready.png")
+
+	_write_sprint06_state(_week_base_state({
+		"CurrentDay": 7,
+		"DayNumber": 7,
+		"DayStarted": true,
+		"DailyConsoleChecked": true,
+		"DailyPowerChecked": true,
+		"DailyLifeSupportChecked": true,
+		"DailyPlantChecked": true,
+		"DailyInspectionsComplete": true,
+		"DailyReportSent": true,
+		"WeekOneReportSent": true,
+		"WeekOneCompleted": true,
+	}))
+	await _load_and_wait(WEEK_ROUTINE_END_SCENE)
+	await _capture("07_week_one_end_room.png")
 
 	print("capture_acceptance done")
 	quit()
@@ -130,6 +161,31 @@ func _write_sprint06_state(overrides: Dictionary) -> void:
 		"Day02ReportSent": false,
 		"ArchiveEntry_Day02Report": false,
 		"Day02Completed": false,
+		"CurrentDay": 2,
+		"DayStarted": false,
+		"DayCompleted": false,
+		"DailyConsoleChecked": false,
+		"DailyPowerChecked": false,
+		"DailyLifeSupportChecked": false,
+		"DailyWaterChecked": false,
+		"DailyPlantChecked": false,
+		"DailySpecialChecked": false,
+		"DailyRecordUpdated": false,
+		"DailyInspectionsComplete": false,
+		"DailyReportPreviewed": false,
+		"DailyReportSent": false,
+		"Day03Completed": false,
+		"Day04Completed": false,
+		"Day05Completed": false,
+		"Day06Completed": false,
+		"Day07Completed": false,
+		"Archive_Day03_Report": false,
+		"Archive_Day04_Report": false,
+		"Archive_Day05_Report": false,
+		"Archive_Day06_Report": false,
+		"Archive_WeekOne_Report": false,
+		"WeekOneReportSent": false,
+		"WeekOneCompleted": false,
 	}
 	for key in overrides.keys():
 		data[key] = overrides[key]
@@ -159,6 +215,25 @@ func _day02_base_state(overrides: Dictionary) -> Dictionary:
 		"Day01Completed": true,
 		"DayNumber": 2,
 	}
+	for key in overrides.keys():
+		data[key] = overrides[key]
+	return data
+
+func _week_base_state(overrides: Dictionary) -> Dictionary:
+	var data := _day02_base_state({
+		"Day02Started": true,
+		"Day02ConsoleChecked": true,
+		"Day02PowerChecked": true,
+		"Day02LifeSupportChecked": true,
+		"Day02WaterChecked": true,
+		"Day02LastPlantChecked": true,
+		"Day02InspectionsComplete": true,
+		"Day02ReportPreviewed": true,
+		"Day02ReportSent": true,
+		"Day02Completed": true,
+		"CurrentDay": 3,
+		"DayNumber": 3,
+	})
 	for key in overrides.keys():
 		data[key] = overrides[key]
 	return data

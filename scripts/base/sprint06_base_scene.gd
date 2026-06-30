@@ -9,6 +9,8 @@ const SCENE_GREENHOUSE := "res://scenes/base/OldGreenhouseScene.tscn"
 const SCENE_DAY_END := "res://scenes/base/Day01EndScene.tscn"
 const SCENE_DAY02_START := "res://scenes/base/Day02StartScene.tscn"
 const SCENE_DAY02_END := "res://scenes/base/Day02EndScene.tscn"
+const SCENE_WEEK_START := "res://scenes/base/WeekRoutineStartScene.tscn"
+const SCENE_WEEK_END := "res://scenes/base/WeekRoutineEndScene.tscn"
 
 @export var scene_kind := "interior"
 
@@ -147,16 +149,24 @@ func _setup_scene_defaults() -> void:
 		"day02_end":
 			player_pos = Vector2(760, 570)
 			objective_text = "休息"
+		"week_start":
+			player_pos = Vector2(760, 570)
+			objective_text = "查看早间状态简报"
+		"week_end":
+			player_pos = Vector2(760, 570)
+			objective_text = "休息"
 		_:
 			player_pos = Vector2(230, 560)
 
 func _start_scene() -> void:
-	if scene_kind == "day_end" or scene_kind == "day02_start" or scene_kind == "day02_end":
+	if scene_kind == "day_end" or scene_kind == "day02_start" or scene_kind == "day02_end" or scene_kind == "week_start" or scene_kind == "week_end":
 		_fade_scene_title()
 	if scene_kind == "airlock":
 		_start_airlock_sequence()
 	elif scene_kind == "day02_start":
 		_start_day02_sequence()
+	elif scene_kind == "week_start":
+		_start_week_day_sequence()
 	elif scene_kind == "interior" and not bool(state.get("AIGreetingPlayed", false)):
 		_show_first_ai_line()
 	_update_objective()
@@ -204,6 +214,8 @@ func _update_target() -> void:
 		current_target = "sleep"
 	elif scene_kind == "day02_end" and player_pos.distance_to(Vector2(760, 570)) < 96.0:
 		current_target = "sleep"
+	elif scene_kind == "week_end" and player_pos.distance_to(Vector2(760, 570)) < 96.0:
+		current_target = "sleep"
 
 func _near(rect: Rect2) -> bool:
 	return rect.grow(44).has_point(player_pos)
@@ -215,6 +227,97 @@ func _fade_scene_title() -> void:
 
 func _is_day02_active() -> bool:
 	return bool(state.get("Day02Started", false)) and not bool(state.get("Day02Completed", false))
+
+func _current_day() -> int:
+	return int(state.get("CurrentDay", state.get("DayNumber", 2)))
+
+func _is_week_routine_active() -> bool:
+	var day := _current_day()
+	return day >= 3 and day <= 7 and bool(state.get("DayStarted", false)) and not bool(state.get("DayCompleted", false)) and not bool(state.get("WeekOneCompleted", false))
+
+func _daily_required_keys() -> Array[String]:
+	var day := _current_day()
+	match day:
+		3:
+			return ["DailyConsoleChecked", "DailyPowerChecked", "DailyLifeSupportChecked", "DailyPlantChecked"]
+		4:
+			return ["DailyConsoleChecked", "DailyWaterChecked", "DailySpecialChecked", "DailyPlantChecked"]
+		5:
+			return ["DailyConsoleChecked", "DailyPowerChecked", "DailySpecialChecked", "DailyPlantChecked"]
+		6:
+			return ["DailyConsoleChecked", "DailySpecialChecked", "DailyPlantChecked", "DailyRecordUpdated"]
+		7:
+			return ["DailyConsoleChecked", "DailyPowerChecked", "DailyLifeSupportChecked", "DailyPlantChecked"]
+	return ["DailyConsoleChecked"]
+
+func _daily_checks_complete() -> bool:
+	for key: String in _daily_required_keys():
+		if not bool(state.get(key, false)):
+			return false
+	return true
+
+func _complete_daily_check(key: String, text: String) -> void:
+	if key != "DailyConsoleChecked" and not bool(state.get("DailyConsoleChecked", false)):
+		_message("请先查看中央控制台，确认今日巡检项目。")
+		return
+	if bool(state.get(key, false)):
+		_message(text)
+		return
+	state[key] = true
+	_message(text)
+	if _daily_checks_complete() and not bool(state.get("DailyInspectionsComplete", false)):
+		state["DailyInspectionsComplete"] = true
+		ai_text = "今日巡检完成。\n建议整理并发送对地驻留报告。"
+	_save_state()
+
+func _reset_daily_flags(day: int) -> void:
+	state["CurrentDay"] = day
+	state["DayNumber"] = day
+	state["DayStarted"] = true
+	state["DayCompleted"] = false
+	state["DailyConsoleChecked"] = false
+	state["DailyPowerChecked"] = false
+	state["DailyLifeSupportChecked"] = false
+	state["DailyWaterChecked"] = false
+	state["DailyPlantChecked"] = false
+	state["DailySpecialChecked"] = false
+	state["DailyRecordUpdated"] = false
+	state["DailyInspectionsComplete"] = false
+	state["DailyReportPreviewed"] = false
+	state["DailyReportSent"] = false
+
+func _day_label() -> String:
+	return "Day %02d" % _current_day()
+
+func _daily_report_label() -> String:
+	return "第一周驻留报告" if _current_day() == 7 else "%s 对地报告" % _day_label()
+
+func _daily_checklist_text() -> String:
+	var day := _current_day()
+	var text := _task_line("查看中央控制台", "DailyConsoleChecked")
+	match day:
+		3:
+			text += "\n" + _task_line("检查供电面板", "DailyPowerChecked")
+			text += "\n" + _task_line("检查生命支持", "DailyLifeSupportChecked")
+			text += "\n" + _task_line("检查最后一株植物", "DailyPlantChecked")
+		4:
+			text += "\n" + _task_line("检查水循环状态", "DailyWaterChecked")
+			text += "\n" + _task_line("检查温室供水", "DailySpecialChecked")
+			text += "\n" + _task_line("检查最后一株植物", "DailyPlantChecked")
+		5:
+			text += "\n" + _task_line("检查供电面板", "DailyPowerChecked")
+			text += "\n" + _task_line("检查当前负载", "DailySpecialChecked")
+			text += "\n" + _task_line("检查最后一株植物", "DailyPlantChecked")
+		6:
+			text += "\n" + _task_line("进入旧温室", "DailySpecialChecked")
+			text += "\n" + _task_line("近距观察最后一株植物", "DailyPlantChecked")
+			text += "\n" + _task_line("更新植物状态记录", "DailyRecordUpdated")
+		7:
+			text += "\n" + _task_line("复核供电状态", "DailyPowerChecked")
+			text += "\n" + _task_line("复核生命支持状态", "DailyLifeSupportChecked")
+			text += "\n" + _task_line("复核温室生命信号", "DailyPlantChecked")
+	text += "\n" + _task_line("发送%s" % _daily_report_label(), "DailyReportSent")
+	return text
 
 func _day02_inspections_complete() -> bool:
 	return bool(state.get("Day02PowerChecked", false)) \
@@ -245,6 +348,12 @@ func _update_objective() -> void:
 	if scene_kind == "day02_end":
 		objective_text = "休息"
 		return
+	if scene_kind == "week_start":
+		objective_text = "查看早间状态简报"
+		return
+	if scene_kind == "week_end":
+		objective_text = "休息"
+		return
 	if _is_day02_active():
 		if not bool(state.get("Day02ConsoleChecked", false)):
 			objective_text = "查看中央控制台"
@@ -252,6 +361,16 @@ func _update_objective() -> void:
 			objective_text = "执行今日巡检"
 		elif not bool(state.get("Day02ReportSent", false)):
 			objective_text = "发送 Day 02 对地报告"
+		else:
+			objective_text = "返回居住舱休息"
+		return
+	if _is_week_routine_active():
+		if not bool(state.get("DailyConsoleChecked", false)):
+			objective_text = "查看中央控制台"
+		elif not _daily_checks_complete():
+			objective_text = "执行今日巡检"
+		elif not bool(state.get("DailyReportSent", false)):
+			objective_text = "发送%s" % _daily_report_label()
 		else:
 			objective_text = "返回居住舱休息"
 		return
@@ -298,12 +417,16 @@ func _interact() -> void:
 	if sequence_running:
 		return
 	if scene_kind == "interior":
-		if _is_day02_active():
+		if _is_week_routine_active():
+			_interact_week_interior()
+		elif _is_day02_active():
 			_interact_day02_interior()
 		else:
 			_interact_interior()
 	elif scene_kind == "greenhouse":
-		if _is_day02_active():
+		if _is_week_routine_active():
+			_interact_week_greenhouse()
+		elif _is_day02_active():
 			_interact_day02_greenhouse()
 		else:
 			_interact_greenhouse()
@@ -313,6 +436,9 @@ func _interact() -> void:
 	elif scene_kind == "day02_end":
 		if current_target == "sleep":
 			_finish_day_two()
+	elif scene_kind == "week_end":
+		if current_target == "sleep":
+			_finish_week_day()
 
 func _interact_day02_interior() -> void:
 	match current_target:
@@ -356,6 +482,82 @@ func _interact_day02_greenhouse() -> void:
 			_message("植物监测屏：\n\n生命信号：Stable\n根区温度：可维持\n补光：低功率稳定\n水循环：最低运行")
 		"scanner":
 			_message("诊断终端：\n\n未发现新的急性异常。\n建议每日重复观察叶片与根区状态。")
+		"grow_light":
+			_message("补光灯保持低功率运行。\n输出仍限制在安全范围内。")
+		"exit":
+			_transition_to(SCENE_INTERIOR)
+		_:
+			pass
+	_save_state()
+
+func _interact_week_interior() -> void:
+	var day := _current_day()
+	match current_target:
+		"console":
+			_complete_daily_check("DailyConsoleChecked", _weekly_console_text())
+		"power_panel":
+			if day == 3 or day == 5 or day == 7:
+				_complete_daily_check("DailyPowerChecked", _weekly_power_text())
+			else:
+				_message("今日重点不是供电面板。\n当前供电仍维持基础运行。")
+		"power_console":
+			if day == 5:
+				_complete_daily_check("DailySpecialChecked", "供电负载：\n\n基础照明：运行中\n生命支持：运行中\n温室补光：低功率运行\n剩余可用负载：有限\n\n建议：恢复外部太阳能阵列前，不要扩展温室。")
+			else:
+				_message("供电重启控制台保持待机。\n今日不需要重启供电。")
+		"life_console":
+			if day == 3 or day == 7:
+				_complete_daily_check("DailyLifeSupportChecked", _weekly_life_text())
+			else:
+				_message("生命支持维持最低稳定。\n今日未检测到新的急性异常。")
+		"greenhouse_door":
+			if not bool(state.get("DailyConsoleChecked", false)):
+				_message("请先查看中央控制台，确认今日巡检项目。")
+			else:
+				if day == 6:
+					state["DailySpecialChecked"] = true
+					_save_state()
+				_transition_to(SCENE_GREENHOUSE)
+		"report_terminal":
+			if not _daily_checks_complete():
+				_message("对地报告尚未解锁。\n请先完成今日巡检。")
+			elif not bool(state.get("DailyReportPreviewed", false)):
+				state["DailyReportPreviewed"] = true
+				_message(_weekly_report_text() + "\n\n再次按 E / Enter 发送报告。")
+			elif not bool(state.get("DailyReportSent", false)):
+				_send_week_report()
+		"rest_point":
+			if bool(state.get("DailyReportSent", false)):
+				_transition_to(SCENE_WEEK_END)
+			else:
+				_message("今日驻留报告尚未发送。")
+		_:
+			pass
+	_save_state()
+
+func _interact_week_greenhouse() -> void:
+	var day := _current_day()
+	match current_target:
+		"last_plant":
+			_complete_daily_check("DailyPlantChecked", _weekly_plant_text())
+		"water_panel":
+			if day == 4:
+				if not bool(state.get("DailyWaterChecked", false)):
+					_complete_daily_check("DailyWaterChecked", "水循环状态：\n\n主循环：未恢复\n备用循环：低流量运行\n温室供水：最低维持\n风险等级：需要持续观察")
+				else:
+					_complete_daily_check("DailySpecialChecked", "温室供水：\n\n当前供给：最低维持\n水分供给：可维持最后一株植物\n建议：下一阶段优先恢复水循环能力。")
+			else:
+				_message("备用水循环保持低流量运行。\n今日未执行新的水路调整。")
+		"scanner":
+			if day == 6:
+				_complete_daily_check("DailyRecordUpdated", "植物状态记录已更新。\n\n新生组织迹象：微弱。\n建议继续维持当前环境。")
+			else:
+				_message("诊断终端：\n未发现新的急性异常。")
+		"monitor":
+			if day == 7:
+				_complete_daily_check("DailyPlantChecked", _weekly_plant_text())
+			else:
+				_message("植物监测屏：\n\n生命信号：Stable\n补光：低功率稳定\n水循环：最低运行")
 		"grow_light":
 			_message("补光灯保持低功率运行。\n输出仍限制在安全范围内。")
 		"exit":
@@ -501,6 +703,98 @@ func _start_day02_sequence() -> void:
 	sequence_running = false
 	_transition_to(SCENE_INTERIOR)
 
+func _start_week_day_sequence() -> void:
+	sequence_running = true
+	input_enabled = false
+	var day: int = clamp(_current_day(), 3, 7)
+	_reset_daily_flags(day)
+	state["BasePowerRestored"] = true
+	state["MinimalLifeSupportStable"] = true
+	state["GreenhouseUnlocked"] = true
+	state["LastPlantStable"] = true
+	state["LastPlantStatus"] = "Stable"
+	_save_state()
+	message_text = "第 %d 天" % day
+	await get_tree().create_timer(1.05).timeout
+	message_text = "广寒前哨 · 旧基地"
+	await get_tree().create_timer(1.05).timeout
+	message_text = ""
+	ai_text = _weekly_morning_text()
+	await get_tree().create_timer(3.0).timeout
+	ai_text = ""
+	input_enabled = true
+	sequence_running = false
+	_transition_to(SCENE_INTERIOR)
+
+func _weekly_morning_text() -> String:
+	match _current_day():
+		3:
+			return "早间状态简报。\n基础供电维持。\n最低生命支持维持。\n温室生命信号维持稳定。\n建议继续执行日常巡检。"
+		4:
+			return "早间状态简报。\n供电维持。\n生命支持维持。\n水循环仍处于低流量运行。\n建议优先检查温室供水。"
+		5:
+			return "早间状态简报。\n基础供电维持。\n当前负载接近安全上限。\n不建议接入新的高功率设备。"
+		6:
+			return "早间状态简报。\n温室生命信号维持稳定。\n植物反应数据出现微弱改善。\n建议进行近距观察。"
+		7:
+			return "早间状态简报。\n第一周驻留周期即将完成。\n建议执行周度状态复核。"
+	return "早间状态简报。"
+
+func _weekly_console_text() -> String:
+	if _current_day() == 7:
+		return "第一周状态复核：\n\n基础供电：维持\n生命支持：最低稳定\n水循环：低流量运行\n温室生命信号：稳定\n人员状态：可继续驻留\n\n结论：广寒前哨已从离线边缘恢复至最低稳定状态。"
+	return "广寒前哨 %s 状态摘要：\n\n基础供电：维持\n生命支持：最低稳定\n水循环：低流量运行\n温室生命信号：稳定\n人员状态：可继续驻留\n\n今日重点：\n%s" % [_day_label(), _weekly_focus_text()]
+
+func _weekly_focus_text() -> String:
+	match _current_day():
+		3:
+			return "确认重复巡检本身可以维持基地运行。"
+		4:
+			return "观察水循环与温室供水。"
+		5:
+			return "确认供电负载限制。"
+		6:
+			return "记录最后一株植物的微弱恢复迹象。"
+		7:
+			return "完成第一周驻留报告。"
+	return "执行日常巡检。"
+
+func _weekly_power_text() -> String:
+	if _current_day() == 5:
+		return "供电面板状态：\n\n基础照明：运行中\n生命支持：运行中\n温室补光：低功率运行\n剩余可用负载：有限\n\n当前供电不足以支持温室扩展。"
+	if _current_day() == 7:
+		return "供电状态复核：\n\n基础供电：维持\n备用线路：运行中\n扩展负载：不建议接入"
+	return "供电面板状态：\n\n备用线路：运行中\n当前输出：基础供电\n风险等级：可控\n\n连续稳定运行：24 小时。"
+
+func _weekly_life_text() -> String:
+	if _current_day() == 7:
+		return "生命支持状态复核：\n\n氧气：稳定\n温度：可维持\n空气循环：低速运行\n过滤组件：需要持续观察"
+	return "生命支持状态：\n\n氧气：稳定\n温度：可维持\n空气循环：低速运行\n当前环境适合短期驻留。"
+
+func _weekly_plant_text() -> String:
+	match _current_day():
+		4:
+			return "植物生命信号：稳定\n水分供给：最低维持\n叶片反应：缓慢恢复"
+		6:
+			return "叶片颜色略有恢复。\n茎部支撑增强。\n新生组织迹象：微弱。\n\n生命信号仍然微弱。\n但它正在恢复。"
+		7:
+			return "温室生命信号复核：\n\n生命信号：稳定\n补光输出：低功率稳定\n水循环供给：最低维持"
+	return "植物生命信号：稳定\n补光输出：低功率稳定\n水循环供给：最低维持\n叶片反应：缓慢恢复"
+
+func _weekly_report_text() -> String:
+	match _current_day():
+		3:
+			return "广寒前哨 D03 驻留报告\n\n基础供电：维持\n生命支持：最低稳定\n温室生命信号：稳定\n人员状态：可继续驻留\n\n备注：第一轮日常巡检完成。\n系统状态未出现进一步恶化。"
+		4:
+			return "广寒前哨 D04 驻留报告\n\n基础供电：维持\n生命支持：最低稳定\n水循环：低流量运行\n温室生命信号：稳定\n\n备注：温室供水仍处于最低维持状态。\n建议下一阶段优先恢复水循环能力。"
+		5:
+			return "广寒前哨 D05 驻留报告\n\n基础供电：维持\n生命支持：最低稳定\n温室补光：低功率运行\n剩余负载：有限\n\n备注：当前供电不足以支持温室扩展。\n建议优先评估外部太阳能阵列。"
+		6:
+			return "广寒前哨 D06 驻留报告\n\n温室生命信号：稳定\n植物恢复迹象：微弱\n补光输出：低功率稳定\n水循环：最低维持\n\n备注：最后一株植物出现轻微恢复迹象。\n建议继续维持当前环境。"
+		7:
+			return "广寒前哨 第一周驻留报告\n\n驻留周期：D01-D07\n基础供电：恢复并维持\n生命支持：最低稳定\n水循环：低流量运行\n温室生命信号：稳定\n人员状态：可继续驻留\n\n重点记录：旧温室中最后一株存活植物已稳定。\n广寒前哨具备继续驻留条件。\n但不具备扩展建设条件。\n\n下一阶段建议：\n评估外部太阳能阵列。\n恢复更高等级供电。\n准备温室系统进一步修复。"
+	return ""
+
 func _send_day02_report() -> void:
 	sequence_running = true
 	input_enabled = false
@@ -513,6 +807,30 @@ func _send_day02_report() -> void:
 	state["ArchiveEntry_Day02Report"] = true
 	_save_state()
 	await get_tree().create_timer(1.8).timeout
+	input_enabled = true
+	sequence_running = false
+
+func _send_week_report() -> void:
+	sequence_running = true
+	input_enabled = false
+	if _current_day() == 7:
+		message_text = "第一周驻留报告已发送。\n通信延迟：1.3 秒。"
+	else:
+		message_text = "%s 驻留报告已发送。\n通信延迟：1.3 秒。" % _day_label()
+	await get_tree().create_timer(1.35).timeout
+	message_text = "地面确认收到。"
+	await get_tree().create_timer(1.1).timeout
+	if _current_day() == 7:
+		message_text = "广寒计划地面任务组：\n第一周驻留记录已归档。\n下一阶段任务建议正在生成。"
+		state["WeekOneReportSent"] = true
+		state["WeekOneCompleted"] = true
+		state["Archive_WeekOne_Report"] = true
+	else:
+		message_text = "广寒计划地面任务组：\n%s 驻留记录已归档。\n后续建议正在生成。" % _day_label()
+		state["Archive_Day%02d_Report" % _current_day()] = true
+	state["DailyReportSent"] = true
+	_save_state()
+	await get_tree().create_timer(1.7).timeout
 	input_enabled = true
 	sequence_running = false
 
@@ -579,6 +897,7 @@ func _finish_day_one() -> void:
 func _finish_day_two() -> void:
 	state["Day02Completed"] = true
 	state["DayNumber"] = 2
+	state["CurrentDay"] = 3
 	_save_state()
 	input_enabled = false
 	message_text = "Day 02 记录：\n\n基础巡检完成。\n温室生命信号维持稳定。\n对地驻留报告已发送。"
@@ -591,9 +910,41 @@ func _finish_day_two() -> void:
 	message_text = "第 2 天结束"
 	message_label.modulate = Color("#eaf4ff", 1.0)
 	await get_tree().create_timer(2.4).timeout
-	message_text = "后续内容开发中"
-	await get_tree().create_timer(1.4).timeout
-	get_tree().change_scene_to_file("res://scenes/main.tscn")
+	get_tree().change_scene_to_file(SCENE_WEEK_START)
+
+func _finish_week_day() -> void:
+	var day := _current_day()
+	state["DayCompleted"] = true
+	state["Day%02dCompleted" % day] = true
+	state["DayNumber"] = day
+	_save_state()
+	input_enabled = false
+	message_text = "%s 记录：\n\n今日巡检完成。\n温室生命信号维持稳定。\n对地驻留报告已发送。" % _day_label()
+	if day == 7:
+		message_text = "第一周记录：\n\n周度复核完成。\n第一周驻留报告已发送。\n广寒前哨恢复至最低稳定状态。"
+	ai_text = "%s 驻留记录已保存。" % _day_label()
+	await get_tree().create_timer(2.1).timeout
+	var tween := create_tween()
+	tween.tween_property(fade_rect, "color:a", 1.0, 1.0)
+	await tween.finished
+	ai_text = ""
+	if day == 7:
+		message_text = "第一周结束"
+		await get_tree().create_timer(1.5).timeout
+		message_text = "广寒前哨已恢复至最低稳定状态。"
+		await get_tree().create_timer(1.7).timeout
+		message_text = "后续内容开发中"
+		await get_tree().create_timer(1.4).timeout
+		get_tree().change_scene_to_file("res://scenes/main.tscn")
+	else:
+		message_text = "第 %d 天结束" % day
+		await get_tree().create_timer(1.8).timeout
+		state["CurrentDay"] = day + 1
+		state["DayNumber"] = day + 1
+		state["DayStarted"] = false
+		state["DayCompleted"] = false
+		_save_state()
+		get_tree().change_scene_to_file(SCENE_WEEK_START)
 
 func _message(text: String) -> void:
 	message_text = text
@@ -622,6 +973,8 @@ func _hud_text() -> String:
 		return "广寒前哨 · 居住舱\n\n电力：基础供电\n氧气：稳定\n温度：可维持\n生命支持：最低稳定\n植物生命信号：Stable\n\n当前目标：%s" % objective_text
 	if scene_kind == "day02_end":
 		return "广寒前哨 · 居住舱\n\n电力：基础供电\n氧气：稳定\n温度：可维持\n生命支持：最低稳定\n植物生命信号：Stable\n\n当前目标：%s" % objective_text
+	if scene_kind == "week_start" or scene_kind == "week_end":
+		return "广寒前哨 · 居住舱\n\n日期：第 %d 天\n电力：基础供电\n氧气：稳定\n温度：可维持\n生命支持：最低稳定\n植物生命信号：Stable\n\n当前目标：%s" % [_current_day(), objective_text]
 	if _is_day02_active():
 		var checklist := _task_line("检查供电面板", "Day02PowerChecked")
 		checklist += "\n" + _task_line("检查生命支持控制台", "Day02LifeSupportChecked")
@@ -630,6 +983,9 @@ func _hud_text() -> String:
 		checklist += "\n" + _task_line("发送 Day 02 对地报告", "Day02ReportSent")
 		var zone := "旧温室" if scene_kind == "greenhouse" else "旧基地"
 		return "广寒前哨 · Day 02 · %s\n\n电力：基础供电\n氧气：稳定\n温度：可维持\n生命支持：最低稳定\n植物生命信号：Stable\n\n今日巡检：\n%s\n\n当前目标：%s" % [zone, checklist, objective_text]
+	if _is_week_routine_active():
+		var zone := "旧温室" if scene_kind == "greenhouse" else "旧基地"
+		return "广寒前哨 · %s · %s\n\n电力：基础供电\n氧气：稳定\n温度：可维持\n生命支持：最低稳定\n植物生命信号：Stable\n\n今日巡检：\n%s\n\n当前目标：%s" % [_day_label(), zone, _daily_checklist_text(), objective_text]
 	if scene_kind == "greenhouse":
 		return "广寒前哨 · 旧温室\n\n电力：%s\n氧气：%s\n温度：%s\n生命支持：%s\n植物生命信号：%s\n\n当前目标：%s" % [power, oxygen, temp, life, plant, objective_text]
 	if scene_kind == "day_end":
@@ -672,6 +1028,38 @@ func _prompt_text() -> String:
 						return "E / Enter 查看补光灯"
 					"exit":
 						return "E / Enter 返回旧基地"
+	if _is_week_routine_active():
+		match scene_kind:
+			"interior":
+				match current_target:
+					"console":
+						return "E / Enter 查看中央控制台"
+					"power_panel":
+						return "E / Enter 检查供电面板"
+					"power_console":
+						return "E / Enter 检查当前负载"
+					"life_console":
+						return "E / Enter 检查生命支持"
+					"greenhouse_door":
+						return "E / Enter 进入旧温室"
+					"report_terminal":
+						return "E / Enter 发送%s" % _daily_report_label() if _daily_checks_complete() else "对地报告待解锁"
+					"rest_point":
+						return "E / Enter 返回居住舱休息"
+			"greenhouse":
+				match current_target:
+					"last_plant":
+						return "E / Enter 检查最后一株植物"
+					"water_panel":
+						return "E / Enter 检查水循环"
+					"monitor":
+						return "E / Enter 查看植物监测屏"
+					"scanner":
+						return "E / Enter 更新植物状态记录"
+					"grow_light":
+						return "E / Enter 查看补光灯"
+					"exit":
+						return "E / Enter 返回旧基地"
 	match scene_kind:
 		"interior":
 			match current_target:
@@ -707,6 +1095,9 @@ func _prompt_text() -> String:
 		"day02_end":
 			if current_target == "sleep":
 				return "E / Enter 休息"
+		"week_end":
+			if current_target == "sleep":
+				return "E / Enter 休息"
 	return ""
 
 func _draw() -> void:
@@ -718,6 +1109,8 @@ func _draw() -> void:
 		"day_end":
 			_draw_day_end()
 		"day02_start", "day02_end":
+			_draw_day_end()
+		"week_start", "week_end":
 			_draw_day_end()
 		_:
 			_draw_interior()
@@ -906,8 +1299,34 @@ func _draw_target_highlight() -> void:
 		draw_rect(rect.grow(10), Color("#f0c766", 0.62), false, 2)
 
 func _objective_highlight_rect() -> Rect2:
-	if scene_kind == "day_end" or scene_kind == "day02_end":
+	if scene_kind == "day_end" or scene_kind == "day02_end" or scene_kind == "week_end":
 		return Rect2(Vector2(540, 500), Vector2(360, 120))
+	if _is_week_routine_active():
+		var day := _current_day()
+		if scene_kind == "interior":
+			if not bool(state.get("DailyConsoleChecked", false)):
+				return interior_targets["console"]
+			if _daily_checks_complete() and not bool(state.get("DailyReportSent", false)):
+				return interior_targets["report_terminal"]
+			if not _daily_checks_complete():
+				if (day == 3 or day == 5 or day == 7) and not bool(state.get("DailyPowerChecked", false)) and current_target == "power_panel":
+					return interior_targets["power_panel"]
+				if day == 5 and not bool(state.get("DailySpecialChecked", false)) and current_target == "power_console":
+					return interior_targets["power_console"]
+				if (day == 3 or day == 7) and not bool(state.get("DailyLifeSupportChecked", false)) and current_target == "life_console":
+					return interior_targets["life_console"]
+				if current_target == "greenhouse_door" and (day == 4 or day == 6 or not bool(state.get("DailyPlantChecked", false))):
+					return interior_targets["greenhouse_door"]
+		elif scene_kind == "greenhouse":
+			if day == 4 and (not bool(state.get("DailyWaterChecked", false)) or not bool(state.get("DailySpecialChecked", false))) and current_target == "water_panel":
+				return greenhouse_targets["water_panel"]
+			if not bool(state.get("DailyPlantChecked", false)) and (current_target == "last_plant" or current_target == "monitor"):
+				return greenhouse_targets[current_target]
+			if day == 6 and not bool(state.get("DailyRecordUpdated", false)) and current_target == "scanner":
+				return greenhouse_targets["scanner"]
+			if current_target == "exit":
+				return greenhouse_targets["exit"]
+		return Rect2()
 	if _is_day02_active():
 		if scene_kind == "interior":
 			if not bool(state.get("Day02ConsoleChecked", false)):
@@ -985,6 +1404,31 @@ func _default_state() -> Dictionary:
 		"Day02ReportSent": false,
 		"ArchiveEntry_Day02Report": false,
 		"Day02Completed": false,
+		"CurrentDay": 2,
+		"DayStarted": false,
+		"DayCompleted": false,
+		"DailyConsoleChecked": false,
+		"DailyPowerChecked": false,
+		"DailyLifeSupportChecked": false,
+		"DailyWaterChecked": false,
+		"DailyPlantChecked": false,
+		"DailySpecialChecked": false,
+		"DailyRecordUpdated": false,
+		"DailyInspectionsComplete": false,
+		"DailyReportPreviewed": false,
+		"DailyReportSent": false,
+		"Day03Completed": false,
+		"Day04Completed": false,
+		"Day05Completed": false,
+		"Day06Completed": false,
+		"Day07Completed": false,
+		"Archive_Day03_Report": false,
+		"Archive_Day04_Report": false,
+		"Archive_Day05_Report": false,
+		"Archive_Day06_Report": false,
+		"Archive_WeekOne_Report": false,
+		"WeekOneReportSent": false,
+		"WeekOneCompleted": false,
 	}
 
 func _load_state() -> void:
