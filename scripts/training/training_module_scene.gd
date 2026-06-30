@@ -88,13 +88,13 @@ class PowerRepairRoomBlockout:
 		draw_rect(Rect2(Vector2(room.position.x, room.end.y - 28), Vector2(room.size.x, 28)), Color("#25313c"), true)
 		draw_rect(Rect2(room.position, Vector2(28, room.size.y)), Color("#25313c"), true)
 		draw_rect(Rect2(Vector2(room.end.x - 28, room.position.y), Vector2(28, room.size.y)), Color("#25313c"), true)
-		var light_color := Color("#f0c766", 0.42) if power_on else Color("#4f6473", 0.22)
+		var light_color := Color("#f0c766", 0.58) if power_on else Color("#4f6473", 0.22)
 		for light_x in [138, size.x * 0.5 - 42, size.x - 242]:
 			var light_rect := Rect2(Vector2(light_x, room.position.y + 16), Vector2(96, 8))
 			draw_rect(light_rect, light_color, true)
-			draw_rect(light_rect.grow(5), Color(light_color.r, light_color.g, light_color.b, 0.12), true)
+			draw_rect(light_rect.grow(5), Color(light_color.r, light_color.g, light_color.b, 0.18 if power_on else 0.12), true)
 		if power_on:
-			draw_rect(room.grow(-42), Color("#f0c766", 0.035), true)
+			draw_rect(room.grow(-42), Color("#f0c766", 0.055), true)
 		draw_rect(Rect2(Vector2(room.position.x + 72, room.end.y - 78), Vector2(132, 36)), Color("#344653"), true)
 		draw_rect(Rect2(Vector2(room.position.x + 82, room.end.y - 70), Vector2(34, 8)), Color("#8fa3b2", 0.55), true)
 		draw_rect(Rect2(Vector2(room.end.x - 210, room.position.y + 78), Vector2(126, 44)), Color("#344653"), true)
@@ -222,11 +222,18 @@ class TrainingTargetVisual:
 		if restored:
 			edge = Color("#d8e7f2", 0.65)
 		draw_rect(Rect2(Vector2.ZERO, size), edge, false, 3.0)
+		draw_rect(Rect2(Vector2(18, 14), Vector2(size.x - 36, 14)), Color("#0d1822"), true)
+		draw_rect(Rect2(Vector2(24, 19), Vector2(size.x - 58, 3)), Color("#5d6f7d", 0.3 if restored else 0.12), true)
+		if not restored:
+			draw_circle(Vector2(size.x - 20, 21), 5.0, Color("#d66a4f", 0.85))
+			draw_circle(Vector2(size.x - 20, 21), 10.0, Color("#d66a4f", 0.12))
 		for i in range(4):
 			var x := 18 + i * 28
 			draw_rect(Rect2(Vector2(x, 20), Vector2(16, 42)), Color("#344653"), true)
-			draw_line(Vector2(x + 4, 28), Vector2(x + 12, 52), Color("#b45a56", 0.65 if not restored else 0.2), 2.0)
-		draw_rect(Rect2(Vector2(18, size.y - 26), Vector2(size.x - 36, 6)), Color("#f0c766", 0.62 if warn else 0.2), true)
+			draw_line(Vector2(x + 4, 28), Vector2(x + 12, 52), Color("#b45a56", 0.72 if not restored else 0.12), 2.0)
+			if not restored:
+				draw_line(Vector2(x + 12, 30), Vector2(x + 5, 44), Color("#f0c766", 0.35), 1.4)
+		draw_rect(Rect2(Vector2(18, size.y - 26), Vector2(size.x - 36, 6)), Color("#f0c766", 0.62 if warn and not restored else 0.12), true)
 
 	func _draw_power_console() -> void:
 		if highlighted:
@@ -234,7 +241,7 @@ class TrainingTargetVisual:
 			draw_rect(Rect2(Vector2(-8, -8), size + Vector2(16, 16)), Color("#f0c766", 0.55), false, 2.0)
 		draw_rect(Rect2(Vector2(10, 32), Vector2(size.x - 20, size.y - 38)), Color("#303b44"), true)
 		draw_rect(Rect2(Vector2(22, 8), Vector2(size.x - 44, 38)), Color("#101d28"), true)
-		var screen := Color("#f0c766", 0.62) if status_text == "restored" else Color("#236fa8")
+		var screen := Color("#f0c766", 0.78) if status_text == "restored" else Color("#236fa8")
 		draw_rect(Rect2(Vector2(30, 16), Vector2(size.x - 60, 20)), screen, true)
 		draw_rect(Rect2(Vector2(32, 58), Vector2(18, 10)), Color("#f0c766", 0.8), true)
 		draw_rect(Rect2(Vector2(60, 58), Vector2(18, 10)), Color("#6fa7c8"), true)
@@ -712,8 +719,6 @@ func _wrong_order_hint() -> String:
 		if target_nodes.has("panel") and _is_near("panel") and not bool(state.get("HasRepairTool", false)):
 			return "未检测到维修工具。请先前往工具台。"
 		if target_nodes.has("console") and _is_near("console"):
-			if not bool(state.get("PowerPanelInspected", false)):
-				return "请先检查故障供电面板。"
 			if not bool(state.get("PowerPanelRepaired", false)):
 				return "供电面板尚未修复。无法重启供电。"
 		if target_nodes.has("exit") and _is_near("exit") and not bool(state.get("TestLightOn", false)):
@@ -932,7 +937,7 @@ func _power_hint(step: Dictionary) -> String:
 		"light":
 			return "请确认测试灯已亮起。"
 		"exit":
-			return "训练记录完成。请前往训练出口并按 E。"
+			return "模块三记录已完成。\n请前往训练出口，进入下一训练模块。"
 	if String(step.get("type", "")) == "wait":
 		return "请观察测试灯恢复。"
 	return "请按供电维修流程继续。"

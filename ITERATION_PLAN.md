@@ -1141,6 +1141,7 @@ Completed:
 - Added HUD power status progression through `故障`, `维修中` and `稳定`.
 - Added calm wrong-order hints for repairing without tools, restarting before repair and exiting before completion.
 - Test light and room lighting now shift to restrained warm/cool-white feedback after power restoration.
+- Acceptance polish strengthened restored-power feedback, made the initial damaged panel read more clearly and updated the Module 03 exit hint copy.
 
 Still out of scope:
 

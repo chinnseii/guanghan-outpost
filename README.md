@@ -487,4 +487,5 @@ Scope note:
 - HUD power state updates through `故障 / 维修中 / 稳定`.
 - Wrong-order actions show calm procedural hints; there is no failure screen or punishment.
 - Main menu now includes `Dev Only: Training Module 03 Power Repair` for direct testing.
+- Module 03 acceptance polish strengthens restored-power feedback, clarifies the damaged panel warning read and updates the exit hint copy.
 - This remains a scripted training simulation only; no full electrical grid, tool inventory, durability or repair minigame was added.
