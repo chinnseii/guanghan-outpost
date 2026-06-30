@@ -1238,3 +1238,24 @@ Still out of scope:
 - Full oxygen, power, crop, plant growth or survival simulation.
 - Scoring, failure, death, random events or stress penalties.
 - Launch sequence or direct Moon assignment acceptance.
+
+## Sprint 04 Transition Decision Update
+
+Status: complete.
+
+Completed:
+
+- Added `OpeningFlowManager` as the central route for accepting Moon assignment and leaving the 17-pioneer black screen.
+- Removed direct post-acceptance scene jump logic from `MissionAssignmentNoticeScene`.
+- Replaced the black-screen hard cut to arrival with a clean fade out, short hold, `ArrivalCinematicScene` load and fade in.
+- Added `OpeningFlowStage` to training progress:
+  - `AssignmentBlackScreen` after accepting Moon assignment.
+  - `AwaitingArrivalCinematic` before loading the arrival cinematic.
+- Added a code TODO for inserting formal `LaunchSequenceScene`, `EarthMoonTransferScene` and `LandingSequenceScene` later.
+
+Still out of scope:
+
+- Temporary launch bridge scene.
+- Fake launch text.
+- Temporary rocket animation.
+- Development placeholder text in the normal player flow.

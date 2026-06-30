@@ -441,7 +441,8 @@ Implemented:
 - Five scripted training modules: suit control, airlock procedure, power repair, life support and plant diagnosis.
 - Final assessment as a small scripted incident sequence using the same training interactions.
 - Mission assignment notice appears only after final assessment completion.
-- Accepting the moon assignment sets training state, shows the quiet 17-pioneer black screen, then transitions to `ArrivalCinematicScene`.
+- Accepting the moon assignment sets training state, shows the quiet 17-pioneer black screen, then uses `OpeningFlowManager` to fade cleanly into `ArrivalCinematicScene`.
+- There is no temporary launch/transfer placeholder in the normal player flow.
 - Temporary decline keeps the candidate file and returns to the menu.
 - Training progress is saved to `user://saves/training_progress.json` and `Continue Mission` routes to the current training state.
 - Dev Only menu entries are available for Training Start, Final Assessment, Mission Assignment Notice, reset training progress and Arrival Cinematic.
@@ -519,3 +520,11 @@ Scope note:
 - Wrong-order actions show calm assessment hints, including life support before power, plant scan before life support stability, grow-light adjustment before diagnosis and submission before all systems are stable.
 - Completion routes to `MissionAssignmentNoticeScene`; it does not launch the player to the Moon.
 - This remains a scripted final assessment only; no scoring, fail state, death, random events, full oxygen system, full power system or crop simulation was added.
+
+## Sprint 04 Transition Decision Update
+
+- `MissionAssignmentNoticeScene` no longer hardcodes the post-acceptance scene jump; it routes through `OpeningFlowManager`.
+- Current temporary flow is `MissionAssignmentNoticeScene -> AssignmentBlackScreenScene -> fade out -> ArrivalCinematicScene`.
+- `OpeningFlowStage` is saved as `AssignmentBlackScreen` when the player accepts and `AwaitingArrivalCinematic` before loading the arrival cinematic.
+- Future launch, Earth-Moon transfer and landing scenes are intentionally not represented by fake placeholder text or temporary rocket animation.
+- The flow code contains a TODO for inserting `LaunchSequenceScene`, `EarthMoonTransferScene` and `LandingSequenceScene` once the art direction is ready.

@@ -12,6 +12,7 @@ const MODULE_05 := "res://scenes/training/Training_05_PlantDiagnosis.tscn"
 const FINAL_ASSESSMENT := "res://scenes/training/FinalAssessmentScene.tscn"
 const MISSION_NOTICE := "res://scenes/training/MissionAssignmentNoticeScene.tscn"
 const BLACK_SCREEN := "res://scenes/training/AssignmentBlackScreenScene.tscn"
+const ARRIVAL_CINEMATIC := "res://scenes/arrival/ArrivalCinematicScene.tscn"
 
 const MODULE_SCENES := {
 	"suit_control": MODULE_01,
@@ -36,6 +37,7 @@ static func default_data() -> Dictionary:
 		"CompletedTrainingModules": [],
 		"FinalAssessmentCompleted": false,
 		"MissionAssignmentAccepted": false,
+		"OpeningFlowStage": "",
 		"CurrentSceneAfterTraining": START_SCENE,
 	}
 
@@ -101,16 +103,26 @@ static func mark_module_completed(module_id: String, next_module_id: String) -> 
 	data["CurrentSceneAfterTraining"] = String(MODULE_SCENES.get(next_module_id, START_SCENE))
 	save_progress(data)
 
-static func accept_assignment() -> void:
+static func accept_assignment(opening_stage := "AssignmentBlackScreen") -> void:
 	var data := load_progress()
 	data["MissionAssignmentAccepted"] = true
+	data["OpeningFlowStage"] = opening_stage
 	data["CurrentTrainingModule"] = "assignment_black_screen"
 	data["CurrentSceneAfterTraining"] = BLACK_SCREEN
+	save_progress(data)
+
+static func set_opening_flow_stage(opening_stage: String, scene_path: String) -> void:
+	var data := load_progress()
+	data["MissionAssignmentAccepted"] = true
+	data["OpeningFlowStage"] = opening_stage
+	data["CurrentSceneAfterTraining"] = scene_path
 	save_progress(data)
 
 static func continue_scene_path() -> String:
 	var data := load_progress()
 	if bool(data.get("MissionAssignmentAccepted", false)):
+		if String(data.get("OpeningFlowStage", "")) == "AwaitingArrivalCinematic":
+			return ARRIVAL_CINEMATIC
 		return BLACK_SCREEN
 	if bool(data.get("FinalAssessmentCompleted", false)):
 		return MISSION_NOTICE

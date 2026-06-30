@@ -1,6 +1,7 @@
 extends Control
 
 const TrainingManagerScript := preload("res://scripts/training/training_manager.gd")
+const OpeningFlowManagerScript := preload("res://scripts/training/opening_flow_manager.gd")
 
 var lines := [
 	"感谢你的选择。",
@@ -13,11 +14,12 @@ var lines := [
 var line_index := 0
 var timer := 0.0
 var label: Label
+var transitioning := false
 
 func _ready() -> void:
 	var progress := TrainingManagerScript.load_progress()
 	if not bool(progress.get("MissionAssignmentAccepted", false)):
-		get_tree().change_scene_to_file(TrainingManagerScript.MISSION_NOTICE)
+		call_deferred("_return_to_assignment_notice")
 		return
 	var background := ColorRect.new()
 	background.color = Color.BLACK
@@ -40,4 +42,13 @@ func _process(delta: float) -> void:
 		label.text += ("\n\n" if not label.text.is_empty() else "") + lines[line_index]
 		line_index += 1
 	else:
-		get_tree().change_scene_to_file("res://scenes/arrival/ArrivalCinematicScene.tscn")
+		_start_arrival_transition()
+
+func _start_arrival_transition() -> void:
+	if transitioning:
+		return
+	transitioning = true
+	await OpeningFlowManagerScript.transition_black_screen_to_arrival(get_tree())
+
+func _return_to_assignment_notice() -> void:
+	get_tree().change_scene_to_file(TrainingManagerScript.MISSION_NOTICE)

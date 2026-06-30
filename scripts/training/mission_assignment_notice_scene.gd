@@ -1,13 +1,14 @@
 extends Control
 
 const TrainingManagerScript := preload("res://scripts/training/training_manager.gd")
+const OpeningFlowManagerScript := preload("res://scripts/training/opening_flow_manager.gd")
 
 var notice_panel: VBoxContainer
 
 func _ready() -> void:
 	var progress := TrainingManagerScript.load_progress()
 	if not bool(progress.get("FinalAssessmentCompleted", false)):
-		get_tree().change_scene_to_file(TrainingManagerScript.START_SCENE)
+		call_deferred("_return_to_training_start")
 		return
 	_build_notice()
 
@@ -74,8 +75,10 @@ func _decline_assignment() -> void:
 	notice_panel.add_child(button)
 
 func _accept_assignment() -> void:
-	TrainingManagerScript.accept_assignment()
-	get_tree().change_scene_to_file(TrainingManagerScript.BLACK_SCREEN)
+	OpeningFlowManagerScript.accept_moon_assignment(get_tree())
+
+func _return_to_training_start() -> void:
+	get_tree().change_scene_to_file(TrainingManagerScript.START_SCENE)
 
 func _add_button(parent: HBoxContainer, text: String, callback: Callable) -> void:
 	var button := Button.new()
