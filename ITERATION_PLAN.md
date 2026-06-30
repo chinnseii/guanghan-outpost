@@ -1148,3 +1148,29 @@ Still out of scope:
 - Full electrical grid simulation.
 - Tool inventory, equipment durability or repair minigame.
 - Real oxygen, pressure or EVA systems.
+
+## Sprint 04 Module 04: Life Support
+
+Status: complete first playable pass.
+
+Completed:
+
+- Converted Module 04 from abstract colored blocks into a TR-001-style training room blockout.
+- Added semantic placeholder props:
+  - Life support console.
+  - Oxygen, water, power and temperature status displays.
+  - Life support core.
+  - Ventilation unit.
+  - Training exit.
+- Implemented staged flow: open console, read system status, start stabilization, wait for stability, confirm stable environment and exit.
+- Added scripted state updates for `Module04Started`, `LifeSupportConsoleOpened`, `LifeSupportStatusRead`, `StabilizationStarted`, `LifeSupportStable`, `LifeSupportConfirmed` and `Module04Completed`.
+- Added simulated status fields for oxygen, water, power, temperature and life support state.
+- Added HUD status progression through `未稳定`, `稳定中` and `稳定`.
+- Added calm wrong-order hints for reading before console open, stabilizing before status read and exiting before completion.
+- Added a direct main-menu dev entry for Module 04.
+
+Still out of scope:
+
+- Full oxygen consumption, water cycle or temperature simulation.
+- Base-wide life support model.
+- Failure, death, survival pressure or crop-system dependencies.

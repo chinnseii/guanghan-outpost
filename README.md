@@ -489,3 +489,13 @@ Scope note:
 - Main menu now includes `Dev Only: Training Module 03 Power Repair` for direct testing.
 - Module 03 acceptance polish strengthens restored-power feedback, clarifies the damaged panel warning read and updates the exit hint copy.
 - This remains a scripted training simulation only; no full electrical grid, tool inventory, durability or repair minigame was added.
+
+## Sprint 04 Module 04: Life Support
+
+- Module 04 now uses the TR-001 training-room visual standard instead of abstract colored blocks.
+- The room includes semantic placeholder props for life support console, oxygen/water/power/temperature displays, life support core, ventilation unit and training exit.
+- The staged flow is scripted: open console, read four simulated statuses, start stabilization, wait for stable life support, confirm the environment and exit to Module 05.
+- HUD life-support state updates through `未稳定 / 稳定中 / 稳定`, with oxygen and temperature starting low.
+- Wrong-order actions show calm procedural hints; there is no failure screen or punishment.
+- Main menu now includes `Dev Only: Training Module 04 Life Support` for direct testing.
+- This remains a scripted training simulation only; no full oxygen, water, temperature or base-wide life support model was added.

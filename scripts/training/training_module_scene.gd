@@ -102,6 +102,41 @@ class PowerRepairRoomBlockout:
 		draw_line(Vector2(room.position.x + 250, room.position.y + 120), Vector2(room.end.x - 235, room.position.y + 120), Color("#4f6473", 0.5), 3.0)
 		draw_line(Vector2(room.position.x + 250, room.position.y + 132), Vector2(room.end.x - 235, room.position.y + 132), Color("#4f6473", 0.25), 2.0)
 
+class LifeSupportRoomBlockout:
+	extends Control
+
+	var stable := false
+	var stabilizing := false
+
+	func _draw() -> void:
+		var rect := Rect2(Vector2.ZERO, size)
+		draw_rect(rect, Color("#07111b"), true)
+		var room := Rect2(Vector2(24, 24), size - Vector2(48, 48))
+		draw_rect(room, Color("#17222c"), true)
+		for x in range(int(room.position.x), int(room.end.x), 48):
+			draw_line(Vector2(x, room.position.y), Vector2(x, room.end.y), Color("#31414d", 0.54), 1.0)
+		for y in range(int(room.position.y), int(room.end.y), 48):
+			draw_line(Vector2(room.position.x, y), Vector2(room.end.x, y), Color("#31414d", 0.54), 1.0)
+		draw_rect(room, Color("#5d6f7d"), false, 4.0)
+		draw_rect(room.grow(-10), Color("#2a3844"), false, 2.0)
+		draw_rect(Rect2(room.position, Vector2(room.size.x, 28)), Color("#25313c"), true)
+		draw_rect(Rect2(Vector2(room.position.x, room.end.y - 28), Vector2(room.size.x, 28)), Color("#25313c"), true)
+		draw_rect(Rect2(room.position, Vector2(28, room.size.y)), Color("#25313c"), true)
+		draw_rect(Rect2(Vector2(room.end.x - 28, room.position.y), Vector2(28, room.size.y)), Color("#25313c"), true)
+		var air_color := Color("#9fd7ff", 0.42) if stable else Color("#67b7e8", 0.24 if stabilizing else 0.16)
+		for vent_x in [92, 278, 464, 650]:
+			var vent := Rect2(Vector2(vent_x, room.position.y + 18), Vector2(92, 12))
+			draw_rect(vent, Color("#344653"), true)
+			for i in range(5):
+				draw_line(vent.position + Vector2(10 + i * 15, 2), vent.position + Vector2(10 + i * 15, 10), air_color, 2.0)
+			draw_rect(vent.grow(5), Color(air_color.r, air_color.g, air_color.b, 0.08 if stable else 0.04), true)
+		if stable:
+			draw_rect(room.grow(-44), Color("#9fd7ff", 0.035), true)
+		draw_rect(Rect2(Vector2(room.position.x + 58, room.end.y - 78), Vector2(144, 34)), Color("#344653"), true)
+		draw_rect(Rect2(Vector2(room.end.x - 216, room.position.y + 78), Vector2(132, 44)), Color("#344653"), true)
+		draw_line(Vector2(room.position.x + 230, room.position.y + 124), Vector2(room.end.x - 220, room.position.y + 124), Color("#4f6473", 0.45), 3.0)
+		draw_line(Vector2(room.position.x + 230, room.position.y + 138), Vector2(room.end.x - 220, room.position.y + 138), Color("#4f6473", 0.25), 2.0)
+
 class TrainingTargetVisual:
 	extends Control
 
@@ -138,6 +173,14 @@ class TrainingTargetVisual:
 				_draw_power_console()
 			"test_light":
 				_draw_test_light()
+			"life_console":
+				_draw_life_console()
+			"life_status":
+				_draw_life_status_display()
+			"life_core":
+				_draw_life_core()
+			"ventilation":
+				_draw_ventilation_unit()
 			"exit":
 				_draw_exit()
 			_:
@@ -260,6 +303,70 @@ class TrainingTargetVisual:
 		draw_circle(center + Vector2(0, -6), 10, glow)
 		if on:
 			draw_circle(center + Vector2(0, -6), 28, Color("#f0c766", 0.08))
+
+	func _draw_life_console() -> void:
+		if highlighted:
+			draw_rect(Rect2(Vector2(-8, -8), size + Vector2(16, 16)), Color("#f0c766", 0.12), true)
+			draw_rect(Rect2(Vector2(-8, -8), size + Vector2(16, 16)), Color("#f0c766", 0.55), false, 2.0)
+		draw_rect(Rect2(Vector2(10, 32), Vector2(size.x - 20, size.y - 38)), Color("#303b44"), true)
+		draw_rect(Rect2(Vector2(22, 8), Vector2(size.x - 44, 38)), Color("#101d28"), true)
+		var screen := Color("#9fd7ff", 0.62)
+		if status_text == "stabilizing":
+			screen = Color("#f0c766", 0.58)
+		elif status_text == "stable":
+			screen = Color("#d8e7f2", 0.72)
+		draw_rect(Rect2(Vector2(30, 16), Vector2(size.x - 60, 20)), screen, true)
+		draw_rect(Rect2(Vector2(32, 58), Vector2(18, 10)), Color("#6fa7c8"), true)
+		draw_rect(Rect2(Vector2(60, 58), Vector2(18, 10)), Color("#f0c766", 0.75), true)
+		draw_rect(Rect2(Vector2(88, 58), Vector2(18, 10)), Color("#8fa3b2"), true)
+
+	func _draw_life_status_display() -> void:
+		var abnormal := status_text == "low"
+		var stabilizing_state := status_text == "stabilizing"
+		var stable_state := status_text == "stable"
+		var border := Color("#d66a4f", 0.72) if abnormal else Color("#6fa7c8", 0.55)
+		if stabilizing_state:
+			border = Color("#f0c766", 0.7)
+		elif stable_state:
+			border = Color("#d8e7f2", 0.7)
+		if highlighted:
+			draw_rect(Rect2(Vector2(-6, -6), size + Vector2(12, 12)), Color("#f0c766", 0.1), true)
+			draw_rect(Rect2(Vector2(-6, -6), size + Vector2(12, 12)), Color("#f0c766", 0.45), false, 2.0)
+		draw_rect(Rect2(Vector2.ZERO, size), Color("#1a2b38"), true)
+		draw_rect(Rect2(Vector2(8, 8), size - Vector2(16, 16)), Color("#0d1822"), true)
+		draw_rect(Rect2(Vector2.ZERO, size), border, false, 2.0)
+		draw_rect(Rect2(Vector2(14, 18), Vector2(size.x - 28, 6)), border, true)
+		draw_rect(Rect2(Vector2(14, 36), Vector2(size.x - 42, 4)), Color("#8fa3b2", 0.45), true)
+		draw_rect(Rect2(Vector2(14, 50), Vector2(size.x - 58, 4)), Color("#8fa3b2", 0.3), true)
+		if abnormal:
+			draw_circle(Vector2(size.x - 18, 18), 5.0, Color("#d66a4f", 0.9))
+		elif stable_state:
+			draw_circle(Vector2(size.x - 18, 18), 5.0, Color("#d8e7f2", 0.8))
+
+	func _draw_life_core() -> void:
+		var stable_state := status_text == "stable"
+		var stabilizing_state := status_text == "stabilizing"
+		if highlighted:
+			draw_rect(Rect2(Vector2(-8, -8), size + Vector2(16, 16)), Color("#f0c766", 0.1), true)
+		draw_rect(Rect2(Vector2(18, 8), Vector2(size.x - 36, size.y - 16)), Color("#303d47"), true)
+		draw_rect(Rect2(Vector2(30, 18), Vector2(size.x - 60, size.y - 36)), Color("#13212c"), true)
+		var core_color := Color("#9fd7ff", 0.78) if stable_state else Color("#f0c766", 0.55 if stabilizing_state else 0.28)
+		draw_circle(size * 0.5, 18.0, Color(core_color.r, core_color.g, core_color.b, 0.2))
+		draw_circle(size * 0.5, 10.0, core_color)
+		draw_line(Vector2(18, size.y - 20), Vector2(size.x - 18, size.y - 20), Color("#5d6f7d", 0.6), 3.0)
+
+	func _draw_ventilation_unit() -> void:
+		var active_state := status_text == "stable" or status_text == "stabilizing"
+		if highlighted:
+			draw_rect(Rect2(Vector2(-6, -6), size + Vector2(12, 12)), Color("#f0c766", 0.1), true)
+		draw_rect(Rect2(Vector2.ZERO, size), Color("#303d47"), true)
+		draw_rect(Rect2(Vector2(10, 10), size - Vector2(20, 20)), Color("#101d28"), true)
+		var air_color := Color("#9fd7ff", 0.65) if active_state else Color("#5d6f7d", 0.35)
+		for i in range(5):
+			var y := 18 + i * 10
+			draw_line(Vector2(18, y), Vector2(size.x - 18, y), air_color, 2.0)
+		if active_state:
+			draw_rect(Rect2(Vector2(18, size.y - 18), Vector2(size.x - 36, 4)), Color("#9fd7ff", 0.5), true)
 
 	func _draw_exit() -> void:
 		var edge := Color("#f0c766", 0.7) if highlighted and not locked else Color("#89d8ff", 0.28)
@@ -448,6 +555,8 @@ func _build_training_area() -> void:
 		floor = AirlockRoomBlockout.new()
 	elif module_id == "power_repair":
 		floor = PowerRepairRoomBlockout.new()
+	elif module_id == "life_support":
+		floor = LifeSupportRoomBlockout.new()
 	else:
 		var flat_floor := ColorRect.new()
 		flat_floor.color = Color("#0b1721")
@@ -463,8 +572,10 @@ func _build_training_area() -> void:
 			target = _airlock_room_target(target)
 		elif module_id == "power_repair":
 			target = _power_room_target(target)
+		elif module_id == "life_support":
+			target = _life_support_room_target(target)
 		var node: Control
-		if module_id == "suit_control" or module_id == "airlock_procedure" or module_id == "power_repair":
+		if module_id == "suit_control" or module_id == "airlock_procedure" or module_id == "power_repair" or module_id == "life_support":
 			var visual := TrainingTargetVisual.new()
 			visual.kind = String(target.get("kind", target.get("id", "target")))
 			visual.label_text = String(target.get("label", ""))
@@ -478,7 +589,7 @@ func _build_training_area() -> void:
 		node.size = target.get("size", Vector2(108, 70))
 		training_area.add_child(node)
 		target_nodes[node.name] = node
-		if module_id != "suit_control" and module_id != "airlock_procedure" and module_id != "power_repair":
+		if module_id != "suit_control" and module_id != "airlock_procedure" and module_id != "power_repair" and module_id != "life_support":
 			var label := Label.new()
 			label.text = String(target.get("label", node.name))
 			label.position = Vector2(8, 8)
@@ -486,7 +597,7 @@ func _build_training_area() -> void:
 			label.add_theme_font_size_override("font_size", 13)
 			node.add_child(label)
 
-	if module_id == "suit_control" or module_id == "airlock_procedure" or module_id == "power_repair":
+	if module_id == "suit_control" or module_id == "airlock_procedure" or module_id == "power_repair" or module_id == "life_support":
 		player = TraineeVisual.new()
 	else:
 		var player_block := ColorRect.new()
@@ -596,6 +707,52 @@ func _power_room_target(target: Dictionary) -> Dictionary:
 			room_target["size"] = Vector2(74, 106)
 	return room_target
 
+func _life_support_room_target(target: Dictionary) -> Dictionary:
+	var id := String(target.get("id", ""))
+	var room_target := target.duplicate()
+	match id:
+		"console":
+			room_target["kind"] = "life_console"
+			room_target["label"] = "生命支持控制台"
+			room_target["position"] = Vector2(88, 220)
+			room_target["size"] = Vector2(140, 96)
+		"oxygen":
+			room_target["kind"] = "life_status"
+			room_target["label"] = "氧气状态"
+			room_target["position"] = Vector2(292, 118)
+			room_target["size"] = Vector2(118, 78)
+		"water":
+			room_target["kind"] = "life_status"
+			room_target["label"] = "水循环状态"
+			room_target["position"] = Vector2(430, 118)
+			room_target["size"] = Vector2(118, 78)
+		"power":
+			room_target["kind"] = "life_status"
+			room_target["label"] = "电力状态"
+			room_target["position"] = Vector2(292, 224)
+			room_target["size"] = Vector2(118, 78)
+		"temperature":
+			room_target["kind"] = "life_status"
+			room_target["label"] = "温度状态"
+			room_target["position"] = Vector2(430, 224)
+			room_target["size"] = Vector2(118, 78)
+		"core":
+			room_target["kind"] = "life_core"
+			room_target["label"] = "生命支持核心"
+			room_target["position"] = Vector2(610, 130)
+			room_target["size"] = Vector2(118, 132)
+		"vent":
+			room_target["kind"] = "ventilation"
+			room_target["label"] = "通风单元"
+			room_target["position"] = Vector2(606, 310)
+			room_target["size"] = Vector2(124, 72)
+		"exit":
+			room_target["kind"] = "exit"
+			room_target["label"] = "训练出口"
+			room_target["position"] = Vector2(684, 388)
+			room_target["size"] = Vector2(74, 106)
+	return room_target
+
 func _move_player(delta: float) -> void:
 	var direction := Vector2.ZERO
 	direction.x = Input.get_axis("ui_left", "ui_right")
@@ -603,7 +760,7 @@ func _move_player(delta: float) -> void:
 	if direction.length() > 1.0:
 		direction = direction.normalized()
 	player.position += direction * player_speed * delta
-	var use_wall_margin := module_id == "suit_control" or module_id == "power_repair"
+	var use_wall_margin := module_id == "suit_control" or module_id == "power_repair" or module_id == "life_support"
 	var margin := 36.0 if use_wall_margin else 8.0
 	player.position.x = clamp(player.position.x, margin, max(margin, training_area.size.x - player.size.x - margin))
 	player.position.y = clamp(player.position.y, margin, max(margin, training_area.size.y - player.size.y - margin))
@@ -723,6 +880,15 @@ func _wrong_order_hint() -> String:
 				return "供电面板尚未修复。无法重启供电。"
 		if target_nodes.has("exit") and _is_near("exit") and not bool(state.get("TestLightOn", false)):
 			return "训练模块尚未完成。"
+	if module_id == "life_support":
+		for display_id in ["oxygen", "water", "power", "temperature"]:
+			if target_nodes.has(display_id) and _is_near(display_id) and not bool(state.get("LifeSupportConsoleOpened", false)):
+				return "请先打开生命支持控制台。"
+		if target_nodes.has("console") and _is_near("console"):
+			if bool(state.get("LifeSupportConsoleOpened", false)) and not bool(state.get("LifeSupportStatusRead", false)):
+				return "请先读取当前生命支持状态。"
+		if target_nodes.has("exit") and _is_near("exit") and not bool(state.get("LifeSupportConfirmed", false)):
+			return "生命支持状态尚未稳定。训练模块未完成。"
 	return ""
 
 func _is_near(target_id: String) -> bool:
@@ -761,12 +927,19 @@ func _update_room_prompt() -> void:
 			node.show_trigger_debug = show_trigger_debug and node.kind == "marker"
 			if module_id == "power_repair":
 				node.status_text = _power_visual_status(String(node.name))
+			if module_id == "life_support":
+				node.status_text = _life_support_visual_status(String(node.name))
 			if module_id == "airlock_procedure" and node.name == "pressure_display":
 				node.status_text = "舱压：%s" % _airlock_pressure_status()
 			node.queue_redraw()
 	if module_id == "power_repair" and floor_node != null:
 		var state: Dictionary = module_data.get("state", {})
 		floor_node.set("power_on", bool(state.get("PowerRestored", false)))
+		floor_node.queue_redraw()
+	if module_id == "life_support" and floor_node != null:
+		var state: Dictionary = module_data.get("state", {})
+		floor_node.set("stable", bool(state.get("LifeSupportStable", false)))
+		floor_node.set("stabilizing", bool(state.get("StabilizationStarted", false)) and not bool(state.get("LifeSupportStable", false)))
 		floor_node.queue_redraw()
 	if completed or step.is_empty():
 		prompt_label.visible = false
@@ -818,6 +991,17 @@ func _interaction_prompt(target_id: String) -> String:
 				return "E 重启供电"
 			"exit":
 				return "E 进入下一模块"
+	if module_id == "life_support":
+		match target_id:
+			"console":
+				var state: Dictionary = module_data.get("state", {})
+				if bool(state.get("LifeSupportStatusRead", false)):
+					return "E 启动稳定程序"
+				return "E 打开生命支持控制台"
+			"oxygen", "water", "power", "temperature":
+				return "E 确认状态"
+			"exit":
+				return "E 进入下一模块"
 	if target_id == "terminal":
 		return "E 使用训练终端"
 	return "E 交互"
@@ -845,6 +1029,8 @@ func _update_hud() -> void:
 		hud_label.text = _airlock_hud_text()
 	elif module_id == "power_repair":
 		hud_label.text = _power_hud_text()
+	elif module_id == "life_support":
+		hud_label.text = _life_support_hud_text()
 	else:
 		hud_label.text = String(module_data.get("hud", "氧气模拟值：98%\n电力模拟值：稳定\n生命支持状态：训练环境"))
 	if module_id == "suit_control" and not completed:
@@ -853,6 +1039,8 @@ func _update_hud() -> void:
 		hint_label.text = _airlock_hint(step)
 	elif module_id == "power_repair" and not completed:
 		hint_label.text = _power_hint(step)
+	elif module_id == "life_support" and not completed:
+		hint_label.text = _life_support_hint(step)
 	else:
 		hint_label.text = String(step.get("hint", "移动至目标区域，按 E 交互。")) if not completed else "训练记录已保存。"
 	if String(step.get("type", "")) == "diagnosis":
@@ -941,6 +1129,62 @@ func _power_hint(step: Dictionary) -> String:
 	if String(step.get("type", "")) == "wait":
 		return "请观察测试灯恢复。"
 	return "请按供电维修流程继续。"
+
+func _life_support_hud_text() -> String:
+	var status := _life_support_status()
+	var oxygen := "稳定" if status == "稳定" else "偏低"
+	var temperature := "稳定" if status == "稳定" else "偏低"
+	return "氧气模拟值：%s\n水循环状态：稳定\n电力模拟值：稳定\n温度模拟值：%s\n生命支持状态：%s\n提示信息：%s" % [oxygen, temperature, status, _life_support_hint(_current_step())]
+
+func _life_support_status() -> String:
+	var state: Dictionary = module_data.get("state", {})
+	if bool(state.get("LifeSupportStable", false)):
+		return "稳定"
+	if bool(state.get("StabilizationStarted", false)):
+		return "稳定中"
+	return "未稳定"
+
+func _life_support_visual_status(node_name: String) -> String:
+	var state: Dictionary = module_data.get("state", {})
+	if node_name == "console":
+		if bool(state.get("LifeSupportStable", false)):
+			return "stable"
+		if bool(state.get("StabilizationStarted", false)):
+			return "stabilizing"
+		return "open" if bool(state.get("LifeSupportConsoleOpened", false)) else ""
+	if node_name == "oxygen" or node_name == "temperature":
+		if bool(state.get("LifeSupportStable", false)):
+			return "stable"
+		if bool(state.get("StabilizationStarted", false)):
+			return "stabilizing"
+		return "low"
+	if node_name == "water" or node_name == "power":
+		return "stable"
+	if node_name == "core" or node_name == "vent":
+		if bool(state.get("LifeSupportStable", false)):
+			return "stable"
+		if bool(state.get("StabilizationStarted", false)):
+			return "stabilizing"
+	return ""
+
+func _life_support_hint(step: Dictionary) -> String:
+	match String(step.get("target", "")):
+		"console":
+			var state: Dictionary = module_data.get("state", {})
+			if bool(state.get("LifeSupportStatusRead", false)):
+				return "请在生命支持控制台启动稳定程序。"
+			return "请靠近生命支持控制台并按 E。"
+		"oxygen", "water", "power", "temperature":
+			return "请查看氧气、水、电力与温度状态。"
+		"core":
+			return "请等待生命支持系统完成稳定流程。"
+		"vent":
+			return "请确认四项状态均已稳定。"
+		"exit":
+			return "模块四记录已完成。\n请前往训练出口，进入下一训练模块。"
+	if String(step.get("type", "")) == "wait":
+		return "请等待生命支持系统完成稳定流程。"
+	return "请按生命支持训练流程继续。"
 
 func _add_log(line: String) -> void:
 	if line.is_empty():
@@ -1076,20 +1320,26 @@ func _life_support_config() -> Dictionary:
 		"subtitle": "LIFE SUPPORT",
 		"next_module": "plant_diagnosis",
 		"next_scene": TrainingManagerScript.MODULE_05,
-		"hud": "氧气状态：偏低\n水循环：稳定\n供电状态：已恢复\n温度状态：偏低",
+		"player_start": Vector2(364, 396),
+		"player_size": Vector2(42, 54),
+		"hud": "氧气模拟值：偏低\n水循环状态：稳定\n电力模拟值：稳定\n温度模拟值：偏低\n生命支持状态：未稳定",
 		"targets": [
 			{"id": "console", "label": "生命支持控制台", "position": Vector2(340, 180), "color": Color("#31536f")},
-			{"id": "oxygen", "label": "氧气显示", "position": Vector2(130, 130), "color": Color("#244563")},
-			{"id": "water", "label": "水循环显示", "position": Vector2(130, 260), "color": Color("#244563")},
-			{"id": "temperature", "label": "温度显示", "position": Vector2(560, 130), "color": Color("#244563")},
 			{"id": "power", "label": "电力显示", "position": Vector2(560, 260), "color": Color("#244563")},
+			{"id": "oxygen", "label": "氧气状态", "position": Vector2(130, 130), "color": Color("#244563")},
+			{"id": "water", "label": "水循环状态", "position": Vector2(130, 260), "color": Color("#244563")},
+			{"id": "temperature", "label": "温度状态", "position": Vector2(560, 130), "color": Color("#244563")},
+			{"id": "core", "label": "生命支持核心", "position": Vector2(620, 260), "color": Color("#31536f")},
+			{"id": "vent", "label": "通风单元", "position": Vector2(560, 380), "color": Color("#31536f")},
+			{"id": "exit", "label": "训练出口", "position": Vector2(710, 410), "color": Color("#4d6473")},
 		],
 		"steps": [
-			{"type": "interact", "target": "console", "objective": "打开生命支持控制台", "line": "生命支持不是单一设备。\n氧气、水、电力与温度必须同时稳定。"},
-			{"type": "interact", "target": "oxygen", "objective": "查看氧气状态", "line": "检测到氧气偏低。"},
-			{"type": "interact", "target": "temperature", "objective": "查看温度状态", "line": "检测到温度偏低。"},
-			{"type": "interact", "target": "console", "objective": "启动稳定程序", "line": "启动稳定程序。\n生命支持状态：稳定。", "state_key": "LifeSupportStable"},
-			{"type": "interact", "target": "power", "objective": "确认电力状态", "line": "电力状态稳定。模块完成。", "requires": {"LifeSupportStable": true}},
+			{"type": "interact", "target": "console", "objective": "打开生命支持控制台", "line": "生命支持控制台已打开。", "state_updates": {"Module04Started": true, "LifeSupportConsoleOpened": true}},
+			{"type": "interact", "target": "oxygen", "objective": "读取生命支持状态", "line": "检测到氧气偏低。\n检测到温度偏低。\n电力与水循环状态稳定。", "state_updates": {"LifeSupportStatusRead": true, "OxygenStatus": "偏低", "WaterStatus": "稳定", "PowerStatus": "稳定", "TemperatureStatus": "偏低", "LifeSupportStatus": "未稳定"}, "requires": {"LifeSupportConsoleOpened": true}, "blocked_hint": "请先打开生命支持控制台。"},
+			{"type": "interact", "target": "console", "objective": "启动稳定程序", "line": "稳定程序启动。\n正在调整氧气输出与温控系统。", "state_updates": {"StabilizationStarted": true, "LifeSupportStatus": "稳定中"}, "requires": {"LifeSupportStatusRead": true}, "blocked_hint": "请先读取当前生命支持状态。"},
+			{"type": "wait", "target": "core", "objective": "等待系统稳定", "line": "生命支持状态：稳定。", "duration": 1.6, "state_updates": {"LifeSupportStable": true, "OxygenStatus": "稳定", "WaterStatus": "稳定", "PowerStatus": "稳定", "TemperatureStatus": "稳定", "LifeSupportStatus": "稳定"}},
+			{"type": "interact", "target": "vent", "objective": "确认生命支持稳定", "line": "氧气、水、电力与温度均已稳定。\n训练环境具备基础生命支持条件。", "state_key": "LifeSupportConfirmed", "requires": {"LifeSupportStable": true}},
+			{"type": "interact", "target": "exit", "objective": "进入下一训练模块", "line": "生命支持训练完成。", "state_key": "Module04Completed", "requires": {"LifeSupportConfirmed": true}, "blocked_hint": "生命支持状态尚未稳定。训练模块未完成。"},
 		],
 	})
 	return data
