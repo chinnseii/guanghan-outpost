@@ -459,3 +459,11 @@ Scope note:
 - The exit no longer uses green as its primary read; green remains reserved for life/plant semantics.
 - The left panel remains the training control HUD, while the right side reads as the gameplay space.
 - This pass is visual/readability only; no full oxygen, power, repair, crop, scoring or survival systems were added.
+
+## Sprint 04 Module 01 Minor Polish
+
+- Module 01 HUD hints now separate movement-only marker objectives from E-key terminal interactions.
+- Only the current objective is strongly highlighted: marker first, terminal second, exit last.
+- Training exit is visible but visually locked until the module reaches the exit step.
+- Pressing E at the active exit advances directly to the next training module.
+- Player start position was nudged farther inside the training room.

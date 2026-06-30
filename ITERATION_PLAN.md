@@ -1075,3 +1075,20 @@ Still out of scope:
 - Full oxygen, power, repair, crop or scoring systems.
 - Complex animation or final art.
 - Expanding later training modules beyond the shared visual direction.
+
+## Sprint 04 Module 01 Minor Polish
+
+Status: complete.
+
+Completed:
+
+- Clarified Module 01 objective hints so the marker zone reads as movement-only and only the training terminal asks for E interaction.
+- Added current-target visual hierarchy: marker, terminal and exit are highlighted only when they are the active objective.
+- Kept the exit visible from the start but visually locked until the module reaches the exit step.
+- Changed the active exit interaction so pressing E advances directly to the next training module.
+- Nudged the player start position farther inside the training room.
+
+Still out of scope:
+
+- New training systems.
+- Full survival, oxygen, power, repair or crop simulation.

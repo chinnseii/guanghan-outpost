@@ -35,6 +35,8 @@ class TrainingTargetVisual:
 	var kind := "marker"
 	var label_text := ""
 	var active := false
+	var highlighted := false
+	var locked := false
 
 	func _ready() -> void:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -52,8 +54,9 @@ class TrainingTargetVisual:
 		_draw_debug_label()
 
 	func _draw_marker() -> void:
-		var c := Color("#4fb7f0")
-		draw_rect(Rect2(Vector2.ZERO, size), Color("#12324a", 0.18), true)
+		var c := Color("#f0c766") if highlighted else Color("#4fb7f0")
+		var fill_alpha := 0.28 if highlighted else 0.12
+		draw_rect(Rect2(Vector2.ZERO, size), Color("#12324a", fill_alpha), true)
 		for x in range(0, int(size.x), 14):
 			draw_line(Vector2(x, 0), Vector2(min(x + 7, size.x), 0), c, 2.0)
 			draw_line(Vector2(x, size.y), Vector2(min(x + 7, size.x), size.y), c, 2.0)
@@ -65,6 +68,9 @@ class TrainingTargetVisual:
 		draw_line(size * 0.5 + Vector2(0, -16), size * 0.5 + Vector2(0, 16), Color("#8fd8ff", 0.7), 1.0)
 
 	func _draw_terminal() -> void:
+		if highlighted:
+			draw_rect(Rect2(Vector2(-8, -8), size + Vector2(16, 16)), Color("#f0c766", 0.12), true)
+			draw_rect(Rect2(Vector2(-8, -8), size + Vector2(16, 16)), Color("#f0c766", 0.55), false, 2.0)
 		draw_rect(Rect2(Vector2(12, 30), Vector2(size.x - 24, size.y - 38)), Color("#2c3740"), true)
 		draw_rect(Rect2(Vector2(22, 8), Vector2(size.x - 44, 36)), Color("#1a2b38"), true)
 		draw_rect(Rect2(Vector2(28, 14), Vector2(size.x - 56, 22)), Color("#236fa8"), true)
@@ -75,12 +81,15 @@ class TrainingTargetVisual:
 		draw_rect(Rect2(Vector2(82, 54), Vector2(18, 10)), Color("#8fa3b2"), true)
 
 	func _draw_exit() -> void:
+		var edge := Color("#f0c766", 0.7) if highlighted and not locked else Color("#89d8ff", 0.28)
 		draw_rect(Rect2(Vector2(14, 0), Vector2(size.x - 28, size.y)), Color("#34414c"), true)
 		draw_rect(Rect2(Vector2(24, 10), Vector2(size.x - 48, size.y - 20)), Color("#1d2832"), true)
 		draw_line(Vector2(size.x * 0.5, 12), Vector2(size.x * 0.5, size.y - 12), Color("#d8e7f2", 0.55), 2.0)
-		draw_rect(Rect2(Vector2(4, 18), Vector2(10, size.y - 36)), Color("#89d8ff", 0.45), true)
-		draw_rect(Rect2(Vector2(size.x - 14, 18), Vector2(10, size.y - 36)), Color("#89d8ff", 0.45), true)
-		draw_rect(Rect2(Vector2(28, size.y - 20), Vector2(size.x - 56, 4)), Color("#f0c766", 0.55), true)
+		draw_rect(Rect2(Vector2(4, 18), Vector2(10, size.y - 36)), edge, true)
+		draw_rect(Rect2(Vector2(size.x - 14, 18), Vector2(10, size.y - 36)), edge, true)
+		draw_rect(Rect2(Vector2(28, size.y - 20), Vector2(size.x - 56, 4)), Color("#f0c766", 0.55 if highlighted and not locked else 0.18), true)
+		if locked:
+			draw_string(ThemeDB.fallback_font, Vector2(28, size.y * 0.5), "LOCK", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color("#8fa3b2"))
 
 	func _draw_generic() -> void:
 		draw_rect(Rect2(Vector2.ZERO, size), Color("#2a3a45"), true)
@@ -378,6 +387,9 @@ func _finish_module() -> void:
 	completed = true
 	var next_module := String(module_data.get("next_module", "mission_assignment"))
 	TrainingManagerScript.mark_module_completed(module_id, next_module)
+	if module_id == "suit_control":
+		get_tree().change_scene_to_file(String(module_data.get("next_scene", TrainingManagerScript.START_SCENE)))
+		return
 	hint_label.text = "模块完成。"
 	_update_hud()
 	var button := Button.new()
@@ -408,15 +420,18 @@ func _is_near(target_id: String) -> bool:
 func _update_room_prompt() -> void:
 	if prompt_label == null:
 		return
+	var step := _current_step()
+	var target_id := String(step.get("target", "")) if not step.is_empty() else ""
 	for node in target_nodes.values():
 		if node is TrainingTargetVisual:
+			node.highlighted = node.name == target_id
 			node.active = false
+			node.locked = node.name == "exit" and target_id != "exit"
+			node.modulate = Color(1, 1, 1, 1) if node.highlighted else Color(0.72, 0.78, 0.84, 0.72)
 			node.queue_redraw()
-	var step := _current_step()
 	if completed or step.is_empty():
 		prompt_label.visible = false
 		return
-	var target_id := String(step.get("target", ""))
 	if not target_nodes.has(target_id):
 		prompt_label.visible = false
 		return
@@ -452,9 +467,22 @@ func _update_hud() -> void:
 	var objective := String(step.get("objective", "训练流程已完成。")) if not completed else "训练流程已完成。"
 	objective_label.text = "当前目标：%s" % objective
 	hud_label.text = String(module_data.get("hud", "氧气模拟值：98%\n电力模拟值：稳定\n生命支持状态：训练环境"))
-	hint_label.text = String(step.get("hint", "移动至目标区域，按 E 交互。")) if not completed else "训练记录已保存。"
+	if module_id == "suit_control" and not completed:
+		hint_label.text = _suit_control_hint(step)
+	else:
+		hint_label.text = String(step.get("hint", "移动至目标区域，按 E 交互。")) if not completed else "训练记录已保存。"
 	if String(step.get("type", "")) == "diagnosis":
 		_show_diagnosis_options(step.get("options", []), String(step.get("correct", "")))
+
+func _suit_control_hint(step: Dictionary) -> String:
+	match String(step.get("target", "")):
+		"marker":
+			return "请移动至蓝色标记区域。"
+		"terminal":
+			return "请靠近训练终端并按 E。"
+		"exit":
+			return "训练记录完成。请前往训练出口并按 E。"
+	return "请按当前目标执行训练流程。"
 
 func _add_log(line: String) -> void:
 	if line.is_empty():
@@ -510,7 +538,7 @@ func _suit_control_config() -> Dictionary:
 		"subtitle": "SUIT CONTROL",
 		"next_module": "airlock_procedure",
 		"next_scene": TrainingManagerScript.MODULE_02,
-		"player_start": Vector2(380, 310),
+		"player_start": Vector2(420, 310),
 		"player_size": Vector2(42, 54),
 		"targets": [
 			{"id": "marker", "label": "标记区域", "position": Vector2(150, 330), "color": Color("#244563")},
