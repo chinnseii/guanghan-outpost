@@ -11,6 +11,9 @@ const SCENE_DAY02_START := "res://scenes/base/Day02StartScene.tscn"
 const SCENE_DAY02_END := "res://scenes/base/Day02EndScene.tscn"
 const SCENE_WEEK_START := "res://scenes/base/WeekRoutineStartScene.tscn"
 const SCENE_WEEK_END := "res://scenes/base/WeekRoutineEndScene.tscn"
+const HUD_SAFE_POSITION := Vector2(24, 96)
+const HUD_SAFE_SIZE := Vector2(360, 464)
+const HUD_SAFE_WORLD_MIN_X := 140.0
 
 @export var scene_kind := "interior"
 
@@ -32,6 +35,7 @@ var prompt_label: Label
 var ai_label: Label
 var fade_rect: ColorRect
 var prop_root: Node2D
+var player_overlay: BasePlayerOverlay
 
 var interior_targets := {
 	"console": Rect2(Vector2(700, 330), Vector2(180, 92)),
@@ -58,6 +62,7 @@ func _ready() -> void:
 	_setup_ui()
 	_setup_scene_defaults()
 	_setup_modular_props()
+	_setup_player_overlay()
 	call_deferred("_start_scene")
 
 func _setup_input() -> void:
@@ -94,6 +99,13 @@ func _setup_modular_props() -> void:
 			_setup_greenhouse_props()
 		"solar_array":
 			_setup_solar_array_props()
+
+func _setup_player_overlay() -> void:
+	player_overlay = BasePlayerOverlay.new()
+	player_overlay.name = "PlayerOverlay"
+	player_overlay.source_scene = self
+	player_overlay.z_index = 8
+	add_child(player_overlay)
 
 func _spawn_prop(scene_path: String, pos: Vector2, size := Vector2.ZERO, active_value := false, damaged_value := false, label := "") -> Node2D:
 	var packed := load(scene_path) as PackedScene
@@ -173,10 +185,12 @@ func _setup_ui() -> void:
 	canvas.add_child(root)
 
 	hud_label = Label.new()
-	hud_label.position = Vector2(32, 28)
-	hud_label.size = Vector2(410, 260)
+	hud_label.position = HUD_SAFE_POSITION
+	hud_label.size = HUD_SAFE_SIZE
 	hud_label.modulate = Color("#d8e7f2", 0.92)
-	hud_label.add_theme_font_size_override("font_size", 18)
+	hud_label.clip_text = true
+	hud_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hud_label.add_theme_font_size_override("font_size", 15)
 	root.add_child(hud_label)
 
 	message_label = Label.new()
@@ -263,6 +277,7 @@ func _process(delta: float) -> void:
 	_update_objective()
 	_update_ui()
 	queue_redraw()
+	player_overlay.queue_redraw()
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("interact") and input_enabled:
@@ -280,8 +295,15 @@ func _move_player(delta: float) -> void:
 		direction = direction.normalized()
 	player_moving = direction.length() > 0.01
 	player_pos += direction * PLAYER_SPEED * delta
-	player_pos.x = clamp(player_pos.x, 90.0, 1510.0)
+	player_pos.x = clamp(player_pos.x, _world_left_limit(), 1510.0)
 	player_pos.y = clamp(player_pos.y, 190.0, 770.0)
+
+func _world_left_limit() -> float:
+	if scene_kind == "interior" and (_is_week_routine_active() or _is_day02_active()):
+		return HUD_SAFE_WORLD_MIN_X
+	if scene_kind == "week_start" or scene_kind == "week_end":
+		return HUD_SAFE_WORLD_MIN_X
+	return 90.0
 
 func _update_target() -> void:
 	current_target = ""
@@ -1056,11 +1078,11 @@ func _hud_text() -> String:
 	var oxygen := "稳定" if bool(state.get("MinimalLifeSupportStable", false)) else "安全"
 	var plant := String(state.get("LastPlantStatus", "Critical"))
 	if scene_kind == "day02_start":
-		return "广寒前哨 · 居住舱\n\n电力：基础供电\n氧气：稳定\n温度：可维持\n生命支持：最低稳定\n植物生命信号：Stable\n\n当前目标：%s" % objective_text
+		return _safe_hud_text("广寒前哨 · 居住舱", "Stable", "", objective_text)
 	if scene_kind == "day02_end":
-		return "广寒前哨 · 居住舱\n\n电力：基础供电\n氧气：稳定\n温度：可维持\n生命支持：最低稳定\n植物生命信号：Stable\n\n当前目标：%s" % objective_text
+		return _safe_hud_text("广寒前哨 · 居住舱", "Stable", "", objective_text)
 	if scene_kind == "week_start" or scene_kind == "week_end":
-		return "广寒前哨 · 居住舱\n\n日期：第 %d 天\n电力：基础供电\n氧气：稳定\n温度：可维持\n生命支持：最低稳定\n植物生命信号：Stable\n\n当前目标：%s" % [_current_day(), objective_text]
+		return _safe_hud_text("广寒前哨 · Day %02d · 居住舱" % _current_day(), "Stable", "", objective_text)
 	if _is_day02_active():
 		var checklist := _task_line("检查供电面板", "Day02PowerChecked")
 		checklist += "\n" + _task_line("检查生命支持控制台", "Day02LifeSupportChecked")
@@ -1068,15 +1090,22 @@ func _hud_text() -> String:
 		checklist += "\n" + _task_line("检查最后一株植物", "Day02LastPlantChecked")
 		checklist += "\n" + _task_line("发送 Day 02 对地报告", "Day02ReportSent")
 		var zone := "旧温室" if scene_kind == "greenhouse" else "旧基地"
-		return "广寒前哨 · Day 02 · %s\n\n电力：基础供电\n氧气：稳定\n温度：可维持\n生命支持：最低稳定\n植物生命信号：Stable\n\n今日巡检：\n%s\n\n当前目标：%s" % [zone, checklist, objective_text]
+		return _safe_hud_text("广寒前哨 · Day 02 · %s" % zone, "Stable", checklist, objective_text)
 	if _is_week_routine_active():
 		var zone := "旧温室" if scene_kind == "greenhouse" else "旧基地"
-		return "广寒前哨 · %s · %s\n\n电力：基础供电\n氧气：稳定\n温度：可维持\n生命支持：最低稳定\n植物生命信号：Stable\n\n今日巡检：\n%s\n\n当前目标：%s" % [_day_label(), zone, _daily_checklist_text(), objective_text]
+		return _safe_hud_text("广寒前哨 · %s · %s" % [_day_label(), zone], "Stable", _daily_checklist_text(), objective_text)
 	if scene_kind == "greenhouse":
-		return "广寒前哨 · 旧温室\n\n电力：%s\n氧气：%s\n温度：%s\n生命支持：%s\n植物生命信号：%s\n\n当前目标：%s" % [power, oxygen, temp, life, plant, objective_text]
+		return _safe_hud_text("广寒前哨 · 旧温室", plant, "", objective_text, power, oxygen, temp, life)
 	if scene_kind == "day_end":
-		return "广寒前哨 · 居住舱\n\n电力：%s\n氧气：%s\n温度：%s\n生命支持：%s\n\n当前目标：%s" % [power, oxygen, temp, life, objective_text]
-	return "广寒前哨 · 旧基地\n\n电力：%s\n氧气：%s\n温度：%s\n生命支持：%s\n\n当前目标：%s" % [power, oxygen, temp, life, objective_text]
+		return _safe_hud_text("广寒前哨 · 居住舱", plant, "", objective_text, power, oxygen, temp, life)
+	return _safe_hud_text("广寒前哨 · 旧基地", plant, "", objective_text, power, oxygen, temp, life)
+
+func _safe_hud_text(title: String, plant: String, checklist: String, objective: String, power: String = "基础供电", oxygen: String = "稳定", temp: String = "可维持", life: String = "最低稳定") -> String:
+	var text := "%s\n\n系统状态\n电力：%s\n氧气：%s\n温度：%s\n生命支持：%s\n植物生命信号：%s" % [title, power, oxygen, temp, life, plant]
+	if not checklist.is_empty():
+		text += "\n\n今日巡检\n%s" % checklist
+	text += "\n\n当前目标\n> %s" % objective
+	return text
 
 func _task_line(label: String, key: String) -> String:
 	return "✓ %s" % label if bool(state.get(key, false)) else "□ %s" % label
@@ -1202,7 +1231,6 @@ func _draw() -> void:
 			_draw_solar_array()
 		_:
 			_draw_interior()
-	_draw_player()
 
 func _draw_solar_array() -> void:
 	draw_rect(Rect2(Vector2.ZERO, Vector2(1600, 900)), Color("#03070d"), true)
