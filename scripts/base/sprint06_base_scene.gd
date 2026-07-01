@@ -908,7 +908,6 @@ func _send_week_report() -> void:
 	if _current_day() == 7:
 		message_text = "广寒计划地面任务组：\n第一周驻留记录已归档。\n下一阶段任务建议正在生成。"
 		state["WeekOneReportSent"] = true
-		state["WeekOneCompleted"] = true
 		state["Archive_WeekOne_Report"] = true
 	else:
 		message_text = "广寒计划地面任务组：\n%s 驻留记录已归档。\n后续建议正在生成。" % _day_label()
@@ -1002,6 +1001,8 @@ func _finish_week_day() -> void:
 	state["DayCompleted"] = true
 	state["Day%02dCompleted" % day] = true
 	state["DayNumber"] = day
+	if day == 7:
+		state["WeekOneCompleted"] = true
 	_save_state()
 	input_enabled = false
 	message_text = "%s 记录：\n\n今日巡检完成。\n温室生命信号维持稳定。\n对地驻留报告已发送。" % _day_label()
