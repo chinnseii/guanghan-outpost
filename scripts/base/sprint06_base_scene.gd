@@ -4,18 +4,20 @@ const SAVE_PATH := "user://saves/sprint06_progress.json"
 const PLAYER_SPEED := 230.0
 
 const SCENE_AIRLOCK := "res://scenes/base/BaseAirlockEntryScene.tscn"
-const SCENE_INTERIOR := "res://scenes/base/OldBaseInteriorScene.tscn"
+const SCENE_INTERIOR := "res://scenes/base/OldBaseCore_ArtSlice.tscn"
 const SCENE_GREENHOUSE := "res://scenes/base/OldGreenhouseScene.tscn"
 const SCENE_DAY_END := "res://scenes/base/Day01EndScene.tscn"
 const SCENE_DAY02_START := "res://scenes/base/Day02StartScene.tscn"
 const SCENE_DAY02_END := "res://scenes/base/Day02EndScene.tscn"
 const SCENE_WEEK_START := "res://scenes/base/WeekRoutineStartScene.tscn"
 const SCENE_WEEK_END := "res://scenes/base/WeekRoutineEndScene.tscn"
+const ART_SLICE_MARKER_LAYER_SCRIPT := preload("res://scripts/base/art_slice_marker_layer.gd")
 const HUD_SAFE_POSITION := Vector2(24, 96)
 const HUD_SAFE_SIZE := Vector2(360, 464)
 const HUD_SAFE_WORLD_MIN_X := 140.0
 
 @export var scene_kind := "interior"
+@export var use_art_slice := false
 
 var state: Dictionary = {}
 var player_pos := Vector2(250, 500)
@@ -36,6 +38,8 @@ var ai_label: Label
 var fade_rect: ColorRect
 var prop_root: Node2D
 var player_overlay: BasePlayerOverlay
+var art_marker_layer: Node2D
+var art_layers := {}
 
 var interior_targets := {
 	"console": Rect2(Vector2(700, 330), Vector2(180, 92)),
@@ -88,6 +92,9 @@ func _add_key_action(action_name: String, keys: Array[int]) -> void:
 			InputMap.action_add_event(action_name, input_event)
 
 func _setup_modular_props() -> void:
+	if use_art_slice and scene_kind == "interior":
+		_setup_art_slice_layers()
+		return
 	prop_root = Node2D.new()
 	prop_root.name = "ModularProps"
 	prop_root.z_index = 1
@@ -105,7 +112,24 @@ func _setup_player_overlay() -> void:
 	player_overlay.name = "PlayerOverlay"
 	player_overlay.source_scene = self
 	player_overlay.z_index = 8
-	add_child(player_overlay)
+	if use_art_slice and has_node("PlayerLayer"):
+		get_node("PlayerLayer").add_child(player_overlay)
+	else:
+		add_child(player_overlay)
+
+func _setup_art_slice_layers() -> void:
+	for layer_name in ["FloorLayer", "WallLayer", "BackgroundPropLayer", "InteractiveObjectLayer", "LightingLayer", "ObjectiveMarkerLayer", "PlayerLayer"]:
+		var node: Node = get_node_or_null(layer_name)
+		if node == null:
+			node = Node2D.new()
+			node.name = layer_name
+			add_child(node)
+		art_layers[layer_name] = node
+	_setup_art_slice_room()
+	art_marker_layer = ART_SLICE_MARKER_LAYER_SCRIPT.new()
+	art_marker_layer.name = "InteractionStateMarkers"
+	art_marker_layer.source_scene = self
+	art_layers["ObjectiveMarkerLayer"].add_child(art_marker_layer)
 
 func _spawn_prop(scene_path: String, pos: Vector2, size := Vector2.ZERO, active_value := false, damaged_value := false, label := "") -> Node2D:
 	var packed := load(scene_path) as PackedScene
@@ -121,6 +145,76 @@ func _spawn_prop(scene_path: String, pos: Vector2, size := Vector2.ZERO, active_
 		node.set("prop_label", label)
 	prop_root.add_child(node)
 	return node
+
+func _setup_art_slice_room() -> void:
+	# Align the inherited interaction rectangles to the art-slice equipment layout.
+	interior_targets = {
+		"console": Rect2(Vector2(690, 330), Vector2(190, 110)),
+		"power_panel": Rect2(Vector2(430, 250), Vector2(92, 138)),
+		"power_console": Rect2(Vector2(470, 470), Vector2(150, 90)),
+		"life_console": Rect2(Vector2(1010, 330), Vector2(170, 100)),
+		"report_terminal": Rect2(Vector2(1030, 560), Vector2(170, 82)),
+		"greenhouse_door": Rect2(Vector2(1300, 292), Vector2(104, 190)),
+		"rest_point": Rect2(Vector2(240, 622), Vector2(170, 92)),
+	}
+	_tile_floor(Rect2(Vector2(160, 230), Vector2(1200, 500)))
+	_tile_wall(Rect2(Vector2(160, 150), Vector2(1200, 96)))
+	_add_art_sprite("WallLayer", "res://assets/art/old_base/tiles/reinforced_wall_frame.png", Vector2(160, 150), Vector2(38, 1))
+	_add_art_sprite("WallLayer", "res://assets/art/old_base/tiles/floor_wall_boundary.png", Vector2(160, 224), Vector2(38, 1))
+	for x in [250, 565, 880, 1195]:
+		_add_art_sprite("WallLayer", "res://assets/art/old_base/props/wall_conduit.png", Vector2(x, 184), Vector2(1.5, 1.0))
+	for x in [340, 800, 1230]:
+		_add_art_sprite("LightingLayer", "res://assets/art/old_base/props/ceiling_light.png", Vector2(x, 205), Vector2(1.25, 1.0))
+		_add_art_sprite("LightingLayer", "res://assets/art/old_base/lighting/warm_light_pool.png", Vector2(x - 30, 210), Vector2(1.45, 1.35))
+	_add_art_sprite("InteractiveObjectLayer", "res://assets/art/old_base/props/central_console.png", interior_targets["console"].position, Vector2(1.95, 1.7), "CentralConsole")
+	_add_art_sprite("InteractiveObjectLayer", "res://assets/art/old_base/props/old_power_panel.png", interior_targets["power_panel"].position, Vector2(1.2, 1.25), "OldPowerPanel")
+	_add_art_sprite("InteractiveObjectLayer", "res://assets/art/old_base/props/central_console.png", interior_targets["power_console"].position, Vector2(1.45, 1.2), "PowerRestartConsole")
+	_add_art_sprite("InteractiveObjectLayer", "res://assets/art/old_base/props/life_support_console.png", interior_targets["life_console"].position, Vector2(1.9, 1.5), "LifeSupportConsole")
+	_add_art_sprite("InteractiveObjectLayer", "res://assets/art/old_base/props/central_console.png", interior_targets["report_terminal"].position, Vector2(1.55, 1.15), "EarthReportTerminal")
+	_add_art_sprite("InteractiveObjectLayer", "res://assets/art/old_base/props/greenhouse_door.png", interior_targets["greenhouse_door"].position, Vector2(1.45, 1.48), "GreenhouseDoor")
+	_add_art_sprite("BackgroundPropLayer", "res://assets/art/old_base/props/storage_cabinet.png", Vector2(245, 335), Vector2(1.4, 1.55), "StorageCabinet")
+	_add_art_sprite("BackgroundPropLayer", "res://assets/art/old_base/props/maintenance_note.png", Vector2(1038, 610), Vector2(1.9, 1.35), "MaintenanceNote")
+	_add_art_sprite("BackgroundPropLayer", "res://assets/art/old_base/props/old_log_marker.png", Vector2(648, 620), Vector2(1.7, 1.45), "OldLogMarker")
+	_add_art_sprite("BackgroundPropLayer", "res://assets/art/old_base/props/floor_cable.png", Vector2(505, 650), Vector2(2.2, 1.0), "FloorCable")
+	_add_art_sprite("BackgroundPropLayer", "res://assets/art/old_base/props/dust_patch_01.png", Vector2(380, 690), Vector2(1.4, 1.3), "DustPatch01")
+	_add_art_sprite("BackgroundPropLayer", "res://assets/art/old_base/props/dust_patch_02.png", Vector2(720, 675), Vector2(1.35, 1.2), "DustPatch02")
+	_add_art_sprite("LightingLayer", "res://assets/art/old_base/lighting/greenhouse_signal_glow.png", Vector2(1288, 330), Vector2(1.6, 1.6))
+
+func _tile_floor(room: Rect2) -> void:
+	var tile_paths := [
+		"res://assets/art/old_base/tiles/metal_floor_base.png",
+		"res://assets/art/old_base/tiles/metal_floor_worn.png",
+		"res://assets/art/old_base/tiles/metal_floor_scuff.png",
+	]
+	for y in range(int(room.position.y), int(room.end.y), 32):
+		for x in range(int(room.position.x), int(room.end.x), 32):
+			var index := int((x / 32 + y / 32) % tile_paths.size())
+			_add_art_sprite("FloorLayer", tile_paths[index], Vector2(x, y))
+	for x in range(int(room.position.x + 64), int(room.end.x - 64), 192):
+		_add_art_sprite("FloorLayer", "res://assets/art/old_base/tiles/metal_floor_seam.png", Vector2(x, room.position.y + 192))
+	_add_art_sprite("FloorLayer", "res://assets/art/old_base/tiles/maintenance_hatch.png", Vector2(560, 570), Vector2(1.5, 1.5))
+	_add_art_sprite("FloorLayer", "res://assets/art/old_base/tiles/floor_cable_overlay.png", Vector2(820, 608), Vector2(3.2, 1.0))
+
+func _tile_wall(wall: Rect2) -> void:
+	for y in range(int(wall.position.y), int(wall.end.y), 32):
+		for x in range(int(wall.position.x), int(wall.end.x), 32):
+			_add_art_sprite("WallLayer", "res://assets/art/old_base/tiles/dark_metal_wall.png", Vector2(x, y))
+	for x in range(int(wall.position.x), int(wall.end.x), 128):
+		_add_art_sprite("WallLayer", "res://assets/art/old_base/tiles/wall_panel_seam.png", Vector2(x + 96, wall.position.y))
+	_add_art_sprite("WallLayer", "res://assets/art/old_base/tiles/warning_stripe.png", Vector2(1288, wall.position.y + 65), Vector2(2.2, 1.0))
+
+func _add_art_sprite(layer_name: String, texture_path: String, pos: Vector2, scale_value: Vector2 = Vector2.ONE, node_name := "") -> Sprite2D:
+	var layer: Node = art_layers.get(layer_name)
+	var sprite := Sprite2D.new()
+	sprite.name = node_name if not node_name.is_empty() else texture_path.get_file().get_basename()
+	sprite.texture = load(texture_path) as Texture2D
+	sprite.centered = false
+	sprite.position = pos
+	sprite.scale = scale_value
+	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	if layer != null:
+		layer.add_child(sprite)
+	return sprite
 
 func _setup_old_base_props() -> void:
 	_spawn_prop("res://scenes/props/old_base/OldBaseWallFrame.tscn", Vector2(90, 170))
@@ -176,7 +270,7 @@ func _setup_solar_array_props() -> void:
 
 func _setup_ui() -> void:
 	var canvas := CanvasLayer.new()
-	canvas.name = "UI"
+	canvas.name = "UIOverlay"
 	canvas.layer = 20
 	add_child(canvas)
 	var root := Control.new()
@@ -247,7 +341,7 @@ func _setup_scene_defaults() -> void:
 			player_pos = Vector2(760, 570)
 			objective_text = "休息"
 		"week_start":
-			player_pos = Vector2(760, 570)
+			player_pos = Vector2(520, 690) if use_art_slice else Vector2(760, 570)
 			objective_text = "查看早间状态简报"
 		"week_end":
 			player_pos = Vector2(760, 570)
@@ -256,7 +350,7 @@ func _setup_scene_defaults() -> void:
 			player_pos = Vector2(180, 620)
 			objective_text = "观察外部太阳能阵列"
 		_:
-			player_pos = Vector2(230, 560)
+			player_pos = Vector2(520, 690) if use_art_slice else Vector2(230, 560)
 
 func _start_scene() -> void:
 	if scene_kind == "day_end" or scene_kind == "day02_start" or scene_kind == "day02_end" or scene_kind == "week_start" or scene_kind == "week_end":
@@ -279,6 +373,8 @@ func _process(delta: float) -> void:
 	_update_ui()
 	queue_redraw()
 	player_overlay.queue_redraw()
+	if art_marker_layer != null:
+		art_marker_layer.queue_redraw()
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("interact") and input_enabled:
@@ -1068,9 +1164,14 @@ func _transition_to(scene_path: String) -> void:
 
 func _update_ui() -> void:
 	hud_label.text = _hud_text()
+	hud_label.visible = not _hide_gameplay_hud_for_narrative()
 	message_label.text = message_text
 	prompt_label.text = _prompt_text()
+	prompt_label.visible = not _hide_gameplay_hud_for_narrative()
 	ai_label.text = ai_text
+
+func _hide_gameplay_hud_for_narrative() -> bool:
+	return fade_rect != null and fade_rect.color.a > 0.35 and (scene_kind == "week_end" or scene_kind == "day_end" or scene_kind == "day02_end")
 
 func _hud_text() -> String:
 	var power := "基础供电" if bool(state.get("BasePowerRestored", false)) else "低"
@@ -1231,7 +1332,16 @@ func _draw() -> void:
 		"solar_array":
 			_draw_solar_array()
 		_:
-			_draw_interior()
+			if use_art_slice:
+				_draw_art_slice_backdrop()
+			else:
+				_draw_interior()
+
+func _draw_art_slice_backdrop() -> void:
+	draw_rect(Rect2(Vector2.ZERO, Vector2(1600, 900)), Color("#050b12"), true)
+	draw_rect(Rect2(Vector2(150, 140), Vector2(1220, 610)), Color("#0e151a"), true)
+	draw_rect(Rect2(Vector2(160, 150), Vector2(1200, 580)), Color("#46555e", 0.36), false, 5)
+	draw_rect(Rect2(Vector2(160, 230), Vector2(1200, 500)), Color("#000000", 0.18), false, 2)
 
 func _draw_solar_array() -> void:
 	draw_rect(Rect2(Vector2.ZERO, Vector2(1600, 900)), Color("#03070d"), true)

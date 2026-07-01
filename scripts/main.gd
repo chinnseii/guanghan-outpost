@@ -3632,6 +3632,7 @@ func _setup_dev_menu() -> void:
 	box.add_child(_make_dev_button("Dev Only: Arrival Landing", func(): get_tree().change_scene_to_file("res://scenes/arrival/ArrivalLandingScene.tscn")))
 	box.add_child(_make_dev_button("Dev Only: Base Airlock Entry", func(): get_tree().change_scene_to_file("res://scenes/base/BaseAirlockEntryScene.tscn")))
 	box.add_child(_make_dev_button("Dev Only: Old Base Interior", func(): get_tree().change_scene_to_file("res://scenes/base/OldBaseInteriorScene.tscn")))
+	box.add_child(_make_dev_button("Dev Only: Old Base Art Slice", func(): get_tree().change_scene_to_file("res://scenes/base/OldBaseCore_ArtSlice.tscn")))
 	box.add_child(_make_dev_button("Dev Only: Old Greenhouse", func(): get_tree().change_scene_to_file("res://scenes/base/OldGreenhouseScene.tscn")))
 	box.add_child(_make_dev_button("Dev Only: Day 01 End", func(): get_tree().change_scene_to_file("res://scenes/base/Day01EndScene.tscn")))
 	box.add_child(_make_dev_button("Dev Only: Day 02 Start", func(): get_tree().change_scene_to_file("res://scenes/base/Day02StartScene.tscn")))
