@@ -567,7 +567,7 @@ class TrainingTargetVisual:
 		var font := ThemeDB.fallback_font
 		var font_size := LABEL_FONT_SIZE
 		draw_string(font, Vector2(8, -6), label_text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color("#d8e7f2"))
-		if active:
+		if active and kind != "exit":
 			draw_string(font, Vector2(8, size.y + 18), "E 交互", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color("#f0c766"))
 
 class TraineeVisual:
@@ -617,6 +617,7 @@ var left_panel: PanelContainer
 var minimal_hud: PanelContainer
 var minimal_title_label: Label
 var minimal_objective_label: Label
+var briefing_scrim: ColorRect
 var briefing_modal: PanelContainer
 var pause_panel: PanelContainer
 var interaction_panel: PanelContainer
@@ -645,6 +646,7 @@ func _ready() -> void:
 		briefing_visible = false
 		if briefing_modal != null:
 			briefing_modal.visible = false
+	_sync_overlay_visibility()
 
 func _process(delta: float) -> void:
 	if briefing_visible or pause_visible or interaction_running:
@@ -726,18 +728,21 @@ func _build_screen() -> void:
 	title.add_theme_font_size_override("font_size", 24)
 	left.add_child(title)
 
+	_add_panel_section_label(left, "当前目标")
 	objective_label = Label.new()
 	objective_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	objective_label.modulate = Color("#d8e7f2")
 	objective_label.add_theme_font_size_override("font_size", 18)
 	left.add_child(objective_label)
 
+	_add_panel_section_label(left, "系统状态")
 	hud_label = Label.new()
 	hud_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	hud_label.modulate = Color("#9fb4c4")
 	hud_label.add_theme_font_size_override("font_size", 15)
 	left.add_child(hud_label)
 
+	_add_panel_section_label(left, "操作步骤")
 	hint_label = Label.new()
 	hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	hint_label.modulate = Color("#86c7ff")
@@ -749,6 +754,7 @@ func _build_screen() -> void:
 	diagnosis_panel.add_theme_constant_override("separation", 8)
 	left.add_child(diagnosis_panel)
 
+	_add_panel_section_label(left, "输入提示")
 	log_label = Label.new()
 	log_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	log_label.modulate = Color("#d8e7f2")
@@ -803,6 +809,12 @@ func _build_training_overlays() -> void:
 	_build_interaction_panel()
 
 func _build_briefing_modal() -> void:
+	briefing_scrim = ColorRect.new()
+	briefing_scrim.color = Color("#02070d", 0.78)
+	briefing_scrim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	briefing_scrim.visible = not completed
+	add_child(briefing_scrim)
+
 	briefing_modal = PanelContainer.new()
 	briefing_modal.set_anchors_preset(Control.PRESET_CENTER)
 	briefing_modal.offset_left = -310
@@ -900,6 +912,7 @@ func _close_briefing() -> void:
 	briefing_visible = false
 	if briefing_modal != null:
 		briefing_modal.visible = false
+	_sync_overlay_visibility()
 
 func _toggle_mission_panel() -> void:
 	if pause_visible:
@@ -908,8 +921,9 @@ func _toggle_mission_panel() -> void:
 
 func _set_mission_panel_visible(value: bool) -> void:
 	mission_panel_visible = value
-	if left_panel != null:
-		left_panel.visible = value or (diagnosis_panel != null and diagnosis_panel.visible)
+	if log_label != null:
+		log_label.text = "Tab：关闭任务面板\nE / Enter：与当前目标交互\nEsc：暂停"
+	_sync_overlay_visibility()
 
 func _toggle_pause_menu() -> void:
 	if briefing_visible:
@@ -921,6 +935,20 @@ func _set_pause_visible(value: bool) -> void:
 	pause_visible = value
 	if pause_panel != null:
 		pause_panel.visible = value
+	_sync_overlay_visibility()
+
+func _sync_overlay_visibility() -> void:
+	var diagnosis_open := diagnosis_panel != null and diagnosis_panel.visible
+	if briefing_scrim != null:
+		briefing_scrim.visible = briefing_visible
+	if briefing_modal != null:
+		briefing_modal.visible = briefing_visible
+	if left_panel != null:
+		left_panel.visible = mission_panel_visible or diagnosis_open
+	if minimal_hud != null:
+		minimal_hud.visible = not briefing_visible and not mission_panel_visible and not pause_visible and not diagnosis_open
+	if prompt_label != null and (briefing_visible or mission_panel_visible or pause_visible):
+		prompt_label.visible = false
 
 func _build_training_area() -> void:
 	target_nodes.clear()
@@ -1594,6 +1622,16 @@ func _update_trigger_debug() -> void:
 func _update_room_prompt() -> void:
 	if prompt_label == null:
 		return
+	if briefing_visible or mission_panel_visible or pause_visible:
+		for node in target_nodes.values():
+			if node is TrainingTargetVisual:
+				node.highlighted = false
+				node.active = false
+				node.locked = _target_locked(String(node.name), "")
+				node.modulate = Color(0.62, 0.68, 0.74, 0.48)
+				node.queue_redraw()
+		prompt_label.visible = false
+		return
 	var step := _current_step()
 	var target_id := "exit" if completed else (String(step.get("target", "")) if not step.is_empty() else "")
 	for node in target_nodes.values():
@@ -1602,7 +1640,7 @@ func _update_room_prompt() -> void:
 			node.highlighted = node.name == target_id or node_is_interacting
 			node.active = node_is_interacting
 			node.locked = _target_locked(String(node.name), target_id)
-			node.modulate = Color(1, 1, 1, 1) if node.highlighted else Color(0.72, 0.78, 0.84, 0.72)
+			node.modulate = Color(1, 1, 1, 1) if node.highlighted else Color(0.64, 0.70, 0.76, 0.56)
 			node.show_trigger_debug = show_trigger_debug and node.kind == "marker"
 			if module_id == "power_repair":
 				node.status_text = _power_visual_status(String(node.name))
@@ -1797,8 +1835,7 @@ func _update_hud() -> void:
 		_show_diagnosis_options(step.get("options", []), String(step.get("correct", "")))
 	if completed:
 		hint_label.text = _completed_hint_text()
-	if left_panel != null:
-		left_panel.visible = mission_panel_visible or (diagnosis_panel != null and diagnosis_panel.visible)
+	_sync_overlay_visibility()
 
 func _suit_control_hint(step: Dictionary) -> String:
 	match String(step.get("target", "")):
@@ -2131,6 +2168,13 @@ func _add_header_label(parent: HBoxContainer, text: String, min_size: Vector2, f
 	label.custom_minimum_size = min_size
 	label.modulate = color
 	label.add_theme_font_size_override("font_size", font_size)
+	parent.add_child(label)
+
+func _add_panel_section_label(parent: VBoxContainer, text: String) -> void:
+	var label := Label.new()
+	label.text = text
+	label.modulate = Color("#86c7ff")
+	label.add_theme_font_size_override("font_size", 13)
 	parent.add_child(label)
 
 func _add_button(parent: HBoxContainer, text: String, callback: Callable) -> void:
