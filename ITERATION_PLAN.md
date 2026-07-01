@@ -1420,3 +1420,41 @@ Still out of scope:
 - Full resource simulation.
 - Full inventory, supply, construction, tech-tree or automation systems.
 - Random disasters, failure/death systems or formal Day 08 content.
+
+## Art Reference Integration: OB / GH / SOLAR
+
+Status: first modular visual-structure pass.
+
+Completed:
+
+- Read the README direction for `OB-001`, `GH-001`, `GH-002` and `SOLAR-001`.
+- Added replaceable art folders:
+  - `assets/art/reference/`
+  - `assets/art/old_base/`
+  - `assets/art/greenhouse/`
+  - `assets/art/solar_array/`
+  - `assets/art/player/astronaut/`
+  - `assets/art/ui/`
+- Expanded the folders to match ASSET-001 modular categories:
+  - old base: `tiles`, `walls`, `doors`, `props`, `consoles`, `decals`
+  - greenhouse: `racks`, `plant_chamber`, `plant_states`, `grow_lights`, `monitors`
+  - solar array: `panels`, `cables`, `supports`, `rocks`, `decals`
+- Added reusable placeholder prop script at `scripts/props/reference_prop.gd`.
+- Added reusable prop scenes under:
+  - `scenes/props/old_base/`
+  - `scenes/props/greenhouse/`
+  - `scenes/props/solar_array/`
+  - `scenes/props/ui/`
+- Added the ASSET-001 first-pass prop scene names for old-base modules, greenhouse racks / last-plant states / monitor states, and solar panel / cable / support / decal variants.
+- Updated Old Base interior to instantiate modular wall, floor, console, panel, door, locker, note, log, light and dust props.
+- Updated Old Greenhouse to instantiate open hydroponic racks and a single central engineering plant chamber.
+- Preserved Critical vs Stable plant visual state without turning the greenhouse into a lush victory state.
+- Added `SolarArrayExteriorScene` as a visual greybox preparation scene for Sprint 09.
+- Added Solar Array dev menu entry.
+- Updated acceptance screenshot output to `docs/screenshots/art_reference_integration/`.
+
+Still out of scope:
+
+- Final pixel-art replacement assets.
+- Full solar-array repair gameplay.
+- Full power-grid, farming, building or inventory systems.

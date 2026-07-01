@@ -1,0 +1,9 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/props/reference_prop.gd" id="1_prop"]
+
+[node name="OldWallModule" type="Node2D"]
+script = ExtResource("1_prop")
+prop_kind = "old_wall_module"
+prop_size = Vector2(160, 72)
+prop_label = "GHO-03"

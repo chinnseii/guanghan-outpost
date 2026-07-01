@@ -1,0 +1,280 @@
+extends Node2D
+class_name ReferenceProp
+
+@export var prop_kind := "console"
+@export var prop_size := Vector2(160, 90)
+@export var prop_label := ""
+@export var active := false
+@export var damaged := false
+@export var status_text := ""
+
+func _draw() -> void:
+	match prop_kind:
+		"old_floor_tile":
+			_draw_old_floor_tile()
+		"old_wall_module":
+			_draw_old_wall_module()
+		"old_wall_frame":
+			_draw_wall_frame()
+		"floor_tiles":
+			_draw_floor_tiles()
+		"console":
+			_draw_console()
+		"power_panel":
+			_draw_power_panel()
+		"greenhouse_door":
+			_draw_door()
+		"storage_locker":
+			_draw_locker()
+		"maintenance_note":
+			_draw_note()
+		"log_marker":
+			_draw_log_marker()
+		"wall_light":
+			_draw_wall_light()
+		"dust_marks":
+			_draw_dust()
+		"hydro_rack":
+			_draw_hydro_rack()
+		"plant_chamber":
+			_draw_plant_chamber()
+		"last_plant":
+			_draw_last_plant()
+		"plant_monitor":
+			_draw_monitor()
+		"grow_light":
+			_draw_grow_light()
+		"water_panel":
+			_draw_power_panel()
+		"solar_panel":
+			_draw_solar_panel()
+		"cable":
+			_draw_cable()
+		"support_frame":
+			_draw_support_frame()
+		"repair_marker":
+			_draw_repair_marker()
+		"lunar_rock":
+			_draw_lunar_rock()
+		"footprint_decal":
+			_draw_footprint_decal()
+		"earth":
+			_draw_earth()
+		"distant_base":
+			_draw_distant_base()
+		_:
+			_draw_console()
+
+func _label(pos: Vector2, color: Color = Color("#c8d8e2"), font_size: int = 14) -> void:
+	if prop_label.is_empty():
+		return
+	draw_string(ThemeDB.fallback_font, pos, prop_label, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
+
+func _draw_wall_frame() -> void:
+	var r := Rect2(Vector2.ZERO, prop_size)
+	draw_rect(r, Color("#0b1117"), true)
+	draw_rect(r.grow(-26), Color("#20272b"), true)
+	draw_rect(r, Color("#72818a", 0.56), false, 8)
+	draw_rect(r.grow(-26), Color("#39464e", 0.72), false, 4)
+	for x in range(48, int(prop_size.x), 96):
+		draw_line(Vector2(x, 0), Vector2(x, 28), Color("#54636b", 0.55), 3)
+		draw_line(Vector2(x, prop_size.y - 28), Vector2(x, prop_size.y), Color("#54636b", 0.55), 3)
+
+func _draw_floor_tiles() -> void:
+	var r := Rect2(Vector2.ZERO, prop_size)
+	draw_rect(r, Color("#1b2021"), true)
+	for x in range(0, int(prop_size.x), 64):
+		draw_line(Vector2(x, 0), Vector2(x, prop_size.y), Color("#343c3e", 0.46), 1)
+	for y in range(0, int(prop_size.y), 64):
+		draw_line(Vector2(0, y), Vector2(prop_size.x, y), Color("#343c3e", 0.46), 1)
+	for i in range(10):
+		draw_circle(Vector2(34 + i * 83, prop_size.y - 58 + sin(float(i)) * 18), 3, Color("#8b7a62", 0.18))
+
+func _draw_old_floor_tile() -> void:
+	var r := Rect2(Vector2.ZERO, prop_size)
+	draw_rect(r, Color("#1b2021"), true)
+	draw_rect(r, Color("#384044", 0.45), false, 1)
+	draw_line(Vector2(0, prop_size.y), Vector2(prop_size.x, 0), Color("#2a3134", 0.35), 1)
+	draw_circle(prop_size * Vector2(0.28, 0.72), 2, Color("#8b7a62", 0.18))
+
+func _draw_old_wall_module() -> void:
+	var r := Rect2(Vector2.ZERO, prop_size)
+	draw_rect(r, Color("#252c30"), true)
+	draw_rect(r.grow(-8), Color("#151c20"), true)
+	draw_rect(r, Color("#6b7a82", 0.45), false, 3)
+	draw_line(Vector2(18, prop_size.y * 0.5), Vector2(prop_size.x - 18, prop_size.y * 0.5), Color("#4d5a61", 0.5), 2)
+	_label(Vector2(8, prop_size.y + 18), Color("#8fa3b2"))
+
+func _draw_console() -> void:
+	var r := Rect2(Vector2.ZERO, prop_size)
+	draw_rect(r, Color("#313b42"), true)
+	draw_rect(r.grow(-12), Color("#101820"), true)
+	var screen := Color("#2f82b6", 0.85) if active else Color("#41505a", 0.44)
+	draw_rect(Rect2(Vector2(24, 20), Vector2(prop_size.x - 48, 30)), screen, true)
+	draw_rect(Rect2(Vector2(26, prop_size.y - 28), Vector2(prop_size.x - 52, 6)), Color("#e2bf63", 0.35 if active else 0.14), true)
+	_label(Vector2(6, -8))
+
+func _draw_power_panel() -> void:
+	var r := Rect2(Vector2.ZERO, prop_size)
+	draw_rect(r, Color("#2b3337"), true)
+	draw_rect(r.grow(-10), Color("#111820"), true)
+	var warn := Color("#d66a4f", 0.62 if damaged else 0.12)
+	draw_rect(r, warn, false, 3)
+	for i in range(4):
+		draw_line(Vector2(22 + i * 24, 38), Vector2(30 + i * 24, prop_size.y - 34), Color("#b45a56", 0.58 if damaged else 0.12), 2)
+	draw_circle(Vector2(prop_size.x - 20, 22), 6, Color("#d66a4f", 0.78 if damaged else 0.16))
+	_label(Vector2(6, -8))
+
+func _draw_door() -> void:
+	var r := Rect2(Vector2.ZERO, prop_size)
+	draw_rect(r, Color("#2c3740"), true)
+	draw_rect(r.grow(-12), Color("#141c24"), true)
+	draw_rect(r, Color("#9fb2c0", 0.56 if active else 0.28), false, 3)
+	draw_line(Vector2(prop_size.x * 0.5, 16), Vector2(prop_size.x * 0.5, prop_size.y - 16), Color("#d8e7f2", 0.34), 2)
+	_label(Vector2(-6, -8))
+
+func _draw_locker() -> void:
+	var r := Rect2(Vector2.ZERO, prop_size)
+	draw_rect(r, Color("#303941"), true)
+	for i in range(2):
+		var bay := Rect2(Vector2(16 + i * (prop_size.x * 0.45), 24), Vector2(prop_size.x * 0.34, prop_size.y - 48))
+		draw_rect(bay, Color("#1d2630"), true)
+		draw_rect(bay, Color("#5e6c76", 0.35), false, 1)
+	_label(Vector2(0, prop_size.y + 24), Color("#8fa3b2"))
+
+func _draw_note() -> void:
+	var r := Rect2(Vector2.ZERO, prop_size)
+	draw_rect(r, Color("#252c32"), true)
+	draw_rect(r, Color("#b7a878", 0.25), false, 1)
+	_label(Vector2(14, prop_size.y * 0.58), Color("#b7a878"))
+
+func _draw_log_marker() -> void:
+	var r := Rect2(Vector2.ZERO, prop_size)
+	draw_rect(r, Color("#202830"), true)
+	draw_rect(r, Color("#2f82b6", 0.16), false, 1)
+	_label(Vector2(16, prop_size.y * 0.62), Color("#8fa3b2"), 15)
+
+func _draw_wall_light() -> void:
+	var c := Color("#f0c766", 0.55 if active else 0.16)
+	draw_rect(Rect2(Vector2.ZERO, prop_size), Color("#2d353a"), true)
+	draw_rect(Rect2(Vector2(10, 5), prop_size - Vector2(20, 10)), c, true)
+	if active:
+		draw_circle(prop_size * 0.5, prop_size.x * 0.7, Color("#f0c766", 0.055))
+
+func _draw_dust() -> void:
+	for i in range(18):
+		draw_circle(Vector2(10 + i * 34, 18 + sin(float(i) * 0.7) * 14), 3, Color("#8b7a62", 0.22))
+	for i in range(6):
+		var p := Vector2(42 + i * 48, 56 + sin(float(i)) * 8)
+		draw_ellipse(p, 10, 4, Color("#766b5b", 0.22))
+
+func _draw_hydro_rack() -> void:
+	var r := Rect2(Vector2.ZERO, prop_size)
+	draw_rect(r, Color("#26332e"), true)
+	draw_rect(r, Color("#56685d", 0.45), false, 2)
+	for row in range(3):
+		var y := 44 + row * 62
+		draw_rect(Rect2(Vector2(12, y), Vector2(prop_size.x - 24, 20)), Color("#171f1b"), true)
+		draw_line(Vector2(24, y + 8), Vector2(prop_size.x - 24, y + 20), Color("#766d55", 0.56 if damaged else 0.32), 4)
+		if damaged:
+			draw_circle(Vector2(34 + row * 28, y - 10), 9, Color("#4b5136", 0.36))
+		elif active:
+			draw_circle(Vector2(42 + row * 32, y - 10), 8, Color("#6fa765", 0.42))
+
+func _draw_plant_chamber() -> void:
+	var r := Rect2(Vector2.ZERO, prop_size)
+	var frame := Color("#3a4446") if active else Color("#333b3e")
+	draw_rect(r, frame, true)
+	draw_rect(r.grow(-18), Color("#111a18", 0.78), true)
+	draw_rect(r.grow(-18), Color("#b8d8ce", 0.22), false, 2)
+	draw_rect(Rect2(Vector2(prop_size.x - 54, 20), Vector2(34, prop_size.y - 40)), Color("#1a2224"), true)
+	var plant_color := Color("#77b86d") if active else Color("#7b7540")
+	draw_line(Vector2(prop_size.x * 0.46, prop_size.y - 58), Vector2(prop_size.x * 0.46, prop_size.y * (0.38 if active else 0.48)), plant_color, 5)
+	draw_circle(Vector2(prop_size.x * 0.39, prop_size.y * (0.42 if active else 0.52)), 16, plant_color)
+	draw_circle(Vector2(prop_size.x * 0.54, prop_size.y * (0.48 if active else 0.58)), 14, plant_color.darkened(0.1))
+	if not active:
+		draw_line(Vector2(prop_size.x * 0.39, prop_size.y * 0.52), Vector2(prop_size.x * 0.31, prop_size.y * 0.64), plant_color, 3)
+	_label(Vector2(10, -8))
+
+func _draw_last_plant() -> void:
+	var stem_x := prop_size.x * 0.5
+	var root_y := prop_size.y - 14
+	var critical := damaged or status_text.to_lower() == "critical"
+	var recovering := status_text.to_lower() == "recovering"
+	var plant_color := Color("#77b86d") if active else Color("#7b7540")
+	if recovering:
+		plant_color = Color("#8eaa62")
+	if critical:
+		plant_color = Color("#6d693a")
+	var top_y := prop_size.y * (0.28 if active else 0.42)
+	draw_line(Vector2(stem_x, root_y), Vector2(stem_x, top_y), plant_color, 5)
+	var droop := 18 if critical else 4
+	draw_circle(Vector2(stem_x - 18, top_y + droop), 13, plant_color)
+	draw_circle(Vector2(stem_x + 18, top_y + droop * 0.6), 12, plant_color.darkened(0.08))
+	draw_circle(Vector2(stem_x, top_y - (8 if active else 0)), 10, plant_color.lightened(0.06))
+	draw_rect(Rect2(Vector2(stem_x - 36, root_y + 4), Vector2(72, 8)), Color("#213029"), true)
+
+func _draw_monitor() -> void:
+	_draw_console()
+	var c := Color("#7dbd75") if active else Color("#d66a4f")
+	var text := "Stable" if active else "Critical"
+	draw_string(ThemeDB.fallback_font, Vector2(26, prop_size.y - 24), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, c)
+	draw_rect(Rect2(Vector2(24, prop_size.y - 18), Vector2(prop_size.x - 48, 5)), c, true)
+
+func _draw_grow_light() -> void:
+	var c := Color("#f0d28c", 0.76) if active else Color("#6f8493", 0.18)
+	draw_rect(Rect2(Vector2.ZERO, prop_size), Color("#2d353a"), true)
+	draw_rect(Rect2(Vector2(16, 12), prop_size - Vector2(32, 24)), c, true)
+	if active:
+		draw_circle(Vector2(prop_size.x * 0.5, prop_size.y + 135), 180, Color("#f0d28c", 0.08))
+	_label(Vector2(8, -8))
+
+func _draw_solar_panel() -> void:
+	var r := Rect2(Vector2.ZERO, prop_size)
+	var body := Color("#1d3342") if not damaged else Color("#24303a")
+	draw_rect(r, body, true)
+	draw_rect(r, Color("#81929d", 0.55), false, 3)
+	for x in range(20, int(prop_size.x), 42):
+		draw_line(Vector2(x, 8), Vector2(x, prop_size.y - 8), Color("#c0a965", 0.32), 1)
+	for y in range(18, int(prop_size.y), 30):
+		draw_line(Vector2(8, y), Vector2(prop_size.x - 8, y), Color("#c0a965", 0.25), 1)
+	if damaged:
+		draw_line(Vector2(prop_size.x * 0.18, prop_size.y * 0.22), Vector2(prop_size.x * 0.62, prop_size.y * 0.72), Color("#d9d0b0", 0.55), 2)
+		draw_rect(r, Color("#b5b0a0", 0.14), true)
+
+func _draw_cable() -> void:
+	draw_line(Vector2.ZERO, prop_size, Color("#111820", 0.9), 8)
+	draw_line(Vector2.ZERO, prop_size * 0.48, Color("#c96f55", 0.85), 3)
+	draw_circle(prop_size * 0.52, 8, Color("#d66a4f", 0.8))
+
+func _draw_support_frame() -> void:
+	var c := Color("#7e8585", 0.62)
+	draw_line(Vector2(0, prop_size.y), Vector2(prop_size.x * 0.5, 0), c, 5)
+	draw_line(Vector2(prop_size.x, prop_size.y), Vector2(prop_size.x * 0.5, 0), c, 5)
+	draw_line(Vector2(10, prop_size.y * 0.68), Vector2(prop_size.x - 10, prop_size.y * 0.68), c, 4)
+
+func _draw_repair_marker() -> void:
+	draw_circle(prop_size * 0.5, min(prop_size.x, prop_size.y) * 0.45, Color("#f0c766", 0.12))
+	draw_circle(prop_size * 0.5, min(prop_size.x, prop_size.y) * 0.32, Color("#f0c766", 0.65))
+	_label(Vector2(0, prop_size.y + 18), Color("#f0c766"))
+
+func _draw_lunar_rock() -> void:
+	draw_ellipse(prop_size * 0.5, prop_size.x * 0.45, prop_size.y * 0.34, Color("#5f6464"))
+	draw_ellipse(prop_size * 0.45, prop_size.x * 0.2, prop_size.y * 0.18, Color("#8a8e8d", 0.28))
+
+func _draw_footprint_decal() -> void:
+	for i in range(5):
+		var p := Vector2(16 + i * 28, 20 + sin(float(i) * 0.8) * 8)
+		draw_ellipse(p, 8, 3, Color("#d7d1c2", 0.18))
+		draw_ellipse(p + Vector2(10, 14), 8, 3, Color("#d7d1c2", 0.14))
+
+func _draw_earth() -> void:
+	draw_circle(prop_size * 0.5, min(prop_size.x, prop_size.y) * 0.36, Color("#4faee8", 0.82))
+	draw_circle(prop_size * 0.5 + Vector2(-6, -4), min(prop_size.x, prop_size.y) * 0.42, Color("#4faee8", 0.08))
+	draw_circle(prop_size * 0.5 + Vector2(8, -4), 8, Color("#d8e7f2", 0.38))
+
+func _draw_distant_base() -> void:
+	draw_rect(Rect2(Vector2(0, prop_size.y * 0.35), prop_size * Vector2(1, 0.45)), Color("#252c32"), true)
+	for i in range(4):
+		draw_rect(Rect2(Vector2(20 + i * 34, prop_size.y * 0.55), Vector2(14, 5)), Color("#f0c766", 0.72), true)
+	_label(Vector2(0, -8), Color("#8fa3b2"))

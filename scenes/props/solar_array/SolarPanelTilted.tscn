@@ -1,0 +1,11 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/props/reference_prop.gd" id="1_prop"]
+
+[node name="SolarPanelTilted" type="Node2D"]
+rotation = 0.14
+script = ExtResource("1_prop")
+prop_kind = "solar_panel"
+prop_size = Vector2(230, 118)
+prop_label = "TILTED PANEL"
+damaged = true

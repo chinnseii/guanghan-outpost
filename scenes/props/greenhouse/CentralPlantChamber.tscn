@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/props/reference_prop.gd" id="1_prop"]
+[node name="CentralPlantChamber" type="Node2D"]
+script = ExtResource("1_prop")
+prop_kind = "plant_chamber"
+prop_size = Vector2(210, 230)
+prop_label = "中央植物舱"

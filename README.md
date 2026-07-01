@@ -6,6 +6,40 @@
 
 当前主线版本把正式玩家入口和开发入口分离：启动后进入 MAIN-001 风格的安静标题屏，正常菜单只显示申请、继续、档案、设置和退出；所有测试入口移动到 F12 开发菜单。Sprint 04 国家训练序列已经包含五个脚本训练模块、最终考核、任务派遣通知和接受派遣后的黑屏到抵达淡入流程。Sprint 05A 聚焦现有开场竖切打磨。Sprint 06 新增玩家抵达月球后进入旧基地、恢复基础系统、发现并稳定最后一株植物的第一小时核心体验。
 
+### Art Reference Integration：OB / GH / SOLAR
+
+已完成第一版结构准备：
+
+- 已读取并对齐 `docs/art/OB-001/`、`GH-001/`、`GH-002/`、`SOLAR-001/` 的 README 方向。
+- 未使用目标截图作为整张背景，只作为布局、色彩、光照、资产结构参考。
+- 新增可替换素材目录：
+  - `assets/art/reference/`
+  - `assets/art/old_base/`
+  - `assets/art/greenhouse/`
+  - `assets/art/solar_array/`
+  - `assets/art/player/astronaut/`
+  - `assets/art/ui/`
+- 新增通用占位 prop 脚本：`scripts/props/reference_prop.gd`
+- 新增可复用 prop scenes：
+  - `scenes/props/old_base/`
+  - `scenes/props/greenhouse/`
+  - `scenes/props/solar_array/`
+  - `scenes/props/ui/`
+- 已按 ASSET-001 补齐模块化素材目录：旧基地 tiles / walls / doors / props / consoles / decals，温室 racks / plant_chamber / plant_states / grow_lights / monitors，太阳能阵列 panels / cables / supports / rocks / decals。
+- 已建立 ASSET-001 要求的第一批独立 prop 场景名，包括 `OldFloorTile`、`OldWallModule`、`OldBaseDoor`、三种最后植物状态、补光灯开关状态、植物监测屏 Critical / Stable、太阳能板 Dusty / Tilted / Damaged、断开线缆、支架、脚印和维修标记。
+- `OldBaseInteriorScene` 开始使用模块化厚墙框架、地板、控制台、供电面板、生命支持、温室门、储物柜、维护贴纸、日志标记、灯板和灰尘脚印。
+- `OldGreenhouseScene` 开始使用开放水培架、中央工程植物舱、植物监测屏、补光灯和水循环面板。
+- 温室支持 `Critical` / `Stable` 两种视觉状态；只有最后一株植物在中央工程植物舱内，不给所有植物套玻璃罩。
+- 新增 `SolarArrayExteriorScene` 作为 Sprint 09 前的外部太阳能阵列视觉灰盒准备。
+- F12 开发菜单新增 `Solar Array Exterior` 入口。
+- 视觉验收截图工具输出到 `docs/screenshots/art_reference_integration/`。
+
+仍不包含：
+
+- 最终像素美术。
+- 完整太阳能阵列维修玩法。
+- 完整电网、建造、库存或种植系统。
+
 ### Sprint 08 第一周生存节奏
 
 已完成第一版：

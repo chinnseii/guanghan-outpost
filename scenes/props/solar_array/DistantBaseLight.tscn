@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/props/reference_prop.gd" id="1_prop"]
+[node name="DistantBaseLight" type="Node2D"]
+script = ExtResource("1_prop")
+prop_kind = "distant_base"
+prop_size = Vector2(180, 80)
+prop_label = "GHO-03"

@@ -1,0 +1,9 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/props/reference_prop.gd" id="1_prop"]
+
+[node name="OldBaseDoor" type="Node2D"]
+script = ExtResource("1_prop")
+prop_kind = "greenhouse_door"
+prop_size = Vector2(120, 150)
+prop_label = "BASE DOOR"

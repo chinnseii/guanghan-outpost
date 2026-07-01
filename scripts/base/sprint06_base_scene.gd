@@ -31,6 +31,7 @@ var message_label: Label
 var prompt_label: Label
 var ai_label: Label
 var fade_rect: ColorRect
+var prop_root: Node2D
 
 var interior_targets := {
 	"console": Rect2(Vector2(700, 330), Vector2(180, 92)),
@@ -56,6 +57,7 @@ func _ready() -> void:
 	_load_state()
 	_setup_ui()
 	_setup_scene_defaults()
+	_setup_modular_props()
 	call_deferred("_start_scene")
 
 func _setup_input() -> void:
@@ -79,6 +81,86 @@ func _add_key_action(action_name: String, keys: Array[int]) -> void:
 			var input_event := InputEventKey.new()
 			input_event.keycode = key
 			InputMap.action_add_event(action_name, input_event)
+
+func _setup_modular_props() -> void:
+	prop_root = Node2D.new()
+	prop_root.name = "ModularProps"
+	prop_root.z_index = 1
+	add_child(prop_root)
+	match scene_kind:
+		"interior":
+			_setup_old_base_props()
+		"greenhouse":
+			_setup_greenhouse_props()
+		"solar_array":
+			_setup_solar_array_props()
+
+func _spawn_prop(scene_path: String, pos: Vector2, size := Vector2.ZERO, active_value := false, damaged_value := false, label := "") -> Node2D:
+	var packed := load(scene_path) as PackedScene
+	if packed == null:
+		return Node2D.new()
+	var node: Node2D = packed.instantiate()
+	node.position = pos
+	if size != Vector2.ZERO:
+		node.set("prop_size", size)
+	node.set("active", active_value)
+	node.set("damaged", damaged_value)
+	if not label.is_empty():
+		node.set("prop_label", label)
+	prop_root.add_child(node)
+	return node
+
+func _setup_old_base_props() -> void:
+	_spawn_prop("res://scenes/props/old_base/OldBaseWallFrame.tscn", Vector2(90, 170))
+	_spawn_prop("res://scenes/props/old_base/OldBaseFloorTiles.tscn", Vector2(116, 196))
+	_spawn_prop("res://scenes/props/old_base/OldWallModule.tscn", Vector2(190, 185), Vector2(170, 56))
+	_spawn_prop("res://scenes/props/old_base/OldWallModule.tscn", Vector2(1035, 185), Vector2(190, 56), false, false, "LIFE SUPPORT BAY")
+	_spawn_prop("res://scenes/props/old_base/WallLightPanel.tscn", Vector2(310, 190), Vector2(140, 10), bool(state.get("BasePowerRestored", false)))
+	_spawn_prop("res://scenes/props/old_base/WallLightPanel.tscn", Vector2(780, 190), Vector2(140, 10), bool(state.get("BasePowerRestored", false)))
+	_spawn_prop("res://scenes/props/old_base/WallLightPanel.tscn", Vector2(1250, 190), Vector2(140, 10), bool(state.get("BasePowerRestored", false)))
+	_spawn_prop("res://scenes/props/old_base/CentralConsole.tscn", interior_targets["console"].position, interior_targets["console"].size, bool(state.get("BasePowerRestored", false)))
+	_spawn_prop("res://scenes/props/old_base/OldPowerPanel.tscn", interior_targets["power_panel"].position, interior_targets["power_panel"].size, bool(state.get("PowerPanelRepaired", false)), not bool(state.get("PowerPanelRepaired", false)))
+	_spawn_prop("res://scenes/props/old_base/PowerRestartConsole.tscn", interior_targets["power_console"].position, interior_targets["power_console"].size, bool(state.get("BasePowerRestored", false)))
+	_spawn_prop("res://scenes/props/old_base/LifeSupportConsole.tscn", interior_targets["life_console"].position, interior_targets["life_console"].size, bool(state.get("MinimalLifeSupportStable", false)))
+	_spawn_prop("res://scenes/props/old_base/GreenhouseDoor.tscn", interior_targets["greenhouse_door"].position, interior_targets["greenhouse_door"].size, bool(state.get("GreenhouseUnlocked", false)))
+	_spawn_prop("res://scenes/props/old_base/StorageLocker.tscn", Vector2(210, 310), Vector2(130, 210))
+	_spawn_prop("res://scenes/props/old_base/MaintenanceNote.tscn", Vector2(1040, 596), Vector2(210, 54))
+	_spawn_prop("res://scenes/props/old_base/OldLogMarker.tscn", Vector2(640, 612), Vector2(148, 58))
+	_spawn_prop("res://scenes/props/old_base/FloorDustMarks.tscn", Vector2(405, 612), Vector2(740, 110))
+
+func _setup_greenhouse_props() -> void:
+	for i in range(6):
+		var scene_path: String = "res://scenes/props/greenhouse/HydroponicRackDead.tscn" if i % 2 == 0 else "res://scenes/props/greenhouse/HydroponicRackEmpty.tscn"
+		_spawn_prop(scene_path, Vector2(170 + i * 190, 250), Vector2(130, 270))
+	var stable := bool(state.get("LastPlantStable", false))
+	var grow_light_scene := "res://scenes/props/greenhouse/GrowLightOn.tscn" if stable else "res://scenes/props/greenhouse/GrowLightOff.tscn"
+	var monitor_scene := "res://scenes/props/greenhouse/PlantMonitorStable.tscn" if stable else "res://scenes/props/greenhouse/PlantMonitorCritical.tscn"
+	var plant_scene := "res://scenes/props/greenhouse/LastPlantStable.tscn" if stable else "res://scenes/props/greenhouse/LastPlantCritical.tscn"
+	_spawn_prop(grow_light_scene, greenhouse_targets["grow_light"].position, greenhouse_targets["grow_light"].size, stable)
+	_spawn_prop("res://scenes/props/greenhouse/CentralPlantChamber.tscn", greenhouse_targets["last_plant"].position - Vector2(20, 30), Vector2(210, 230), stable)
+	_spawn_prop(plant_scene, greenhouse_targets["last_plant"].position + Vector2(35, 65), Vector2(110, 130), stable, not stable)
+	_spawn_prop(monitor_scene, greenhouse_targets["monitor"].position, greenhouse_targets["monitor"].size, stable)
+	_spawn_prop("res://scenes/props/greenhouse/WaterCyclePanel.tscn", greenhouse_targets["water_panel"].position, greenhouse_targets["water_panel"].size, bool(state.get("PartialWaterCycleRestored", false)), not bool(state.get("PartialWaterCycleRestored", false)))
+	_spawn_prop("res://scenes/props/old_base/GreenhouseDoor.tscn", greenhouse_targets["exit"].position, greenhouse_targets["exit"].size, bool(state.get("LastPlantStable", false)), false, "居住舱")
+
+func _setup_solar_array_props() -> void:
+	_spawn_prop("res://scenes/props/solar_array/EarthSkyElement.tscn", Vector2(1040, 96), Vector2(78, 78))
+	_spawn_prop("res://scenes/props/solar_array/DistantBaseLight.tscn", Vector2(210, 250), Vector2(210, 86))
+	for i in range(5):
+		var path: String = "res://scenes/props/solar_array/SolarPanelIntact.tscn"
+		if i == 1:
+			path = "res://scenes/props/solar_array/SolarPanelDusty.tscn"
+		elif i == 3:
+			path = "res://scenes/props/solar_array/SolarPanelTilted.tscn"
+		elif i == 4:
+			path = "res://scenes/props/solar_array/SolarPanelDamaged.tscn"
+		_spawn_prop(path, Vector2(250 + i * 235, 430 + (i % 2) * 34), Vector2(260, 122), false, i == 1 or i == 3)
+		_spawn_prop("res://scenes/props/solar_array/SolarSupportFrame.tscn", Vector2(295 + i * 235, 548 + (i % 2) * 34), Vector2(150, 92))
+	_spawn_prop("res://scenes/props/solar_array/SolarCableDisconnected.tscn", Vector2(850, 610), Vector2(190, 86))
+	_spawn_prop("res://scenes/props/solar_array/RepairMarker.tscn", Vector2(900, 545), Vector2(82, 82))
+	_spawn_prop("res://scenes/props/solar_array/LunarFootprintDecal.tscn", Vector2(640, 690), Vector2(180, 70))
+	for i in range(7):
+		_spawn_prop("res://scenes/props/solar_array/LunarRockSmall.tscn", Vector2(150 + i * 185, 680 + sin(float(i)) * 44), Vector2(70, 42))
 
 func _setup_ui() -> void:
 	var canvas := CanvasLayer.new()
@@ -155,6 +237,9 @@ func _setup_scene_defaults() -> void:
 		"week_end":
 			player_pos = Vector2(760, 570)
 			objective_text = "休息"
+		"solar_array":
+			player_pos = Vector2(180, 620)
+			objective_text = "观察外部太阳能阵列"
 		_:
 			player_pos = Vector2(230, 560)
 
@@ -1112,9 +1197,32 @@ func _draw() -> void:
 			_draw_day_end()
 		"week_start", "week_end":
 			_draw_day_end()
+		"solar_array":
+			_draw_solar_array()
 		_:
 			_draw_interior()
 	_draw_player()
+
+func _draw_solar_array() -> void:
+	draw_rect(Rect2(Vector2.ZERO, Vector2(1600, 900)), Color("#03070d"), true)
+	for i in range(80):
+		var x := float((i * 97) % 1560 + 20)
+		var y := float((i * 53) % 250 + 30)
+		draw_circle(Vector2(x, y), 1.0, Color("#d8e7f2", 0.28))
+	var horizon := PackedVector2Array([
+		Vector2(0, 390), Vector2(180, 332), Vector2(360, 370), Vector2(560, 320),
+		Vector2(780, 360), Vector2(980, 312), Vector2(1220, 350), Vector2(1600, 300),
+		Vector2(1600, 900), Vector2(0, 900)
+	])
+	draw_colored_polygon(horizon, Color("#24282b"))
+	var surface := PackedVector2Array([
+		Vector2(0, 500), Vector2(1600, 430), Vector2(1600, 900), Vector2(0, 900)
+	])
+	draw_colored_polygon(surface, Color("#343637"))
+	for i in range(28):
+		var p := Vector2(40 + i * 62, 530 + sin(float(i) * 0.7) * 54)
+		draw_ellipse(p, 18, 6, Color("#1c2022", 0.36))
+	draw_string(ThemeDB.fallback_font, Vector2(620, 804), "EXTERIOR / SOLAR ARRAY PREP", HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color("#9fb2c0"))
 
 func _draw_interior() -> void:
 	draw_rect(Rect2(Vector2.ZERO, Vector2(1600, 900)), Color("#071019"), true)
