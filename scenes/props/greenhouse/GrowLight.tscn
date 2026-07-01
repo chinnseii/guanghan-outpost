@@ -4,4 +4,4 @@
 script = ExtResource("1_prop")
 prop_kind = "grow_light"
 prop_size = Vector2(360, 54)
-prop_label = "旧补光灯"
+prop_label = "旧补光灯 / GROW LIGHT"

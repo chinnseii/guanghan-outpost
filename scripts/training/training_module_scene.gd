@@ -600,6 +600,7 @@ var hud_label: Label
 var hint_label: Label
 var log_label: Label
 var diagnosis_panel: VBoxContainer
+var footer_buttons: HBoxContainer
 var target_nodes: Dictionary = {}
 var prompt_label: Label
 var completed := false
@@ -611,8 +612,11 @@ func _ready() -> void:
 	_ensure_input_actions()
 	module_data = _module_config(module_id)
 	TrainingManagerScript.set_current_module(module_id)
+	_sync_completed_state_from_progress()
 	_build_screen()
 	_update_hud()
+	if completed:
+		_show_completed_next_action()
 
 func _process(delta: float) -> void:
 	_move_player(delta)
@@ -717,6 +721,7 @@ func _build_screen() -> void:
 	_build_training_area()
 
 	var footer := HBoxContainer.new()
+	footer_buttons = footer
 	footer.alignment = BoxContainer.ALIGNMENT_END
 	footer.custom_minimum_size = Vector2(0, 48)
 	footer.add_theme_constant_override("separation", 12)
@@ -1151,6 +1156,20 @@ func _finish_module() -> void:
 		return
 	hint_label.text = "模块完成。"
 	_update_hud()
+	_show_completed_next_action()
+
+func _show_completed_next_action() -> void:
+	if footer_buttons != null:
+		_clear_container(footer_buttons)
+		_add_button(footer_buttons, String(module_data.get("next_button", "进入下一阶段")), func():
+			get_tree().change_scene_to_file(String(module_data.get("next_scene", TrainingManagerScript.START_SCENE)))
+		)
+		_add_button(footer_buttons, "返回主菜单", func(): get_tree().change_scene_to_file("res://scenes/main.tscn"))
+	if diagnosis_panel == null:
+		return
+	for child in diagnosis_panel.get_children():
+		if child is Button and String(child.text) == String(module_data.get("next_button", "进入下一阶段")):
+			return
 	var button := Button.new()
 	button.text = String(module_data.get("next_button", "进入下一阶段"))
 	button.custom_minimum_size = Vector2(0, 42)
@@ -1159,6 +1178,28 @@ func _finish_module() -> void:
 	)
 	diagnosis_panel.visible = true
 	diagnosis_panel.add_child(button)
+
+func _sync_completed_state_from_progress() -> void:
+	if module_id != "final_assessment":
+		return
+	var progress := TrainingManagerScript.load_progress()
+	if not bool(progress.get("FinalAssessmentCompleted", false)):
+		return
+	completed = true
+	step_index = (module_data.get("steps", []) as Array).size()
+	var state: Dictionary = module_data.get("state", {})
+	state["FinalAssessmentCompleted"] = true
+	state["PowerRestored"] = true
+	state["LifeSupportStable"] = true
+	state["PlantStable"] = true
+	state["PowerStatus"] = "稳定"
+	state["LifeSupportStatus"] = "稳定"
+	state["PlantStatus"] = "稳定"
+	state["OxygenStatus"] = "稳定"
+	state["WaterStatus"] = "稳定"
+	state["TemperatureStatus"] = "稳定"
+	state["TestLightOn"] = true
+	state["GrowLightStatus"] = "稳定"
 
 func _blocked_by_order(step: Dictionary) -> bool:
 	var requires: Dictionary = step.get("requires", {})

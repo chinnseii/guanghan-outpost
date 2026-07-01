@@ -34,7 +34,7 @@ func _build_screen() -> void:
 	root.add_child(subtitle)
 
 	var body := Label.new()
-	body.text = "第一周驻留记录已归档。\n\n广寒前哨已恢复至最低稳定状态。\n下一阶段任务建议正在生成。\n\n下一阶段任务：外部太阳能阵列评估\n\n当前版本暂不进入 Sprint 09。"
+	body.text = "第一周驻留记录已归档。\n\n广寒前哨已恢复至最低稳定状态。\n下一阶段任务建议正在生成。\n\n下一阶段任务：外部太阳能阵列评估\n\n外部太阳能阵列评估任务尚未解锁。\n下一阶段任务包准备中。"
 	body.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.modulate = Color("#d8e7f2")
@@ -51,4 +51,3 @@ func _build_screen() -> void:
 	main_menu.custom_minimum_size = Vector2(220, 46)
 	main_menu.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/main.tscn"))
 	footer.add_child(main_menu)
-

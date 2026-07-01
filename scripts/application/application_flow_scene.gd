@@ -363,6 +363,13 @@ func _start_review_sequence() -> void:
 	status_label.modulate = Color("#d8e7f2")
 	status_label.add_theme_font_size_override("font_size", 22)
 	panel.add_child(status_label)
+	var review_status := VBoxContainer.new()
+	review_status.add_theme_constant_override("separation", 8)
+	panel.add_child(review_status)
+	_add_note_to(review_status, "资料归档：完成")
+	_add_note_to(review_status, "身份校验：完成")
+	_add_note_to(review_status, "教育背景匹配：进行中")
+	_add_note_to(review_status, "训练序列分配：等待")
 	review_lines = [
 		"正在进行资格审核",
 		"正在匹配教育背景",

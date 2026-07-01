@@ -1522,7 +1522,7 @@ func _draw_grow_light(rect: Rect2, active: bool) -> void:
 	draw_rect(rect.grow(-12), c, true)
 	if active:
 		draw_circle(Vector2(805, 365), 190, Color("#f0d28c", 0.08))
-	draw_string(ThemeDB.fallback_font, rect.position + Vector2(8, -8), "旧补光灯", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color("#c8d8e2"))
+	draw_string(ThemeDB.fallback_font, rect.position + Vector2(8, -8), "旧补光灯 / GROW LIGHT", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color("#c8d8e2"))
 
 func _draw_plant_monitor(rect: Rect2) -> void:
 	var stable := bool(state.get("LastPlantStable", false))
