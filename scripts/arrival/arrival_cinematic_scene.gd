@@ -272,8 +272,8 @@ func _draw_midground() -> void:
 		draw_arc(Vector2(x, y), 22.0 + float(i % 4) * 9.0, 0.2, TAU * 0.8, 20, Color("#202838", 0.35), 2)
 	for i in range(16):
 		draw_circle(Vector2(460 + i * 48, 705 + sin(float(i) * 0.7) * 15.0), 5, Color("#05070a", 0.28))
-	draw_line(Vector2(620, 725), Vector2(1220, 565), Color("#221916"), 4)
-	draw_line(Vector2(660, 750), Vector2(1080, 628), Color("#302117"), 3)
+	draw_line(Vector2(620, 725), Vector2(980, 632), Color("#221916", 0.22), 3)
+	draw_line(Vector2(660, 750), Vector2(900, 682), Color("#302117", 0.18), 2)
 
 func _draw_foreground() -> void:
 	_draw_transport_ship()

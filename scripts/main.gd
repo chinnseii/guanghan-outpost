@@ -3563,10 +3563,15 @@ func _setup_main_menu() -> void:
 	subtitle.add_theme_font_size_override("font_size", 22)
 	box.add_child(subtitle)
 
-	box.add_child(_make_title_button("申请加入广寒计划", _start_application_flow, true))
-	box.add_child(_make_title_button("继续任务", _continue_mission, _has_continue_mission()))
-	box.add_child(_make_title_button("档案", _show_archive_placeholder, true))
-	box.add_child(_make_title_button("设置", _show_settings_placeholder, true))
+	box.add_child(_make_title_button("开始新驻留", _start_application_flow, true))
+	box.add_child(_make_title_button("继续驻留", _continue_mission, _has_continue_mission()))
+	var dev_separator := HSeparator.new()
+	dev_separator.modulate = Color("#3d5060", 0.38)
+	box.add_child(dev_separator)
+	var dev_entry := _make_title_button("开发入口 / Debug", _toggle_dev_menu, true)
+	dev_entry.custom_minimum_size = Vector2(0, 48)
+	dev_entry.modulate = Color("#7f98aa", 0.72)
+	box.add_child(dev_entry)
 	box.add_child(_make_title_button("退出", func(): get_tree().quit(), true))
 
 	var menu_notice := Label.new()
@@ -3639,6 +3644,7 @@ func _setup_dev_menu() -> void:
 	box.add_child(_make_dev_button("Dev Only: Day 02 End", func(): get_tree().change_scene_to_file("res://scenes/base/Day02EndScene.tscn")))
 	box.add_child(_make_dev_button("Dev Only: Week Routine Start", func(): get_tree().change_scene_to_file("res://scenes/base/WeekRoutineStartScene.tscn")))
 	box.add_child(_make_dev_button("Dev Only: Week Routine End", func(): get_tree().change_scene_to_file("res://scenes/base/WeekRoutineEndScene.tscn")))
+	box.add_child(_make_dev_button("Dev Only: Day 07 Report Test", _start_day07_report_test))
 	box.add_child(_make_dev_button("Dev Only: Solar Array Exterior", func(): get_tree().change_scene_to_file("res://scenes/base/SolarArrayExteriorScene.tscn")))
 	box.add_child(_make_dev_button("Dev Only: Training Start", func(): get_tree().change_scene_to_file("res://scenes/training/TrainingStartScene.tscn")))
 	box.add_child(_make_dev_button("Dev Only: Training Module 01", func():
@@ -3747,6 +3753,64 @@ func _clear_current_save() -> void:
 	else:
 		add_log("Dev: save slot %d is already empty." % current_save_slot)
 	_refresh_main_menu()
+
+func _start_day07_report_test() -> void:
+	var state := {
+		"BaseEntered": true,
+		"AIGreetingPlayed": true,
+		"BasePowerStatus": "Basic",
+		"LifeSupportStatus": "MinimalStable",
+		"TemperatureStatus": "Maintainable",
+		"OxygenStatus": "Stable",
+		"GreenhouseAccess": "Unlocked",
+		"LastPlantStatus": "Stable",
+		"CentralConsoleChecked": true,
+		"PowerPanelChecked": true,
+		"PowerPanelRepaired": true,
+		"BasePowerRestored": true,
+		"LifeSupportConsoleChecked": true,
+		"MinimalLifeSupportStable": true,
+		"GreenhouseUnlocked": true,
+		"LastPlantDiscovered": true,
+		"LastPlantObserved": true,
+		"PlantMonitorChecked": true,
+		"LastPlantDiagnosed": true,
+		"GrowLightRestored": true,
+		"PartialWaterCycleRestored": true,
+		"LastPlantStable": true,
+		"Day01Completed": true,
+		"Day02Started": true,
+		"Day02ConsoleChecked": true,
+		"Day02PowerChecked": true,
+		"Day02LifeSupportChecked": true,
+		"Day02WaterChecked": true,
+		"Day02LastPlantChecked": true,
+		"Day02InspectionsComplete": true,
+		"Day02ReportPreviewed": true,
+		"Day02ReportSent": true,
+		"Day02Completed": true,
+		"CurrentDay": 7,
+		"DayNumber": 7,
+		"DayStarted": true,
+		"DayCompleted": false,
+		"DailyConsoleChecked": true,
+		"DailyPowerChecked": true,
+		"DailyLifeSupportChecked": true,
+		"DailyWaterChecked": true,
+		"DailyPlantChecked": true,
+		"DailySpecialChecked": true,
+		"DailyRecordUpdated": true,
+		"DailyInspectionsComplete": true,
+		"DailyReportPreviewed": true,
+		"DailyReportSent": false,
+		"WeekOneReportSent": false,
+		"WeekOneCompleted": false,
+	}
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("user://saves"))
+	var file := FileAccess.open("user://saves/sprint06_progress.json", FileAccess.WRITE)
+	if file != null:
+		file.store_string(JSON.stringify(state, "\t"))
+	get_tree().change_scene_to_file("res://scenes/base/OldBaseCore_ArtSlice.tscn")
 
 func _select_crop(crop_name: String) -> void:
 	selected_crop = crop_name

@@ -1144,9 +1144,11 @@ func _finish_week_day() -> void:
 		await get_tree().create_timer(1.5).timeout
 		message_text = "广寒前哨已恢复至最低稳定状态。"
 		await get_tree().create_timer(1.7).timeout
-		message_text = "后续内容开发中"
-		await get_tree().create_timer(1.4).timeout
-		get_tree().change_scene_to_file("res://scenes/main.tscn")
+		message_text = "第一周驻留记录已归档。"
+		await get_tree().create_timer(1.5).timeout
+		message_text = "下一阶段任务建议正在生成。"
+		await get_tree().create_timer(1.5).timeout
+		get_tree().change_scene_to_file("res://scenes/base/Phase02PlaceholderScene.tscn")
 	else:
 		message_text = "第 %d 天结束" % day
 		await get_tree().create_timer(1.8).timeout

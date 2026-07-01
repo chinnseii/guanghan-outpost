@@ -22,6 +22,7 @@ const DAY02_START := "res://scenes/base/Day02StartScene.tscn"
 const DAY02_END := "res://scenes/base/Day02EndScene.tscn"
 const WEEK_ROUTINE_START := "res://scenes/base/WeekRoutineStartScene.tscn"
 const WEEK_ROUTINE_END := "res://scenes/base/WeekRoutineEndScene.tscn"
+const PHASE02_PLACEHOLDER := "res://scenes/base/Phase02PlaceholderScene.tscn"
 const SPRINT06_SAVE_PATH := "user://saves/sprint06_progress.json"
 
 const MODULE_SCENES := {
@@ -180,7 +181,7 @@ static func _base_continue_scene_path() -> String:
 		return ""
 	var data: Dictionary = parsed as Dictionary
 	if bool(data.get("WeekOneCompleted", false)):
-		return WEEK_ROUTINE_END
+		return PHASE02_PLACEHOLDER
 	var current_day := int(data.get("CurrentDay", data.get("DayNumber", 2)))
 	if current_day >= 3 and current_day <= 7:
 		if bool(data.get("DailyReportSent", false)) or bool(data.get("DayCompleted", false)):

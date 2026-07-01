@@ -1,5 +1,18 @@
 # Guanghan Outpost / 广寒前哨
 
+## 当前状态：Sprint 08.6 序章流程与叙事打磨
+
+已完成序章链路收束：主菜单正式入口、申请系统、资格初审、国家训练、任务派遣、月面抵达、旧基地、最后一株植物、Day 02、第一周巡检、第一周结束与 Phase 02 占位提示。Sprint 08.6 不进入 Sprint 09；外部太阳能阵列评估仍是下一阶段内容。
+
+本轮新增：
+
+- `Phase02PlaceholderScene`：第一周结束后显示“Phase 02：重建广寒前哨 / 下一阶段任务：外部太阳能阵列评估”。
+- `Dev Only: Day 07 Report Test`：隐藏开发菜单中的周报流程回归入口。
+- `docs/sprints/SPRINT_08_6_PROLOGUE_FLOW_NARRATIVE_POLISH.md`
+- `docs/reviews/pre09_flow_audit.md`
+- `docs/text/PROLOGUE_TEXT_STYLE_GUIDE.md`
+- `tools/capture_sprint08_6_acceptance.gd`：输出 16 张序章验收截图到 `docs/screenshots/sprint08_6_acceptance/`。
+
 一个用于逐步迭代的 Godot 4 月球基地农业生存原型。
 
 ## 当前版本：V0.6-dev 旧基地与最后一株植物
