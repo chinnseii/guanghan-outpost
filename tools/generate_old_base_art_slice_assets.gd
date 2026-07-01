@@ -52,26 +52,26 @@ func _border(image: Image, color: Color) -> void:
 	_line_v(image, image.get_width() - 1, 0, image.get_height() - 1, color)
 
 func _tiles() -> void:
-	var base := _img(32, 32, Color("#20282d"))
-	_border(base, Color("#334148"))
-	_line_h(base, 15, 2, 29, Color("#151b1f"))
-	_line_v(base, 15, 2, 29, Color("#2a343a"))
+	var base := _img(32, 32, Color("#1f272c"))
+	_line_h(base, 31, 0, 31, Color("#2b353b"))
+	_line_v(base, 31, 0, 31, Color("#2a343a"))
 	_save(base, "%s/metal_floor_base.png" % TILE_DIR)
 
 	var seam := _img(32, 32, Color("#20282d"))
-	_line_h(seam, 15, 0, 31, Color("#4a555a"))
-	_line_h(seam, 16, 0, 31, Color("#11171b"))
+	_line_h(seam, 31, 0, 31, Color("#3a464d"))
+	_line_v(seam, 31, 0, 31, Color("#11171b"))
 	_save(seam, "%s/metal_floor_seam.png" % TILE_DIR)
 
-	var worn := _img(32, 32, Color("#1c2428"))
-	_border(worn, Color("#2f3a40"))
-	for i in range(10):
-		_rect(worn, Rect2i(4 + i * 2, 8 + (i % 4) * 4, 2, 1), Color("#69706b"))
+	var worn := _img(32, 32, Color("#1e262b"))
+	_line_h(worn, 31, 0, 31, Color("#2b353b"))
+	for i in range(4):
+		_rect(worn, Rect2i(7 + i * 5, 10 + (i % 2) * 9, 2, 1), Color("#5e645f"))
 	_save(worn, "%s/metal_floor_worn.png" % TILE_DIR)
 
-	var scuff := _img(32, 32, Color("#20282d"))
-	for i in range(8):
-		_line_h(scuff, 9 + i * 2, 7, 18 + i, Color("#6d675c"))
+	var scuff := _img(32, 32, Color("#1f272c"))
+	_line_h(scuff, 31, 0, 31, Color("#2b353b"))
+	_line_h(scuff, 12, 8, 17, Color("#59584f"))
+	_line_h(scuff, 21, 14, 23, Color("#4e514a"))
 	_save(scuff, "%s/metal_floor_scuff.png" % TILE_DIR)
 
 	var cable := _img(32, 32, Color(0, 0, 0, 0))
@@ -85,8 +85,9 @@ func _tiles() -> void:
 	_line_h(hatch, 16, 7, 25, Color("#49555b"))
 	_save(hatch, "%s/maintenance_hatch.png" % TILE_DIR)
 
-	var wall := _img(32, 32, Color("#161d22"))
-	_border(wall, Color("#3d4a50"))
+	var wall := _img(32, 32, Color("#131a1f"))
+	_rect(wall, Rect2i(0, 0, 32, 6), Color("#0c1115"))
+	_line_h(wall, 31, 0, 31, Color("#334047"))
 	_save(wall, "%s/dark_metal_wall.png" % TILE_DIR)
 
 	var wall_seam := _img(32, 32, Color("#171f25"))
@@ -94,9 +95,10 @@ func _tiles() -> void:
 	_line_v(wall_seam, 16, 0, 31, Color("#090d10"))
 	_save(wall_seam, "%s/wall_panel_seam.png" % TILE_DIR)
 
-	var frame := _img(32, 32, Color("#12191e"))
-	_rect(frame, Rect2i(0, 0, 32, 6), Color("#66737a"))
-	_rect(frame, Rect2i(0, 26, 32, 6), Color("#29343a"))
+	var frame := _img(32, 32, Color("#10171c"))
+	_rect(frame, Rect2i(0, 0, 32, 8), Color("#66737a"))
+	_rect(frame, Rect2i(0, 8, 32, 3), Color("#0a0f13"))
+	_rect(frame, Rect2i(0, 26, 32, 6), Color("#263139"))
 	_save(frame, "%s/reinforced_wall_frame.png" % TILE_DIR)
 
 	var pipe := _img(32, 32, Color(0, 0, 0, 0))
@@ -152,6 +154,11 @@ func _console(w: int, h: int, screen: Color, _name: String) -> Image:
 	_rect(image, Rect2i(0, 14, w, h - 14), Color("#303a40"))
 	_rect(image, Rect2i(8, 22, w - 16, h - 30), Color("#121a20"))
 	_rect(image, Rect2i(18, 28, w - 36, 16), screen)
+	_rect(image, Rect2i(18, 46, w - 36, 3), Color("#293b45"))
+	_rect(image, Rect2i(8, 18, 5, 5), Color("#d8bb5f"))
+	_rect(image, Rect2i(16, 18, 4, 4), Color("#617b85"))
+	_rect(image, Rect2i(w - 18, 18, 4, 4), Color("#7ba66f"))
+	_rect(image, Rect2i(w - 11, 18, 4, 4), Color("#b15a48"))
 	_rect(image, Rect2i(20, h - 13, w - 40, 4), Color("#bda24c"))
 	_border(image, Color("#53636c"))
 	return image
@@ -164,7 +171,9 @@ func _panel(w: int, h: int, damaged: bool) -> Image:
 	_border(image, warn)
 	for i in range(4):
 		_line_v(image, 18 + i * 10, 28, h - 28, Color("#8d4748"))
+		_rect(image, Rect2i(15 + i * 10, 20, 6, 5), Color("#333f45"))
 	_rect(image, Rect2i(w - 14, 10, 6, 6), Color("#d66a4f"))
+	_rect(image, Rect2i(8, h - 18, w - 16, 3), Color("#4b555b"))
 	return image
 
 func _locker() -> Image:
@@ -172,15 +181,22 @@ func _locker() -> Image:
 	_rect(image, Rect2i(0, 0, 64, 112), Color("#303941"))
 	_rect(image, Rect2i(8, 12, 20, 88), Color("#182229"))
 	_rect(image, Rect2i(36, 12, 20, 88), Color("#182229"))
+	_line_v(image, 32, 10, 102, Color("#54626a"))
+	_rect(image, Rect2i(24, 54, 4, 12), Color("#8596a0"))
+	_rect(image, Rect2i(36, 54, 4, 12), Color("#8596a0"))
+	_line_h(image, 28, 8, 56, Color("#47545b"))
 	_border(image, Color("#65737c"))
 	return image
 
 func _door() -> Image:
 	var image := _img(72, 128, Color(0, 0, 0, 0))
-	_rect(image, Rect2i(0, 0, 72, 128), Color("#2b3740"))
-	_rect(image, Rect2i(8, 10, 56, 108), Color("#121b23"))
+	_rect(image, Rect2i(0, 0, 72, 128), Color("#53646d"))
+	_rect(image, Rect2i(6, 8, 60, 112), Color("#2b3740"))
+	_rect(image, Rect2i(12, 16, 48, 96), Color("#121b23"))
 	_line_v(image, 36, 20, 108, Color("#8fa3b2"))
-	_rect(image, Rect2i(4, 0, 64, 8), Color("#5f6f78"))
+	_rect(image, Rect2i(4, 0, 64, 8), Color("#71838c"))
+	_rect(image, Rect2i(0, 118, 72, 10), Color("#6b777f"))
+	_rect(image, Rect2i(50, 58, 5, 7), Color("#d8bb5f"))
 	_border(image, Color("#899aa4"))
 	return image
 

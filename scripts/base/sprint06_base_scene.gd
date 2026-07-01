@@ -161,6 +161,10 @@ func _setup_art_slice_room() -> void:
 	_tile_wall(Rect2(Vector2(160, 150), Vector2(1200, 96)))
 	_add_art_sprite("WallLayer", "res://assets/art/old_base/tiles/reinforced_wall_frame.png", Vector2(160, 150), Vector2(38, 1))
 	_add_art_sprite("WallLayer", "res://assets/art/old_base/tiles/floor_wall_boundary.png", Vector2(160, 224), Vector2(38, 1))
+	_add_art_sprite("WallLayer", "res://assets/art/old_base/tiles/wall_base_shadow.png", Vector2(160, 220), Vector2(38, 1))
+	_add_art_sprite("WallLayer", "res://assets/art/old_base/tiles/corner_reinforcement.png", Vector2(160, 150), Vector2(1.4, 1.4))
+	_add_art_sprite("WallLayer", "res://assets/art/old_base/tiles/corner_reinforcement.png", Vector2(1315, 150), Vector2(1.4, 1.4))
+	_add_art_sprite("WallLayer", "res://assets/art/old_base/tiles/pipe_strip.png", Vector2(250, 198), Vector2(28, 1))
 	for x in [250, 565, 880, 1195]:
 		_add_art_sprite("WallLayer", "res://assets/art/old_base/props/wall_conduit.png", Vector2(x, 184), Vector2(1.5, 1.0))
 	for x in [340, 800, 1230]:
@@ -181,16 +185,18 @@ func _setup_art_slice_room() -> void:
 	_add_art_sprite("LightingLayer", "res://assets/art/old_base/lighting/greenhouse_signal_glow.png", Vector2(1288, 330), Vector2(1.6, 1.6))
 
 func _tile_floor(room: Rect2) -> void:
-	var tile_paths := [
-		"res://assets/art/old_base/tiles/metal_floor_base.png",
-		"res://assets/art/old_base/tiles/metal_floor_worn.png",
-		"res://assets/art/old_base/tiles/metal_floor_scuff.png",
-	]
 	for y in range(int(room.position.y), int(room.end.y), 32):
 		for x in range(int(room.position.x), int(room.end.x), 32):
-			var index := int((x / 32 + y / 32) % tile_paths.size())
-			_add_art_sprite("FloorLayer", tile_paths[index], Vector2(x, y))
-	for x in range(int(room.position.x + 64), int(room.end.x - 64), 192):
+			var cell := int(x / 32 + y / 32 * 3)
+			var path := "res://assets/art/old_base/tiles/metal_floor_base.png"
+			if cell % 10 == 7 or cell % 10 == 8:
+				path = "res://assets/art/old_base/tiles/metal_floor_seam.png"
+			elif cell % 20 == 9:
+				path = "res://assets/art/old_base/tiles/metal_floor_worn.png"
+			elif cell % 20 == 19:
+				path = "res://assets/art/old_base/tiles/metal_floor_scuff.png"
+			_add_art_sprite("FloorLayer", path, Vector2(x, y))
+	for x in range(int(room.position.x + 96), int(room.end.x - 64), 256):
 		_add_art_sprite("FloorLayer", "res://assets/art/old_base/tiles/metal_floor_seam.png", Vector2(x, room.position.y + 192))
 	_add_art_sprite("FloorLayer", "res://assets/art/old_base/tiles/maintenance_hatch.png", Vector2(560, 570), Vector2(1.5, 1.5))
 	_add_art_sprite("FloorLayer", "res://assets/art/old_base/tiles/floor_cable_overlay.png", Vector2(820, 608), Vector2(3.2, 1.0))
@@ -1340,6 +1346,8 @@ func _draw() -> void:
 func _draw_art_slice_backdrop() -> void:
 	draw_rect(Rect2(Vector2.ZERO, Vector2(1600, 900)), Color("#050b12"), true)
 	draw_rect(Rect2(Vector2(150, 140), Vector2(1220, 610)), Color("#0e151a"), true)
+	draw_rect(Rect2(Vector2(160, 150), Vector2(1200, 78)), Color("#081015", 0.82), true)
+	draw_rect(Rect2(Vector2(160, 216), Vector2(1200, 26)), Color("#020405", 0.48), true)
 	draw_rect(Rect2(Vector2(160, 150), Vector2(1200, 580)), Color("#46555e", 0.36), false, 5)
 	draw_rect(Rect2(Vector2(160, 230), Vector2(1200, 500)), Color("#000000", 0.18), false, 2)
 
