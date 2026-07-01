@@ -225,6 +225,7 @@ func _setup_ui() -> void:
 	fade_rect.color = Color(0, 0, 0, 0)
 	fade_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 	fade_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	fade_rect.z_index = -1
 	root.add_child(fade_rect)
 
 func _setup_scene_defaults() -> void:
