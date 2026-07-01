@@ -44,9 +44,11 @@ var interaction_panel: PanelContainer
 var interaction_label: Label
 var interaction_bar: ProgressBar
 var plant_diagnosis_panel: PanelContainer
+var plant_diagnosis_scrim: ColorRect
 var plant_diagnosis_texture: TextureRect
 var plant_sensor_label: Label
 var plant_feedback_label: Label
+var plant_action_buttons: Array[Button] = []
 var fade_rect: ColorRect
 var prop_root: Node2D
 var player_overlay: BasePlayerOverlay
@@ -365,21 +367,37 @@ func _setup_interaction_feedback_ui(root: Control) -> void:
 	box.add_child(interaction_bar)
 
 func _setup_plant_diagnosis_ui(root: Control) -> void:
+	plant_diagnosis_scrim = ColorRect.new()
+	plant_diagnosis_scrim.color = Color("#02070d", 0.74)
+	plant_diagnosis_scrim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	plant_diagnosis_scrim.visible = false
+	root.add_child(plant_diagnosis_scrim)
+
 	plant_diagnosis_panel = PanelContainer.new()
-	plant_diagnosis_panel.position = Vector2(300, 112)
-	plant_diagnosis_panel.custom_minimum_size = Vector2(1000, 640)
+	plant_diagnosis_panel.position = Vector2(280, 96)
+	plant_diagnosis_panel.custom_minimum_size = Vector2(1040, 660)
 	plant_diagnosis_panel.visible = false
 	root.add_child(plant_diagnosis_panel)
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color("#07121c", 0.96)
+	style.border_color = Color("#3f6075", 0.9)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(4)
+	style.content_margin_left = 18
+	style.content_margin_top = 18
+	style.content_margin_right = 18
+	style.content_margin_bottom = 18
+	plant_diagnosis_panel.add_theme_stylebox_override("panel", style)
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 24)
+	row.add_theme_constant_override("separation", 30)
 	plant_diagnosis_panel.add_child(row)
 	plant_diagnosis_texture = TextureRect.new()
-	plant_diagnosis_texture.custom_minimum_size = Vector2(480, 560)
+	plant_diagnosis_texture.custom_minimum_size = Vector2(500, 590)
 	plant_diagnosis_texture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	row.add_child(plant_diagnosis_texture)
 	var right := VBoxContainer.new()
-	right.custom_minimum_size = Vector2(430, 560)
-	right.add_theme_constant_override("separation", 12)
+	right.custom_minimum_size = Vector2(440, 590)
+	right.add_theme_constant_override("separation", 14)
 	row.add_child(right)
 	var title := Label.new()
 	title.text = "植物诊断视图\nLAST PLANT DIAGNOSTIC"
@@ -402,6 +420,16 @@ func _setup_plant_diagnosis_ui(root: Control) -> void:
 		button.custom_minimum_size = Vector2(0, 40)
 		button.pressed.connect(func(): _choose_plant_maintenance(action_text))
 		right.add_child(button)
+		plant_action_buttons.append(button)
+	_add_plant_action_button(right, "关闭诊断视图")
+
+func _add_plant_action_button(parent: VBoxContainer, action_text: String) -> void:
+	var button := Button.new()
+	button.text = action_text
+	button.custom_minimum_size = Vector2(0, 40)
+	button.pressed.connect(func(): _choose_plant_maintenance(action_text))
+	parent.add_child(button)
+	plant_action_buttons.append(button)
 
 func _setup_scene_defaults() -> void:
 	match scene_kind:
@@ -1379,6 +1407,8 @@ func _show_plant_diagnosis(condition: String) -> void:
 	plant_diagnosis_feedback = ""
 	input_enabled = false
 	sequence_running = true
+	if plant_diagnosis_scrim != null:
+		plant_diagnosis_scrim.visible = true
 	if plant_diagnosis_panel != null:
 		plant_diagnosis_panel.visible = true
 	if plant_diagnosis_texture != null:
@@ -1388,13 +1418,30 @@ func _show_plant_diagnosis(condition: String) -> void:
 	if plant_feedback_label != null:
 		plant_feedback_label.text = "请选择维护动作。"
 
+	if plant_feedback_label != null:
+		plant_feedback_label.text = "植物状态稳定。\n无需执行维护动作。" if condition == "stable" else "请选择维护动作。"
+	_update_plant_action_buttons(condition)
+
 func _hide_plant_diagnosis() -> void:
+	if plant_diagnosis_scrim != null:
+		plant_diagnosis_scrim.visible = false
 	if plant_diagnosis_panel != null:
 		plant_diagnosis_panel.visible = false
 	input_enabled = true
 	sequence_running = false
 
+func _update_plant_action_buttons(condition: String) -> void:
+	for button in plant_action_buttons:
+		var label := button.text
+		if condition == "stable":
+			button.visible = label == "继续观察" or label == "关闭诊断视图"
+		else:
+			button.visible = label != "关闭诊断视图"
+
 func _choose_plant_maintenance(action_text: String) -> void:
+	if action_text == "关闭诊断视图":
+		_hide_plant_diagnosis()
+		return
 	var correct_actions := _correct_plant_actions(plant_diagnosis_condition)
 	if action_text == "继续观察":
 		plant_diagnosis_feedback = "继续观察已记录。"
