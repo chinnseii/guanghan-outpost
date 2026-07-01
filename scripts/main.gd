@@ -7,6 +7,11 @@ const MAP_ORIGIN := Vector2(50, 70)
 const PLAYER_SPEED := 190.0
 const SAVE_SLOTS := 3
 const SAVE_DIR := "user://saves"
+const DEMO_PROGRESS_PATHS := [
+	"user://saves/application_profile.json",
+	"user://saves/training_progress.json",
+	"user://saves/sprint06_progress.json",
+]
 
 const PLAYER_SCENE := preload("res://scenes/player.tscn")
 const MODULE_SCENE := preload("res://scenes/module_visual.tscn")
@@ -3528,9 +3533,9 @@ func _setup_main_menu() -> void:
 	menu.add_child(agency)
 
 	var version := Label.new()
-	version.text = "v0.4-dev"
-	version.position = Vector2(1468, 50)
-	version.size = Vector2(100, 28)
+	version.text = "v0.5-editor-playtest"
+	version.position = Vector2(1318, 50)
+	version.size = Vector2(250, 28)
 	version.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	version.modulate = Color("#9fb4c4", 0.76)
 	version.add_theme_font_size_override("font_size", 16)
@@ -3564,7 +3569,9 @@ func _setup_main_menu() -> void:
 	box.add_child(subtitle)
 
 	box.add_child(_make_title_button("开始新驻留", _start_application_flow, true))
-	box.add_child(_make_title_button("继续驻留", _continue_mission, _has_continue_mission()))
+	var continue_button := _make_title_button("继续驻留", _continue_mission, _has_continue_mission())
+	continue_button.name = "ContinueButton"
+	box.add_child(continue_button)
 	var dev_separator := HSeparator.new()
 	dev_separator.modulate = Color("#3d5060", 0.38)
 	box.add_child(dev_separator)
@@ -3580,6 +3587,15 @@ func _setup_main_menu() -> void:
 	menu_notice.modulate = Color("#9fb4c4", 0.78)
 	menu_notice.add_theme_font_size_override("font_size", 15)
 	box.add_child(menu_notice)
+
+	var input_hint := Label.new()
+	input_hint.name = "InputHint"
+	input_hint.text = "移动：WASD / 方向键    交互：E / Enter    返回 / 取消：Esc    开发菜单：F12"
+	input_hint.custom_minimum_size = Vector2(0, 48)
+	input_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	input_hint.modulate = Color("#8fa3b2", 0.82)
+	input_hint.add_theme_font_size_override("font_size", 15)
+	box.add_child(input_hint)
 
 	var footer := Label.new()
 	footer.text = "项目代号：广寒计划 | GH-OUTPOST-001"
@@ -3632,6 +3648,7 @@ func _setup_dev_menu() -> void:
 	note.text = "仅用于本地测试。F12 显示/隐藏。"
 	note.modulate = Color("#9fb4c4")
 	box.add_child(note)
+	box.add_child(_make_dev_button("Dev Only: Reset Demo Progress", _reset_demo_progress_from_dev))
 	box.add_child(_make_dev_button("Dev Only: Start Survival Sandbox", _start_new_game))
 	box.add_child(_make_dev_button("Dev Only: Arrival Cinematic", func(): get_tree().change_scene_to_file("res://scenes/arrival/ArrivalCinematicScene.tscn")))
 	box.add_child(_make_dev_button("Dev Only: Arrival Landing", func(): get_tree().change_scene_to_file("res://scenes/arrival/ArrivalLandingScene.tscn")))
@@ -3701,11 +3718,18 @@ func _set_gameplay_hud_visible(visible: bool) -> void:
 		ui_manager.call("set_hud_visible", visible)
 
 func _start_application_flow() -> void:
+	if _has_demo_progress():
+		_show_new_game_confirmation()
+		return
+	_start_clean_new_stay()
+
+func _start_clean_new_stay() -> void:
+	_clear_demo_progress()
 	get_tree().change_scene_to_file("res://scenes/application/ApplicationStartScene.tscn")
 
 func _continue_mission() -> void:
 	var progress := TrainingManagerScript.load_progress()
-	if _training_has_progress(progress) or _sprint06_has_progress():
+	if _training_has_progress(progress) or _sprint06_has_progress() or _application_has_progress():
 		get_tree().change_scene_to_file(TrainingManagerScript.continue_scene_path())
 		return
 	var latest_slot := _latest_save_slot()
@@ -3717,13 +3741,24 @@ func _continue_mission() -> void:
 	_refresh_main_menu()
 
 func _has_continue_mission() -> bool:
-	return _training_has_progress(TrainingManagerScript.load_progress()) or _sprint06_has_progress() or _latest_save_slot() > 0
+	return _training_has_progress(TrainingManagerScript.load_progress()) or _sprint06_has_progress() or _application_has_progress() or _latest_save_slot() > 0
+
+func _has_demo_progress() -> bool:
+	if _has_continue_mission():
+		return true
+	for path: String in DEMO_PROGRESS_PATHS:
+		if FileAccess.file_exists(path):
+			return true
+	return false
 
 func _training_has_progress(progress: Dictionary) -> bool:
 	return bool(progress.get("TrainingStarted", false)) or bool(progress.get("FinalAssessmentCompleted", false)) or bool(progress.get("MissionAssignmentAccepted", false))
 
 func _sprint06_has_progress() -> bool:
 	return FileAccess.file_exists("user://saves/sprint06_progress.json")
+
+func _application_has_progress() -> bool:
+	return FileAccess.file_exists("user://saves/application_profile.json")
 
 func _latest_save_slot() -> int:
 	for slot in range(1, SAVE_SLOTS + 1):
@@ -3753,6 +3788,63 @@ func _clear_current_save() -> void:
 	else:
 		add_log("Dev: save slot %d is already empty." % current_save_slot)
 	_refresh_main_menu()
+
+func _clear_demo_progress() -> void:
+	for path: String in DEMO_PROGRESS_PATHS:
+		if FileAccess.file_exists(path):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	for slot in range(1, SAVE_SLOTS + 1):
+		var path := _save_path(slot)
+		if FileAccess.file_exists(path):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	_refresh_main_menu()
+
+func _reset_demo_progress_from_dev() -> void:
+	_clear_demo_progress()
+	TrainingManagerScript.reset_progress()
+	add_log("Dev: demo progress reset.")
+	_set_title_menu_notice("试玩进度已清除。可以从“开始新驻留”重新开始。")
+
+func _show_new_game_confirmation() -> void:
+	if has_node("UI/Root/NewGameConfirm"):
+		$UI/Root/NewGameConfirm.queue_free()
+	var panel := PanelContainer.new()
+	panel.name = "NewGameConfirm"
+	panel.position = Vector2(520, 260)
+	panel.size = Vector2(560, 300)
+	$UI/Root.add_child(panel)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 16)
+	panel.add_child(box)
+	var title := Label.new()
+	title.text = "开始新的驻留档案？"
+	title.modulate = Color("#eaf4ff")
+	title.add_theme_font_size_override("font_size", 28)
+	box.add_child(title)
+	var body := Label.new()
+	body.text = "检测到已有试玩进度。\n\n开始新的驻留将清除申请、训练、旧基地和第一周进度。\n此操作仅影响本地编辑器试玩存档。"
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.modulate = Color("#d8e7f2")
+	body.add_theme_font_size_override("font_size", 18)
+	box.add_child(body)
+	var footer := HBoxContainer.new()
+	footer.alignment = BoxContainer.ALIGNMENT_END
+	footer.add_theme_constant_override("separation", 12)
+	box.add_child(footer)
+	var cancel := Button.new()
+	cancel.text = "取消"
+	cancel.custom_minimum_size = Vector2(160, 44)
+	cancel.pressed.connect(func(): panel.queue_free())
+	footer.add_child(cancel)
+	var confirm := Button.new()
+	confirm.text = "清除进度并开始"
+	confirm.custom_minimum_size = Vector2(220, 44)
+	confirm.modulate = Color("#9ac7e8")
+	confirm.pressed.connect(func():
+		panel.queue_free()
+		_start_clean_new_stay()
+	)
+	footer.add_child(confirm)
 
 func _start_day07_report_test() -> void:
 	var state := {
@@ -4246,9 +4338,9 @@ func _external_repair_target_pos() -> Vector2:
 func _refresh_main_menu() -> void:
 	if not has_node("UI/Root/MainMenu/Box"):
 		return
-	for child in $UI/Root/MainMenu/Box.get_children():
-		if child is Button and String(child.text).begins_with("继续任务"):
-			(child as Button).disabled = not _has_continue_mission()
+	if has_node("UI/Root/MainMenu/Box/ContinueButton"):
+		var button: Button = $UI/Root/MainMenu/Box/ContinueButton
+		button.disabled = not _has_continue_mission()
 
 func _tech_button_text(tech_id: String) -> String:
 	var tech: Dictionary = tech_defs[tech_id]

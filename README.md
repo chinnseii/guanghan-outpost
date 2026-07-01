@@ -1,6 +1,23 @@
 # Guanghan Outpost / 广寒前哨
 
-## 当前状态：Sprint 08.6 序章流程与叙事打磨
+## 当前状态：Sprint 08.7 编辑器内可试玩 Demo 封装
+
+当前目标是 Godot 编辑器内自测：按 Run 后从主菜单正常开始，完整玩到第一周结束与 Phase 02 占位页。本阶段不导出 Windows exe，不创建安装包，不进入 Sprint 09。
+
+本轮新增：
+
+- 主菜单版本号：`v0.5-editor-playtest`
+- 主菜单输入提示：移动、交互、取消、开发菜单
+- `开始新驻留` 在已有进度时显示确认，并可清理 Demo 进度后从头开始
+- `继续驻留` 支持申请、训练、旧基地、第一周与旧存档槽进度
+- 隐藏开发菜单新增 `Dev Only: Reset Demo Progress`
+- 新增 Demo 文档：
+  - `docs/sprints/SPRINT_08_7_FIRST_PLAYABLE_DEMO_PACKAGING.md`
+  - `docs/demo/FIRST_PLAYABLE_DEMO_TEST_PLAN.md`
+  - `docs/demo/KNOWN_ISSUES_PRE09.md`
+- 新增 08.7 验收截图脚本：`tools/capture_sprint08_7_demo_packaging.gd`
+
+## 已冻结：Sprint 08.6 序章流程与叙事打磨
 
 已完成序章链路收束：主菜单正式入口、申请系统、资格初审、国家训练、任务派遣、月面抵达、旧基地、最后一株植物、Day 02、第一周巡检、第一周结束与 Phase 02 占位提示。Sprint 08.6 不进入 Sprint 09；外部太阳能阵列评估仍是下一阶段内容。
 
