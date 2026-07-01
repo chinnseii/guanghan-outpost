@@ -1,5 +1,29 @@
 # Guanghan Outpost / 广寒前哨
 
+## 当前状态：Sprint 08.7.1 训练沉浸感与 HUD 简化补丁
+
+本轮不进入 Sprint 09，只打磨国家训练段落的呈现方式：
+- 训练模块进入时显示入口简报，确认后进入可移动训练舱。
+- 常驻左侧任务面板默认隐藏，训练中只保留小型当前目标 HUD。
+- `Tab` 打开 / 关闭任务面板。
+- `Esc` 打开暂停菜单：继续训练 / 查看任务 / 返回主菜单。
+- 底部“保存训练进度 / 返回主菜单”不再作为训练中的常驻按钮。
+- 模块完成后需要走到训练出口，按 `E / Enter` 进入下一阶段。
+- 最终考核完成后需要走到考核出口，按 `E / Enter` 查看任务派遣通知。
+- 新增说明文档：`docs/sprints/SPRINT_08_7_1_TRAINING_IMMERSION_HUD_MINIMAL_PATCH.md`
+
+## 最新补丁：Sprint 08.7.1 Addendum + Sprint 08.7.2
+
+本轮继续不进入 Sprint 09，只打磨现有 Demo 的交互可信度：
+- 设备交互加入短暂过程反馈：锁移动、角色进入扫描/维修姿态、设备高亮、进度条结束后才更新状态。
+- 对地报告发送先显示通信链路 / 传输队列，再保存报告已发送状态。
+- 旧基地中央控制台、供电面板、供电重启、生命支持、日常巡检与报告终端已接入轻量交互反馈。
+- 新增植物诊断视图：植物近景图 + 传感器提示 + 维护动作选择。
+- 新增诊断占位图：`assets/art/plants/diagnostics/last_plant_*.png`
+- 文档：
+  - `docs/sprints/SPRINT_08_7_1_EQUIPMENT_INTERACTION_FEEDBACK.md`
+  - `docs/sprints/SPRINT_08_7_2_PLANT_VISUAL_DIAGNOSIS_PATCH.md`
+
 ## 当前状态：Sprint 08.7 编辑器内可试玩 Demo 封装
 
 当前目标是 Godot 编辑器内自测：按 Run 后从主菜单正常开始，完整玩到第一周结束与 Phase 02 占位页。本阶段不导出 Windows exe，不创建安装包，不进入 Sprint 09。

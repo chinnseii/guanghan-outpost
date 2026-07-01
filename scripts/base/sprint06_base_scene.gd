@@ -30,11 +30,23 @@ var current_target := ""
 var ai_text := ""
 var sequence_running := false
 var scene_title_alpha := 0.0
+var interaction_running := false
+var interaction_target := ""
+var player_pose := "idle"
+var plant_diagnosis_condition := "critical"
+var plant_diagnosis_feedback := ""
 
 var hud_label: Label
 var message_label: Label
 var prompt_label: Label
 var ai_label: Label
+var interaction_panel: PanelContainer
+var interaction_label: Label
+var interaction_bar: ProgressBar
+var plant_diagnosis_panel: PanelContainer
+var plant_diagnosis_texture: TextureRect
+var plant_sensor_label: Label
+var plant_feedback_label: Label
 var fade_rect: ColorRect
 var prop_root: Node2D
 var player_overlay: BasePlayerOverlay
@@ -327,6 +339,69 @@ func _setup_ui() -> void:
 	fade_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	fade_rect.z_index = -1
 	root.add_child(fade_rect)
+	_setup_interaction_feedback_ui(root)
+	_setup_plant_diagnosis_ui(root)
+
+func _setup_interaction_feedback_ui(root: Control) -> void:
+	interaction_panel = PanelContainer.new()
+	interaction_panel.position = Vector2(500, 724)
+	interaction_panel.custom_minimum_size = Vector2(600, 76)
+	interaction_panel.visible = false
+	root.add_child(interaction_panel)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 6)
+	interaction_panel.add_child(box)
+	interaction_label = Label.new()
+	interaction_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	interaction_label.modulate = Color("#eaf4ff")
+	interaction_label.add_theme_font_size_override("font_size", 16)
+	box.add_child(interaction_label)
+	interaction_bar = ProgressBar.new()
+	interaction_bar.min_value = 0.0
+	interaction_bar.max_value = 1.0
+	interaction_bar.value = 0.0
+	interaction_bar.show_percentage = false
+	interaction_bar.custom_minimum_size = Vector2(0, 12)
+	box.add_child(interaction_bar)
+
+func _setup_plant_diagnosis_ui(root: Control) -> void:
+	plant_diagnosis_panel = PanelContainer.new()
+	plant_diagnosis_panel.position = Vector2(300, 112)
+	plant_diagnosis_panel.custom_minimum_size = Vector2(1000, 640)
+	plant_diagnosis_panel.visible = false
+	root.add_child(plant_diagnosis_panel)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 24)
+	plant_diagnosis_panel.add_child(row)
+	plant_diagnosis_texture = TextureRect.new()
+	plant_diagnosis_texture.custom_minimum_size = Vector2(480, 560)
+	plant_diagnosis_texture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	row.add_child(plant_diagnosis_texture)
+	var right := VBoxContainer.new()
+	right.custom_minimum_size = Vector2(430, 560)
+	right.add_theme_constant_override("separation", 12)
+	row.add_child(right)
+	var title := Label.new()
+	title.text = "植物诊断视图\nLAST PLANT DIAGNOSTIC"
+	title.modulate = Color("#eaf4ff")
+	title.add_theme_font_size_override("font_size", 22)
+	right.add_child(title)
+	plant_sensor_label = Label.new()
+	plant_sensor_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	plant_sensor_label.modulate = Color("#cfe3f2")
+	plant_sensor_label.add_theme_font_size_override("font_size", 16)
+	right.add_child(plant_sensor_label)
+	plant_feedback_label = Label.new()
+	plant_feedback_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	plant_feedback_label.modulate = Color("#f0c766")
+	plant_feedback_label.add_theme_font_size_override("font_size", 16)
+	right.add_child(plant_feedback_label)
+	for action_text in ["调整水循环", "调整补光", "降低舱内温度", "提升舱内温度", "继续观察"]:
+		var button := Button.new()
+		button.text = action_text
+		button.custom_minimum_size = Vector2(0, 40)
+		button.pressed.connect(func(): _choose_plant_maintenance(action_text))
+		right.add_child(button)
 
 func _setup_scene_defaults() -> void:
 	match scene_kind:
@@ -372,6 +447,9 @@ func _start_scene() -> void:
 	_update_objective()
 
 func _process(delta: float) -> void:
+	if bool(state.get("PendingPlantStabilization", false)) and not interaction_running and not sequence_running:
+		state["PendingPlantStabilization"] = false
+		_stabilize_last_plant()
 	if input_enabled and scene_kind != "airlock":
 		_move_player(delta)
 	_update_target()
@@ -473,12 +551,12 @@ func _complete_daily_check(key: String, text: String) -> void:
 	if bool(state.get(key, false)):
 		_message(text)
 		return
-	state[key] = true
-	_message(text)
-	if _daily_checks_complete() and not bool(state.get("DailyInspectionsComplete", false)):
-		state["DailyInspectionsComplete"] = true
-		ai_text = "今日巡检完成。\n建议整理并发送对地驻留报告。"
-	_save_state()
+	_begin_equipment_interaction(_kind_for_check_key(key), current_target, _start_text_for_check_key(key), "诊断完成。", _duration_for_check_key(key), {key: true}, func():
+		_message(text)
+		if _daily_checks_complete() and not bool(state.get("DailyInspectionsComplete", false)):
+			state["DailyInspectionsComplete"] = true
+			ai_text = "今日巡检完成。\n建议整理并发送对地驻留报告。"
+	)
 
 func _reset_daily_flags(day: int) -> void:
 	state["CurrentDay"] = day
@@ -542,12 +620,39 @@ func _complete_day02_check(key: String, text: String) -> void:
 	if bool(state.get(key, false)):
 		_message(text)
 		return
-	state[key] = true
-	_message(text)
-	if _day02_inspections_complete() and not bool(state.get("Day02InspectionsComplete", false)):
-		state["Day02InspectionsComplete"] = true
-		ai_text = "今日巡检完成。\n建议整理并发送对地驻留报告。"
-	_save_state()
+	_begin_equipment_interaction(_kind_for_check_key(key), current_target, _start_text_for_check_key(key), "诊断完成。", _duration_for_check_key(key), {key: true}, func():
+		_message(text)
+		if _day02_inspections_complete() and not bool(state.get("Day02InspectionsComplete", false)):
+			state["Day02InspectionsComplete"] = true
+			ai_text = "今日巡检完成。\n建议整理并发送对地驻留报告。"
+	)
+
+func _kind_for_check_key(key: String) -> String:
+	if key.contains("Report"):
+		return "send"
+	if key.contains("Power") or key.contains("Life") or key.contains("Water") or key.contains("Plant"):
+		return "diagnose"
+	return "inspect"
+
+func _duration_for_check_key(key: String) -> float:
+	if key.contains("Report"):
+		return 2.0
+	if key.contains("Power") or key.contains("Life") or key.contains("Water") or key.contains("Plant"):
+		return 1.2
+	return 0.75
+
+func _start_text_for_check_key(key: String) -> String:
+	if key.contains("Report"):
+		return "正在建立对地通信链路……"
+	if key.contains("Plant"):
+		return "正在读取植物生命信号……"
+	if key.contains("Water"):
+		return "正在读取水循环传感器数据……"
+	if key.contains("Life"):
+		return "正在读取生命支持状态……"
+	if key.contains("Power"):
+		return "正在读取供电面板状态……"
+	return "正在读取终端数据……"
 
 func _update_objective() -> void:
 	if scene_kind == "airlock":
@@ -653,9 +758,9 @@ func _interact() -> void:
 func _interact_day02_interior() -> void:
 	match current_target:
 		"console":
-			state["Day02ConsoleChecked"] = true
-			state["DayNumber"] = 2
-			_message("广寒前哨 D02 状态摘要：\n\n主供电：基础供电维持\n生命支持：最低稳定\n水循环：部分恢复\n温室系统：局部运行\n植物生命信号：稳定\n\n今日建议：\n执行基础巡检。\n完成对地驻留报告。")
+			_begin_equipment_interaction("inspect", "console", "正在读取终端数据……", "系统状态已同步。", 0.8, {"Day02ConsoleChecked": true, "DayNumber": 2}, func():
+				_message("广寒前哨 D02 状态摘要：\n\n主供电：基础供电维持\n生命支持：最低稳定\n水循环：部分恢复\n温室系统：局部运行\n植物生命信号：稳定\n\n今日建议：\n执行基础巡检。\n完成对地驻留报告。")
+			)
 		"power_panel":
 			_complete_day02_check("Day02PowerChecked", "供电面板状态：\n\n备用线路：运行中\n主供电回路：未完全恢复\n当前输出：基础供电\n风险等级：可控\n\n当前供电足以维持旧基地最低运行。\n不建议扩展负载。")
 		"life_console":
@@ -689,7 +794,7 @@ func _interact_day02_greenhouse() -> void:
 		"water_panel":
 			_complete_day02_check("Day02WaterChecked", "水循环状态：\n\n主循环：未恢复\n备用循环：低流量运行\n温室供水：最低维持\n建议：等待补给或进一步维修\n\n当前水循环只能维持最低需求。\n请避免扩大种植规模。")
 		"monitor":
-			_message("植物监测屏：\n\n生命信号：Stable\n根区温度：可维持\n补光：低功率稳定\n水循环：最低运行")
+			_open_plant_diagnosis_after_feedback("stable")
 		"scanner":
 			_message("诊断终端：\n\n未发现新的急性异常。\n建议每日重复观察叶片与根区状态。")
 		"grow_light":
@@ -760,14 +865,16 @@ func _interact_week_greenhouse() -> void:
 				_message("备用水循环保持低流量运行。\n今日未执行新的水路调整。")
 		"scanner":
 			if day == 6:
-				_complete_daily_check("DailyRecordUpdated", "植物状态记录已更新。\n\n新生组织迹象：微弱。\n建议继续维持当前环境。")
+				_open_plant_diagnosis_after_feedback("stable")
+				state["DailyRecordUpdated"] = true
+				_save_state()
 			else:
 				_message("诊断终端：\n未发现新的急性异常。")
 		"monitor":
 			if day == 7:
 				_complete_daily_check("DailyPlantChecked", _weekly_plant_text())
 			else:
-				_message("植物监测屏：\n\n生命信号：Stable\n补光：低功率稳定\n水循环：最低运行")
+				_open_plant_diagnosis_after_feedback("stable" if day >= 6 else "water_low")
 		"grow_light":
 			_message("补光灯保持低功率运行。\n输出仍限制在安全范围内。")
 		"exit":
@@ -779,28 +886,32 @@ func _interact_week_greenhouse() -> void:
 func _interact_interior() -> void:
 	match current_target:
 		"console":
-			state["CentralConsoleChecked"] = true
-			_message("广寒前哨状态摘要：\n\n主供电：低功率维持\n生命支持：最低运行\n温室系统：离线\n水循环：未稳定\n外部通信：延迟链路可用\n\n建议操作：\n恢复基础供电。\n\n日志片段 17-A：\n温室补光效率继续下降。\n备用水循环还能维持一段时间。\n如果下一位开拓者抵达，\n请先检查中央植物舱。")
+			_begin_equipment_interaction("inspect", "console", "正在读取终端数据……", "系统状态已同步。", 0.8, {"CentralConsoleChecked": true}, func():
+				_message("广寒前哨状态摘要：\n\n主供电：低功率维持\n生命支持：最低运行\n温室系统：离线\n水循环：未稳定\n外部通信：延迟链路可用\n\n建议操作：\n恢复基础供电。\n\n日志片段 17-A：\n温室补光效率继续下降。\n备用水循环还能维持一段时间。\n如果下一位开拓者抵达，\n请先检查中央植物舱。")
+			)
 		"power_panel":
 			if not bool(state.get("CentralConsoleChecked", false)):
 				_message("请先查看中央控制台。")
 			elif not bool(state.get("PowerPanelChecked", false)):
-				state["PowerPanelChecked"] = true
-				_message("检测到旧供电面板断路。\n备用线路仍可用。\n可执行基础恢复。")
+				_begin_equipment_interaction("diagnose", "power_panel", "正在读取供电面板状态……", "诊断完成。", 1.2, {"PowerPanelChecked": true}, func():
+					_message("检测到旧供电面板断路。\n备用线路仍可用。\n可执行基础恢复。")
+				)
 			elif not bool(state.get("PowerPanelRepaired", false)):
 				_run_delayed_message("正在接入备用线路……", "备用线路已接入。", {"PowerPanelRepaired": true})
 		"power_console":
 			if not bool(state.get("PowerPanelRepaired", false)):
 				_message("旧供电面板尚未恢复。")
 			elif not bool(state.get("BasePowerRestored", false)):
-				state["BasePowerRestored"] = true
-				_message("基础供电已恢复。")
+				_begin_equipment_interaction("restore", "power_console", "正在重启基础供电……", "基础供电已恢复。", 1.8, {"BasePowerRestored": true}, func():
+					_message("基础供电已恢复。")
+				)
 		"life_console":
 			if not bool(state.get("BasePowerRestored", false)):
 				_message("生命支持控制台供电不足。")
 			elif not bool(state.get("LifeSupportConsoleChecked", false)):
-				state["LifeSupportConsoleChecked"] = true
-				_message("氧气状态：安全但偏低\n温度状态：偏低\n水循环状态：未稳定\n电力状态：基础供电")
+				_begin_equipment_interaction("diagnose", "life_console", "正在读取生命支持状态……", "诊断完成。", 1.2, {"LifeSupportConsoleChecked": true}, func():
+					_message("氧气状态：安全但偏低\n温度状态：偏低\n水循环状态：未稳定\n电力状态：基础供电")
+				)
 			elif not bool(state.get("MinimalLifeSupportStable", false)):
 				_run_delayed_message("最低生命支持程序启动。\n正在恢复空气循环。\n正在提升基础温度。\n水循环仍未完全稳定。", "生命支持状态：最低稳定\n氧气状态：稳定\n温度状态：可维持\n水循环状态：部分恢复\n\n温室门已解锁。", {"MinimalLifeSupportStable": true, "GreenhouseUnlocked": true})
 		"greenhouse_door":
@@ -824,19 +935,19 @@ func _interact_greenhouse() -> void:
 	match current_target:
 		"last_plant":
 			if not bool(state.get("LastPlantObserved", false)):
-				state["LastPlantObserved"] = true
-				_message("叶片颜色偏浅。\n茎部仍有微弱支撑。\n基质表面偏干。")
+				_begin_equipment_interaction("diagnose", "last_plant", "正在读取植物生命信号……", "观察记录已同步。", 1.1, {"LastPlantObserved": true}, func():
+					_message("叶片颜色偏浅。\n茎部仍有微弱支撑。\n基质表面偏干。")
+				)
 			elif bool(state.get("LastPlantStable", false)):
-				_message("生命信号稳定。\n这一区域仍需要保持安静。")
+				_open_plant_diagnosis_after_feedback("stable")
 		"monitor":
 			state["PlantMonitorChecked"] = true
-			_message("补光输出：不足\n水循环：中断\n根区温度：偏低\n生命信号：极弱")
+			_open_plant_diagnosis_after_feedback("critical")
 		"scanner":
 			if not bool(state.get("LastPlantObserved", false)) or not bool(state.get("PlantMonitorChecked", false)):
 				_message("诊断信息不足。\n请先观察植物并查看监测屏。")
 			else:
-				state["LastPlantDiagnosed"] = true
-				_message("诊断结果：\n补光不足。\n最低水循环中断。\n\n当前目标：恢复补光与水循环。")
+				_open_plant_diagnosis_after_feedback("critical")
 		"grow_light":
 			if not bool(state.get("LastPlantDiagnosed", false)):
 				_message("请先完成植物诊断。")
@@ -854,8 +965,6 @@ func _interact_greenhouse() -> void:
 				_message("温室生命信号尚未稳定。")
 		_:
 			pass
-	if bool(state.get("GrowLightRestored", false)) and bool(state.get("PartialWaterCycleRestored", false)) and not bool(state.get("LastPlantStable", false)):
-		_stabilize_last_plant()
 	_save_state()
 
 func _start_airlock_sequence() -> void:
@@ -1008,40 +1117,84 @@ func _weekly_report_text() -> String:
 func _send_day02_report() -> void:
 	sequence_running = true
 	input_enabled = false
-	message_text = "报告已发送。\n通信延迟：1.3 秒。"
-	await get_tree().create_timer(1.45).timeout
-	message_text = "地面确认收到。"
-	await get_tree().create_timer(1.2).timeout
-	message_text = "广寒计划地面任务组：\n已记录温室生命信号。\n后续任务建议正在生成。"
+	interaction_running = true
+	interaction_target = "report_terminal"
+	player_pose = "terminal"
+	if interaction_panel != null:
+		interaction_panel.visible = true
+	if interaction_label != null:
+		interaction_label.text = "正在建立对地通信链路……"
+	if interaction_bar != null:
+		interaction_bar.value = 0.0
+	await _tick_interaction_bar(1.8)
+	if interaction_label != null:
+		interaction_label.text = "报告已加入传输队列。"
+	message_text = "报告已加入传输队列。\n预计通信延迟：1.3 秒。"
 	state["Day02ReportSent"] = true
 	state["ArchiveEntry_Day02Report"] = true
 	_save_state()
+	await get_tree().create_timer(1.2).timeout
+	message_text = "地面确认收到。"
+	await get_tree().create_timer(1.0).timeout
+	message_text = "广寒计划地面任务组：\n已记录温室生命信号。\n后续任务建议正在生成。"
 	await get_tree().create_timer(1.8).timeout
+	if interaction_panel != null:
+		interaction_panel.visible = false
+	interaction_running = false
+	interaction_target = ""
+	player_pose = "idle"
 	input_enabled = true
 	sequence_running = false
 
 func _send_week_report() -> void:
 	sequence_running = true
 	input_enabled = false
+	interaction_running = true
+	interaction_target = "report_terminal"
+	player_pose = "terminal"
+	if interaction_panel != null:
+		interaction_panel.visible = true
+	if interaction_label != null:
+		interaction_label.text = "正在建立对地通信链路……"
+	if interaction_bar != null:
+		interaction_bar.value = 0.0
+	await _tick_interaction_bar(1.8)
 	if _current_day() == 7:
-		message_text = "第一周驻留报告已发送。\n通信延迟：1.3 秒。"
+		message_text = "第一周驻留报告已加入传输队列。\n预计通信延迟：1.3 秒。"
 	else:
-		message_text = "%s 驻留报告已发送。\n通信延迟：1.3 秒。" % _day_label()
-	await get_tree().create_timer(1.35).timeout
+		message_text = "%s 驻留报告已加入传输队列。\n预计通信延迟：1.3 秒。" % _day_label()
+	if interaction_label != null:
+		interaction_label.text = "报告已加入传输队列。"
+	state["DailyReportSent"] = true
+	if _current_day() == 7:
+		state["WeekOneReportSent"] = true
+		state["Archive_WeekOne_Report"] = true
+	else:
+		state["Archive_Day%02d_Report" % _current_day()] = true
+	_save_state()
+	await get_tree().create_timer(1.15).timeout
 	message_text = "地面确认收到。"
 	await get_tree().create_timer(1.1).timeout
 	if _current_day() == 7:
 		message_text = "广寒计划地面任务组：\n第一周驻留记录已归档。\n下一阶段任务建议正在生成。"
-		state["WeekOneReportSent"] = true
-		state["Archive_WeekOne_Report"] = true
 	else:
 		message_text = "广寒计划地面任务组：\n%s 驻留记录已归档。\n后续建议正在生成。" % _day_label()
-		state["Archive_Day%02d_Report" % _current_day()] = true
-	state["DailyReportSent"] = true
-	_save_state()
 	await get_tree().create_timer(1.7).timeout
+	if interaction_panel != null:
+		interaction_panel.visible = false
+	interaction_running = false
+	interaction_target = ""
+	player_pose = "idle"
 	input_enabled = true
 	sequence_running = false
+
+func _tick_interaction_bar(duration: float) -> void:
+	var elapsed := 0.0
+	while elapsed < duration:
+		await get_tree().process_frame
+		elapsed += get_process_delta_time()
+		if interaction_bar != null:
+			interaction_bar.value = clamp(elapsed / duration, 0.0, 1.0)
 
 func _discover_last_plant() -> void:
 	sequence_running = true
@@ -1074,17 +1227,16 @@ func _stabilize_last_plant() -> void:
 	sequence_running = false
 
 func _run_delayed_message(start_text: String, done_text: String, updates: Dictionary) -> void:
-	sequence_running = true
-	input_enabled = false
-	message_text = start_text
-	await get_tree().create_timer(1.25).timeout
-	for key in updates.keys():
-		state[key] = updates[key]
-	message_text = done_text
-	_save_state()
-	await get_tree().create_timer(0.9).timeout
-	input_enabled = true
-	sequence_running = false
+	var kind := "repair"
+	var target_id := current_target
+	_begin_equipment_interaction(kind, target_id, start_text, done_text, 1.75, updates, func():
+		message_text = done_text
+		_after_delayed_updates()
+	)
+
+func _after_delayed_updates() -> void:
+	if scene_kind == "greenhouse" and bool(state.get("GrowLightRestored", false)) and bool(state.get("PartialWaterCycleRestored", false)) and not bool(state.get("LastPlantStable", false)):
+		state["PendingPlantStabilization"] = true
 
 func _finish_day_one() -> void:
 	state["Day01Completed"] = true
@@ -1161,6 +1313,177 @@ func _finish_week_day() -> void:
 
 func _message(text: String) -> void:
 	message_text = text
+
+func _begin_equipment_interaction(kind: String, target_id: String, start_text: String, done_text: String, duration: float, updates: Dictionary = {}, after: Callable = Callable()) -> void:
+	if interaction_running:
+		return
+	interaction_running = true
+	sequence_running = true
+	input_enabled = false
+	interaction_target = target_id
+	player_pose = _pose_for_interaction_kind(kind)
+	message_text = ""
+	if interaction_panel != null:
+		interaction_panel.visible = true
+	if interaction_label != null:
+		interaction_label.text = start_text
+	if interaction_bar != null:
+		interaction_bar.value = 0.0
+	_run_equipment_interaction(kind, done_text, duration, updates, after)
+
+func _run_equipment_interaction(kind: String, done_text: String, duration: float, updates: Dictionary, after: Callable) -> void:
+	var elapsed := 0.0
+	while elapsed < duration:
+		await get_tree().process_frame
+		var delta := get_process_delta_time()
+		elapsed += delta
+		if interaction_bar != null:
+			interaction_bar.value = clamp(elapsed / duration, 0.0, 1.0)
+	if interaction_label != null:
+		interaction_label.text = done_text
+	if interaction_bar != null:
+		interaction_bar.value = 1.0
+	for key in updates.keys():
+		state[String(key)] = updates[key]
+	if after.is_valid():
+		after.call()
+	_save_state()
+	await get_tree().create_timer(0.45).timeout
+	if interaction_panel != null:
+		interaction_panel.visible = false
+	player_pose = "idle"
+	interaction_target = ""
+	interaction_running = false
+	if plant_diagnosis_panel != null and plant_diagnosis_panel.visible:
+		sequence_running = true
+		input_enabled = false
+	else:
+		sequence_running = false
+		input_enabled = true
+
+func _pose_for_interaction_kind(kind: String) -> String:
+	match kind:
+		"repair", "restore":
+			return "repair"
+		"diagnose", "inspect":
+			return "scan"
+	return "terminal"
+
+func _open_plant_diagnosis_after_feedback(condition: String) -> void:
+	_begin_equipment_interaction("diagnose", current_target, "正在读取植物生命信号……", "植物诊断视图已同步。", 1.1, {}, func():
+		_show_plant_diagnosis(condition)
+	)
+
+func _show_plant_diagnosis(condition: String) -> void:
+	plant_diagnosis_condition = condition
+	plant_diagnosis_feedback = ""
+	input_enabled = false
+	sequence_running = true
+	if plant_diagnosis_panel != null:
+		plant_diagnosis_panel.visible = true
+	if plant_diagnosis_texture != null:
+		plant_diagnosis_texture.texture = _load_diagnostic_texture(_plant_diagnostic_image_path(condition))
+	if plant_sensor_label != null:
+		plant_sensor_label.text = _plant_sensor_hint(condition)
+	if plant_feedback_label != null:
+		plant_feedback_label.text = "请选择维护动作。"
+
+func _hide_plant_diagnosis() -> void:
+	if plant_diagnosis_panel != null:
+		plant_diagnosis_panel.visible = false
+	input_enabled = true
+	sequence_running = false
+
+func _choose_plant_maintenance(action_text: String) -> void:
+	var correct_actions := _correct_plant_actions(plant_diagnosis_condition)
+	if action_text == "继续观察":
+		plant_diagnosis_feedback = "继续观察已记录。"
+		if plant_feedback_label != null:
+			plant_feedback_label.text = plant_diagnosis_feedback
+		_hide_plant_diagnosis()
+		return
+	if correct_actions.has(action_text):
+		plant_diagnosis_feedback = "正在执行维护流程……"
+		if plant_feedback_label != null:
+			plant_feedback_label.text = plant_diagnosis_feedback
+		_complete_plant_maintenance(action_text)
+	else:
+		plant_diagnosis_feedback = "维护效果有限。\n建议重新观察植物状态。"
+		if plant_feedback_label != null:
+			plant_feedback_label.text = plant_diagnosis_feedback
+
+func _complete_plant_maintenance(action_text: String) -> void:
+	await get_tree().create_timer(0.9).timeout
+	if plant_feedback_label != null:
+		plant_feedback_label.text = "维护完成。\n植物生命信号：改善中。"
+	match action_text:
+		"调整补光":
+			state["GrowLightRestored"] = true
+			state["LastPlantDiagnosed"] = true
+			state["PlantMonitorChecked"] = true
+			state["LastPlantObserved"] = true
+		"调整水循环":
+			state["PartialWaterCycleRestored"] = true
+			state["LastPlantDiagnosed"] = true
+			state["PlantMonitorChecked"] = true
+			state["LastPlantObserved"] = true
+		"降低舱内温度":
+			state["PlantTemperatureHighAddressed"] = true
+		"提升舱内温度":
+			state["PlantTemperatureLowAddressed"] = true
+	if bool(state.get("GrowLightRestored", false)) and bool(state.get("PartialWaterCycleRestored", false)) and not bool(state.get("LastPlantStable", false)):
+		state["PendingPlantStabilization"] = true
+	_save_state()
+	await get_tree().create_timer(0.65).timeout
+	_hide_plant_diagnosis()
+
+func _plant_diagnostic_image_path(condition: String) -> String:
+	match condition:
+		"stable":
+			return "res://assets/art/plants/diagnostics/last_plant_stable.png"
+		"water_low":
+			return "res://assets/art/plants/diagnostics/last_plant_water_low.png"
+		"light_low":
+			return "res://assets/art/plants/diagnostics/last_plant_light_low.png"
+		"temp_high":
+			return "res://assets/art/plants/diagnostics/last_plant_temp_high.png"
+		"temp_low":
+			return "res://assets/art/plants/diagnostics/last_plant_temp_low.png"
+	return "res://assets/art/plants/diagnostics/last_plant_critical.png"
+
+func _load_diagnostic_texture(path: String) -> Texture2D:
+	var image := Image.load_from_file(ProjectSettings.globalize_path(path))
+	if image == null:
+		return null
+	return ImageTexture.create_from_image(image)
+
+func _plant_sensor_hint(condition: String) -> String:
+	match condition:
+		"stable":
+			return "传感器读数：\n水循环：最低运行\n补光：低功率稳定\n温度：可维持\n\n视觉观察：\n叶片略微上扬，颜色较昨日恢复。"
+		"water_low":
+			return "传感器读数：\n根区湿度：低\n水循环：低 / 波动\n补光：稳定\n\n视觉观察：\n叶片下垂，基质表面偏干。"
+		"light_low":
+			return "传感器读数：\n补光输出：低于维持阈值\n水循环：最低运行\n温度：可维持\n\n视觉观察：\n叶片偏淡，植株向补光灯方向倾斜。"
+		"temp_high":
+			return "传感器读数：\n温度：偏高\n湿度：偏低\n补光：正常\n\n视觉观察：\n叶缘干枯上卷，舱内偏干。"
+		"temp_low":
+			return "传感器读数：\n温度：偏低\n水循环：最低运行\n补光：正常\n\n视觉观察：\n叶片偏深，姿态僵硬，舱壁有轻微凝结。"
+	return "传感器读数：\n生命信号：极弱\n补光输出：不足\n水循环：中断\n根区温度：偏低\n\n视觉观察：\n叶片下垂，颜色暗淡。"
+
+func _correct_plant_actions(condition: String) -> Array[String]:
+	match condition:
+		"water_low":
+			return ["调整水循环"]
+		"light_low":
+			return ["调整补光"]
+		"temp_high":
+			return ["降低舱内温度"]
+		"temp_low":
+			return ["提升舱内温度"]
+		"critical":
+			return ["调整水循环", "调整补光"]
+	return ["继续观察"]
 
 func _transition_to(scene_path: String) -> void:
 	input_enabled = false
@@ -1555,6 +1878,19 @@ func _draw_target_highlight() -> void:
 	if rect.size != Vector2.ZERO:
 		draw_rect(rect.grow(10), Color("#f0c766", 0.12), true)
 		draw_rect(rect.grow(10), Color("#f0c766", 0.62), false, 2)
+	if interaction_running:
+		var active_rect := _interaction_target_rect()
+		if active_rect.size != Vector2.ZERO:
+			draw_rect(active_rect.grow(16), Color("#89d8ff", 0.16), true)
+			draw_rect(active_rect.grow(16), Color("#89d8ff", 0.72), false, 2)
+			draw_circle(active_rect.get_center(), 34, Color("#f0c766", 0.08))
+
+func _interaction_target_rect() -> Rect2:
+	if scene_kind == "interior" and interior_targets.has(interaction_target):
+		return interior_targets[interaction_target]
+	if scene_kind == "greenhouse" and greenhouse_targets.has(interaction_target):
+		return greenhouse_targets[interaction_target]
+	return Rect2()
 
 func _objective_highlight_rect() -> Rect2:
 	if scene_kind == "day_end" or scene_kind == "day02_end" or scene_kind == "week_end":
@@ -1616,12 +1952,22 @@ func _draw_player() -> void:
 	if scene_kind == "airlock":
 		return
 	draw_ellipse(player_pos + Vector2(0, 18), 18, 5, Color("#020305", 0.36))
-	draw_rect(Rect2(player_pos + Vector2(-11, -38), Vector2(22, 36)), Color("#d8e0e6"), true)
-	draw_rect(Rect2(player_pos + Vector2(-7, -30), Vector2(14, 14)), Color("#7fa7bd"), true)
+	var lean := Vector2(0, 4) if player_pose != "idle" else Vector2.ZERO
+	draw_rect(Rect2(player_pos + Vector2(-11, -38) + lean, Vector2(22, 36)), Color("#d8e0e6"), true)
+	draw_rect(Rect2(player_pos + Vector2(-7, -30) + lean, Vector2(14, 14)), Color("#7fa7bd"), true)
 	draw_circle(player_pos + Vector2(0, -50), 16, Color("#e6eef4"))
 	draw_circle(player_pos + Vector2(0, -50), 9, Color("#1b2834"))
-	draw_line(player_pos + Vector2(-10, -18), player_pos + Vector2(-18, 4), Color("#d8e0e6"), 4)
-	draw_line(player_pos + Vector2(10, -18), player_pos + Vector2(18, 4), Color("#d8e0e6"), 4)
+	if player_pose == "repair":
+		draw_line(player_pos + Vector2(-10, -18), player_pos + Vector2(-20, -2), Color("#d8e0e6"), 4)
+		draw_line(player_pos + Vector2(10, -18), player_pos + Vector2(27, -8), Color("#d8e0e6"), 4)
+		draw_rect(Rect2(player_pos + Vector2(26, -11), Vector2(12, 5)), Color("#f0c766"), true)
+	elif player_pose == "scan":
+		draw_line(player_pos + Vector2(-10, -18), player_pos + Vector2(-18, 4), Color("#d8e0e6"), 4)
+		draw_line(player_pos + Vector2(10, -18), player_pos + Vector2(28, -20), Color("#d8e0e6"), 4)
+		draw_circle(player_pos + Vector2(33, -20), 5, Color("#89d8ff"))
+	else:
+		draw_line(player_pos + Vector2(-10, -18), player_pos + Vector2(-18, 4), Color("#d8e0e6"), 4)
+		draw_line(player_pos + Vector2(10, -18), player_pos + Vector2(18, 4), Color("#d8e0e6"), 4)
 	draw_line(player_pos + Vector2(-5, -2), player_pos + Vector2(-10, 20), Color("#d8e0e6"), 4)
 	draw_line(player_pos + Vector2(5, -2), player_pos + Vector2(10, 20), Color("#d8e0e6"), 4)
 
@@ -1649,6 +1995,9 @@ func _default_state() -> Dictionary:
 		"GrowLightRestored": false,
 		"PartialWaterCycleRestored": false,
 		"LastPlantStable": false,
+		"PendingPlantStabilization": false,
+		"PlantTemperatureHighAddressed": false,
+		"PlantTemperatureLowAddressed": false,
 		"Day01Completed": false,
 		"DayNumber": 1,
 		"Day02Started": false,

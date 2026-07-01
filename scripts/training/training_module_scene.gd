@@ -573,17 +573,29 @@ class TrainingTargetVisual:
 class TraineeVisual:
 	extends Control
 
+	var pose := "idle"
+
 	func _ready() -> void:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	func _draw() -> void:
 		var center := size * 0.5
+		var lean := Vector2(0, 3) if pose != "idle" else Vector2.ZERO
 		draw_circle(center + Vector2(0, -12), 10, Color("#e6eef4"))
 		draw_circle(center + Vector2(0, -12), 7, Color("#1b2834"))
-		draw_rect(Rect2(center + Vector2(-9, -3), Vector2(18, 23)), Color("#d8e0e6"), true)
-		draw_rect(Rect2(center + Vector2(-6, 3), Vector2(12, 8)), Color("#7fa7bd"), true)
-		draw_line(center + Vector2(-11, 1), center + Vector2(-18, 17), Color("#d8e0e6"), 4.0)
-		draw_line(center + Vector2(11, 1), center + Vector2(18, 17), Color("#d8e0e6"), 4.0)
+		draw_rect(Rect2(center + Vector2(-9, -3) + lean, Vector2(18, 23)), Color("#d8e0e6"), true)
+		draw_rect(Rect2(center + Vector2(-6, 3) + lean, Vector2(12, 8)), Color("#7fa7bd"), true)
+		if pose == "repair":
+			draw_line(center + Vector2(-11, 1), center + Vector2(-20, 11), Color("#d8e0e6"), 4.0)
+			draw_line(center + Vector2(11, 1), center + Vector2(25, 8), Color("#d8e0e6"), 4.0)
+			draw_rect(Rect2(center + Vector2(24, 5), Vector2(10, 4)), Color("#f0c766"), true)
+		elif pose == "scan":
+			draw_line(center + Vector2(-11, 1), center + Vector2(-17, 16), Color("#d8e0e6"), 4.0)
+			draw_line(center + Vector2(11, 1), center + Vector2(24, 0), Color("#d8e0e6"), 4.0)
+			draw_circle(center + Vector2(28, 0), 4, Color("#89d8ff"))
+		else:
+			draw_line(center + Vector2(-11, 1), center + Vector2(-18, 17), Color("#d8e0e6"), 4.0)
+			draw_line(center + Vector2(11, 1), center + Vector2(18, 17), Color("#d8e0e6"), 4.0)
 		draw_line(center + Vector2(-5, 20), center + Vector2(-8, 32), Color("#d8e0e6"), 4.0)
 		draw_line(center + Vector2(5, 20), center + Vector2(8, 32), Color("#d8e0e6"), 4.0)
 		draw_rect(Rect2(center + Vector2(-15, 4), Vector2(5, 12)), Color("#9aa8b4"), true)
@@ -601,10 +613,24 @@ var hint_label: Label
 var log_label: Label
 var diagnosis_panel: VBoxContainer
 var footer_buttons: HBoxContainer
+var left_panel: PanelContainer
+var minimal_hud: PanelContainer
+var minimal_title_label: Label
+var minimal_objective_label: Label
+var briefing_modal: PanelContainer
+var pause_panel: PanelContainer
+var interaction_panel: PanelContainer
+var interaction_label: Label
+var interaction_bar: ProgressBar
 var target_nodes: Dictionary = {}
 var prompt_label: Label
 var completed := false
 var show_trigger_debug := false
+var mission_panel_visible := false
+var briefing_visible := true
+var pause_visible := false
+var interaction_running := false
+var interaction_target_id := ""
 var wait_timer := 0.0
 var player_speed := 280.0
 
@@ -616,9 +642,14 @@ func _ready() -> void:
 	_build_screen()
 	_update_hud()
 	if completed:
-		_show_completed_next_action()
+		briefing_visible = false
+		if briefing_modal != null:
+			briefing_modal.visible = false
 
 func _process(delta: float) -> void:
+	if briefing_visible or pause_visible or interaction_running:
+		_update_room_prompt()
+		return
 	_move_player(delta)
 	if not completed:
 		_check_wait_step(delta)
@@ -626,13 +657,17 @@ func _process(delta: float) -> void:
 	_update_room_prompt()
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("interact") and not completed:
+	if event.is_action_pressed("mission_panel"):
+		_toggle_mission_panel()
+	if event.is_action_pressed("interact") and completed and not briefing_visible and not pause_visible and not interaction_running:
+		_try_exit_after_completion()
+	elif event.is_action_pressed("interact") and not completed and not briefing_visible and not pause_visible and not interaction_running:
 		_try_interact()
 	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_F3:
 		show_trigger_debug = not show_trigger_debug
 		_update_trigger_debug()
 	if event.is_action_pressed("ui_cancel"):
-		get_tree().change_scene_to_file("res://scenes/main.tscn")
+		_toggle_pause_menu()
 
 func _ensure_input_actions() -> void:
 	if not InputMap.has_action("interact"):
@@ -640,6 +675,15 @@ func _ensure_input_actions() -> void:
 		var event := InputEventKey.new()
 		event.physical_keycode = KEY_E
 		InputMap.action_add_event("interact", event)
+	var enter_event := InputEventKey.new()
+	enter_event.physical_keycode = KEY_ENTER
+	if not InputMap.action_has_event("interact", enter_event):
+		InputMap.action_add_event("interact", enter_event)
+	if not InputMap.has_action("mission_panel"):
+		InputMap.add_action("mission_panel")
+		var panel_event := InputEventKey.new()
+		panel_event.physical_keycode = KEY_TAB
+		InputMap.action_add_event("mission_panel", panel_event)
 
 func _build_screen() -> void:
 	var background := ColorRect.new()
@@ -668,8 +712,9 @@ func _build_screen() -> void:
 	row.add_theme_constant_override("separation", 14)
 	root.add_child(row)
 
-	var left_panel := PanelContainer.new()
+	left_panel = PanelContainer.new()
 	left_panel.custom_minimum_size = Vector2(420, 0)
+	left_panel.visible = false
 	row.add_child(left_panel)
 	var left := VBoxContainer.new()
 	left.add_theme_constant_override("separation", 12)
@@ -719,15 +764,163 @@ func _build_screen() -> void:
 	training_area.custom_minimum_size = Vector2(760, 520)
 	area_panel.add_child(training_area)
 	_build_training_area()
+	_build_training_overlays()
 
 	var footer := HBoxContainer.new()
 	footer_buttons = footer
 	footer.alignment = BoxContainer.ALIGNMENT_END
 	footer.custom_minimum_size = Vector2(0, 48)
 	footer.add_theme_constant_override("separation", 12)
+	footer.visible = false
 	root.add_child(footer)
 	_add_button(footer, "保存训练进度", func(): TrainingManagerScript.set_current_module(module_id))
 	_add_button(footer, "返回主菜单", func(): get_tree().change_scene_to_file("res://scenes/main.tscn"))
+
+func _build_training_overlays() -> void:
+	minimal_hud = PanelContainer.new()
+	minimal_hud.position = Vector2(60, 84)
+	minimal_hud.custom_minimum_size = Vector2(390, 96)
+	add_child(minimal_hud)
+	var hud_box := VBoxContainer.new()
+	hud_box.add_theme_constant_override("separation", 6)
+	minimal_hud.add_child(hud_box)
+	minimal_title_label = Label.new()
+	minimal_title_label.modulate = Color("#eaf4ff")
+	minimal_title_label.add_theme_font_size_override("font_size", 17)
+	hud_box.add_child(minimal_title_label)
+	minimal_objective_label = Label.new()
+	minimal_objective_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	minimal_objective_label.modulate = Color("#f0c766")
+	minimal_objective_label.add_theme_font_size_override("font_size", 15)
+	hud_box.add_child(minimal_objective_label)
+	var key_hint := Label.new()
+	key_hint.text = "Tab 查看任务    Esc 暂停"
+	key_hint.modulate = Color("#7f93a3")
+	key_hint.add_theme_font_size_override("font_size", 12)
+	hud_box.add_child(key_hint)
+	_build_briefing_modal()
+	_build_pause_panel()
+	_build_interaction_panel()
+
+func _build_briefing_modal() -> void:
+	briefing_modal = PanelContainer.new()
+	briefing_modal.set_anchors_preset(Control.PRESET_CENTER)
+	briefing_modal.offset_left = -310
+	briefing_modal.offset_top = -190
+	briefing_modal.offset_right = 310
+	briefing_modal.offset_bottom = 190
+	briefing_modal.visible = not completed
+	add_child(briefing_modal)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 14)
+	briefing_modal.add_child(box)
+	var title := Label.new()
+	title.text = String(module_data.get("title", "训练模块"))
+	title.modulate = Color("#eaf4ff")
+	title.add_theme_font_size_override("font_size", 24)
+	box.add_child(title)
+	var subtitle := Label.new()
+	subtitle.text = "训练入口简报"
+	subtitle.modulate = Color("#86c7ff")
+	subtitle.add_theme_font_size_override("font_size", 16)
+	box.add_child(subtitle)
+	var body := Label.new()
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.modulate = Color("#c6d5df")
+	body.add_theme_font_size_override("font_size", 16)
+	body.text = "本模块将在模拟训练舱内记录你的操作顺序。\n\n靠近当前目标后，按 E / Enter 交互。\n按 Tab 可随时查看完整任务面板。"
+	box.add_child(body)
+	var button := Button.new()
+	button.text = "确认，开始训练"
+	button.custom_minimum_size = Vector2(0, 44)
+	button.pressed.connect(func(): _close_briefing())
+	box.add_child(button)
+	briefing_visible = not completed
+
+func _build_pause_panel() -> void:
+	pause_panel = PanelContainer.new()
+	pause_panel.set_anchors_preset(Control.PRESET_CENTER)
+	pause_panel.offset_left = -210
+	pause_panel.offset_top = -150
+	pause_panel.offset_right = 210
+	pause_panel.offset_bottom = 150
+	pause_panel.visible = false
+	add_child(pause_panel)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 12)
+	pause_panel.add_child(box)
+	var title := Label.new()
+	title.text = "训练暂停"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.modulate = Color("#eaf4ff")
+	title.add_theme_font_size_override("font_size", 22)
+	box.add_child(title)
+	var resume := Button.new()
+	resume.text = "继续训练"
+	resume.custom_minimum_size = Vector2(0, 42)
+	resume.pressed.connect(func(): _set_pause_visible(false))
+	box.add_child(resume)
+	var tasks := Button.new()
+	tasks.text = "查看任务"
+	tasks.custom_minimum_size = Vector2(0, 42)
+	tasks.pressed.connect(func():
+		_set_pause_visible(false)
+		_set_mission_panel_visible(true)
+	)
+	box.add_child(tasks)
+	var main := Button.new()
+	main.text = "返回主菜单"
+	main.custom_minimum_size = Vector2(0, 42)
+	main.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/main.tscn"))
+	box.add_child(main)
+
+func _build_interaction_panel() -> void:
+	interaction_panel = PanelContainer.new()
+	interaction_panel.position = Vector2(520, 720)
+	interaction_panel.custom_minimum_size = Vector2(560, 78)
+	interaction_panel.visible = false
+	add_child(interaction_panel)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 6)
+	interaction_panel.add_child(box)
+	interaction_label = Label.new()
+	interaction_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	interaction_label.modulate = Color("#eaf4ff")
+	interaction_label.add_theme_font_size_override("font_size", 16)
+	box.add_child(interaction_label)
+	interaction_bar = ProgressBar.new()
+	interaction_bar.min_value = 0.0
+	interaction_bar.max_value = 1.0
+	interaction_bar.value = 0.0
+	interaction_bar.show_percentage = false
+	interaction_bar.custom_minimum_size = Vector2(0, 12)
+	box.add_child(interaction_bar)
+
+func _close_briefing() -> void:
+	briefing_visible = false
+	if briefing_modal != null:
+		briefing_modal.visible = false
+
+func _toggle_mission_panel() -> void:
+	if pause_visible:
+		return
+	_set_mission_panel_visible(not mission_panel_visible)
+
+func _set_mission_panel_visible(value: bool) -> void:
+	mission_panel_visible = value
+	if left_panel != null:
+		left_panel.visible = value or (diagnosis_panel != null and diagnosis_panel.visible)
+
+func _toggle_pause_menu() -> void:
+	if briefing_visible:
+		_close_briefing()
+		return
+	_set_pause_visible(not pause_visible)
+
+func _set_pause_visible(value: bool) -> void:
+	pause_visible = value
+	if pause_panel != null:
+		pause_panel.visible = value
 
 func _build_training_area() -> void:
 	target_nodes.clear()
@@ -787,6 +980,16 @@ func _build_training_area() -> void:
 			label.modulate = Color("#eaf4ff")
 			label.add_theme_font_size_override("font_size", 13)
 			node.add_child(label)
+
+	if module_id == "final_assessment" and not target_nodes.has("exit"):
+		var exit_visual := TrainingTargetVisual.new()
+		exit_visual.kind = "exit"
+		exit_visual.label_text = "考核出口"
+		exit_visual.name = "exit"
+		exit_visual.position = Vector2(684, 388)
+		exit_visual.size = Vector2(74, 106)
+		training_area.add_child(exit_visual)
+		target_nodes["exit"] = exit_visual
 
 	if module_id == "suit_control" or module_id == "airlock_procedure" or module_id == "power_repair" or module_id == "life_support" or module_id == "plant_diagnosis" or module_id == "final_assessment":
 		player = TraineeVisual.new()
@@ -1064,6 +1267,11 @@ func _assessment_room_target(target: Dictionary) -> Dictionary:
 			room_target["label"] = "植物状态"
 			room_target["position"] = Vector2(558, 314)
 			room_target["size"] = Vector2(96, 60)
+		"exit":
+			room_target["kind"] = "exit"
+			room_target["label"] = "考核出口"
+			room_target["position"] = Vector2(684, 388)
+			room_target["size"] = Vector2(74, 106)
 	return room_target
 
 func _move_player(delta: float) -> void:
@@ -1119,7 +1327,7 @@ func _try_interact() -> void:
 	if _blocked_by_order(step):
 		hint_label.text = String(step.get("blocked_hint", "流程顺序错误。请按当前目标执行。"))
 		return
-	_complete_step()
+	_begin_step_interaction_feedback(step)
 
 func _current_step() -> Dictionary:
 	var steps: Array = module_data.get("steps", [])
@@ -1147,16 +1355,119 @@ func _complete_step() -> void:
 	else:
 		_update_hud()
 
+func _begin_step_interaction_feedback(step: Dictionary) -> void:
+	if interaction_running:
+		return
+	interaction_running = true
+	interaction_target_id = String(step.get("target", ""))
+	if player != null:
+		player.set("pose", _interaction_pose_for_step(step))
+		player.queue_redraw()
+	var duration := _interaction_duration_for_step(step)
+	var start_text := _interaction_start_text(step)
+	var done_text := _interaction_done_text(step)
+	if interaction_panel != null:
+		interaction_panel.visible = true
+	if interaction_label != null:
+		interaction_label.text = start_text
+	if interaction_bar != null:
+		interaction_bar.value = 0.0
+	var elapsed := 0.0
+	while elapsed < duration:
+		await get_tree().process_frame
+		var delta := get_process_delta_time()
+		elapsed += delta
+		if interaction_bar != null:
+			interaction_bar.value = clamp(elapsed / duration, 0.0, 1.0)
+		_update_room_prompt()
+	if interaction_label != null:
+		interaction_label.text = done_text
+	if interaction_bar != null:
+		interaction_bar.value = 1.0
+	await get_tree().create_timer(0.25).timeout
+	if interaction_panel != null:
+		interaction_panel.visible = false
+	interaction_target_id = ""
+	interaction_running = false
+	if player != null:
+		player.set("pose", "idle")
+		player.queue_redraw()
+	_complete_step()
+
+func _interaction_pose_for_step(step: Dictionary) -> String:
+	var objective := String(step.get("objective", ""))
+	if objective.contains("维修") or objective.contains("恢复") or objective.contains("重启") or objective.contains("启动"):
+		return "repair"
+	if objective.contains("检查") or objective.contains("诊断") or objective.contains("扫描") or objective.contains("读取"):
+		return "scan"
+	return "terminal"
+
+func _interaction_duration_for_step(step: Dictionary) -> float:
+	var target := String(step.get("target", ""))
+	var objective := String(step.get("objective", ""))
+	if target == "exit":
+		return 0.65
+	if objective.contains("维修") or objective.contains("恢复") or objective.contains("重启") or objective.contains("稳定") or objective.contains("启动"):
+		return 1.7
+	if objective.contains("检查") or objective.contains("读取") or objective.contains("诊断") or objective.contains("扫描") or objective.contains("确认"):
+		return 1.15
+	return 0.85
+
+func _interaction_start_text(step: Dictionary) -> String:
+	var target := String(step.get("target", ""))
+	var objective := String(step.get("objective", ""))
+	if target == "exit":
+		return "正在确认训练出口状态……"
+	if target.contains("door"):
+		return "正在执行舱门流程……"
+	if objective.contains("维修") or objective.contains("恢复") or objective.contains("重启") or objective.contains("启动"):
+		return "正在执行手动恢复流程……"
+	if objective.contains("诊断") or objective.contains("扫描"):
+		return "正在读取传感器数据……"
+	if objective.contains("发送"):
+		return "正在建立对地通信链路……"
+	return "正在读取终端数据……"
+
+func _interaction_done_text(step: Dictionary) -> String:
+	var target := String(step.get("target", ""))
+	var objective := String(step.get("objective", ""))
+	if target == "exit":
+		return "出口已解锁。"
+	if target.contains("door"):
+		return "舱门状态已更新。"
+	if objective.contains("维修") or objective.contains("恢复") or objective.contains("重启") or objective.contains("启动"):
+		return "操作完成。"
+	if objective.contains("诊断") or objective.contains("扫描"):
+		return "诊断完成。"
+	if objective.contains("发送"):
+		return "报告已加入传输队列。"
+	return "系统状态已同步。"
+
 func _finish_module() -> void:
 	completed = true
 	var next_module := String(module_data.get("next_module", "mission_assignment"))
 	TrainingManagerScript.mark_module_completed(module_id, next_module)
-	if module_id == "suit_control":
-		get_tree().change_scene_to_file(String(module_data.get("next_scene", TrainingManagerScript.START_SCENE)))
-		return
-	hint_label.text = "模块完成。"
+	hint_label.text = _completed_hint_text()
 	_update_hud()
-	_show_completed_next_action()
+
+func _try_exit_after_completion() -> void:
+	if not target_nodes.has("exit"):
+		return
+	if not _is_near("exit"):
+		hint_label.text = _completed_hint_text()
+		_update_hud()
+		return
+	get_tree().change_scene_to_file(String(module_data.get("next_scene", TrainingManagerScript.START_SCENE)))
+
+func _completed_objective_text() -> String:
+	if module_id == "final_assessment":
+		return "前往考核出口"
+	return "前往训练出口"
+
+func _completed_hint_text() -> String:
+	if module_id == "final_assessment":
+		return "最终考核记录已完成。请前往出口查看任务派遣通知。"
+	return "训练记录已完成。请前往训练出口，进入下一阶段。"
 
 func _show_completed_next_action() -> void:
 	if footer_buttons != null:
@@ -1284,11 +1595,12 @@ func _update_room_prompt() -> void:
 	if prompt_label == null:
 		return
 	var step := _current_step()
-	var target_id := String(step.get("target", "")) if not step.is_empty() else ""
+	var target_id := "exit" if completed else (String(step.get("target", "")) if not step.is_empty() else "")
 	for node in target_nodes.values():
 		if node is TrainingTargetVisual:
-			node.highlighted = node.name == target_id
-			node.active = false
+			var node_is_interacting: bool = interaction_running and node.name == interaction_target_id
+			node.highlighted = node.name == target_id or node_is_interacting
+			node.active = node_is_interacting
 			node.locked = _target_locked(String(node.name), target_id)
 			node.modulate = Color(1, 1, 1, 1) if node.highlighted else Color(0.72, 0.78, 0.84, 0.72)
 			node.show_trigger_debug = show_trigger_debug and node.kind == "marker"
@@ -1323,7 +1635,7 @@ func _update_room_prompt() -> void:
 		floor_node.set("life_stable", bool(state.get("LifeSupportStable", false)))
 		floor_node.set("plant_stable", bool(state.get("PlantStable", false)))
 		floor_node.queue_redraw()
-	if completed or step.is_empty():
+	if target_id.is_empty():
 		prompt_label.visible = false
 		return
 	if not target_nodes.has(target_id):
@@ -1332,9 +1644,9 @@ func _update_room_prompt() -> void:
 	var target: Control = target_nodes[target_id]
 	var near := _is_near(target_id)
 	if target is TrainingTargetVisual:
-		target.active = near and String(step.get("type", "")) == "interact"
+		target.active = interaction_running and target.name == interaction_target_id or near and (completed or String(step.get("type", "")) == "interact")
 		target.queue_redraw()
-	if near and String(step.get("type", "")) == "interact":
+	if near and (completed or String(step.get("type", "")) == "interact"):
 		prompt_label.text = _interaction_prompt(target_id)
 		prompt_label.position = target.position + Vector2(8, target.size.y + 20)
 		prompt_label.visible = true
@@ -1350,6 +1662,10 @@ func _target_locked(node_name: String, target_id: String) -> bool:
 	return false
 
 func _interaction_prompt(target_id: String) -> String:
+	if target_id == "exit":
+		if module_id == "final_assessment":
+			return "E / Enter 查看任务派遣通知"
+		return "E / Enter 进入下一阶段"
 	if module_id == "airlock_procedure":
 		match target_id:
 			"inner_door":
@@ -1444,6 +1760,13 @@ func _update_hud() -> void:
 	var step := _current_step()
 	var objective := String(step.get("objective", "训练流程已完成。")) if not completed else "训练流程已完成。"
 	objective_label.text = "当前目标：%s" % objective
+	if completed:
+		objective = _completed_objective_text()
+		objective_label.text = "当前目标：%s" % objective
+	if minimal_title_label != null:
+		minimal_title_label.text = String(module_data.get("title", "训练模块"))
+	if minimal_objective_label != null:
+		minimal_objective_label.text = "当前目标：%s" % objective
 	if module_id == "airlock_procedure":
 		hud_label.text = _airlock_hud_text()
 	elif module_id == "power_repair":
@@ -1472,6 +1795,10 @@ func _update_hud() -> void:
 		hint_label.text = String(step.get("hint", "移动至目标区域，按 E 交互。")) if not completed else "训练记录已保存。"
 	if String(step.get("type", "")) == "diagnosis":
 		_show_diagnosis_options(step.get("options", []), String(step.get("correct", "")))
+	if completed:
+		hint_label.text = _completed_hint_text()
+	if left_panel != null:
+		left_panel.visible = mission_panel_visible or (diagnosis_panel != null and diagnosis_panel.visible)
 
 func _suit_control_hint(step: Dictionary) -> String:
 	match String(step.get("target", "")):
