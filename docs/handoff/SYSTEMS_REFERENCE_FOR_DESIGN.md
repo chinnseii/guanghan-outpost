@@ -2005,3 +2005,133 @@ terrain_type ∈ {lunar_flat, lunar_rough} → "eva_normal"（不管穿没穿，
 文档自己也只是"建议"而非"必须"做 UI）。主菜单开发菜单新增 Movement
 Debug 分组：查看状态（含当前健康/宇航服/负重倍率）、模拟 10 格室内
 移动、模拟 30 格月面平坦移动、模拟 30 格月面崎岖移动、重置。
+
+---
+
+## 训练第一房间：宇航服整备室
+
+### 定位
+训练第一房间重构——教玩家"行动会消耗时间、出发前必须确认宇航服状态"。
+**沿用既有 module_id `"suit_control"`**（`Training_01_SuitControl.tscn`），
+**没有**新建独立场景文件或改名成 `"spacesuit_preparation"`：需求文档建议
+的新 module_id 会牵动 `TrainingManager.are_required_modules_completed()`/
+`default_data()`/`MODULE_SCENES` 和整条存档兼容路径（这些都是围绕现有
+5 个必修模块写死的），重命名没有带来任何功能收益，只有风险，所以选择
+在既有 `training_module_scene.gd`（5 个训练模块+最终考核共用的场景脚本）
+的通用"步骤数组"引擎上重新配置这一个模块的内容，而不是另起一套系统。
+
+### 新的 4 步流程（`_suit_control_config()`）
+```gdscript
+"targets": [
+    {"id": "suit_rack", "kind": "tool_station", "label": "宇航服整备架", ...},
+    {"id": "exit", "label": "模拟气闸舱入口", ...},
+],
+"steps": [
+    {"type": "move", "target": "suit_rack", "objective": "移动到宇航服整备架", ...},
+    {"type": "wear_suit_confirm", "target": "suit_rack", "objective": "按 E 穿戴宇航服", ...},
+    {"type": "suit_status_panel", "target": "suit_rack", "objective": "按 Tab 查看宇航服状态面板",
+     "state_updates": {"SuitStatusConfirmed": true, "ExitDoorUnlocked": true}, ...},
+    {"type": "interact", "target": "exit", "objective": "进入模拟气闸舱",
+     "requires": {"ExitDoorUnlocked": true}, "blocked_hint": "请先确认宇航服状态。", ...},
+],
+```
+`"suit_rack"` 的 `"kind": "tool_station"` 复用了既有的
+`res://scenes/props/training/ToolStation.tscn` 道具场景（没有新建美术
+资产——道具/场景美术不在这次改动范围内，`kind` 缺省会退化成 `id` 本身，
+而 `"suit_rack"` 不是任何已知 kind，会画不出东西，所以必须显式指定）。
+删掉了原来的 `"marker"` 目标和它对应的"移动到标记区域"步骤——新流程第
+一步直接就是"移动到宇航服整备架"，不需要额外的标记点。
+
+**门锁完全靠步骤顺序 + `requires`/`blocked_hint` 实现，没有引入新的
+"门"节点/锁定状态机**：`training_module_scene.gd` 的步骤引擎本来就是
+严格按 `step_index` 顺序推进的（`_try_interact()` 永远只处理
+`_current_step()`），玩家在完成前三步之前物理上够不着最后一步的 "exit"
+——`requires: {"ExitDoorUnlocked": true}` 是跟着 `airlock_procedure` 模块
+里 "outer_door" 步骤同款的belt-and-suspenders 写法（那个模块的
+"PressureStable"/"InnerDoorClosed" 检查同样technically 已经被顺序保证了，
+这里跟随既有代码风格）。
+
+### 两个新增的步骤类型
+```
+wear_suit_confirm：
+  E 键在 "suit_rack" 附近触发 _show_wear_suit_confirm_dialog()——复用跟
+  plant_control 步骤同一套弹窗基础设施（scrim + PanelContainer + 按钮），
+  只是换成"确认穿戴"/"取消"两个按钮而不是选项列表。"确认穿戴"调用
+  SuitManager.wear_suit_training()（见下），成功才 _complete_step()。
+
+suit_status_panel：
+  不通过 E 触发（E 按下时只提示"请按 Tab 查看宇航服状态面板。"，跟
+  diagnosis 步骤类型的早退模式一样）。Tab 键（既有的 "mission_panel"
+  action，所有模块通用）现在做了条件分支：_toggle_mission_panel() 检查
+  当前步骤类型是不是 "suit_status_panel"，是的话打开新的
+  suit_status_modal（而不是常规的任务总览 left_panel），其余所有模块的
+  Tab 行为完全没变。面板内容来自
+  SuitManager.get_suit_status_for_ui()，"确认状态"按钮点击后调
+  _on_confirm_suit_status_pressed() -> _complete_step()（顺带触发
+  state_updates 里的 ExitDoorUnlocked=true）。
+```
+
+### `SuitManager.gd` 新增（跟正式宇航服系统共用同一个实例，见下"边界"）
+```
+suit_seal_status: String = "normal"    # 新字段，纯展示，暂无任何机制读它
+suit_comm_status: String = "online"    # 新字段，纯展示，暂无任何机制读它
+
+wear_suit_training() -> bool
+  跟 wear_suit() 一样的前置条件（suit_storage_state == "ready"），但推进
+  的是 TrainingTimeManager.advance_training_time(15, "training_wear_spacesuit")，
+  不是正式 TimeManager。已用临时脚本验证：调用后正式 TimeManager 的
+  serialize() 快照完全不变，TrainingTimeManager 的 elapsed_minutes 精确
+  +15。
+
+get_suit_status_for_ui() -> Dictionary
+  返回 oxygen/oxygen_capacity/power/power_capacity/seal_status/
+  comm_status/speed_multiplier 七个键，需求文档给的示例字段名。
+
+panel_status_text() 顺带扩展成两行，新增了密封/通信这两项（原来只有
+状态+氧气+电力一行 + 速度倍率一行）——这个改动影响的是正式游戏里已有的
+`scripts/ui/suit_panel.gd`（`U` 键那个面板），不是训练专属改动，因为这
+两个字段是同一个 SuitManager 实例上的，两边应该看到同样完整的信息。
+```
+**没有新增 `is_suit_worn() -> bool` 方法**——需求文档建议这个接口名，但
+`SuitManager` 已经有一个同名的公开字段 `is_suit_worn: bool`（正式宇航服
+系统那次加的），GDScript 不允许同一个类里字段和方法同名，调用方应该直接
+读这个字段（`suit_manager.get("is_suit_worn")`），不需要额外包一层方法。
+
+### 与正式宇航服系统的边界（需求文档第十八节三选一，选的是最简单那条）
+需求文档给了三种做法（`SuitManager` 支持 training context / 独立的
+`TrainingSuitState` / 训练直接用 `SuitManager`，正式任务开始前重置）。
+本次选的是第三种——**训练和正式任务共用同一个 `SuitManager` 实例，不做
+数据隔离**，理由：
+- `TrainingManager.reset_progress()`（"重置训练进度"debug 按钮 already
+  wired）已经会重置 `SuitManager`（正式宇航服系统上线时就接进去了）。
+- 正式任务真正的开局重置路径是 `TimeManager.reset_to_arrival()`
+  那条链——`SuitManager.reset_to_arrival()` 目前**没有**被这条链自动
+  调用（正式宇航服系统本来就没接进 `TimeManager`/`BaseStatusManager` 那条
+  reset 链，只被 `sprint06_base_scene.gd`/`training_manager.gd` 各自的
+  存档 load/save 路径覆盖）。也就是说：如果玩家在训练里穿了宇航服，然后
+  不经过"重置训练进度"直接进入正式任务，训练时留下的宇航服状态
+  （`is_suit_worn=true` 等）会带进正式任务——**这是本次已知的、故意没有
+  堵上的缺口**，见下方已知问题。
+
+### 存档
+`suit_state.json` 新增 `suit_seal_status`/`suit_comm_status` 两个字段
+（跟其余字段一起走同一个 `serialize()`/`deserialize()`）。
+
+### 已知问题 / 暂不覆盖范围
+- **训练宇航服状态可能"泄漏"进正式任务**：见上方"边界"一节——
+  `SuitManager` 没有被正式任务开局的 `TimeManager.reset_to_arrival()`
+  链自动重置，如果玩家训练时穿了宇航服、没点"重置训练进度"就直接进入
+  正式任务，`is_suit_worn`/`suit_oxygen` 等会带着训练时的值进入正式游戏。
+  下一轮如果要彻底堵上，需要在正式任务真正开始的那个时间点（`accept_assignment()`
+  或类似的"接受派遣"流程）显式调一次
+  `SuitManager.reset_to_arrival()`，本次没有做这个改动（不确定这是不是
+  会跟正式任务里"玩家已经拥有升级过的宇航服"这类未来设计冲突，留给下一轮
+  决定）。
+- `suit_seal_status`/`suit_comm_status` 纯展示，没有任何机制会改变它们
+  或读取它们做判断——完全是为了满足需求文档"面板要显示密封/通信"这条
+  UI 要求新增的两个字段。
+- 第二训练区"模拟气闸舱"复用的是**已经存在**的 `airlock_procedure` 模块
+  （`Training_02_AirlockProcedure.tscn`），不是需求文档提到的全新
+  `AirlockSimulationRoom.tscn`——`_suit_control_config()` 的
+  `"next_module"`/`"next_scene"` 本来就指向它，本次没有改动
+  `airlock_procedure` 模块本身的任何内容。

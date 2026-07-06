@@ -692,6 +692,10 @@ var diagnosis_modal: PanelContainer
 var diagnosis_modal_image: TextureRect
 var diagnosis_modal_text: Label
 var diagnosis_modal_actions: VBoxContainer
+var suit_status_scrim: ColorRect
+var suit_status_modal: PanelContainer
+var suit_status_text_label: Label
+var suit_status_panel_visible := false
 var footer_buttons: HBoxContainer
 var left_panel: PanelContainer
 var minimal_hud: PanelContainer
@@ -895,6 +899,7 @@ func _build_training_overlays() -> void:
 	_build_pause_panel()
 	_build_interaction_panel()
 	_build_diagnosis_modal()
+	_build_suit_status_panel()
 
 func _build_diagnosis_modal() -> void:
 	diagnosis_modal_scrim = ColorRect.new()
@@ -946,6 +951,109 @@ func _build_diagnosis_modal() -> void:
 	diagnosis_modal_actions = VBoxContainer.new()
 	diagnosis_modal_actions.add_theme_constant_override("separation", 10)
 	right.add_child(diagnosis_modal_actions)
+
+## Tab (the "mission_panel" action) opens this instead of the normal
+## left_panel mission overview while the current step is
+## "suit_status_panel" -- see _toggle_mission_panel().
+func _build_suit_status_panel() -> void:
+	suit_status_scrim = ColorRect.new()
+	suit_status_scrim.color = Color("#02070d", 0.78)
+	suit_status_scrim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	suit_status_scrim.visible = false
+	add_child(suit_status_scrim)
+
+	suit_status_modal = PanelContainer.new()
+	suit_status_modal.set_anchors_preset(Control.PRESET_CENTER)
+	suit_status_modal.offset_left = -260
+	suit_status_modal.offset_top = -190
+	suit_status_modal.offset_right = 260
+	suit_status_modal.offset_bottom = 190
+	suit_status_modal.visible = false
+	add_child(suit_status_modal)
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color("#170a1e", 0.97)
+	style.border_color = Color("#8a5fa8", 0.9)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(4)
+	style.content_margin_left = 22
+	style.content_margin_top = 20
+	style.content_margin_right = 22
+	style.content_margin_bottom = 20
+	suit_status_modal.add_theme_stylebox_override("panel", style)
+
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 12)
+	suit_status_modal.add_child(box)
+	var title := Label.new()
+	title.text = "宇航服状态"
+	title.modulate = Color("#eaf4ff")
+	title.add_theme_font_size_override("font_size", 20)
+	box.add_child(title)
+	suit_status_text_label = Label.new()
+	suit_status_text_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	suit_status_text_label.modulate = Color("#e8d9f5")
+	suit_status_text_label.add_theme_font_size_override("font_size", 16)
+	box.add_child(suit_status_text_label)
+	var confirm := Button.new()
+	confirm.text = "确认状态"
+	confirm.custom_minimum_size = Vector2(0, 42)
+	confirm.pressed.connect(_on_confirm_suit_status_pressed)
+	box.add_child(confirm)
+
+func _toggle_suit_status_panel() -> void:
+	suit_status_panel_visible = not suit_status_panel_visible
+	if suit_status_panel_visible:
+		_refresh_suit_status_panel()
+	if suit_status_scrim != null:
+		suit_status_scrim.visible = suit_status_panel_visible
+	if suit_status_modal != null:
+		suit_status_modal.visible = suit_status_panel_visible
+	_sync_overlay_visibility()
+
+func _refresh_suit_status_panel() -> void:
+	if suit_status_text_label == null:
+		return
+	var suit_manager := _suit_manager()
+	if suit_manager == null or not suit_manager.has_method("get_suit_status_for_ui"):
+		suit_status_text_label.text = "宇航服数据不可用。"
+		return
+	var data: Dictionary = suit_manager.call("get_suit_status_for_ui")
+	suit_status_text_label.text = "氧气：%.0f / %.0f\n电力：%.0f / %.0f\n密封：%s\n通信：%s\n移动倍率：%.2f\n\n初代宇航服会降低行动速度。后续升级可将移动倍率提升至 1.00。" % [
+		float(data.get("oxygen", 0.0)), float(data.get("oxygen_capacity", 0.0)),
+		float(data.get("power", 0.0)), float(data.get("power_capacity", 0.0)),
+		_suit_seal_label(String(data.get("seal_status", "normal"))),
+		_suit_comm_label(String(data.get("comm_status", "online"))),
+		float(data.get("speed_multiplier", 0.8)),
+	]
+
+func _suit_seal_label(status: String) -> String:
+	if status == "normal":
+		return "正常"
+	return status
+
+func _suit_comm_label(status: String) -> String:
+	if status == "online":
+		return "在线"
+	return status
+
+## Only completes the step if the confirm button is pressed while this
+## step is genuinely current -- guards against a stray click after the
+## panel should already be gone (e.g. double-click, or reopening it later).
+func _on_confirm_suit_status_pressed() -> void:
+	if String(_current_step().get("type", "")) != "suit_status_panel":
+		return
+	suit_status_panel_visible = false
+	if suit_status_scrim != null:
+		suit_status_scrim.visible = false
+	if suit_status_modal != null:
+		suit_status_modal.visible = false
+	_complete_step()
+
+func _suit_manager() -> Node:
+	var tree := get_tree()
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null("SuitManager")
 
 func _build_briefing_modal() -> void:
 	briefing_scrim = ColorRect.new()
@@ -1053,8 +1161,16 @@ func _close_briefing() -> void:
 		briefing_modal.visible = false
 	_sync_overlay_visibility()
 
+## Tab is bound to the "mission_panel" action for every module; while the
+## current step is "suit_status_panel" it opens the suit status modal
+## instead of the normal mission overview, per the spec's "按 Tab 查看
+## 宇航服状态面板" instruction. Every other step/module keeps the original
+## behavior unchanged.
 func _toggle_mission_panel() -> void:
 	if pause_visible:
+		return
+	if String(_current_step().get("type", "")) == "suit_status_panel":
+		_toggle_suit_status_panel()
 		return
 	_set_mission_panel_visible(not mission_panel_visible)
 
@@ -1079,6 +1195,7 @@ func _set_pause_visible(value: bool) -> void:
 func _sync_overlay_visibility() -> void:
 	var diagnosis_panel_open := diagnosis_panel != null and diagnosis_panel.visible
 	var diagnosis_open := diagnosis_panel_open or (diagnosis_modal != null and diagnosis_modal.visible)
+	var suit_status_open := suit_status_modal != null and suit_status_modal.visible
 	if briefing_scrim != null:
 		briefing_scrim.visible = briefing_visible
 	if briefing_modal != null:
@@ -1086,8 +1203,8 @@ func _sync_overlay_visibility() -> void:
 	if left_panel != null:
 		left_panel.visible = mission_panel_visible or diagnosis_panel_open
 	if minimal_hud != null:
-		minimal_hud.visible = not briefing_visible and not mission_panel_visible and not pause_visible and not diagnosis_open
-	if prompt_label != null and (briefing_visible or mission_panel_visible or pause_visible or diagnosis_open):
+		minimal_hud.visible = not briefing_visible and not mission_panel_visible and not pause_visible and not diagnosis_open and not suit_status_open
+	if prompt_label != null and (briefing_visible or mission_panel_visible or pause_visible or diagnosis_open or suit_status_open):
 		prompt_label.visible = false
 
 func _build_training_area() -> void:
@@ -1476,6 +1593,9 @@ func _try_interact() -> void:
 	if step_type == "diagnosis":
 		hint_label.text = "请在诊断弹窗中选择诊断结果。"
 		return
+	if step_type == "suit_status_panel":
+		hint_label.text = "请按 Tab 查看宇航服状态面板。"
+		return
 	var target := String(step.get("target", ""))
 	if step_type == "move":
 		if _is_inside_target_area(target):
@@ -1495,6 +1615,9 @@ func _try_interact() -> void:
 		return
 	if step_type == "plant_control":
 		_show_plant_control_options(step.get("options", []), String(step.get("correct", "")))
+		return
+	if step_type == "wear_suit_confirm":
+		_show_wear_suit_confirm_dialog()
 		return
 	_begin_step_interaction_feedback(step)
 
@@ -2114,6 +2237,49 @@ func _show_plant_control_options(options: Array, correct: String) -> void:
 	diagnosis_modal_actions.add_child(close)
 	_sync_overlay_visibility()
 
+## Reuses the same diagnosis-modal infrastructure as _show_plant_control_options()
+## for a plain two-button confirm dialog. wear_suit_training() itself advances
+## TrainingTimeManager by 15 minutes (not the real TimeManager) and sets the
+## shared SuitManager's worn state -- this step deliberately has no
+## "time_minutes" of its own so _advance_time_for_step() (called
+## unconditionally by _complete_step()) doesn't double-charge the 15 minutes.
+func _show_wear_suit_confirm_dialog() -> void:
+	if diagnosis_panel != null:
+		diagnosis_panel.visible = false
+	if diagnosis_modal_scrim != null:
+		diagnosis_modal_scrim.visible = true
+	if diagnosis_modal != null:
+		diagnosis_modal.visible = true
+	if diagnosis_modal_image != null:
+		diagnosis_modal_image.texture = null
+	if diagnosis_modal_text != null:
+		diagnosis_modal_text.text = "穿戴宇航服\n\n穿戴将消耗训练时间 15 分钟。\n是否确认？"
+	_clear_container(diagnosis_modal_actions)
+	var confirm := Button.new()
+	confirm.text = "确认穿戴"
+	confirm.custom_minimum_size = Vector2(0, 42)
+	confirm.pressed.connect(func():
+		var suit_manager := _suit_manager()
+		var success := false
+		if suit_manager != null and suit_manager.has_method("wear_suit_training"):
+			success = suit_manager.call("wear_suit_training")
+		_hide_training_diagnosis_modal()
+		if success:
+			_complete_step()
+		else:
+			hint_label.text = "宇航服当前无法穿戴。"
+	)
+	diagnosis_modal_actions.add_child(confirm)
+	var cancel := Button.new()
+	cancel.text = "取消"
+	cancel.custom_minimum_size = Vector2(0, 42)
+	cancel.pressed.connect(func():
+		hint_label.text = "已取消穿戴。"
+		_hide_training_diagnosis_modal()
+	)
+	diagnosis_modal_actions.add_child(cancel)
+	_sync_overlay_visibility()
+
 func _hide_training_diagnosis_modal() -> void:
 	if diagnosis_modal_scrim != null:
 		diagnosis_modal_scrim.visible = false
@@ -2175,14 +2341,19 @@ func _update_hud() -> void:
 		hint_label.text = _completed_hint_text()
 	_sync_overlay_visibility()
 
+## Matches on step type, not target -- wear_suit_confirm/suit_status_panel
+## share the same "suit_rack" target but need different instructions.
 func _suit_control_hint(step: Dictionary) -> String:
-	match String(step.get("target", "")):
-		"marker":
-			return "请移动至蓝色标记区域。"
-		"terminal":
-			return "请靠近训练终端并按 E。"
-		"exit":
-			return "训练记录完成。请前往训练出口并按 E。"
+	match String(step.get("type", "")):
+		"move":
+			return "请移动到宇航服整备架。"
+		"wear_suit_confirm":
+			return "请靠近宇航服整备架并按 E 穿戴宇航服。"
+		"suit_status_panel":
+			return "请按 Tab 查看宇航服状态面板。"
+		"interact":
+			if String(step.get("target", "")) == "exit":
+				return "宇航服状态已确认。请前往模拟气闸舱入口并按 E。"
 	return "请按当前目标执行训练流程。"
 
 func _airlock_hud_text() -> String:
@@ -2541,25 +2712,30 @@ func _base_config() -> Dictionary:
 		"hud": "氧气模拟值：98%\n电力模拟值：稳定\n生命支持状态：训练环境\n提示信息：靠近目标后按 E。",
 	}
 
+## Room name per design spec: 宇航服整备室 (Spacesuit Preparation Room).
+## Still module_id "suit_control" / Training_01_SuitControl.tscn -- kept the
+## existing module_id rather than renaming to "spacesuit_preparation" since
+## that would require touching TrainingManager.are_required_modules_completed()/
+## default_data()/MODULE_SCENES and every save-compat path built around the
+## current 5-module scheme, for a rename with no functional benefit.
 func _suit_control_config() -> Dictionary:
 	var data := _base_config()
 	data.merge({
-		"title": "训练模块一：宇航服基础控制",
-		"subtitle": "SUIT CONTROL",
+		"title": "训练模块一：宇航服整备室",
+		"subtitle": "SPACESUIT PREPARATION",
 		"next_module": "airlock_procedure",
 		"next_scene": TrainingManagerScript.MODULE_02,
 		"player_start": Vector2(420, 310),
 		"player_size": Vector2(42, 54),
 		"targets": [
-			{"id": "marker", "label": "标记区域", "position": Vector2(150, 330), "color": Color("#244563")},
-			{"id": "terminal", "label": "训练终端", "position": Vector2(440, 180), "color": Color("#31536f")},
-			{"id": "exit", "label": "训练出口", "position": Vector2(690, 390), "color": Color("#274f43")},
+			{"id": "suit_rack", "kind": "tool_station", "label": "宇航服整备架", "position": Vector2(440, 180), "color": Color("#31536f")},
+			{"id": "exit", "label": "模拟气闸舱入口", "position": Vector2(690, 390), "color": Color("#274f43")},
 		],
 		"steps": [
-			{"type": "move", "target": "marker", "objective": "移动至标记区域", "line": "请移动至标记区域。"},
-			{"type": "interact", "target": "terminal", "objective": "与训练终端交互", "line": "请与训练终端交互。"},
-			{"type": "interact", "target": "terminal", "objective": "查看宇航服状态", "line": "正在读取宇航服状态。\n状态稳定。"},
-			{"type": "interact", "target": "exit", "objective": "返回训练出口", "line": "模块完成。"},
+			{"type": "move", "target": "suit_rack", "objective": "移动到宇航服整备架", "line": "已抵达宇航服整备架。"},
+			{"type": "wear_suit_confirm", "target": "suit_rack", "objective": "按 E 穿戴宇航服", "line": "宇航服已穿戴。"},
+			{"type": "suit_status_panel", "target": "suit_rack", "objective": "按 Tab 查看宇航服状态面板", "line": "宇航服状态已确认。", "state_updates": {"SuitStatusConfirmed": true, "ExitDoorUnlocked": true}},
+			{"type": "interact", "target": "exit", "objective": "进入模拟气闸舱", "line": "宇航服整备室训练完成。", "requires": {"ExitDoorUnlocked": true}, "blocked_hint": "请先确认宇航服状态。"},
 		],
 	})
 	return data
