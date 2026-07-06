@@ -1648,6 +1648,16 @@ func _resident_status_hud_text() -> String:
 		lines.append(health_text)
 	return "\n".join(lines)
 
+func _minimal_resident_status_text() -> String:
+	var lines: Array[String] = []
+	var time_text := _time_hud_text()
+	var health_text := _health_hud_text()
+	if not time_text.is_empty():
+		lines.append(time_text.replace("\n", " · "))
+	if not health_text.is_empty():
+		lines.append(health_text)
+	return "\n".join(lines)
+
 func _interaction_pose_for_step(step: Dictionary) -> String:
 	var objective := String(step.get("objective", ""))
 	if objective.contains("维修") or objective.contains("恢复") or objective.contains("重启") or objective.contains("启动"):
@@ -2096,7 +2106,7 @@ func _update_hud() -> void:
 	if minimal_objective_label != null:
 		minimal_objective_label.text = "当前目标：%s" % objective
 	if minimal_time_label != null:
-		minimal_time_label.text = _resident_status_hud_text().replace("\n", " · ")
+		minimal_time_label.text = _minimal_resident_status_text()
 	if module_id == "airlock_procedure":
 		hud_label.text = _airlock_hud_text()
 	elif module_id == "power_repair":
