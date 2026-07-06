@@ -196,23 +196,44 @@ class FinalAssessmentRoomBlockout:
 			var light_rect := Rect2(Vector2(light_x, room.position.y + 16), Vector2(106, 8))
 			draw_rect(light_rect, light_color, true)
 			draw_rect(light_rect.grow(5), Color(light_color.r, light_color.g, light_color.b, 0.14 if power_on else 0.05), true)
-		var power_zone := Rect2(Vector2(42, 76), Vector2(218, 282))
-		var life_zone := Rect2(Vector2(284, 76), Vector2(226, 282))
-		var plant_zone := Rect2(Vector2(534, 76), Vector2(208, 282))
-		var terminal_zone := Rect2(Vector2(250, 382), Vector2(292, 96))
+		var power_zone := Rect2(Vector2(92, 108), Vector2(250, 250))
+		var life_zone := Rect2(Vector2(size.x * 0.5 - 170, 92), Vector2(340, 284))
+		var plant_zone := Rect2(Vector2(size.x - 430, 118), Vector2(300, 260))
+		var terminal_zone := Rect2(Vector2(size.x * 0.5 - 160, size.y - 182), Vector2(320, 104))
+		_draw_route(power_zone.end - Vector2(0, 125), life_zone.position + Vector2(0, 138))
+		_draw_route(life_zone.end - Vector2(0, 138), plant_zone.position + Vector2(0, 130))
+		_draw_route(plant_zone.position + Vector2(150, plant_zone.size.y), terminal_zone.position + Vector2(terminal_zone.size.x, 52))
+		_draw_route(terminal_zone.position + Vector2(0, 52), power_zone.position + Vector2(power_zone.size.x * 0.5, power_zone.size.y))
 		if life_stable:
 			draw_rect(life_zone.grow(-10), Color("#9fd7ff", 0.035), true)
 		if plant_stable:
 			draw_rect(plant_zone.grow(-10), Color("#7dbd75", 0.035), true)
-		_draw_assessment_zone(power_zone, Color("#1c2833"), "供电区", Vector2(58, 100))
-		_draw_assessment_zone(life_zone, Color("#1a2b38"), "生命支持区", Vector2(300, 100))
-		_draw_assessment_zone(plant_zone, Color("#18262e"), "植物舱区", Vector2(550, 100))
-		_draw_assessment_zone(terminal_zone, Color("#1d2832"), "考核终端区", Vector2(270, 406))
+		_draw_assessment_zone(power_zone, Color("#1c2833"), "1 供电区", power_zone.position + Vector2(18, 26))
+		_draw_assessment_zone(life_zone, Color("#1a2b38"), "2 生命支持区", life_zone.position + Vector2(18, 26))
+		_draw_assessment_zone(plant_zone, Color("#18262e"), "3 植物舱区", plant_zone.position + Vector2(18, 26))
+		_draw_assessment_zone(terminal_zone, Color("#1d2832"), "4 考核终端区", terminal_zone.position + Vector2(20, 26))
 
 	func _draw_assessment_zone(zone: Rect2, fill: Color, label: String, label_pos: Vector2) -> void:
 		draw_rect(zone, fill, true)
 		draw_rect(zone, Color("#5d6f7d", 0.45), false, 2.0)
 		draw_string(ThemeDB.fallback_font, label_pos, label, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color("#8fa3b2"))
+
+	func _draw_route(from: Vector2, to: Vector2) -> void:
+		var delta := to - from
+		var length := delta.length()
+		if length <= 1.0:
+			return
+		var dir := delta / length
+		var normal := Vector2(-dir.y, dir.x)
+		var cursor := 0.0
+		while cursor < length:
+			var start: Vector2 = from + dir * cursor
+			var end: Vector2 = from + dir * min(cursor + 12.0, length)
+			draw_line(start, end, Color("#4fb7f0", 0.62), 2.0)
+			cursor += 24.0
+		var arrow_center := to - dir * 14.0
+		draw_line(arrow_center + normal * 5.0, to, Color("#4fb7f0", 0.72), 2.0)
+		draw_line(arrow_center - normal * 5.0, to, Color("#4fb7f0", 0.72), 2.0)
 
 class TrainingTargetVisual:
 	extends Control
@@ -612,6 +633,11 @@ var hud_label: Label
 var hint_label: Label
 var log_label: Label
 var diagnosis_panel: VBoxContainer
+var diagnosis_modal_scrim: ColorRect
+var diagnosis_modal: PanelContainer
+var diagnosis_modal_image: TextureRect
+var diagnosis_modal_text: Label
+var diagnosis_modal_actions: VBoxContainer
 var footer_buttons: HBoxContainer
 var left_panel: PanelContainer
 var minimal_hud: PanelContainer
@@ -807,6 +833,58 @@ func _build_training_overlays() -> void:
 	_build_briefing_modal()
 	_build_pause_panel()
 	_build_interaction_panel()
+	_build_diagnosis_modal()
+
+func _build_diagnosis_modal() -> void:
+	diagnosis_modal_scrim = ColorRect.new()
+	diagnosis_modal_scrim.color = Color("#02070d", 0.78)
+	diagnosis_modal_scrim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	diagnosis_modal_scrim.visible = false
+	add_child(diagnosis_modal_scrim)
+
+	diagnosis_modal = PanelContainer.new()
+	diagnosis_modal.set_anchors_preset(Control.PRESET_CENTER)
+	diagnosis_modal.offset_left = -540
+	diagnosis_modal.offset_top = -310
+	diagnosis_modal.offset_right = 540
+	diagnosis_modal.offset_bottom = 310
+	diagnosis_modal.visible = false
+	add_child(diagnosis_modal)
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color("#06111a", 0.98)
+	style.border_color = Color("#496c80", 0.95)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(4)
+	style.content_margin_left = 22
+	style.content_margin_top = 20
+	style.content_margin_right = 22
+	style.content_margin_bottom = 20
+	diagnosis_modal.add_theme_stylebox_override("panel", style)
+
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 24)
+	diagnosis_modal.add_child(row)
+	diagnosis_modal_image = TextureRect.new()
+	diagnosis_modal_image.custom_minimum_size = Vector2(500, 560)
+	diagnosis_modal_image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	row.add_child(diagnosis_modal_image)
+	var right := VBoxContainer.new()
+	right.custom_minimum_size = Vector2(500, 560)
+	right.add_theme_constant_override("separation", 14)
+	row.add_child(right)
+	var title := Label.new()
+	title.text = "植物舱诊断详情\nPLANT CHAMBER DIAGNOSTIC"
+	title.modulate = Color("#eaf4ff")
+	title.add_theme_font_size_override("font_size", 22)
+	right.add_child(title)
+	diagnosis_modal_text = Label.new()
+	diagnosis_modal_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	diagnosis_modal_text.modulate = Color("#cfe3f2")
+	diagnosis_modal_text.add_theme_font_size_override("font_size", 16)
+	right.add_child(diagnosis_modal_text)
+	diagnosis_modal_actions = VBoxContainer.new()
+	diagnosis_modal_actions.add_theme_constant_override("separation", 10)
+	right.add_child(diagnosis_modal_actions)
 
 func _build_briefing_modal() -> void:
 	briefing_scrim = ColorRect.new()
@@ -938,16 +1016,17 @@ func _set_pause_visible(value: bool) -> void:
 	_sync_overlay_visibility()
 
 func _sync_overlay_visibility() -> void:
-	var diagnosis_open := diagnosis_panel != null and diagnosis_panel.visible
+	var diagnosis_panel_open := diagnosis_panel != null and diagnosis_panel.visible
+	var diagnosis_open := diagnosis_panel_open or (diagnosis_modal != null and diagnosis_modal.visible)
 	if briefing_scrim != null:
 		briefing_scrim.visible = briefing_visible
 	if briefing_modal != null:
 		briefing_modal.visible = briefing_visible
 	if left_panel != null:
-		left_panel.visible = mission_panel_visible or diagnosis_open
+		left_panel.visible = mission_panel_visible or diagnosis_panel_open
 	if minimal_hud != null:
 		minimal_hud.visible = not briefing_visible and not mission_panel_visible and not pause_visible and not diagnosis_open
-	if prompt_label != null and (briefing_visible or mission_panel_visible or pause_visible):
+	if prompt_label != null and (briefing_visible or mission_panel_visible or pause_visible or diagnosis_open):
 		prompt_label.visible = false
 
 func _build_training_area() -> void:
@@ -1218,87 +1297,87 @@ func _assessment_room_target(target: Dictionary) -> Dictionary:
 		"terminal":
 			room_target["kind"] = "assessment_terminal"
 			room_target["label"] = "考核终端"
-			room_target["position"] = Vector2(326, 394)
-			room_target["size"] = Vector2(160, 82)
+			room_target["position"] = Vector2(640, 468)
+			room_target["size"] = Vector2(190, 76)
 		"tools":
 			room_target["kind"] = "tool_station"
 			room_target["label"] = "工具台"
-			room_target["position"] = Vector2(70, 270)
-			room_target["size"] = Vector2(118, 84)
+			room_target["position"] = Vector2(125, 280)
+			room_target["size"] = Vector2(130, 82)
 		"panel":
 			room_target["kind"] = "power_panel"
 			room_target["label"] = "故障供电面板"
-			room_target["position"] = Vector2(72, 124)
-			room_target["size"] = Vector2(128, 88)
+			room_target["position"] = Vector2(132, 176)
+			room_target["size"] = Vector2(138, 92)
 		"power_console":
 			room_target["kind"] = "power_console"
 			room_target["label"] = "供电控制台"
-			room_target["position"] = Vector2(190, 272)
-			room_target["size"] = Vector2(118, 84)
+			room_target["position"] = Vector2(268, 282)
+			room_target["size"] = Vector2(104, 78)
 		"test_light":
 			room_target["kind"] = "test_light"
 			room_target["label"] = "测试灯"
-			room_target["position"] = Vector2(198, 126)
-			room_target["size"] = Vector2(64, 70)
+			room_target["position"] = Vector2(278, 188)
+			room_target["size"] = Vector2(48, 62)
 		"life_console":
 			room_target["kind"] = "life_console"
 			room_target["label"] = "生命支持控制台"
-			room_target["position"] = Vector2(318, 294)
-			room_target["size"] = Vector2(118, 74)
+			room_target["position"] = Vector2(624, 304)
+			room_target["size"] = Vector2(132, 78)
 		"oxygen":
 			room_target["kind"] = "life_status"
 			room_target["label"] = "氧气状态"
-			room_target["position"] = Vector2(310, 120)
+			room_target["position"] = Vector2(575, 144)
 			room_target["size"] = Vector2(86, 60)
 		"water":
 			room_target["kind"] = "life_status"
 			room_target["label"] = "水循环"
-			room_target["position"] = Vector2(416, 120)
+			room_target["position"] = Vector2(740, 144)
 			room_target["size"] = Vector2(86, 60)
 		"power_display":
 			room_target["kind"] = "life_status"
 			room_target["label"] = "电力状态"
-			room_target["position"] = Vector2(310, 202)
+			room_target["position"] = Vector2(575, 232)
 			room_target["size"] = Vector2(86, 60)
 		"temperature":
 			room_target["kind"] = "life_status"
 			room_target["label"] = "温度状态"
-			room_target["position"] = Vector2(416, 202)
+			room_target["position"] = Vector2(740, 232)
 			room_target["size"] = Vector2(86, 60)
 		"life_core":
 			room_target["kind"] = "life_core"
 			room_target["label"] = "生命支持核心"
-			room_target["position"] = Vector2(446, 292)
+			room_target["position"] = Vector2(820, 302)
 			room_target["size"] = Vector2(58, 74)
 		"plant":
 			room_target["kind"] = "plant_chamber"
 			room_target["label"] = "植物舱"
-			room_target["position"] = Vector2(558, 172)
-			room_target["size"] = Vector2(104, 130)
+			room_target["position"] = Vector2(1110, 216)
+			room_target["size"] = Vector2(112, 132)
 		"scanner":
 			room_target["kind"] = "plant_scanner"
 			room_target["label"] = "植物扫描器"
-			room_target["position"] = Vector2(672, 146)
-			room_target["size"] = Vector2(78, 84)
+			room_target["position"] = Vector2(1272, 194)
+			room_target["size"] = Vector2(74, 82)
 		"light_console":
 			room_target["kind"] = "plant_console"
 			room_target["label"] = "补光控制台"
-			room_target["position"] = Vector2(666, 292)
-			room_target["size"] = Vector2(94, 78)
+			room_target["position"] = Vector2(1240, 318)
+			room_target["size"] = Vector2(94, 76)
 		"grow_light":
 			room_target["kind"] = "grow_light"
 			room_target["label"] = "补光灯"
-			room_target["position"] = Vector2(558, 104)
-			room_target["size"] = Vector2(104, 54)
+			room_target["position"] = Vector2(1110, 152)
+			room_target["size"] = Vector2(112, 52)
 		"plant_status":
 			room_target["kind"] = "plant_status"
 			room_target["label"] = "植物状态"
-			room_target["position"] = Vector2(558, 314)
-			room_target["size"] = Vector2(96, 60)
+			room_target["position"] = Vector2(1110, 356)
+			room_target["size"] = Vector2(108, 58)
 		"exit":
 			room_target["kind"] = "exit"
 			room_target["label"] = "考核出口"
-			room_target["position"] = Vector2(684, 388)
+			room_target["position"] = Vector2(1275, 440)
 			room_target["size"] = Vector2(74, 106)
 	return room_target
 
@@ -1313,6 +1392,10 @@ func _move_player(delta: float) -> void:
 	var margin := 36.0 if use_wall_margin else 8.0
 	player.position.x = clamp(player.position.x, margin, max(margin, training_area.size.x - player.size.x - margin))
 	player.position.y = clamp(player.position.y, margin, max(margin, training_area.size.y - player.size.y - margin))
+	if module_id == "airlock_procedure":
+		var state: Dictionary = module_data.get("state", {})
+		if bool(state.get("Module02Completed", false)) or completed:
+			player.position.x = max(player.position.x, 540.0)
 
 func _check_auto_steps() -> void:
 	var step := _current_step()
@@ -1377,7 +1460,9 @@ func _complete_step() -> void:
 	step_index += 1
 	wait_timer = 0.0
 	if String(step.get("type", "")) == "diagnosis":
-		diagnosis_panel.visible = false
+		if diagnosis_panel != null:
+			diagnosis_panel.visible = false
+		_hide_training_diagnosis_modal()
 	if step_index >= (module_data.get("steps", []) as Array).size():
 		_finish_module()
 	else:
@@ -1696,7 +1781,7 @@ func _target_locked(node_name: String, target_id: String) -> bool:
 		return target_id != "exit"
 	if module_id == "airlock_procedure" and node_name == "outer_door":
 		var state: Dictionary = module_data.get("state", {})
-		return not bool(state.get("PressureStable", false))
+		return bool(state.get("Module02Completed", false)) or completed or not bool(state.get("PressureStable", false))
 	return false
 
 func _interaction_prompt(target_id: String) -> String:
@@ -1780,19 +1865,51 @@ func _interaction_prompt(target_id: String) -> String:
 	return "E 交互"
 
 func _show_diagnosis_options(options: Array, correct: String) -> void:
-	diagnosis_panel.visible = true
-	_clear_container(diagnosis_panel)
+	if diagnosis_panel != null:
+		diagnosis_panel.visible = false
+	if diagnosis_modal_scrim != null:
+		diagnosis_modal_scrim.visible = true
+	if diagnosis_modal != null:
+		diagnosis_modal.visible = true
+	if diagnosis_modal_image != null:
+		diagnosis_modal_image.texture = _load_diagnosis_texture("res://assets/art/greenhouse/plant_states/light_low.png")
+	if diagnosis_modal_text != null:
+		diagnosis_modal_text.text = "传感器读数\n补光输出：低于维持阈值\n水循环：最低运行\n根区温度：正常\n生命信号：弱\n\n植物状态\n叶片偏淡，植株向补光灯方向倾斜。\n新叶展开缓慢。\n\n原因分析\n补光输出不足，无法支撑最低光合维持。\n\n请选择诊断结论。"
+	_clear_container(diagnosis_modal_actions)
 	for option in options:
 		var button := Button.new()
 		button.text = String(option)
-		button.custom_minimum_size = Vector2(0, 38)
+		button.custom_minimum_size = Vector2(0, 42)
 		button.pressed.connect(func():
 			if button.text == correct:
+				_hide_training_diagnosis_modal()
 				_complete_step()
 			else:
 				hint_label.text = String(_current_step().get("wrong_hint", "诊断结论不足。请重新核对观察信息。"))
 		)
-		diagnosis_panel.add_child(button)
+		diagnosis_modal_actions.add_child(button)
+	var close := Button.new()
+	close.text = "继续观察"
+	close.custom_minimum_size = Vector2(0, 42)
+	close.pressed.connect(func():
+		hint_label.text = "继续观察已记录。请重新核对植物舱状态。"
+		_hide_training_diagnosis_modal()
+	)
+	diagnosis_modal_actions.add_child(close)
+	_sync_overlay_visibility()
+
+func _hide_training_diagnosis_modal() -> void:
+	if diagnosis_modal_scrim != null:
+		diagnosis_modal_scrim.visible = false
+	if diagnosis_modal != null:
+		diagnosis_modal.visible = false
+	_sync_overlay_visibility()
+
+func _load_diagnosis_texture(path: String) -> Texture2D:
+	var image := Image.load_from_file(ProjectSettings.globalize_path(path))
+	if image == null:
+		return null
+	return ImageTexture.create_from_image(image)
 
 func _update_hud() -> void:
 	var step := _current_step()
@@ -2359,7 +2476,7 @@ func _assessment_config() -> Dictionary:
 		"next_module": "mission_assignment",
 		"next_scene": TrainingManagerScript.MISSION_NOTICE,
 		"next_button": "查看任务派遣通知",
-		"player_start": Vector2(382, 430),
+		"player_start": Vector2(610, 476),
 		"player_size": Vector2(42, 54),
 		"hud": "供电状态：故障\n生命支持状态：未稳定\n植物舱状态：异常\n提示信息：读取考核终端。",
 		"targets": [
