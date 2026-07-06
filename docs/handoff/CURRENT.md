@@ -1,16 +1,23 @@
 # 当前状态（滚动文档，每次覆盖重写）
 
 更新时间：2026-07-06
-更新人：Claude Code（本轮临时顶替 Codex 的游戏逻辑/Manager/数据/流程职责——Codex
-临时无 token，由 Claude Code 在独立会话中代打这部分；同一时间另一个 Claude Code
-会话仍在并行做场景/UI/美术。Codex 恢复后请按下方记录核对，不要误以为是
-Codex 自己之前做的）
+更新人：Claude Code（场景/UI 会话，正常职责，非代打）
 
 ## 正在进行
 
-（暂无，Base Status System v1 已完成，本轮改动已提交）
+（暂无）
 
 ## 最近完成
+
+- **Claude Code**：修了 Base Status System v1 UI 面板（`BaseStatusPanel`）的越界
+  bug。它在 `_setup_base_status_panel()` 里的位置是 `Vector2(1250, 690)`，尺寸
+  `420x300`，右边缘到 1670、下边缘到 990，超出 1600x900 视口——Tab 打开后
+  面板右下角整块被裁掉，专业提示和后两项系统状态（温控/密封）完全看不到。
+  改成了 `Vector2(1170, 180)`，紧贴右上角时间面板下方，四项基地状态 + 四个
+  系统状态档位都能完整显示。用 `tools/capture_base_status_panel_check.gd`
+  截图确认。这是我这次唯一的改动，Base Status System 本身的逻辑没有碰。
+
+- **（下面这一段是"Claude Code 代 Codex"那次会话留的，未改动，供参考）**
 
 - **Claude Code（代 Codex）**：实现 Base Status System v1（基地状态系统）。
   - 新增 `scripts/managers/BaseStatusManager.gd`，并在 `project.godot` 注册为

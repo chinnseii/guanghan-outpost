@@ -390,7 +390,7 @@ func _setup_interaction_feedback_ui(root: Control) -> void:
 
 func _setup_base_status_panel(root: Control) -> void:
 	base_status_panel = BaseStatusPanelScript.new()
-	base_status_panel.position = Vector2(1250, 690)
+	base_status_panel.position = Vector2(1170, 180)
 	base_status_panel.visible = false
 	root.add_child(base_status_panel)
 
