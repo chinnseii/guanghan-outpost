@@ -3810,6 +3810,13 @@ func _setup_dev_menu() -> void:
 		add_log("Training progress reset.")
 		_refresh_main_menu()
 	))
+	box.add_child(_make_dev_button("Training Time Debug: Show Status", _debug_training_time_status))
+	box.add_child(_make_dev_button("Training Time Debug: Start (480 min)", _debug_training_time_start))
+	box.add_child(_make_dev_button("Training Time Debug: Advance +30", func(): _debug_training_time_advance(30)))
+	box.add_child(_make_dev_button("Training Time Debug: Advance +360 (Sleep)", func(): _debug_training_time_advance(360)))
+	box.add_child(_make_dev_button("Training Time Debug: Pause", _debug_training_time_pause))
+	box.add_child(_make_dev_button("Training Time Debug: Resume", _debug_training_time_resume))
+	box.add_child(_make_dev_button("Training Time Debug: Force Timeout", _debug_training_time_force_timeout))
 	box.add_child(_make_dev_button("Dev Only: Clear Save", _clear_current_save))
 
 func _make_dev_button(text: String, callback: Callable) -> Button:
@@ -4264,6 +4271,41 @@ func _debug_repair_reset() -> void:
 	if manager != null and manager.has_method("reset_to_arrival"):
 		manager.call("reset_to_arrival")
 		add_log("Repair debug: reset.\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_training_time_status() -> void:
+	var manager := get_node_or_null("/root/TrainingTimeManager")
+	if manager != null and manager.has_method("debug_values_text"):
+		add_log("Training time debug:\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_training_time_start() -> void:
+	var manager := get_node_or_null("/root/TrainingTimeManager")
+	if manager != null and manager.has_method("start_training_time"):
+		manager.call("start_training_time")
+		add_log("Training time debug: started (480 min archive limit).\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_training_time_advance(minutes: int) -> void:
+	var manager := get_node_or_null("/root/TrainingTimeManager")
+	if manager != null and manager.has_method("debug_advance"):
+		manager.call("debug_advance", minutes, "debug_advance_%d" % minutes)
+		add_log("Training time debug: advanced +%d min.\n%s" % [minutes, String(manager.call("debug_values_text"))])
+
+func _debug_training_time_pause() -> void:
+	var manager := get_node_or_null("/root/TrainingTimeManager")
+	if manager != null and manager.has_method("pause_training_time"):
+		manager.call("pause_training_time")
+		add_log("Training time debug: paused.\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_training_time_resume() -> void:
+	var manager := get_node_or_null("/root/TrainingTimeManager")
+	if manager != null and manager.has_method("resume_training_time"):
+		manager.call("resume_training_time")
+		add_log("Training time debug: resumed.\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_training_time_force_timeout() -> void:
+	var manager := get_node_or_null("/root/TrainingTimeManager")
+	if manager != null and manager.has_method("debug_force_timeout"):
+		manager.call("debug_force_timeout")
+		add_log("Training time debug: forced timeout.\n%s" % String(manager.call("debug_values_text")))
 
 func _toggle_dev_menu() -> void:
 	if not has_node("UI/Root/DevMenu"):

@@ -48,6 +48,8 @@ static func default_data() -> Dictionary:
 		"CompletedTrainingModules": [],
 		"FinalAssessmentCompleted": false,
 		"MissionAssignmentAccepted": false,
+		"TrainingStatus": "",
+		"TrainingFailureReason": "",
 		"OpeningFlowStage": "",
 		"CurrentSceneAfterTraining": START_SCENE,
 		"TimeState": {},
@@ -174,6 +176,13 @@ static func reset_progress() -> void:
 	var plant_growth_manager := _plant_growth_manager()
 	if plant_growth_manager != null and plant_growth_manager.has_method("reset_to_arrival"):
 		plant_growth_manager.call("reset_to_arrival")
+	var training_time_manager := _training_time_manager()
+	if training_time_manager != null and training_time_manager.has_method("start_training_time"):
+		# Fully clears elapsed/remaining/time_log back to defaults, then
+		# immediately marks it inactive -- resetting progress shouldn't leave
+		# a countdown silently running until start_training() is called again.
+		training_time_manager.call("start_training_time")
+		training_time_manager.call("stop_training_time")
 	save_progress(default_data())
 
 static func start_training() -> void:
@@ -183,6 +192,9 @@ static func start_training() -> void:
 	data["CurrentSceneAfterTraining"] = MODULE_01
 	save_progress(data)
 	update_candidate_file_status("训练序列中")
+	var training_time_manager := _training_time_manager()
+	if training_time_manager != null and training_time_manager.has_method("start_training_time"):
+		training_time_manager.call("start_training_time")
 
 static func set_current_module(module_id: String) -> void:
 	var data := load_progress()
@@ -216,6 +228,42 @@ static func mark_module_completed(module_id: String, next_module_id: String) -> 
 	save_progress(data)
 	if module_id == "final_assessment":
 		update_candidate_file_status("已通过最终考核")
+
+## Required modules are the five core training stations -- final_assessment
+## is the settlement step that happens once these are done, not one of the
+## modules the training archive timer is racing against. Used by
+## TrainingTimeManager.check_training_timeout() to decide pass vs. fail when
+## the archive time limit runs out.
+static func are_required_modules_completed() -> bool:
+	var data := load_progress()
+	return bool(data.get("SuitControlCompleted", false)) \
+		and bool(data.get("AirlockProcedureCompleted", false)) \
+		and bool(data.get("PowerRepairCompleted", false)) \
+		and bool(data.get("LifeSupportCompleted", false)) \
+		and bool(data.get("PlantDiagnosisCompleted", false))
+
+## Called by TrainingTimeManager.check_training_timeout() when the archive
+## time limit expires with required modules still incomplete. This is a
+## training-only failure state ("candidate file archived, deployment
+## clearance not activated") -- not a death/Game Over, and it must never
+## touch the official mission TimeManager/HealthManager/base state.
+static func fail_training(reason: String) -> void:
+	var data := load_progress()
+	if String(data.get("TrainingStatus", "")) == "failed":
+		return
+	data["TrainingStatus"] = "failed"
+	data["TrainingFailureReason"] = reason
+	save_progress(data)
+	update_candidate_file_status("候选人档案已归档")
+	var time_manager := _training_time_manager()
+	if time_manager != null and time_manager.has_method("stop_training_time"):
+		time_manager.call("stop_training_time")
+
+static func training_status() -> String:
+	return String(load_progress().get("TrainingStatus", ""))
+
+static func training_failure_reason() -> String:
+	return String(load_progress().get("TrainingFailureReason", ""))
 
 static func accept_assignment(opening_stage := "AssignmentBlackScreen") -> void:
 	var data := load_progress()
@@ -378,3 +426,9 @@ static func _storage_manager() -> Node:
 	if tree == null or tree.root == null:
 		return null
 	return tree.root.get_node_or_null("StorageManager")
+
+static func _training_time_manager() -> Node:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null("TrainingTimeManager")

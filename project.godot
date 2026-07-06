@@ -32,6 +32,7 @@ BackpackManager="*res://scripts/managers/BackpackManager.gd"
 StorageManager="*res://scripts/managers/StorageManager.gd"
 SupplyManager="*res://scripts/managers/SupplyManager.gd"
 RepairManager="*res://scripts/managers/RepairManager.gd"
+TrainingTimeManager="*res://scripts/managers/TrainingTimeManager.gd"
 
 [display]
 

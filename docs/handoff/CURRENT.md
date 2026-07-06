@@ -1,98 +1,103 @@
 # 当前状态（滚动文档，每次覆盖重写）
 
 更新时间：2026-07-07
-更新人：Claude Code（代 Codex，物品品质系统）
+更新人：Claude Code（代 Codex，训练专用时间系统）
 
 ## 正在进行
 
-（暂无——本轮"物品品质系统 v1"已实现完成。开始本轮工作前确认过
-`git status`/`CURRENT.md` 均无 Codex 新的并发改动，工作过程中也没有再出现
-新的并发改动，属于单人顺序推进的一轮，不是像上一轮那样的多方合并快照。）
+（暂无——本轮"训练专用时间系统 v1"已实现完成。开始前确认过
+`git status`/`CURRENT.md` 均无 Codex 新的并发改动，工作过程中也没有再
+出现新的并发改动。）
 
-## 本轮完成（Claude Code，代 Codex）：物品品质系统 v1
+## 本轮完成（Claude Code，代 Codex）：训练专用时间系统 v1
 
-- **`scripts/data/ItemDatabase.gd` 新增 `const QUALITY_LEVELS`**（5 级）：
-  1 劣质 `#D6D6D6` / 2 普通 `#4A90E2` / 3 稀有 `#9B5DE5` / 4 史诗 `#D6A23A` /
-  5 传奇 `#D94A4A`（用的是需求方给的"冷色克制"配色，不是网游感更重的高
-  饱和第一组）。
-- **33 个物品全部新增 `"quality": <1-5>` 字段**（本轮自行分配，需求文档
-  没给逐条数值）：种子 5 种 + 金属碎片/温室基质 = 1；基础食物 3 种/两种
-  基础消耗品/大部分材料/两个默认工具/系统资源编号 6 种 = 2；番茄/大豆/
-  三种预留消耗品/三个耐久工具 = 3；便携电池包 = 4；目前没有 5 级物品。
-- **新增静态 helper**：`get_quality(item_id)`（缺失兜底 2）/
-  `quality_name_for_level(level)` / `quality_color_for_level(level)` /
-  `get_quality_name(item_id)` / `get_quality_color(item_id)` /
-  `colored_display_name(item_id)`（返回 `[color=#RRGGBB]名字[/color]`，**这是
-  唯一对外接口**，所有显示物品名的地方都必须调这一个函数，不要自己拼颜色）。
-- **改用 `colored_display_name()` 的调用点**：
-  - `InventoryManager._stack_lines_for_category()` / `_durable_lines()`。
-  - `ItemContainer.slot_label()`（`BackpackManager`/`StorageManager` 的
-    `_slot_lines()` 都经过它）。
-  - `SupplyManager._item_display_name()`（真实物品才上色，"月球车"这个
-    特殊强制货物条目和查无此 ID 时保持纯文本不上色）。
-- **把渲染这些文本的 Label 换成 RichTextLabel（`bbcode_enabled = true`）**，
-  否则 `[color=...]` 标签会原样显示成文字：
-  - `scripts/ui/inventory_panel.gd`（`B` 键库存面板）。
-  - `scripts/ui/backpack_storage_panel.gd`（背包/仓库面板，Codex 的文件，
-    本轮为了让品质颜色能显示出来而改动，只改了 Label→RichTextLabel 这一处
-    渲染层，没有动任何按钮/业务逻辑）。
-  - `SupplyManager`/`RepairManager` 走的是 `main.gd` 的 `add_log()`
-    Debug 日志，那个 `TaskLog` 本来就是 `RichTextLabel(bbcode_enabled=true)`
-    ，不需要改渲染节点。
-- **`RepairManager.gd` 本轮未改动**：它目前完全不显示任何物品/材料的
-  `display_name`（只显示 `item_id` 和数量），没有可以接入颜色的地方；等它
-  以后真的显示物品名时，直接调用 `ItemDatabase.colored_display_name()`
-  即可，不需要另外发的一套颜色。
-- **v1 明确只做外观，不影响任何数值**：不碰 `effects`/`weight`/
-  `max_durability`/`durability_loss_per_use`/维修成功率/任何结算逻辑。
-  需求文档提到的"后续可扩展作用"（食物按品质给不同恢复量等）本轮全部
-  没有做，只留了 `quality` 字段和等级表方便以后接。
-- 设计参考文档已同步更新：第八节"物品系统"里新增"物品品质 Quality"子
-  小节（在"面板文本"和"存档"之间），记录了等级表、33 个物品的等级分布、
-  唯一接口 `colored_display_name()`、每个调用点、以及"只做外观不做数值"
-  的边界。没有改动 Codex 自己加的"八点五""八点六"和"维修系统 v1"章节。
+- **新增 `scripts/managers/TrainingTimeManager.gd`**，注册为 autoload
+  `/root/TrainingTimeManager`。核心字段：`archive_limit_minutes`（默认
+  480）/`elapsed_minutes`/`remaining_minutes`/`training_time_active`/
+  `training_time_paused`/`time_log`。接口全部按需求文档给的清单实现：
+  `start_training_time`/`stop_training_time`/`pause_training_time`/
+  `resume_training_time`/`advance_training_time`/`check_training_timeout`/
+  `get_elapsed_minutes`/`get_remaining_minutes`/`get_archive_limit_minutes`/
+  `get_remaining_time_text`（`HH:MM` 格式）/`get_time_log`。
+  `advance_training_time()` 有 active/paused/minutes<=0 三道空转防护，
+  `remaining_minutes` 硬 clamp ≥0。存档 `user://saves/training_time_state.json`
+  （需求文档说这个可选，本次还是按项目统一习惯做了）。
+- **`scripts/training/training_manager.gd` 新增 4 个 static 方法**：
+  `are_required_modules_completed()`（检查五个核心训练模块，**不含**
+  `final_assessment`——那是必修模块全部完成后的结算步骤本身）、
+  `fail_training(reason)`（写 `TrainingStatus="failed"` +
+  `TrainingFailureReason`，更新申请档案状态为"候选人档案已归档"，停掉
+  训练时间，带幂等保护防止重复处理）、`training_status()`/
+  `training_failure_reason()` 两个查询方法。`default_data()` 新增
+  `TrainingStatus`/`TrainingFailureReason` 两个字段。`start_training()`
+  现在会同步调 `TrainingTimeManager.start_training_time()`；
+  `reset_progress()` 现在会把训练时间也重置回初始态（清零后立即停止，
+  不留一个悄悄在跑的倒计时）。
+- **`scripts/training/training_module_scene.gd`（5 个训练模块 + 最终考核
+  共用的场景脚本）改造**：
+  - `_advance_time_for_step()`：推进调用从
+    `TimeManager.advance_time()` 换成
+    `TrainingTimeManager.advance_training_time()`——**这是本次唯一改动了
+    实际调用点的地方**，训练场景现在完全不会推进正式月球时间。
+  - `_time_hud_text()`：从显示 `TimeManager.compact_hud_text()`（正式
+    月昼/日期）改成显示
+    `"训练归档时限：剩余 %s" % TrainingTimeManager.get_remaining_time_text()`，
+    按需求文档统一叫"训练归档时限"，不叫"教程倒计时"/"考试时间"/
+    "Game Over 倒计时"。
+  - `_finish_module()`：`module_id == "final_assessment"` 完成时额外调
+    `TrainingTimeManager.stop_training_time()`（训练通过，停止倒计时，
+    避免考核通过后时间继续走还触发一次误报的超时失败）。
+  - `_default_time_minutes_for_step()`/`_action_minutes()` 里对
+    `TimeManager.action_minutes()` 的只读查表**故意保留没改**——那只是
+    读一张耗时常量表，不推进任何时间，不违反"训练不碰正式系统"的边界。
+- **`project.godot`**：`[autoload]` 追加 `TrainingTimeManager`。
+- **`main.gd`**：新增 Training Time Debug 分组（查看状态、开始 480 分钟、
+  +30/+360 分钟推进、暂停、恢复、强制超时）。
+- 设计参考文档已同步更新：文末新增"训练专用时间系统 TrainingTimeManager"
+  一节（跟在 Codex 的"维修系统 v1"后面，同样是不带编号的追加章节，没有
+  对已有章节做任何改动/重新编号）。
 
 ## 验证
 
-- Godot 4.7 headless：`main.tscn` +
+- Godot 4.7 headless：`main.tscn` + 全部 7 个训练场景
+  （`TrainingStartScene`/`Training_01`~`05`/`FinalAssessmentScene`）+
   `OldBaseInteriorScene`/`OldGreenhouseScene`/`Day02StartScene`/
-  `WeekRoutineStartScene`/`SolarArrayExteriorScene`/`Training_03_PowerRepair`/
-  `FinalAssessmentScene` 共 8 个共用场景反复加载，均无 `SCRIPT ERROR`/
-  `Parse Error`。
-- 临时脚本（未提交，验证后已删除）跑通了：全部 33 个物品的 `quality` 都在
-  1–5 区间；未知 item_id 的品质/名字正确兜底成 2/普通；五级名字/颜色表跟
-  需求文档逐字匹配；`colored_display_name()` 的 BBCode 包裹格式正确；
-  `InventoryManager.panel_status_text()` 里堆叠物品行和耐久工具行都带上了
-  正确的颜色标签；`ItemContainer.slot_label()` 输出跟 `InventoryManager`
-  用的是同一个颜色（验证了同一个 item_id 在两条路径上颜色一致，满足"背包/
-  仓库/库存读取同一套颜色"的要求）；`SupplyManager._item_display_name()`
-  对真实物品上色、对未知 ID 保持纯文本。
+  `WeekRoutineStartScene`/`SolarArrayExteriorScene` 共 12 个场景全部
+  headless 加载，均无 `SCRIPT ERROR`/`Parse Error`。
+- 临时脚本（未提交，验证后已删除）跑通了 10 项：默认归档时限 480 分钟；
+  `advance_training_time()` 正确推进训练时钟且完全不改动
+  `TimeManager.serialize()` 的快照（前后哈希一致，证明官方时间系统真的
+  零接触）；剩余时间硬 clamp 在 0；`time_log` 正确记录
+  `minutes/reason/elapsed_after/remaining_after`；必修模块未完成时超时
+  正确触发 `fail_training("archive_time_expired")` 并停止时钟，再次确认
+  `TimeManager` 快照仍未变；必修模块全部完成后超时**不会**失败；
+  `pause_training_time()` 让推进完全不生效，`resume_training_time()` 恢复
+  正常；`get_remaining_time_text()` 的 `HH:MM` 格式正确
+  （450 剩余 → `"00:30"`）；序列化/反序列化往返一致。
 
 ## 已知问题 / 暂不覆盖范围
 
-- 品质等级第一版是本轮按"越基础越低阶"的直觉手动分配的，不是需求文档
-  逐条给定的数值，系统设计如果要重新分配，直接改 `ItemDatabase.gd` 里
-  `ITEMS` 对应条目的 `"quality"` 数字即可，不需要改结构。
-- `RepairManager` 目前还没有任何物品名显示逻辑可以接入颜色，等它有 UI
-  面板显示材料清单时需要单独接入（调用同一个 `colored_display_name()`）。
-- 品质对数值的所有扩展作用（食物恢复量、工具最大耐久、材料维修成功率、
-  补给重量/获取难度、植物收获加成）本轮全部没有做，纯粹是 UI 装饰。
-- 以下延续自上一轮（物品系统 + Codex 并发的 Supply/Backpack/Storage/
-  Repair 系统）的已知问题仍然有效，未在本轮改动：物品系统没有背包容量/
-  负重/格子摆放/装备栏/腐坏/复杂合成/工具维修/批量烹饪/交易；旧的固定
-  `eat`/`nutrition_drink` 行动仍未被 `InventoryManager.eat_item()` 取代，
-  两条路径并存；`RepairManager` 仍只有系统骨架 + Debug 入口，没有正式
-  玩家可见 UI。完整清单见
-  `docs/handoff/SYSTEMS_REFERENCE_FOR_DESIGN.md` 第九节。
+- **没有专门的训练失败结算场景/UI**：失败原因和时间消耗复盘目前只能
+  通过代码查询（`TrainingManager.training_status()`/
+  `training_failure_reason()`、`TrainingTimeManager.get_time_log()`），
+  需求文档给的失败文案（"候选人档案已归档。结果：派遣资格未激活。"）和
+  "主要时间损耗"复盘界面都没有对应场景把它们显示出来。
+- **训练健康、训练资源模拟没有做**：训练场景目前仍然直接读/演正式
+  `HealthManager`（`_health_hud_text()` 没有改），需求文档提到的
+  `training_health_state`/`TrainingResourceScenario` 隔离层这次完全
+  没有实现。
+- **训练维修/训练植物没有接正式 `RepairManager`/`PlantGrowthManager`**：
+  各训练模块的步骤数据还是各自场景脚本手写的固定剧本，需求文档第十五、
+  十六节的隔离规则暂时不适用（因为还没有对应的真实耦合）。
+- 详细边界说明和数值见
+  `docs/handoff/SYSTEMS_REFERENCE_FOR_DESIGN.md`（文末"训练专用时间系统
+  TrainingTimeManager"一节）。
 
 ## 先别碰
 
 - `scripts/managers/BackpackManager.gd` / `StorageManager.gd` /
   `SupplyManager.gd` / `RepairManager.gd` / `scripts/data/FaultDatabase.gd`
-  的业务逻辑仍是 Codex 自己推进的系统，本轮只改了
-  `backpack_storage_panel.gd` 里 Label→RichTextLabel 这一处纯渲染层代码
-  （为了让品质颜色显示出来），没有碰任何按钮/流程/数据结构，其余部分
-  照旧留给 Codex。
+  仍是 Codex 自己推进的系统，本轮完全没有碰。
 - `scripts/data/ItemDatabase.gd` / `scripts/managers/InventoryManager.gd`
-  本轮继续由 Claude Code 维护，改前照旧先
-  `git log --oneline -- <file>`。
+  本轮也没有碰，继续由 Claude Code 维护（改前先
+  `git log --oneline -- <file>`）。

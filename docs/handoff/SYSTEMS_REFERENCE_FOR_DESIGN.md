@@ -1549,3 +1549,146 @@ FaultDatabase
 - RepairManager 已能作为底层系统工作，但还没有正式场景 UI。
 - 开发菜单提供了维修调试入口：查看状态、加入测试材料、加入测试故障、诊断首个故障、尝试正确/错误维修、重置维修状态。
 - 系统效果仍是轻量占位：部分 wrong/success 会调整电量、水、舱压、温度、空气读数，但不做完整故障持续结算。
+
+---
+
+## 训练专用时间系统 TrainingTimeManager
+
+### 定位
+地面候选人选拔训练阶段专用的时间预算，**跟正式 `TimeManager` 完全隔离**。
+训练发生在 Day 01 06:40 之前的地球阶段，绝不能推进正式
+`TimeManager.total_minutes`、月昼/月夜周期、`BaseStatusManager`、
+`PlantGrowthManager`，也不消耗正式仓库物资——这是本系统存在的唯一理由。
+
+代码位置：
+- `scripts/managers/TrainingTimeManager.gd`（autoload `/root/TrainingTimeManager`）
+- `scripts/training/training_manager.gd`（新增
+  `are_required_modules_completed()`/`fail_training(reason)`/
+  `training_status()`/`training_failure_reason()` 四个 static 方法，训练
+  通过/失败判断仍然归它管，`TrainingTimeManager` 只管时间）
+
+### 核心字段与抵达初始值
+| 字段 | 初始值 | 说明 |
+|---|---|---|
+| `archive_limit_minutes` | 480（8 小时） | 训练归档总时限 |
+| `elapsed_minutes` | 0 | 训练已用时间 |
+| `remaining_minutes` | 480 | 训练剩余时间，硬 clamp ≥0 |
+| `training_time_active` | false | 训练时间是否在跑；`start_training_time()` 前一直是 false |
+| `training_time_paused` | false | 暂停时 `advance_training_time()` 直接不生效（连日志都不写） |
+| `time_log` | `[]` | 每次推进都追加一条 `{minutes, reason, elapsed_after, remaining_after}`，供失败复盘 |
+
+### 生命周期
+```
+TrainingManager.start_training()          # 点"开始训练"按钮时调用，同时
+                                            # 调 TrainingTimeManager.start_training_time()
+  → advance_training_time(minutes, reason) # 每个训练步骤唯一的推进入口
+  → check_training_timeout()               # 每次推进后自动检查
+TrainingManager.mark_module_completed("final_assessment", ...)
+  → 训练通过：TrainingTimeManager.stop_training_time()
+TrainingTimeManager.check_training_timeout() 触发失败
+  → TrainingManager.fail_training("archive_time_expired")
+  → 内部再调 TrainingTimeManager.stop_training_time()
+```
+`start_training_time(limit_minutes := 480)` 每次调用都会把
+`elapsed_minutes`/`time_log` 清零重置——这是"开始一轮新训练"的语义，不是
+"继续上一轮"。`training_module_scene.gd`（5 个训练模块 + 最终考核共用的
+场景脚本）只在场景切换时调用
+`TrainingManagerScript.set_current_module(module_id)`，**不会**重新调
+`start_training_time()`，所以训练时间预算是跨越 6 个训练场景累计的同一个
+480 分钟，不会因为切场景被重置。
+
+### 超时判断
+```
+check_training_timeout():
+    remaining_minutes > 0                          → 直接返回，什么都不做
+    TrainingManager.are_required_modules_completed() → 直接返回（时间到但
+                                                        必修模块已完成 = 
+                                                        通过/结算，不是失败）
+    否则 → TrainingManager.fail_training("archive_time_expired")
+```
+`are_required_modules_completed()` 检查的是五个核心训练模块（宇航服基础
+控制/气闸流程/供电维修/生命支持/植物状态诊断），**不含
+`final_assessment`**——最终考核是必修模块全部完成之后的结算步骤本身，
+不是跟训练归档时限赛跑的对象之一。`fail_training(reason)` 有幂等保护
+（已经是 `"failed"` 状态时直接返回），避免同一次超时被反复处理。
+
+### 训练行动耗时（`training_module_scene.gd` 的 `_advance_time_for_step()`）
+训练步骤数据可以给每一步显式指定 `time_minutes`/`time_reason`；没指定时
+落回 `_default_time_minutes_for_step()` 按步骤类型/目标关键词猜一个耗时
+（这个猜测逻辑本次没有改动，仍然会读 `TimeManager.action_minutes()` 当
+"耗时常量表"来源——**这是纯只读查表，不推进任何时间，不违反隔离原则**，
+本次特意保留没有重写成训练自己的一张表，避免不必要的重复维护）。真正
+推进的调用点已经从 `TimeManager.advance_time()` 换成
+`TrainingTimeManager.advance_training_time()`，这是本次唯一改动了实际
+调用点的地方。需求文档第九节给出的建议耗时表（打开训练终端 5 分钟、
+标准维修 60 分钟、严重维修 120 分钟等）目前主要体现在各训练模块自己的
+步骤数据里显式设置的 `time_minutes`，没有另外抄一份到
+`TrainingTimeManager.gd` 里。
+
+### 训练时间 HUD
+`training_module_scene.gd._time_hud_text()` 已经从显示
+`TimeManager.compact_hud_text()`（正式月昼/日期）改成显示
+`"训练归档时限：剩余 %s" % TrainingTimeManager.get_remaining_time_text()`
+（格式 `HH:MM`），按需求文档规定统一叫"训练归档时限"，不叫"教程倒计时"/
+"考试时间"/"Game Over 倒计时"。
+
+### 失败处理
+`fail_training(reason)` 只是把 `TrainingStatus="failed"` /
+`TrainingFailureReason=reason` 写进训练进度存档（`training_progress.json`），
+调用 `update_candidate_file_status("候选人档案已归档")` 更新申请档案状态
+文案，并停掉训练时间。**本次没有新增失败结算场景/UI**——需求文档给出的
+失败文案（"候选人档案已归档。结果：派遣资格未激活。"）和失败复盘
+（读 `get_time_log()` 汇总"主要时间损耗"）目前只是数据层面可查询
+（`TrainingManager.training_status()`/`training_failure_reason()`/
+`TrainingTimeManager.get_time_log()`），没有对应的场景把它们显示出来，
+这是留给下一轮 UI 工作的缺口，见文末已知问题。
+
+### 训练与正式系统的边界（逐条对照需求文档第十三～十七节）
+- 不推进正式 `TimeManager.total_minutes`/月昼月夜：本次把
+  `training_module_scene.gd` 里唯一的时间推进调用点换成了
+  `TrainingTimeManager`，`TimeManager.advance_time()` 在训练场景里完全
+  没有调用点了。
+- 不推进 `BaseStatusManager`/`PlantGrowthManager`：这两个系统只在
+  `TimeManager.advance_time()` 的结算链里才会被推进（见第一节调用顺序），
+  训练场景既然不再调用它，自然也不会间接推进这两个。
+- 训练健康/训练资源模拟（需求文档第十四、十七节提到的
+  `training_health_state`/`TrainingResourceScenario`）**本次没有实现**——
+  训练场景目前用的还是正式 `HealthManager`（`_health_hud_text()` 仍然读
+  `HealthManager.compact_hud_text()`），需求文档自己也说"第一版更推荐简单
+  做法"，但连"简单做法"（训练健康状态只存在 TrainingManager 中）这次都
+  没做，是本次特意没碰的范围，见已知问题。
+- 训练维修/训练植物的独立副本（需求文档第十五、十六节）**本次没有实现**——
+  各训练模块目前复用的还是自己场景脚本里手写的步骤数据，不是真的接了
+  `RepairManager`/`PlantGrowthManager` 的故障卡/生长规则再套一层"训练材料/
+  训练植物不影响正式系统"的隔离，这两节提到的边界规则暂时是不适用的
+  （因为还没有对应的真实耦合发生）。
+
+### 存档
+`user://saves/training_time_state.json`：`archive_limit_minutes /
+elapsed_minutes / remaining_minutes / training_time_active /
+training_time_paused / time_log`。需求文档原文说"如果训练不能中途存档，
+可以不做训练时间存档"——本次还是按项目里其他 Manager 的统一存档习惯做了，
+不会因为不存档而导致别的地方报错，纯粹是为了跟其他系统写法一致。
+`training_progress.json`（`training_manager.gd` 自己的存档）新增了
+`TrainingStatus`/`TrainingFailureReason` 两个字段。
+
+### UI / Debug
+还没有正式的训练时间面板（需求文档也没有要求新场景，只要求"UI 可以读取
+剩余训练时间"，这点通过 `_time_hud_text()` 已经满足）。主菜单开发菜单
+新增 Training Time Debug 分组：查看状态、开始（480 分钟）、+30/+360 分钟
+推进、暂停、恢复、强制超时（直接把剩余时间打到 0 并触发一次超时检查）。
+
+### 已知问题 / 暂不覆盖范围
+- 没有专门的训练失败结算场景/UI，失败原因和时间消耗复盘目前只能通过代码
+  查询（`TrainingManager.training_status()`/`training_failure_reason()`、
+  `TrainingTimeManager.get_time_log()`），没有玩家能直接看到的界面。
+- 训练健康状态、训练资源模拟（水/电/氧气/CO₂/温度）目前都还是直接读/演
+  正式系统的 `HealthManager`，需求文档提到的"训练副本不污染正式初始值"
+  这条边界目前没有实际耦合场景需要它生效。
+- 训练维修/训练植物没有接正式 `RepairManager`/`PlantGrowthManager` 的
+  故障卡/生长规则，各训练模块的步骤数据仍然是各自场景脚本手写的固定
+  剧本，不是动态生成的。
+- `_default_time_minutes_for_step()` 的耗时猜测逻辑仍然读
+  `TimeManager.action_minutes()` 当常量表（纯只读，不推进任何时间），
+  没有另外抄一份训练专用的耗时表；需求文档第九节的建议耗时数字主要靠
+  各步骤数据自己的 `time_minutes` 字段体现，不是这张查表的责任。

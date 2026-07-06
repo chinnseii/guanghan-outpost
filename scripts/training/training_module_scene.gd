@@ -1561,14 +1561,20 @@ func _begin_step_interaction_feedback(step: Dictionary) -> void:
 		player.queue_redraw()
 	_complete_step()
 
+## Training runs on its own time budget (TrainingTimeManager), never the
+## real TimeManager -- training happens on Earth before Day 01 06:40 and
+## must not advance the official mission clock, day/night cycle, or base
+## state. _action_minutes() below still reads TimeManager.action_minutes()
+## as a duration constant table (read-only, no state mutation), which is
+## fine; only the actual time advancement is redirected here.
 func _advance_time_for_step(step: Dictionary) -> void:
-	var manager := _time_manager()
-	if manager == null or not manager.has_method("advance_time"):
+	var manager := _training_time_manager()
+	if manager == null or not manager.has_method("advance_training_time"):
 		return
 	var minutes := int(step.get("time_minutes", _default_time_minutes_for_step(step)))
 	if minutes <= 0:
 		return
-	manager.call("advance_time", minutes, String(step.get("time_reason", _time_reason_for_step(step))))
+	manager.call("advance_training_time", minutes, String(step.get("time_reason", _time_reason_for_step(step))))
 
 func _default_time_minutes_for_step(step: Dictionary) -> int:
 	var step_type := String(step.get("type", "interact"))
@@ -1620,11 +1626,21 @@ func _time_manager() -> Node:
 		return null
 	return tree.root.get_node_or_null("TimeManager")
 
+func _training_time_manager() -> Node:
+	var tree := get_tree()
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null("TrainingTimeManager")
+
+## Shows the training archive countdown, not the real lunar day/time --
+## training happens before Day 01, so surfacing official mission time here
+## would be misleading. Naming follows the spec: always "训练归档时限", never
+## "教程倒计时"/"考试时间"/"Game Over 倒计时".
 func _time_hud_text() -> String:
-	var manager := _time_manager()
-	if manager == null or not manager.has_method("compact_hud_text"):
+	var manager := _training_time_manager()
+	if manager == null or not manager.has_method("get_remaining_time_text"):
 		return ""
-	return String(manager.call("compact_hud_text"))
+	return "训练归档时限：剩余 %s" % String(manager.call("get_remaining_time_text"))
 
 func _health_manager() -> Node:
 	var tree := get_tree()
@@ -1711,6 +1727,12 @@ func _finish_module() -> void:
 	completed = true
 	var next_module := String(module_data.get("next_module", "mission_assignment"))
 	TrainingManagerScript.mark_module_completed(module_id, next_module)
+	if module_id == "final_assessment":
+		# Training passed -- stop the archive countdown so it can't still
+		# time out and fail an already-completed candidate.
+		var training_time_manager := _training_time_manager()
+		if training_time_manager != null and training_time_manager.has_method("stop_training_time"):
+			training_time_manager.call("stop_training_time")
 	hint_label.text = _completed_hint_text()
 	_update_hud()
 
