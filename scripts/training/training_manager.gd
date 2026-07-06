@@ -53,6 +53,7 @@ static func default_data() -> Dictionary:
 		"TimeState": {},
 		"HealthState": {},
 		"BaseStatusState": {},
+		"PlantGrowthState": {},
 	}
 
 static func load_progress() -> Dictionary:
@@ -77,6 +78,9 @@ static func load_progress() -> Dictionary:
 	var base_status_manager := _base_status_manager()
 	if base_status_manager != null and base_status_manager.has_method("deserialize") and data.get("BaseStatusState", {}) is Dictionary:
 		base_status_manager.call("deserialize", data.get("BaseStatusState", {}))
+	var plant_growth_manager := _plant_growth_manager()
+	if plant_growth_manager != null and plant_growth_manager.has_method("deserialize") and data.get("PlantGrowthState", {}) is Dictionary:
+		plant_growth_manager.call("deserialize", data.get("PlantGrowthState", {}))
 	return data
 
 static func save_progress(data: Dictionary) -> void:
@@ -89,6 +93,9 @@ static func save_progress(data: Dictionary) -> void:
 	var base_status_manager := _base_status_manager()
 	if base_status_manager != null and base_status_manager.has_method("serialize"):
 		data["BaseStatusState"] = base_status_manager.call("serialize")
+	var plant_growth_manager := _plant_growth_manager()
+	if plant_growth_manager != null and plant_growth_manager.has_method("serialize"):
+		data["PlantGrowthState"] = plant_growth_manager.call("serialize")
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("user://saves"))
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file != null:
@@ -104,6 +111,9 @@ static func reset_progress() -> void:
 	var base_status_manager := _base_status_manager()
 	if base_status_manager != null and base_status_manager.has_method("reset_to_arrival"):
 		base_status_manager.call("reset_to_arrival")
+	var plant_growth_manager := _plant_growth_manager()
+	if plant_growth_manager != null and plant_growth_manager.has_method("reset_to_arrival"):
+		plant_growth_manager.call("reset_to_arrival")
 	save_progress(default_data())
 
 static func start_training() -> void:
@@ -266,3 +276,9 @@ static func _base_status_manager() -> Node:
 	if tree == null or tree.root == null:
 		return null
 	return tree.root.get_node_or_null("BaseStatusManager")
+
+static func _plant_growth_manager() -> Node:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null("PlantGrowthManager")

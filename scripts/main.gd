@@ -3701,6 +3701,18 @@ func _setup_dev_menu() -> void:
 	box.add_child(_make_dev_button("Base Debug: Seal Critical/Basic/Stable", func(): _debug_cycle_base_system("seal_status")))
 	box.add_child(_make_dev_button("Base Debug: Reset to Day 01", _debug_reset_base_status))
 	box.add_child(_make_dev_button("Base Debug: Set Minimum Stable", _debug_set_base_status_minimum_stable))
+	box.add_child(_make_dev_button("Plant Debug: Sow Lettuce", func(): _debug_sow_plant("lettuce")))
+	box.add_child(_make_dev_button("Plant Debug: Sow Potato", func(): _debug_sow_plant("potato")))
+	box.add_child(_make_dev_button("Plant Debug: Sow Wheat", func(): _debug_sow_plant("wheat")))
+	box.add_child(_make_dev_button("Plant Debug: Sow Tomato", func(): _debug_sow_plant("tomato")))
+	box.add_child(_make_dev_button("Plant Debug: Sow Soybean", func(): _debug_sow_plant("soybean")))
+	box.add_child(_make_dev_button("Plant Debug: Advance Growth +1 Day", func(): _debug_advance_time(1440, "debug_plant_plus_1d")))
+	box.add_child(_make_dev_button("Plant Debug: Advance Growth +3 Days", func(): _debug_advance_time(4320, "debug_plant_plus_3d")))
+	box.add_child(_make_dev_button("Plant Debug: Cycle Water Level 0-4", _debug_cycle_plant_water_level))
+	box.add_child(_make_dev_button("Plant Debug: Cycle Greenhouse Light Level 0-4", _debug_cycle_plant_light_level))
+	box.add_child(_make_dev_button("Plant Debug: Force Mature Current Crop", _debug_force_mature_plant))
+	box.add_child(_make_dev_button("Plant Debug: Harvest Current Crop", _debug_harvest_plant))
+	box.add_child(_make_dev_button("Plant Debug: Clear Greenhouse Crops", _debug_clear_plants))
 	box.add_child(_make_dev_button("Dev Only: Training Start", func(): get_tree().change_scene_to_file("res://scenes/training/TrainingStartScene.tscn")))
 	box.add_child(_make_dev_button("Dev Only: Training Module 01", func():
 		TrainingManagerScript.set_current_module("suit_control")
@@ -3826,6 +3838,42 @@ func _debug_set_base_status_minimum_stable() -> void:
 	if manager != null and manager.has_method("set_minimum_stable_state"):
 		manager.call("set_minimum_stable_state")
 		add_log("Base status debug: minimum stable state.\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_sow_plant(crop_id: String) -> void:
+	var manager := get_node_or_null("/root/PlantGrowthManager")
+	if manager != null and manager.has_method("debug_sow"):
+		manager.call("debug_sow", crop_id)
+		add_log("Plant debug: sowed %s.\n%s" % [crop_id, String(manager.call("debug_values_text"))])
+
+func _debug_cycle_plant_water_level() -> void:
+	var manager := get_node_or_null("/root/PlantGrowthManager")
+	if manager != null and manager.has_method("debug_cycle_water_level"):
+		manager.call("debug_cycle_water_level")
+		add_log("Plant debug:\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_cycle_plant_light_level() -> void:
+	var manager := get_node_or_null("/root/PlantGrowthManager")
+	if manager != null and manager.has_method("debug_cycle_light_system_level"):
+		manager.call("debug_cycle_light_system_level")
+		add_log("Plant debug:\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_force_mature_plant() -> void:
+	var manager := get_node_or_null("/root/PlantGrowthManager")
+	if manager != null and manager.has_method("debug_force_mature_current"):
+		manager.call("debug_force_mature_current")
+		add_log("Plant debug: forced current crop to Mature.\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_harvest_plant() -> void:
+	var manager := get_node_or_null("/root/PlantGrowthManager")
+	if manager != null and manager.has_method("debug_harvest_current"):
+		manager.call("debug_harvest_current")
+		add_log("Plant debug: harvested current crop.\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_clear_plants() -> void:
+	var manager := get_node_or_null("/root/PlantGrowthManager")
+	if manager != null and manager.has_method("clear_all_plants"):
+		manager.call("clear_all_plants")
+		add_log("Plant debug: cleared all greenhouse crops.")
 
 func _toggle_dev_menu() -> void:
 	if not has_node("UI/Root/DevMenu"):
