@@ -19,6 +19,7 @@ const BaseStatusPanelScript := preload("res://scripts/ui/base_status_panel.gd")
 const PlantGrowthPanelScript := preload("res://scripts/ui/plant_growth_panel.gd")
 const AirSystemPanelScript := preload("res://scripts/ui/air_system_panel.gd")
 const PowerSystemPanelScript := preload("res://scripts/ui/power_system_panel.gd")
+const WaterSystemPanelScript := preload("res://scripts/ui/water_system_panel.gd")
 const HUD_SAFE_POSITION := Vector2(24, 96)
 const HUD_SAFE_SIZE := Vector2(360, 464)
 const HUD_SAFE_WORLD_MIN_X := 140.0
@@ -55,6 +56,7 @@ var base_status_panel: PanelContainer
 var plant_growth_panel: PanelContainer
 var air_system_panel: PanelContainer
 var power_system_panel: PanelContainer
+var water_system_panel: PanelContainer
 var interaction_panel: PanelContainer
 var interaction_label: Label
 var interaction_bar: ProgressBar
@@ -110,6 +112,7 @@ func _setup_input() -> void:
 	_add_key_action("toggle_plant_status", [KEY_G])
 	_add_key_action("toggle_air_status", [KEY_O])
 	_add_key_action("toggle_power_status", [KEY_P])
+	_add_key_action("toggle_water_status", [KEY_I])
 
 func _add_key_action(action_name: String, keys: Array[int]) -> void:
 	if not InputMap.has_action(action_name):
@@ -377,6 +380,7 @@ func _setup_ui() -> void:
 	_setup_plant_growth_panel(root)
 	_setup_air_system_panel(root)
 	_setup_power_system_panel(root)
+	_setup_water_system_panel(root)
 
 func _setup_interaction_feedback_ui(root: Control) -> void:
 	interaction_panel = PanelContainer.new()
@@ -451,6 +455,21 @@ func _toggle_power_system_panel() -> void:
 	power_system_panel.visible = not power_system_panel.visible
 	if power_system_panel.visible and power_system_panel.has_method("refresh"):
 		power_system_panel.call("refresh")
+
+## Narrower than the other status panels (330 vs 420) so it fits the gap
+## between the HUD safe zone and the air panel at x=740 without overlapping.
+func _setup_water_system_panel(root: Control) -> void:
+	water_system_panel = WaterSystemPanelScript.new()
+	water_system_panel.position = Vector2(400, 180)
+	water_system_panel.visible = false
+	root.add_child(water_system_panel)
+
+func _toggle_water_system_panel() -> void:
+	if water_system_panel == null:
+		return
+	water_system_panel.visible = not water_system_panel.visible
+	if water_system_panel.visible and water_system_panel.has_method("refresh"):
+		water_system_panel.call("refresh")
 
 func _setup_plant_diagnosis_ui(root: Control) -> void:
 	plant_diagnosis_scrim = ColorRect.new()
@@ -589,6 +608,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		_toggle_air_system_panel()
 	if event.is_action_pressed("toggle_power_status"):
 		_toggle_power_system_panel()
+	if event.is_action_pressed("toggle_water_status"):
+		_toggle_water_system_panel()
 
 func _move_player(delta: float) -> void:
 	var movement_bounds := Rect2(Vector2(_world_left_limit(), 190.0), Vector2(1510.0 - _world_left_limit(), 580.0))
@@ -1785,6 +1806,8 @@ func _update_ui() -> void:
 		air_system_panel.call("refresh")
 	if power_system_panel != null and power_system_panel.visible and power_system_panel.has_method("refresh"):
 		power_system_panel.call("refresh")
+	if water_system_panel != null and water_system_panel.visible and water_system_panel.has_method("refresh"):
+		water_system_panel.call("refresh")
 
 func _hide_gameplay_hud_for_narrative() -> bool:
 	return fade_rect != null and fade_rect.color.a > 0.35 and (scene_kind == "week_end" or scene_kind == "day_end" or scene_kind == "day02_end")
@@ -2351,6 +2374,9 @@ func _load_state() -> void:
 	var power_system_manager := _power_system_manager()
 	if power_system_manager != null and power_system_manager.has_method("deserialize") and state.get("PowerSystemState", {}) is Dictionary:
 		power_system_manager.call("deserialize", state.get("PowerSystemState", {}))
+	var water_system_manager := _water_system_manager()
+	if water_system_manager != null and water_system_manager.has_method("deserialize") and state.get("WaterSystemState", {}) is Dictionary:
+		water_system_manager.call("deserialize", state.get("WaterSystemState", {}))
 	var plant_growth_manager := _plant_growth_manager()
 	if plant_growth_manager != null and plant_growth_manager.has_method("deserialize") and state.get("PlantGrowthState", {}) is Dictionary:
 		plant_growth_manager.call("deserialize", state.get("PlantGrowthState", {}))
@@ -2372,6 +2398,9 @@ func _save_state() -> void:
 	var power_system_manager := _power_system_manager()
 	if power_system_manager != null and power_system_manager.has_method("serialize"):
 		state["PowerSystemState"] = power_system_manager.call("serialize")
+	var water_system_manager := _water_system_manager()
+	if water_system_manager != null and water_system_manager.has_method("serialize"):
+		state["WaterSystemState"] = water_system_manager.call("serialize")
 	var plant_growth_manager := _plant_growth_manager()
 	if plant_growth_manager != null and plant_growth_manager.has_method("serialize"):
 		state["PlantGrowthState"] = plant_growth_manager.call("serialize")
@@ -2397,6 +2426,12 @@ func _power_system_manager() -> Node:
 	if tree == null or tree.root == null:
 		return null
 	return tree.root.get_node_or_null("PowerSystemManager")
+
+func _water_system_manager() -> Node:
+	var tree := get_tree()
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null("WaterSystemManager")
 
 func _plant_growth_manager() -> Node:
 	var tree := get_tree()

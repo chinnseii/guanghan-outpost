@@ -3721,6 +3721,17 @@ func _setup_dev_menu() -> void:
 	box.add_child(_make_dev_button("Power Debug: Mode - High Load Greenhouse", func(): _debug_set_power_mode("high_load_greenhouse")))
 	box.add_child(_make_dev_button("Power Debug: Reset to Day 01", _debug_reset_power_system))
 	box.add_child(_make_dev_button("Power Debug: Set Minimum Stable", _debug_set_power_minimum_stable))
+	box.add_child(_make_dev_button("Water Debug: Water -10", func(): _debug_adjust_water(-10.0)))
+	box.add_child(_make_dev_button("Water Debug: Water +10", func(): _debug_adjust_water(10.0)))
+	box.add_child(_make_dev_button("Water Debug: Ice -10", func(): _debug_adjust_ice(-10.0)))
+	box.add_child(_make_dev_button("Water Debug: Ice +10", func(): _debug_adjust_ice(10.0)))
+	box.add_child(_make_dev_button("Water Debug: Add Water Tank Module", _debug_add_water_tank_module))
+	box.add_child(_make_dev_button("Water Debug: Add Ice Storage Module", _debug_add_ice_storage_module))
+	box.add_child(_make_dev_button("Water Debug: Cycle Recycling Level 0-4", _debug_cycle_water_recycling_level))
+	box.add_child(_make_dev_button("Water Debug: Process 20 Ice", _debug_process_ice_batch))
+	box.add_child(_make_dev_button("Water Debug: Process All Ice", _debug_process_all_ice))
+	box.add_child(_make_dev_button("Water Debug: Reset to Day 01", _debug_reset_water_system))
+	box.add_child(_make_dev_button("Water Debug: Set Minimum Stable", _debug_set_water_minimum_stable))
 	box.add_child(_make_dev_button("Plant Debug: Sow Lettuce", func(): _debug_sow_plant("lettuce")))
 	box.add_child(_make_dev_button("Plant Debug: Sow Potato", func(): _debug_sow_plant("potato")))
 	box.add_child(_make_dev_button("Plant Debug: Sow Wheat", func(): _debug_sow_plant("wheat")))
@@ -3950,6 +3961,60 @@ func _debug_set_power_minimum_stable() -> void:
 	if manager != null and manager.has_method("set_minimum_stable_state"):
 		manager.call("set_minimum_stable_state")
 		add_log("Power system debug: minimum stable state.\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_adjust_water(delta: float) -> void:
+	var manager := get_node_or_null("/root/WaterSystemManager")
+	if manager != null and manager.has_method("debug_adjust_water"):
+		manager.call("debug_adjust_water", delta)
+		add_log("Water system debug:\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_adjust_ice(delta: float) -> void:
+	var manager := get_node_or_null("/root/WaterSystemManager")
+	if manager != null and manager.has_method("debug_adjust_ice"):
+		manager.call("debug_adjust_ice", delta)
+		add_log("Water system debug:\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_add_water_tank_module() -> void:
+	var manager := get_node_or_null("/root/WaterSystemManager")
+	if manager != null and manager.has_method("debug_add_water_tank_module"):
+		manager.call("debug_add_water_tank_module")
+		add_log("Water system debug:\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_add_ice_storage_module() -> void:
+	var manager := get_node_or_null("/root/WaterSystemManager")
+	if manager != null and manager.has_method("debug_add_ice_storage_module"):
+		manager.call("debug_add_ice_storage_module")
+		add_log("Water system debug:\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_cycle_water_recycling_level() -> void:
+	var manager := get_node_or_null("/root/WaterSystemManager")
+	if manager != null and manager.has_method("debug_cycle_recycling_level"):
+		manager.call("debug_cycle_recycling_level")
+		add_log("Water system debug:\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_process_ice_batch() -> void:
+	var manager := get_node_or_null("/root/WaterSystemManager")
+	if manager != null and manager.has_method("debug_process_ice_batch"):
+		manager.call("debug_process_ice_batch")
+		add_log("Water system debug: processed ice batch.\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_process_all_ice() -> void:
+	var manager := get_node_or_null("/root/WaterSystemManager")
+	if manager != null and manager.has_method("debug_process_all_ice"):
+		manager.call("debug_process_all_ice")
+		add_log("Water system debug: processed all available ice.\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_reset_water_system() -> void:
+	var manager := get_node_or_null("/root/WaterSystemManager")
+	if manager != null and manager.has_method("reset_to_arrival"):
+		manager.call("reset_to_arrival")
+		add_log("Water system debug: reset to Day 01.\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_set_water_minimum_stable() -> void:
+	var manager := get_node_or_null("/root/WaterSystemManager")
+	if manager != null and manager.has_method("set_minimum_stable_state"):
+		manager.call("set_minimum_stable_state")
+		add_log("Water system debug: minimum stable state.\n%s" % String(manager.call("debug_values_text")))
 
 func _debug_sow_plant(crop_id: String) -> void:
 	var manager := get_node_or_null("/root/PlantGrowthManager")

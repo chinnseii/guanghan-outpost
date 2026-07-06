@@ -31,11 +31,11 @@ const REPRESSURIZE_PRESSURE_RATE := 0.15
 const REPRESSURIZE_RESERVE_COST := 0.20
 
 const SUPPLY_TARGETS := {
-	"off": {"label": "关闭", "target_o2": 0.0, "power_load": 0.0},
-	"eco": {"label": "节能", "target_o2": 19.8, "power_load": 0.03},
-	"standard": {"label": "标准", "target_o2": 21.0, "power_load": 0.06},
-	"rich": {"label": "充足", "target_o2": 22.5, "power_load": 0.10},
-	"emergency": {"label": "应急", "target_o2": 24.0, "power_load": 0.18},
+	"off": {"label": "关闭", "target_o2": 0.0, "power_load": 0.0, "water_load": 0.0},
+	"eco": {"label": "节能", "target_o2": 19.8, "power_load": 0.03, "water_load": 0.004},
+	"standard": {"label": "标准", "target_o2": 21.0, "power_load": 0.06, "water_load": 0.008},
+	"rich": {"label": "充足", "target_o2": 22.5, "power_load": 0.10, "water_load": 0.014},
+	"emergency": {"label": "应急", "target_o2": 24.0, "power_load": 0.18, "water_load": 0.030},
 }
 const SUPPLY_TARGET_ORDER := ["off", "eco", "standard", "rich", "emergency"]
 
@@ -122,8 +122,24 @@ func _apply_o2_change(hours: float) -> void:
 		SystemStatus.STABLE:
 			generator_rate = 0.040
 	generator_rate *= _power_multiplier(_base_status_power())
+	generator_rate *= _water_satisfaction_multiplier()
 	var plant_bonus := PLANT_O2_BONUS if _last_plant_recovered() else 0.0
 	o2_percent += (HUMAN_O2_CONSUMPTION + generator_rate + plant_bonus) * hours
+
+## Throttles generator *output* only (not baseline human consumption) when
+## WaterSystemManager couldn't fully cover this tick's oxygen-generator water
+## need — "水不足时，关闭/降低制氧输出，O₂ 不再上升".
+func _water_satisfaction_multiplier() -> float:
+	var manager := _water_system_manager()
+	if manager == null or not manager.has_method("get_oxygen_water_satisfaction"):
+		return 1.0
+	return float(manager.call("get_oxygen_water_satisfaction"))
+
+func _water_system_manager() -> Node:
+	var tree := get_tree()
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null("WaterSystemManager")
 
 func _apply_co2_change(hours: float) -> void:
 	var filter_rate := 0.0
@@ -233,6 +249,11 @@ func get_air_power_load() -> float:
 ## device tier (its condition) — a throttle setting vs. equipment health.
 func _oxygen_generator_power_load() -> float:
 	return float(SUPPLY_TARGETS.get(supply_target_mode, {}).get("power_load", 0.0))
+
+## -- Water reporting (consulted by WaterSystemManager._oxygen_water_load())
+
+func get_water_load() -> float:
+	return float(SUPPLY_TARGETS.get(supply_target_mode, {}).get("water_load", 0.0))
 
 func _co2_filter_power_load() -> float:
 	match co2_filter_status:

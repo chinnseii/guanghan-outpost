@@ -128,7 +128,7 @@ func _action_power_cost(action_id: String) -> float:
 	return 0.0
 
 func _total_power_load() -> float:
-	return BASE_MINIMUM_LOAD + _air_power_load() + _thermal_power_load() + _greenhouse_light_power_load()
+	return BASE_MINIMUM_LOAD + _air_power_load() + _thermal_power_load() + _greenhouse_light_power_load() + _water_power_load()
 
 func _solar_generation(is_daylight: bool) -> float:
 	if not is_daylight:
@@ -327,10 +327,31 @@ func _greenhouse_light_power_load() -> float:
 		return 0.0
 	return float(manager.call("get_greenhouse_light_power_load"))
 
+func _water_power_load() -> float:
+	var manager := _water_system_manager()
+	if manager == null or not manager.has_method("get_water_power_load"):
+		return 0.0
+	return float(manager.call("get_water_power_load"))
+
+func _water_system_manager() -> Node:
+	var tree := get_tree()
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null("WaterSystemManager")
+
 ## -- Debug helpers
 
 func debug_adjust_energy(delta: float) -> void:
 	current_energy = clamp(current_energy + delta, 0.0, battery_capacity)
+	_sync_base_status_power()
+	_save_state()
+	power_system_changed.emit()
+
+## Generic energy deduction for cross-system actions (e.g. WaterSystemManager's
+## ice processing). Same clamp/sync behavior as debug_adjust_energy, just
+## named for non-debug gameplay callers.
+func consume_energy(amount: float) -> void:
+	current_energy = clamp(current_energy - amount, 0.0, battery_capacity)
 	_sync_base_status_power()
 	_save_state()
 	power_system_changed.emit()

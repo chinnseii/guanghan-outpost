@@ -24,6 +24,7 @@ TimeManager="*res://scripts/managers/TimeManager.gd"
 HealthManager="*res://scripts/managers/HealthManager.gd"
 BaseStatusManager="*res://scripts/managers/BaseStatusManager.gd"
 PowerSystemManager="*res://scripts/managers/PowerSystemManager.gd"
+WaterSystemManager="*res://scripts/managers/WaterSystemManager.gd"
 AirSystemManager="*res://scripts/managers/AirSystemManager.gd"
 PlantGrowthManager="*res://scripts/systems/PlantGrowthManager.gd"
 

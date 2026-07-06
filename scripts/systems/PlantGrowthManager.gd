@@ -63,7 +63,7 @@ func _process_daily_growth_for_slot(slot_id: String) -> void:
 	if crop.is_empty():
 		return
 	var score := 0
-	if _water_ok(crop):
+	if _consume_daily_plant_water(crop):
 		score += 1
 	if _light_ok(crop):
 		score += 1
@@ -118,8 +118,27 @@ func _stage_for_progress(progress: float, target: float) -> String:
 		return "Sprout"
 	return "Growing"
 
+## Pure peek for display (panel text / specialist hint) — never consumes
+## water. `water_cycle_level` is kept only as a fallback for when
+## WaterSystemManager is absent; it no longer gates plant water on its own
+## (see docs/handoff/SYSTEMS_REFERENCE_FOR_DESIGN.md — this field is now
+## decorative, like BaseStatusManager.power_system_status).
 func _water_ok(crop: Dictionary) -> bool:
-	return water_cycle_level >= int(crop.get("water_requirement", 0))
+	var manager := _water_system_manager()
+	if manager == null or not manager.has_method("can_supply_plant_water"):
+		return water_cycle_level >= int(crop.get("water_requirement", 0))
+	return bool(manager.call("can_supply_plant_water", _plant_daily_water_amount(crop)))
+
+## The real, once-per-day-per-plant withdrawal, called only from the daily
+## settlement loop. Returns whether the plant's water condition is met.
+func _consume_daily_plant_water(crop: Dictionary) -> bool:
+	var manager := _water_system_manager()
+	if manager == null or not manager.has_method("consume_plant_water"):
+		return water_cycle_level >= int(crop.get("water_requirement", 0))
+	return bool(manager.call("consume_plant_water", _plant_daily_water_amount(crop)))
+
+func _plant_daily_water_amount(crop: Dictionary) -> float:
+	return float(crop.get("water_requirement", 0)) * 0.35
 
 func _light_ok(crop: Dictionary) -> bool:
 	return _effective_light_level() >= int(crop.get("light_requirement", 0))
@@ -166,6 +185,42 @@ func get_greenhouse_light_power_load() -> float:
 		4:
 			per_zone_cost = 0.22
 	return per_zone_cost * float(greenhouse_zone_count)
+
+## -- Water reporting (consulted by WaterSystemManager for its daily forecast
+## display, and by its "植物科学" specialist hint)
+
+## Display-only estimate of today's total plant water demand across all
+## living, unharvested plants. Does not consume anything.
+func get_daily_water_demand() -> float:
+	var total := 0.0
+	for slot_id in plants.keys():
+		var plant: Dictionary = plants[slot_id]
+		if String(plant.get("health_state", "Healthy")) == "Dead":
+			continue
+		if String(plant.get("stage", "Seed")) == "Harvested":
+			continue
+		var crop := PlantCropDataScript.get_crop(String(plant.get("crop_id", "")))
+		if crop.is_empty():
+			continue
+		total += _plant_daily_water_amount(crop)
+	return total
+
+## Highest water_requirement level among currently planted (living,
+## unharvested) crops; used by WaterSystemManager's specialist hint to judge
+## whether a high-water crop like tomato is still in play.
+func get_highest_planted_water_requirement() -> int:
+	var highest := 0
+	for slot_id in plants.keys():
+		var plant: Dictionary = plants[slot_id]
+		if String(plant.get("health_state", "Healthy")) == "Dead":
+			continue
+		if String(plant.get("stage", "Seed")) == "Harvested":
+			continue
+		var crop := PlantCropDataScript.get_crop(String(plant.get("crop_id", "")))
+		if crop.is_empty():
+			continue
+		highest = max(highest, int(crop.get("water_requirement", 0)))
+	return highest
 
 ## -- Sowing / harvesting
 
@@ -500,6 +555,12 @@ func _health_manager() -> Node:
 	if tree == null or tree.root == null:
 		return null
 	return tree.root.get_node_or_null("HealthManager")
+
+func _water_system_manager() -> Node:
+	var tree := get_tree()
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null("WaterSystemManager")
 
 func _base_status_power() -> float:
 	var manager := _base_status_manager()
