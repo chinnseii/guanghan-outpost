@@ -1,6 +1,8 @@
 extends Control
 
 const TrainingManagerScript := preload("res://scripts/training/training_manager.gd")
+const PlayerControllerScript := preload("res://scripts/controllers/player_controller_2d.gd")
+const InteractionAreaScript := preload("res://scripts/controllers/interaction_area_2d.gd")
 
 # Maps TrainingTargetVisual.kind -> a reusable res://scenes/props/... scene
 # (reference_prop.gd based). Kinds without an entry keep drawing procedurally
@@ -713,6 +715,7 @@ var interaction_running := false
 var interaction_target_id := ""
 var wait_timer := 0.0
 var player_speed := 280.0
+var player_controller: RefCounted
 
 func _ready() -> void:
 	_ensure_input_actions()
@@ -1421,20 +1424,28 @@ func _assessment_room_target(target: Dictionary) -> Dictionary:
 	return room_target
 
 func _move_player(delta: float) -> void:
-	var direction := Vector2.ZERO
-	direction.x = Input.get_axis("ui_left", "ui_right")
-	direction.y = Input.get_axis("ui_up", "ui_down")
-	if direction.length() > 1.0:
-		direction = direction.normalized()
-	player.position += direction * player_speed * delta
 	var use_wall_margin := module_id == "suit_control" or module_id == "power_repair" or module_id == "life_support" or module_id == "plant_diagnosis" or module_id == "final_assessment"
 	var margin := 36.0 if use_wall_margin else 8.0
-	player.position.x = clamp(player.position.x, margin, max(margin, training_area.size.x - player.size.x - margin))
-	player.position.y = clamp(player.position.y, margin, max(margin, training_area.size.y - player.size.y - margin))
+	var movement_bounds := Rect2(Vector2(margin, margin), training_area.size - Vector2(margin * 2.0, margin * 2.0))
+	_ensure_player_controller(movement_bounds)
+	player_controller.bounds = movement_bounds
+	player_controller.size = player.size
+	player_controller.speed = player_speed
+	player_controller.set_time_manager(_time_manager())
+	player_controller.sync_position(player.position)
+	var result: Dictionary = player_controller.move_with_actions(delta, "ui_left", "ui_right", "ui_up", "ui_down")
+	player.position = result.get("position", player.position)
 	if module_id == "airlock_procedure":
 		var state: Dictionary = module_data.get("state", {})
 		if bool(state.get("Module02Completed", false)) or completed:
 			player.position.x = max(player.position.x, 540.0)
+			player_controller.sync_position(player.position)
+
+func _ensure_player_controller(movement_bounds: Rect2) -> void:
+	if player_controller != null:
+		return
+	player_controller = PlayerControllerScript.new()
+	player_controller.configure(player.position, player.size, player_speed, movement_bounds, false, _time_manager())
 
 func _check_auto_steps() -> void:
 	var step := _current_step()
@@ -1563,7 +1574,7 @@ func _default_time_minutes_for_step(step: Dictionary) -> int:
 	var step_type := String(step.get("type", "interact"))
 	var objective := String(step.get("objective", ""))
 	if step_type == "move" or String(step.get("target", "")) == "exit":
-		# TODO: connect free movement distance to TimeManager.advance_time(1, "move")
+		# Movement time is advanced by GuanghanPlayerController2D distance metering.
 		return 0
 	if step_type == "diagnosis":
 		return _action_minutes("plant_diagnosis", 15)
@@ -1792,17 +1803,17 @@ func _is_near(target_id: String) -> bool:
 	if not target_nodes.has(target_id):
 		return false
 	var target: Control = target_nodes[target_id]
-	var player_center := player.position + player.size * 0.5
-	var target_center := target.position + target.size * 0.5
-	return player_center.distance_to(target_center) <= 95.0
+	var player_center := InteractionAreaScript.center_point_from_top_left(player.position, player.size)
+	var target_rect := Rect2(target.position, target.size)
+	return InteractionAreaScript.is_point_near_rect(player_center, target_rect, 95.0)
 
 func _is_inside_target_area(target_id: String) -> bool:
 	if not target_nodes.has(target_id):
 		return false
 	var target: Control = target_nodes[target_id]
 	var target_rect := Rect2(target.position, target.size)
-	var player_feet := player.position + Vector2(player.size.x * 0.5, player.size.y)
-	return target_rect.has_point(player_feet)
+	var player_feet := InteractionAreaScript.feet_point_from_top_left(player.position, player.size)
+	return InteractionAreaScript.is_point_inside_rect(player_feet, target_rect)
 
 func _update_trigger_debug() -> void:
 	for node in target_nodes.values():

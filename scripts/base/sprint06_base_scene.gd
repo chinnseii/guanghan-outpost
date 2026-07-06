@@ -13,6 +13,8 @@ const SCENE_DAY02_END := "res://scenes/base/Day02EndScene.tscn"
 const SCENE_WEEK_START := "res://scenes/base/WeekRoutineStartScene.tscn"
 const SCENE_WEEK_END := "res://scenes/base/WeekRoutineEndScene.tscn"
 const ART_SLICE_MARKER_LAYER_SCRIPT := preload("res://scripts/base/art_slice_marker_layer.gd")
+const PlayerControllerScript := preload("res://scripts/controllers/player_controller_2d.gd")
+const InteractionAreaScript := preload("res://scripts/controllers/interaction_area_2d.gd")
 const HUD_SAFE_POSITION := Vector2(24, 96)
 const HUD_SAFE_SIZE := Vector2(360, 464)
 const HUD_SAFE_WORLD_MIN_X := 140.0
@@ -34,6 +36,7 @@ var scene_title_alpha := 0.0
 var interaction_running := false
 var interaction_target := ""
 var player_pose := "idle"
+var player_controller: RefCounted
 var plant_diagnosis_condition := "critical"
 var plant_diagnosis_feedback := ""
 var plant_diagnosis_specialist := false
@@ -512,15 +515,21 @@ func _unhandled_input(event: InputEvent) -> void:
 		_load_state()
 
 func _move_player(delta: float) -> void:
-	var direction := Vector2.ZERO
-	direction.x = Input.get_axis("move_left", "move_right")
-	direction.y = Input.get_axis("move_up", "move_down")
-	if direction.length() > 1.0:
-		direction = direction.normalized()
-	player_moving = direction.length() > 0.01
-	player_pos += direction * PLAYER_SPEED * delta
-	player_pos.x = clamp(player_pos.x, _world_left_limit(), 1510.0)
-	player_pos.y = clamp(player_pos.y, 190.0, 770.0)
+	var movement_bounds := Rect2(Vector2(_world_left_limit(), 190.0), Vector2(1510.0 - _world_left_limit(), 580.0))
+	_ensure_player_controller(movement_bounds)
+	player_controller.bounds = movement_bounds
+	player_controller.speed = PLAYER_SPEED
+	player_controller.set_time_manager(_time_manager())
+	player_controller.sync_position(player_pos)
+	var result: Dictionary = player_controller.move_with_actions(delta, "move_left", "move_right", "move_up", "move_down")
+	player_pos = result.get("position", player_pos)
+	player_moving = bool(result.get("moved", false))
+
+func _ensure_player_controller(movement_bounds: Rect2) -> void:
+	if player_controller != null:
+		return
+	player_controller = PlayerControllerScript.new()
+	player_controller.configure(player_pos, Vector2.ZERO, PLAYER_SPEED, movement_bounds, true, _time_manager())
 
 func _world_left_limit() -> float:
 	if scene_kind == "interior" and (_is_week_routine_active() or _is_day02_active()):
@@ -549,7 +558,7 @@ func _update_target() -> void:
 		current_target = "sleep"
 
 func _near(rect: Rect2) -> bool:
-	return rect.grow(44).has_point(player_pos)
+	return InteractionAreaScript.is_point_near_rect(player_pos, rect, 44.0)
 
 func _fade_scene_title() -> void:
 	await get_tree().create_timer(1.6).timeout
