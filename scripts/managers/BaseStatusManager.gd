@@ -60,12 +60,14 @@ func clamp_base_values() -> void:
 	temperature = clamp(temperature, -40.0, 60.0)
 
 ## Called by TimeManager after it advances the clock. Does not advance time itself.
+## Power is no longer settled here — PowerSystemManager owns it and calls
+## set_power_percent() before this runs; pressure/temperature still read the
+## resulting `power` value exactly as before.
 func advance_base_time(minutes: int) -> void:
 	if minutes <= 0:
 		return
 	var hours := float(minutes) / 60.0
 	var is_daylight := _is_daylight_phase()
-	_apply_power_change(hours, is_daylight)
 	_apply_pressure_change(hours)
 	_apply_temperature_change(hours, is_daylight)
 	clamp_base_values()
@@ -73,29 +75,11 @@ func advance_base_time(minutes: int) -> void:
 	_save_state()
 	base_status_changed.emit()
 
-func _apply_power_change(hours: float, is_daylight: bool) -> void:
-	var rate := 0.0
-	if is_daylight:
-		match power_system_status:
-			SystemStatus.OFFLINE:
-				rate = -0.20
-			SystemStatus.CRITICAL:
-				rate = 0.10
-			SystemStatus.BASIC:
-				rate = 0.35
-			SystemStatus.STABLE:
-				rate = 0.60
-	else:
-		match power_system_status:
-			SystemStatus.OFFLINE:
-				rate = -0.60
-			SystemStatus.CRITICAL:
-				rate = -0.35
-			SystemStatus.BASIC:
-				rate = -0.18
-			SystemStatus.STABLE:
-				rate = -0.10
-	power += rate * hours
+## Called by PowerSystemManager after it settles current_energy/battery_capacity,
+## so the rest of this tick's systems (temperature multiplier, AirSystemManager,
+## HealthManager) see an up-to-date value without needing to change how they read it.
+func set_power_percent(value: float) -> void:
+	power = clamp(value, 0.0, 100.0)
 
 func _apply_pressure_change(hours: float) -> void:
 	var rate := 0.0
@@ -191,6 +175,22 @@ func _temperature_comfortable() -> bool:
 
 func _temperature_is_dangerous() -> bool:
 	return temperature < 10.0 or temperature > 32.0
+
+## Reported to PowerSystemManager for its hourly load total. Device tier
+## still only affects temperature *effect* (in _apply_temperature_change),
+## per spec's "设备状态影响温控效果，不建议直接改变耗电" — this cost is a
+## separate, parallel readout of the same tier.
+func get_thermal_power_load() -> float:
+	match thermal_control_status:
+		SystemStatus.OFFLINE:
+			return 0.0
+		SystemStatus.CRITICAL:
+			return 0.06
+		SystemStatus.BASIC:
+			return 0.10
+		SystemStatus.STABLE:
+			return 0.16
+	return 0.0
 
 ## -- Repair actions: change system status tier and apply a one-time instant delta.
 ## Time cost is not advanced here; the caller advances TimeManager separately.
@@ -330,8 +330,6 @@ func get_specialist_hint() -> String:
 
 func adjust_stat(stat_name: String, delta: float) -> void:
 	match stat_name:
-		"power":
-			power += delta
 		"pressure":
 			pressure += delta
 		"temperature":

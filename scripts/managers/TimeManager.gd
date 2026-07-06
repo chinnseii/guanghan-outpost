@@ -60,6 +60,12 @@ func reset_to_arrival() -> void:
 	var base_status_manager := _base_status_manager()
 	if base_status_manager != null and base_status_manager.has_method("reset_to_arrival"):
 		base_status_manager.call("reset_to_arrival")
+	# PowerSystemManager resets after BaseStatusManager so its sync overwrites
+	# the hardcoded ARRIVAL_POWER=42 with the precise computed power_percent
+	# (50/120 ≈ 41.67%) — see docs/handoff/SYSTEMS_REFERENCE_FOR_DESIGN.md.
+	var power_system_manager := _power_system_manager()
+	if power_system_manager != null and power_system_manager.has_method("reset_to_arrival"):
+		power_system_manager.call("reset_to_arrival")
 	var air_system_manager := _air_system_manager()
 	if air_system_manager != null and air_system_manager.has_method("reset_to_arrival"):
 		air_system_manager.call("reset_to_arrival")
@@ -78,10 +84,12 @@ func advance_time(minutes_to_add: int, reason: String = "") -> void:
 	_update_clock()
 	_update_lunar_phase()
 	_save_state()
+	_apply_power_system_time(final_minutes)
 	_apply_base_status_time(final_minutes)
 	_apply_air_system_time(final_minutes)
 	_apply_plant_growth_time(final_minutes)
 	_apply_health_action_cost(reason)
+	_apply_power_action_cost(reason)
 	time_advanced.emit(final_minutes, reason)
 	time_changed.emit(current_day, hour, minute)
 
@@ -267,6 +275,31 @@ func _base_status_manager() -> Node:
 	if tree == null or tree.root == null:
 		return null
 	return tree.root.get_node_or_null("BaseStatusManager")
+
+func _power_system_manager() -> Node:
+	var tree := get_tree()
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null("PowerSystemManager")
+
+## Runs before BaseStatusManager settles, so power_percent is already synced
+## into BaseStatusManager.power by the time temperature/air/plant systems
+## read it this same tick.
+func _apply_power_system_time(minutes: int) -> void:
+	if minutes <= 0:
+		return
+	var manager := _power_system_manager()
+	if manager == null or not manager.has_method("advance_power_time"):
+		return
+	manager.call("advance_power_time", minutes)
+
+func _apply_power_action_cost(reason: String) -> void:
+	if reason.is_empty() or reason == "move" or reason.begins_with("debug_jump"):
+		return
+	var manager := _power_system_manager()
+	if manager == null or not manager.has_method("apply_action_cost"):
+		return
+	manager.call("apply_action_cost", reason)
 
 func _apply_base_status_time(minutes: int) -> void:
 	if minutes <= 0:

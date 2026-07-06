@@ -3687,8 +3687,6 @@ func _setup_dev_menu() -> void:
 	box.add_child(_make_dev_button("Health Action: Short Entertainment", func(): _debug_health_action("entertainment_short")))
 	box.add_child(_make_dev_button("Health Action: Light Repair", func(): _debug_health_action("repair_light")))
 	box.add_child(_make_dev_button("Health Action: Short Explore", func(): _debug_health_action("explore_short")))
-	box.add_child(_make_dev_button("Base Debug: Power -10", func(): _debug_adjust_base_status("power", -10.0)))
-	box.add_child(_make_dev_button("Base Debug: Power +10", func(): _debug_adjust_base_status("power", 10.0)))
 	box.add_child(_make_dev_button("Base Debug: Pressure -10", func(): _debug_adjust_base_status("pressure", -10.0)))
 	box.add_child(_make_dev_button("Base Debug: Pressure +10", func(): _debug_adjust_base_status("pressure", 10.0)))
 	box.add_child(_make_dev_button("Base Debug: Temperature -2", func(): _debug_adjust_base_status("temperature", -2.0)))
@@ -3710,6 +3708,19 @@ func _setup_dev_menu() -> void:
 	box.add_child(_make_dev_button("Air Debug: Cycle Supply Target", _debug_cycle_air_supply_target))
 	box.add_child(_make_dev_button("Air Debug: Reset to Day 01", _debug_reset_air_system))
 	box.add_child(_make_dev_button("Air Debug: Set Minimum Stable", _debug_set_air_minimum_stable))
+	box.add_child(_make_dev_button("Power Debug: Energy -20", func(): _debug_adjust_power_energy(-20.0)))
+	box.add_child(_make_dev_button("Power Debug: Energy +20", func(): _debug_adjust_power_energy(20.0)))
+	box.add_child(_make_dev_button("Power Debug: Add Solar Panel", _debug_add_solar_panel))
+	box.add_child(_make_dev_button("Power Debug: Add Battery Module", _debug_add_battery_module))
+	box.add_child(_make_dev_button("Power Debug: Cycle Solar Array Critical/Basic/Stable", _debug_cycle_solar_array_status))
+	box.add_child(_make_dev_button("Power Debug: Cycle Storage Efficiency Tech", _debug_cycle_storage_efficiency))
+	box.add_child(_make_dev_button("Power Debug: Cycle Charging Efficiency Tech", _debug_cycle_charging_efficiency))
+	box.add_child(_make_dev_button("Power Debug: Mode - Extreme Saving", func(): _debug_set_power_mode("extreme_saving")))
+	box.add_child(_make_dev_button("Power Debug: Mode - Standard", func(): _debug_set_power_mode("standard")))
+	box.add_child(_make_dev_button("Power Debug: Mode - Standard + Night Light 2", func(): _debug_set_power_mode("standard_night_light")))
+	box.add_child(_make_dev_button("Power Debug: Mode - High Load Greenhouse", func(): _debug_set_power_mode("high_load_greenhouse")))
+	box.add_child(_make_dev_button("Power Debug: Reset to Day 01", _debug_reset_power_system))
+	box.add_child(_make_dev_button("Power Debug: Set Minimum Stable", _debug_set_power_minimum_stable))
 	box.add_child(_make_dev_button("Plant Debug: Sow Lettuce", func(): _debug_sow_plant("lettuce")))
 	box.add_child(_make_dev_button("Plant Debug: Sow Potato", func(): _debug_sow_plant("potato")))
 	box.add_child(_make_dev_button("Plant Debug: Sow Wheat", func(): _debug_sow_plant("wheat")))
@@ -3885,6 +3896,60 @@ func _debug_set_air_minimum_stable() -> void:
 	if manager != null and manager.has_method("set_minimum_stable_state"):
 		manager.call("set_minimum_stable_state")
 		add_log("Air system debug: minimum stable state.\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_adjust_power_energy(delta: float) -> void:
+	var manager := get_node_or_null("/root/PowerSystemManager")
+	if manager != null and manager.has_method("debug_adjust_energy"):
+		manager.call("debug_adjust_energy", delta)
+		add_log("Power system debug:\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_add_solar_panel() -> void:
+	var manager := get_node_or_null("/root/PowerSystemManager")
+	if manager != null and manager.has_method("debug_add_solar_panel"):
+		manager.call("debug_add_solar_panel")
+		add_log("Power system debug:\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_add_battery_module() -> void:
+	var manager := get_node_or_null("/root/PowerSystemManager")
+	if manager != null and manager.has_method("debug_add_battery_module"):
+		manager.call("debug_add_battery_module")
+		add_log("Power system debug:\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_cycle_solar_array_status() -> void:
+	var manager := get_node_or_null("/root/PowerSystemManager")
+	if manager != null and manager.has_method("debug_cycle_solar_array_status"):
+		manager.call("debug_cycle_solar_array_status")
+		add_log("Power system debug:\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_cycle_storage_efficiency() -> void:
+	var manager := get_node_or_null("/root/PowerSystemManager")
+	if manager != null and manager.has_method("debug_cycle_storage_efficiency"):
+		manager.call("debug_cycle_storage_efficiency")
+		add_log("Power system debug:\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_cycle_charging_efficiency() -> void:
+	var manager := get_node_or_null("/root/PowerSystemManager")
+	if manager != null and manager.has_method("debug_cycle_charging_efficiency"):
+		manager.call("debug_cycle_charging_efficiency")
+		add_log("Power system debug:\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_set_power_mode(mode_id: String) -> void:
+	var manager := get_node_or_null("/root/PowerSystemManager")
+	if manager != null and manager.has_method("debug_set_power_mode"):
+		manager.call("debug_set_power_mode", mode_id)
+		add_log("Power system debug: mode %s.\n%s" % [mode_id, String(manager.call("debug_values_text"))])
+
+func _debug_reset_power_system() -> void:
+	var manager := get_node_or_null("/root/PowerSystemManager")
+	if manager != null and manager.has_method("reset_to_arrival"):
+		manager.call("reset_to_arrival")
+		add_log("Power system debug: reset to Day 01.\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_set_power_minimum_stable() -> void:
+	var manager := get_node_or_null("/root/PowerSystemManager")
+	if manager != null and manager.has_method("set_minimum_stable_state"):
+		manager.call("set_minimum_stable_state")
+		add_log("Power system debug: minimum stable state.\n%s" % String(manager.call("debug_values_text")))
 
 func _debug_sow_plant(crop_id: String) -> void:
 	var manager := get_node_or_null("/root/PlantGrowthManager")

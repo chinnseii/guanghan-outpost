@@ -54,6 +54,7 @@ static func default_data() -> Dictionary:
 		"HealthState": {},
 		"BaseStatusState": {},
 		"AirSystemState": {},
+		"PowerSystemState": {},
 		"PlantGrowthState": {},
 	}
 
@@ -82,6 +83,9 @@ static func load_progress() -> Dictionary:
 	var air_system_manager := _air_system_manager()
 	if air_system_manager != null and air_system_manager.has_method("deserialize") and data.get("AirSystemState", {}) is Dictionary:
 		air_system_manager.call("deserialize", data.get("AirSystemState", {}))
+	var power_system_manager := _power_system_manager()
+	if power_system_manager != null and power_system_manager.has_method("deserialize") and data.get("PowerSystemState", {}) is Dictionary:
+		power_system_manager.call("deserialize", data.get("PowerSystemState", {}))
 	var plant_growth_manager := _plant_growth_manager()
 	if plant_growth_manager != null and plant_growth_manager.has_method("deserialize") and data.get("PlantGrowthState", {}) is Dictionary:
 		plant_growth_manager.call("deserialize", data.get("PlantGrowthState", {}))
@@ -100,6 +104,9 @@ static func save_progress(data: Dictionary) -> void:
 	var air_system_manager := _air_system_manager()
 	if air_system_manager != null and air_system_manager.has_method("serialize"):
 		data["AirSystemState"] = air_system_manager.call("serialize")
+	var power_system_manager := _power_system_manager()
+	if power_system_manager != null and power_system_manager.has_method("serialize"):
+		data["PowerSystemState"] = power_system_manager.call("serialize")
 	var plant_growth_manager := _plant_growth_manager()
 	if plant_growth_manager != null and plant_growth_manager.has_method("serialize"):
 		data["PlantGrowthState"] = plant_growth_manager.call("serialize")
@@ -121,6 +128,9 @@ static func reset_progress() -> void:
 	var air_system_manager := _air_system_manager()
 	if air_system_manager != null and air_system_manager.has_method("reset_to_arrival"):
 		air_system_manager.call("reset_to_arrival")
+	var power_system_manager := _power_system_manager()
+	if power_system_manager != null and power_system_manager.has_method("reset_to_arrival"):
+		power_system_manager.call("reset_to_arrival")
 	var plant_growth_manager := _plant_growth_manager()
 	if plant_growth_manager != null and plant_growth_manager.has_method("reset_to_arrival"):
 		plant_growth_manager.call("reset_to_arrival")
@@ -292,6 +302,12 @@ static func _air_system_manager() -> Node:
 	if tree == null or tree.root == null:
 		return null
 	return tree.root.get_node_or_null("AirSystemManager")
+
+static func _power_system_manager() -> Node:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null("PowerSystemManager")
 
 static func _plant_growth_manager() -> Node:
 	var tree := Engine.get_main_loop() as SceneTree

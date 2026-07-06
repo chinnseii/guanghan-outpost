@@ -13,6 +13,10 @@ const PlantCropDataScript := preload("res://scripts/data/PlantCropData.gd")
 var water_cycle_level: int = 1
 var greenhouse_light_system_level: int = 1
 
+## Reserved for future greenhouse expansion; multiplies the night light power
+## draw once more than one zone exists. Not adjustable yet (no expansion UI).
+var greenhouse_zone_count: int = 1
+
 var accumulated_growth_minutes: int = 0
 var last_sown_slot_id: String = ""
 
@@ -28,6 +32,7 @@ func reset_to_arrival() -> void:
 	accumulated_growth_minutes = 0
 	water_cycle_level = 1
 	greenhouse_light_system_level = 1
+	greenhouse_zone_count = 1
 	last_sown_slot_id = ""
 	_save_state()
 	plant_growth_changed.emit()
@@ -140,6 +145,27 @@ func _effective_light_level() -> int:
 	else:
 		level = min(level, 1)
 	return clamp(level, 0, 4)
+
+## Reported to PowerSystemManager for its hourly load total. Daylight is free
+## (natural light); night draw is based on the *raw* dial setting
+## (greenhouse_light_system_level), not the power-degraded effective level —
+## the system is drawing power trying to reach that level even if it can't.
+func get_greenhouse_light_power_load() -> float:
+	if _is_daylight():
+		return 0.0
+	var per_zone_cost := 0.0
+	match greenhouse_light_system_level:
+		0:
+			per_zone_cost = 0.0
+		1:
+			per_zone_cost = 0.04
+		2:
+			per_zone_cost = 0.08
+		3:
+			per_zone_cost = 0.14
+		4:
+			per_zone_cost = 0.22
+	return per_zone_cost * float(greenhouse_zone_count)
 
 ## -- Sowing / harvesting
 
@@ -412,6 +438,7 @@ func serialize() -> Dictionary:
 		"accumulated_growth_minutes": accumulated_growth_minutes,
 		"water_cycle_level": water_cycle_level,
 		"greenhouse_light_system_level": greenhouse_light_system_level,
+		"greenhouse_zone_count": greenhouse_zone_count,
 		"last_sown_slot_id": last_sown_slot_id,
 		"plants": plants.duplicate(true),
 	}
@@ -420,6 +447,7 @@ func deserialize(data: Dictionary) -> void:
 	accumulated_growth_minutes = int(data.get("accumulated_growth_minutes", accumulated_growth_minutes))
 	water_cycle_level = clamp(int(data.get("water_cycle_level", water_cycle_level)), 0, 4)
 	greenhouse_light_system_level = clamp(int(data.get("greenhouse_light_system_level", greenhouse_light_system_level)), 0, 4)
+	greenhouse_zone_count = max(1, int(data.get("greenhouse_zone_count", greenhouse_zone_count)))
 	last_sown_slot_id = String(data.get("last_sown_slot_id", last_sown_slot_id))
 	var saved_plants: Variant = data.get("plants", {})
 	if saved_plants is Dictionary:

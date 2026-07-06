@@ -31,11 +31,11 @@ const REPRESSURIZE_PRESSURE_RATE := 0.15
 const REPRESSURIZE_RESERVE_COST := 0.20
 
 const SUPPLY_TARGETS := {
-	"off": {"label": "关闭", "target_o2": 0.0},
-	"eco": {"label": "节能", "target_o2": 19.8},
-	"standard": {"label": "标准", "target_o2": 21.0},
-	"rich": {"label": "充足", "target_o2": 22.5},
-	"emergency": {"label": "应急", "target_o2": 24.0},
+	"off": {"label": "关闭", "target_o2": 0.0, "power_load": 0.0},
+	"eco": {"label": "节能", "target_o2": 19.8, "power_load": 0.03},
+	"standard": {"label": "标准", "target_o2": 21.0, "power_load": 0.06},
+	"rich": {"label": "充足", "target_o2": 22.5, "power_load": 0.10},
+	"emergency": {"label": "应急", "target_o2": 24.0, "power_load": 0.18},
 }
 const SUPPLY_TARGET_ORDER := ["off", "eco", "standard", "rich", "emergency"]
 
@@ -48,7 +48,9 @@ var oxygen_generator_status: int = SystemStatus.CRITICAL
 var co2_filter_status: int = SystemStatus.CRITICAL
 var air_circulation_status: int = SystemStatus.BASIC
 
-## Reserved for future power/water coupling; does not change generator output yet.
+## Drives PowerSystemManager's oxygen-generator power draw (see
+## get_air_power_load()); does not change generator O2 output rate — that's
+## still governed by oxygen_generator_status. Water coupling still reserved.
 var supply_target_mode: String = "standard"
 
 func _ready() -> void:
@@ -222,6 +224,40 @@ func _co2_energy_multiplier() -> float:
 		return 1.1
 	return 1.0
 
+## -- Power reporting (consulted by PowerSystemManager._air_power_load())
+
+func get_air_power_load() -> float:
+	return _oxygen_generator_power_load() + _co2_filter_power_load() + _air_circulation_power_load()
+
+## Draw is driven by the supply *target* (how hard it's being run), not the
+## device tier (its condition) — a throttle setting vs. equipment health.
+func _oxygen_generator_power_load() -> float:
+	return float(SUPPLY_TARGETS.get(supply_target_mode, {}).get("power_load", 0.0))
+
+func _co2_filter_power_load() -> float:
+	match co2_filter_status:
+		SystemStatus.OFFLINE:
+			return 0.0
+		SystemStatus.CRITICAL:
+			return 0.03
+		SystemStatus.BASIC:
+			return 0.06
+		SystemStatus.STABLE:
+			return 0.10
+	return 0.0
+
+func _air_circulation_power_load() -> float:
+	match air_circulation_status:
+		SystemStatus.OFFLINE:
+			return 0.0
+		SystemStatus.CRITICAL:
+			return 0.02
+		SystemStatus.BASIC:
+			return 0.04
+		SystemStatus.STABLE:
+			return 0.07
+	return 0.0
+
 ## -- Repair actions: change device tier and apply a one-time instant delta.
 ## Time cost is not advanced here; the caller advances TimeManager separately.
 
@@ -325,7 +361,7 @@ func panel_status_text() -> String:
 		"惰性缓冲气体：%.1f%%" % inert_gas_percent,
 		"惰性气体储备：%s  %d%%" % [get_inert_gas_reserve_label(), int(round(inert_gas_reserve))],
 		"",
-		"供氧目标：%s（预留，尚未接入耗电/耗水）" % get_supply_target_label(),
+		"供氧目标：%s（耗电 %.2f E/h，尚未接入耗水）" % [get_supply_target_label(), _oxygen_generator_power_load()],
 		"",
 		"设备状态：",
 		"制氧模块：%s" % get_system_status_label(oxygen_generator_status),
@@ -398,6 +434,13 @@ func debug_set_system_status(system_name: String, status_name: String) -> void:
 func debug_cycle_supply_target() -> void:
 	var index := SUPPLY_TARGET_ORDER.find(supply_target_mode)
 	supply_target_mode = SUPPLY_TARGET_ORDER[(index + 1) % SUPPLY_TARGET_ORDER.size()]
+	_save_state()
+	air_system_changed.emit()
+
+func debug_set_supply_target(mode_id: String) -> void:
+	if not SUPPLY_TARGETS.has(mode_id):
+		return
+	supply_target_mode = mode_id
 	_save_state()
 	air_system_changed.emit()
 
