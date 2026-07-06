@@ -15,6 +15,10 @@ var energy: float = ARRIVAL_ENERGY
 var fullness: float = ARRIVAL_FULLNESS
 var nutrition: float = ARRIVAL_NUTRITION
 var morale: float = ARRIVAL_MORALE
+var base_carry_capacity: float = 50.0
+var effective_carry_capacity: float = 50.0
+var carry_health_score: float = 100.0
+var carry_health_multiplier: float = 1.0
 
 func _ready() -> void:
 	load_state()
@@ -24,6 +28,8 @@ func reset_to_arrival() -> void:
 	fullness = ARRIVAL_FULLNESS
 	nutrition = ARRIVAL_NUTRITION
 	morale = ARRIVAL_MORALE
+	base_carry_capacity = 50.0
+	get_effective_carry_capacity()
 	_save_state()
 	_emit_changed()
 
@@ -138,6 +144,22 @@ func adjusted_action_minutes(base_minutes: int, action_id: String) -> int:
 	if base_minutes <= 0:
 		return base_minutes
 	return int(ceil(float(base_minutes) * get_action_time_multiplier(action_id)))
+
+func get_carry_health_multiplier() -> float:
+	carry_health_score = min(energy, min(fullness, nutrition))
+	if carry_health_score >= 70.0:
+		return 1.0
+	if carry_health_score >= 40.0:
+		return 0.9
+	if carry_health_score >= 20.0:
+		return 0.75
+	return 0.6
+
+func get_effective_carry_capacity() -> float:
+	carry_health_score = min(energy, min(fullness, nutrition))
+	carry_health_multiplier = get_carry_health_multiplier()
+	effective_carry_capacity = base_carry_capacity * carry_health_multiplier
+	return effective_carry_capacity
 
 func get_energy_cost_multiplier() -> float:
 	var fullness_multiplier := 1.0
@@ -276,6 +298,14 @@ func adjust_stat(stat_name: String, delta: float) -> void:
 	_save_state()
 	_emit_changed()
 
+## Called by InventoryManager when a food/consumable item is eaten or used.
+## Keys are stat names matching adjust_stat(); unknown keys are ignored via
+## adjust_stat()'s own match. Goes through adjust_stat() so clamping/saving/
+## signal emission stay centralized — never bypasses it.
+func apply_item_effects(effects: Dictionary) -> void:
+	for stat_name in effects.keys():
+		adjust_stat(String(stat_name), float(effects[stat_name]))
+
 func set_danger_state() -> void:
 	energy = 18.0
 	fullness = 18.0
@@ -290,6 +320,7 @@ func serialize() -> Dictionary:
 		"fullness": fullness,
 		"nutrition": nutrition,
 		"morale": morale,
+		"base_carry_capacity": base_carry_capacity,
 	}
 
 func deserialize(data: Dictionary) -> void:
@@ -297,7 +328,9 @@ func deserialize(data: Dictionary) -> void:
 	fullness = float(data.get("fullness", fullness))
 	nutrition = float(data.get("nutrition", nutrition))
 	morale = float(data.get("morale", morale))
+	base_carry_capacity = float(data.get("base_carry_capacity", base_carry_capacity))
 	clamp_health_values()
+	get_effective_carry_capacity()
 	_emit_changed()
 
 func load_state() -> void:

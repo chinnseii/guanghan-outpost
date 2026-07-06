@@ -20,6 +20,7 @@ const PlantGrowthPanelScript := preload("res://scripts/ui/plant_growth_panel.gd"
 const AirSystemPanelScript := preload("res://scripts/ui/air_system_panel.gd")
 const PowerSystemPanelScript := preload("res://scripts/ui/power_system_panel.gd")
 const WaterSystemPanelScript := preload("res://scripts/ui/water_system_panel.gd")
+const BackpackStoragePanelScript := preload("res://scripts/ui/backpack_storage_panel.gd")
 const HUD_SAFE_POSITION := Vector2(24, 96)
 const HUD_SAFE_SIZE := Vector2(360, 464)
 const HUD_SAFE_WORLD_MIN_X := 140.0
@@ -57,6 +58,7 @@ var plant_growth_panel: PanelContainer
 var air_system_panel: PanelContainer
 var power_system_panel: PanelContainer
 var water_system_panel: PanelContainer
+var inventory_panel: PanelContainer
 var interaction_panel: PanelContainer
 var interaction_label: Label
 var interaction_bar: ProgressBar
@@ -113,6 +115,7 @@ func _setup_input() -> void:
 	_add_key_action("toggle_air_status", [KEY_O])
 	_add_key_action("toggle_power_status", [KEY_P])
 	_add_key_action("toggle_water_status", [KEY_I])
+	_add_key_action("toggle_inventory_status", [KEY_B])
 
 func _add_key_action(action_name: String, keys: Array[int]) -> void:
 	if not InputMap.has_action(action_name):
@@ -381,6 +384,7 @@ func _setup_ui() -> void:
 	_setup_air_system_panel(root)
 	_setup_power_system_panel(root)
 	_setup_water_system_panel(root)
+	_setup_inventory_panel(root)
 
 func _setup_interaction_feedback_ui(root: Control) -> void:
 	interaction_panel = PanelContainer.new()
@@ -470,6 +474,21 @@ func _toggle_water_system_panel() -> void:
 	water_system_panel.visible = not water_system_panel.visible
 	if water_system_panel.visible and water_system_panel.has_method("refresh"):
 		water_system_panel.call("refresh")
+
+## Same narrow (330-wide) column as the water panel, directly below it —
+## completes a 3x2 grid: Water/Air/Base on top, Inventory/Power/Plant below.
+func _setup_inventory_panel(root: Control) -> void:
+	inventory_panel = BackpackStoragePanelScript.new()
+	inventory_panel.position = Vector2(400, 500)
+	inventory_panel.visible = false
+	root.add_child(inventory_panel)
+
+func _toggle_inventory_panel() -> void:
+	if inventory_panel == null:
+		return
+	inventory_panel.visible = not inventory_panel.visible
+	if inventory_panel.visible and inventory_panel.has_method("refresh"):
+		inventory_panel.call("refresh")
 
 func _setup_plant_diagnosis_ui(root: Control) -> void:
 	plant_diagnosis_scrim = ColorRect.new()
@@ -610,6 +629,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		_toggle_power_system_panel()
 	if event.is_action_pressed("toggle_water_status"):
 		_toggle_water_system_panel()
+	if event.is_action_pressed("toggle_inventory_status"):
+		_toggle_inventory_panel()
 
 func _move_player(delta: float) -> void:
 	var movement_bounds := Rect2(Vector2(_world_left_limit(), 190.0), Vector2(1510.0 - _world_left_limit(), 580.0))
@@ -1808,6 +1829,8 @@ func _update_ui() -> void:
 		power_system_panel.call("refresh")
 	if water_system_panel != null and water_system_panel.visible and water_system_panel.has_method("refresh"):
 		water_system_panel.call("refresh")
+	if inventory_panel != null and inventory_panel.visible and inventory_panel.has_method("refresh"):
+		inventory_panel.call("refresh")
 
 func _hide_gameplay_hud_for_narrative() -> bool:
 	return fade_rect != null and fade_rect.color.a > 0.35 and (scene_kind == "week_end" or scene_kind == "day_end" or scene_kind == "day02_end")
@@ -2377,6 +2400,15 @@ func _load_state() -> void:
 	var water_system_manager := _water_system_manager()
 	if water_system_manager != null and water_system_manager.has_method("deserialize") and state.get("WaterSystemState", {}) is Dictionary:
 		water_system_manager.call("deserialize", state.get("WaterSystemState", {}))
+	var inventory_manager := _inventory_manager()
+	if inventory_manager != null and inventory_manager.has_method("deserialize") and state.get("InventoryState", {}) is Dictionary:
+		inventory_manager.call("deserialize", state.get("InventoryState", {}))
+	var backpack_manager := _backpack_manager()
+	if backpack_manager != null and backpack_manager.has_method("deserialize") and state.get("BackpackState", {}) is Dictionary:
+		backpack_manager.call("deserialize", state.get("BackpackState", {}))
+	var storage_manager := _storage_manager()
+	if storage_manager != null and storage_manager.has_method("deserialize") and state.get("StorageState", {}) is Dictionary:
+		storage_manager.call("deserialize", state.get("StorageState", {}))
 	var plant_growth_manager := _plant_growth_manager()
 	if plant_growth_manager != null and plant_growth_manager.has_method("deserialize") and state.get("PlantGrowthState", {}) is Dictionary:
 		plant_growth_manager.call("deserialize", state.get("PlantGrowthState", {}))
@@ -2401,6 +2433,15 @@ func _save_state() -> void:
 	var water_system_manager := _water_system_manager()
 	if water_system_manager != null and water_system_manager.has_method("serialize"):
 		state["WaterSystemState"] = water_system_manager.call("serialize")
+	var inventory_manager := _inventory_manager()
+	if inventory_manager != null and inventory_manager.has_method("serialize"):
+		state["InventoryState"] = inventory_manager.call("serialize")
+	var backpack_manager := _backpack_manager()
+	if backpack_manager != null and backpack_manager.has_method("serialize"):
+		state["BackpackState"] = backpack_manager.call("serialize")
+	var storage_manager := _storage_manager()
+	if storage_manager != null and storage_manager.has_method("serialize"):
+		state["StorageState"] = storage_manager.call("serialize")
 	var plant_growth_manager := _plant_growth_manager()
 	if plant_growth_manager != null and plant_growth_manager.has_method("serialize"):
 		state["PlantGrowthState"] = plant_growth_manager.call("serialize")
@@ -2432,6 +2473,24 @@ func _water_system_manager() -> Node:
 	if tree == null or tree.root == null:
 		return null
 	return tree.root.get_node_or_null("WaterSystemManager")
+
+func _inventory_manager() -> Node:
+	var tree := get_tree()
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null("InventoryManager")
+
+func _backpack_manager() -> Node:
+	var tree := get_tree()
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null("BackpackManager")
+
+func _storage_manager() -> Node:
+	var tree := get_tree()
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null("StorageManager")
 
 func _plant_growth_manager() -> Node:
 	var tree := get_tree()

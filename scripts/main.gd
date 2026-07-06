@@ -13,6 +13,10 @@ const DEMO_PROGRESS_PATHS := [
 	"user://saves/sprint06_progress.json",
 	"user://saves/time_state.json",
 	"user://saves/health_state.json",
+	"user://saves/backpack_state.json",
+	"user://saves/storage_state.json",
+	"user://saves/supply_state.json",
+	"user://saves/repair_state.json",
 ]
 
 const PLAYER_SCENE := preload("res://scenes/player.tscn")
@@ -3744,6 +3748,34 @@ func _setup_dev_menu() -> void:
 	box.add_child(_make_dev_button("Plant Debug: Force Mature Current Crop", _debug_force_mature_plant))
 	box.add_child(_make_dev_button("Plant Debug: Harvest Current Crop", _debug_harvest_plant))
 	box.add_child(_make_dev_button("Plant Debug: Clear Greenhouse Crops", _debug_clear_plants))
+	box.add_child(_make_dev_button("Inventory Debug: Add Sample Foods", _debug_add_sample_foods))
+	box.add_child(_make_dev_button("Inventory Debug: Add Sample Seeds", _debug_add_sample_seeds))
+	box.add_child(_make_dev_button("Inventory Debug: Add Sample Consumables", _debug_add_sample_consumables))
+	box.add_child(_make_dev_button("Inventory Debug: Add Sample Materials", _debug_add_sample_materials))
+	box.add_child(_make_dev_button("Inventory Debug: Add Durable Drill", _debug_add_durable_drill))
+	box.add_child(_make_dev_button("Inventory Debug: Eat Lettuce", _debug_eat_lettuce))
+	box.add_child(_make_dev_button("Inventory Debug: Eat Nutrition Pack", _debug_eat_nutrition_pack))
+	box.add_child(_make_dev_button("Inventory Debug: Use Last Durable Item", _debug_use_last_durable_item))
+	box.add_child(_make_dev_button("Inventory Debug: Reset to Day 01", _debug_reset_inventory))
+	box.add_child(_make_dev_button("Backpack Debug: Add Materials + Food", _debug_backpack_add_samples))
+	box.add_child(_make_dev_button("Backpack Debug: Deposit All to Storage", _debug_backpack_deposit_all))
+	box.add_child(_make_dev_button("Backpack Debug: Add Ice + Deposit to Water", _debug_backpack_ice_to_water))
+	box.add_child(_make_dev_button("Storage Debug: Add Foods + Materials", _debug_storage_add_samples))
+	box.add_child(_make_dev_button("Storage Debug: Eat First Food", _debug_storage_eat_first_food))
+	box.add_child(_make_dev_button("Backpack/Storage Debug: Reset", _debug_reset_backpack_storage))
+	box.add_child(_make_dev_button("Supply Debug: Show Status", _debug_supply_status))
+	box.add_child(_make_dev_button("Supply Debug: Draft Starter Order", _debug_supply_draft_starter))
+	box.add_child(_make_dev_button("Supply Debug: Confirm Order", _debug_supply_confirm))
+	box.add_child(_make_dev_button("Supply Debug: Jump Deadline", _debug_supply_jump_deadline))
+	box.add_child(_make_dev_button("Supply Debug: Jump Arrival", _debug_supply_jump_arrival))
+	box.add_child(_make_dev_button("Supply Debug: Reset", _debug_supply_reset))
+	box.add_child(_make_dev_button("Repair Debug: Show Status", _debug_repair_status))
+	box.add_child(_make_dev_button("Repair Debug: Seed Materials", _debug_repair_seed_materials))
+	box.add_child(_make_dev_button("Repair Debug: Add Sample Faults", _debug_repair_add_sample_faults))
+	box.add_child(_make_dev_button("Repair Debug: Diagnose First", _debug_repair_diagnose_first))
+	box.add_child(_make_dev_button("Repair Debug: Attempt First Correct", _debug_repair_attempt_first_correct))
+	box.add_child(_make_dev_button("Repair Debug: Attempt First Wrong", _debug_repair_attempt_first_wrong))
+	box.add_child(_make_dev_button("Repair Debug: Reset", _debug_repair_reset))
 	box.add_child(_make_dev_button("Dev Only: Training Start", func(): get_tree().change_scene_to_file("res://scenes/training/TrainingStartScene.tscn")))
 	box.add_child(_make_dev_button("Dev Only: Training Module 01", func():
 		TrainingManagerScript.set_current_module("suit_control")
@@ -4051,6 +4083,187 @@ func _debug_clear_plants() -> void:
 	if manager != null and manager.has_method("clear_all_plants"):
 		manager.call("clear_all_plants")
 		add_log("Plant debug: cleared all greenhouse crops.")
+
+func _debug_add_sample_foods() -> void:
+	var manager := get_node_or_null("/root/InventoryManager")
+	if manager != null and manager.has_method("debug_add_sample_foods"):
+		manager.call("debug_add_sample_foods")
+		add_log("Inventory debug: added sample foods.\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_add_sample_seeds() -> void:
+	var manager := get_node_or_null("/root/InventoryManager")
+	if manager != null and manager.has_method("debug_add_sample_seeds"):
+		manager.call("debug_add_sample_seeds")
+		add_log("Inventory debug: added sample seeds.\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_add_sample_consumables() -> void:
+	var manager := get_node_or_null("/root/InventoryManager")
+	if manager != null and manager.has_method("debug_add_sample_consumables"):
+		manager.call("debug_add_sample_consumables")
+		add_log("Inventory debug: added sample consumables.\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_add_sample_materials() -> void:
+	var manager := get_node_or_null("/root/InventoryManager")
+	if manager != null and manager.has_method("debug_add_sample_materials"):
+		manager.call("debug_add_sample_materials")
+		add_log("Inventory debug: added sample materials.\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_add_durable_drill() -> void:
+	var manager := get_node_or_null("/root/InventoryManager")
+	if manager != null and manager.has_method("debug_add_durable_drill"):
+		manager.call("debug_add_durable_drill")
+		add_log("Inventory debug: added durable drill.\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_eat_lettuce() -> void:
+	var manager := get_node_or_null("/root/InventoryManager")
+	if manager != null and manager.has_method("debug_eat_lettuce"):
+		manager.call("debug_eat_lettuce")
+		add_log("Inventory debug: ate lettuce.\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_eat_nutrition_pack() -> void:
+	var manager := get_node_or_null("/root/InventoryManager")
+	if manager != null and manager.has_method("debug_eat_nutrition_pack"):
+		manager.call("debug_eat_nutrition_pack")
+		add_log("Inventory debug: ate nutrition pack.\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_use_last_durable_item() -> void:
+	var manager := get_node_or_null("/root/InventoryManager")
+	if manager != null and manager.has_method("debug_use_last_durable_item"):
+		manager.call("debug_use_last_durable_item")
+		add_log("Inventory debug: used last durable item.\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_reset_inventory() -> void:
+	var manager := get_node_or_null("/root/InventoryManager")
+	if manager != null and manager.has_method("reset_to_arrival"):
+		manager.call("reset_to_arrival")
+		add_log("Inventory debug: reset to Day 01.\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_backpack_add_samples() -> void:
+	var manager := get_node_or_null("/root/BackpackManager")
+	if manager == null:
+		return
+	if manager.has_method("debug_add_sample_materials"):
+		manager.call("debug_add_sample_materials")
+	if manager.has_method("debug_add_sample_foods"):
+		manager.call("debug_add_sample_foods")
+	add_log("Backpack debug: added sample items.\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_backpack_deposit_all() -> void:
+	var manager := get_node_or_null("/root/BackpackManager")
+	if manager != null and manager.has_method("deposit_all_to_storage"):
+		manager.call("deposit_all_to_storage")
+		add_log("Backpack debug: deposited carried items to storage.\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_backpack_ice_to_water() -> void:
+	var manager := get_node_or_null("/root/BackpackManager")
+	if manager == null:
+		return
+	if manager.has_method("debug_add_lunar_ice"):
+		manager.call("debug_add_lunar_ice")
+	if manager.has_method("deposit_ice_to_water_system"):
+		manager.call("deposit_ice_to_water_system")
+	add_log("Backpack debug: transferred lunar ice to water system.\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_storage_add_samples() -> void:
+	var manager := get_node_or_null("/root/StorageManager")
+	if manager == null:
+		return
+	if manager.has_method("debug_add_sample_foods"):
+		manager.call("debug_add_sample_foods")
+	if manager.has_method("debug_add_sample_materials"):
+		manager.call("debug_add_sample_materials")
+	add_log("Storage debug: added sample items.\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_storage_eat_first_food() -> void:
+	var manager := get_node_or_null("/root/StorageManager")
+	if manager != null and manager.has_method("eat_first_food"):
+		manager.call("eat_first_food")
+		add_log("Storage debug: ate first available food.\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_reset_backpack_storage() -> void:
+	var backpack_manager := get_node_or_null("/root/BackpackManager")
+	if backpack_manager != null and backpack_manager.has_method("reset_to_arrival"):
+		backpack_manager.call("reset_to_arrival")
+	var storage_manager := get_node_or_null("/root/StorageManager")
+	if storage_manager != null and storage_manager.has_method("reset_to_arrival"):
+		storage_manager.call("reset_to_arrival")
+	add_log("Backpack/Storage debug: reset to Day 01.")
+
+func _debug_supply_status() -> void:
+	var manager := get_node_or_null("/root/SupplyManager")
+	if manager != null and manager.has_method("debug_values_text"):
+		add_log("Supply debug:\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_supply_draft_starter() -> void:
+	var manager := get_node_or_null("/root/SupplyManager")
+	if manager != null and manager.has_method("debug_select_starter_supply"):
+		manager.call("debug_select_starter_supply")
+		add_log("Supply debug: drafted starter order.\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_supply_confirm() -> void:
+	var manager := get_node_or_null("/root/SupplyManager")
+	if manager != null and manager.has_method("confirm_supply_order"):
+		var ok := bool(manager.call("confirm_supply_order"))
+		add_log("Supply debug: confirm %s.\n%s" % ["ok" if ok else "failed", String(manager.call("debug_values_text"))])
+
+func _debug_supply_jump_deadline() -> void:
+	var manager := get_node_or_null("/root/SupplyManager")
+	if manager != null and manager.has_method("debug_jump_to_deadline"):
+		manager.call("debug_jump_to_deadline")
+		add_log("Supply debug: jumped to deadline.\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_supply_jump_arrival() -> void:
+	var manager := get_node_or_null("/root/SupplyManager")
+	if manager != null and manager.has_method("debug_jump_to_arrival"):
+		manager.call("debug_jump_to_arrival")
+		add_log("Supply debug: jumped to arrival.\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_supply_reset() -> void:
+	var manager := get_node_or_null("/root/SupplyManager")
+	if manager != null and manager.has_method("reset_to_arrival"):
+		manager.call("reset_to_arrival")
+		add_log("Supply debug: reset.\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_repair_status() -> void:
+	var manager := get_node_or_null("/root/RepairManager")
+	if manager != null and manager.has_method("debug_values_text"):
+		add_log("Repair debug:\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_repair_seed_materials() -> void:
+	var manager := get_node_or_null("/root/RepairManager")
+	if manager != null and manager.has_method("debug_seed_repair_materials"):
+		manager.call("debug_seed_repair_materials")
+		add_log("Repair debug: seeded materials.\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_repair_add_sample_faults() -> void:
+	var manager := get_node_or_null("/root/RepairManager")
+	if manager != null and manager.has_method("debug_add_sample_faults"):
+		manager.call("debug_add_sample_faults")
+		add_log("Repair debug: sample faults added.\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_repair_diagnose_first() -> void:
+	var manager := get_node_or_null("/root/RepairManager")
+	if manager != null and manager.has_method("debug_diagnose_first"):
+		manager.call("debug_diagnose_first")
+		add_log("Repair debug: diagnosed first active fault.\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_repair_attempt_first_correct() -> void:
+	var manager := get_node_or_null("/root/RepairManager")
+	if manager != null and manager.has_method("debug_attempt_first_correct"):
+		manager.call("debug_attempt_first_correct")
+		add_log("Repair debug: attempted first correct repair.\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_repair_attempt_first_wrong() -> void:
+	var manager := get_node_or_null("/root/RepairManager")
+	if manager != null and manager.has_method("debug_attempt_first_wrong"):
+		manager.call("debug_attempt_first_wrong")
+		add_log("Repair debug: attempted first wrong repair.\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_repair_reset() -> void:
+	var manager := get_node_or_null("/root/RepairManager")
+	if manager != null and manager.has_method("reset_to_arrival"):
+		manager.call("reset_to_arrival")
+		add_log("Repair debug: reset.\n%s" % String(manager.call("debug_values_text")))
 
 func _toggle_dev_menu() -> void:
 	if not has_node("UI/Root/DevMenu"):

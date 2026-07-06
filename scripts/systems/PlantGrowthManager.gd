@@ -252,11 +252,11 @@ func harvest(slot_id: String) -> bool:
 	var crop := PlantCropDataScript.get_crop(String(plant.get("crop_id", "")))
 	if crop.is_empty():
 		return false
-	var health_manager := _health_manager()
-	if health_manager != null and health_manager.has_method("adjust_stat"):
-		health_manager.call("adjust_stat", "fullness", float(crop.get("harvest_fullness", 0.0)))
-		health_manager.call("adjust_stat", "nutrition", float(crop.get("harvest_nutrition", 0.0)))
-		health_manager.call("adjust_stat", "morale", float(crop.get("harvest_morale", 0.0)))
+	# Harvesting only produces the item now — health is restored when the
+	# player eats it (InventoryManager.eat_item()), not on harvest itself.
+	var harvest_item_id := String(crop.get("harvest_item_id", ""))
+	if not harvest_item_id.is_empty() and not _store_harvest_item(harvest_item_id):
+		return false
 	plant["total_harvest_count"] = int(plant.get("total_harvest_count", 0)) + 1
 	if bool(crop.get("repeat_harvest", false)) and int(plant.get("extra_harvests_used", 0)) < int(crop.get("max_extra_harvests", 0)):
 		plant["extra_harvests_used"] = int(plant.get("extra_harvests_used", 0)) + 1
@@ -550,11 +550,29 @@ func _base_status_manager() -> Node:
 		return null
 	return tree.root.get_node_or_null("BaseStatusManager")
 
-func _health_manager() -> Node:
+func _inventory_manager() -> Node:
 	var tree := get_tree()
 	if tree == null or tree.root == null:
 		return null
-	return tree.root.get_node_or_null("HealthManager")
+	return tree.root.get_node_or_null("InventoryManager")
+
+func _storage_manager() -> Node:
+	var tree := get_tree()
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null("StorageManager")
+
+func _store_harvest_item(harvest_item_id: String) -> bool:
+	var storage_manager := _storage_manager()
+	if storage_manager != null and storage_manager.has_method("add_item"):
+		var result: Variant = storage_manager.call("add_item", harvest_item_id, 1)
+		if result is Dictionary:
+			return int((result as Dictionary).get("accepted", 0)) >= 1
+		return bool(result)
+	var inventory_manager := _inventory_manager()
+	if inventory_manager != null and inventory_manager.has_method("add_item"):
+		return bool(inventory_manager.call("add_item", harvest_item_id, 1))
+	return false
 
 func _water_system_manager() -> Node:
 	var tree := get_tree()

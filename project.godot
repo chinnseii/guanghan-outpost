@@ -27,6 +27,11 @@ PowerSystemManager="*res://scripts/managers/PowerSystemManager.gd"
 WaterSystemManager="*res://scripts/managers/WaterSystemManager.gd"
 AirSystemManager="*res://scripts/managers/AirSystemManager.gd"
 PlantGrowthManager="*res://scripts/systems/PlantGrowthManager.gd"
+InventoryManager="*res://scripts/managers/InventoryManager.gd"
+BackpackManager="*res://scripts/managers/BackpackManager.gd"
+StorageManager="*res://scripts/managers/StorageManager.gd"
+SupplyManager="*res://scripts/managers/SupplyManager.gd"
+RepairManager="*res://scripts/managers/RepairManager.gd"
 
 [display]
 

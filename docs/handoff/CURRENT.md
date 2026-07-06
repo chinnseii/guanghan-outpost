@@ -1,159 +1,206 @@
 # 当前状态（滚动文档，每次覆盖重写）
 
 更新时间：2026-07-06
-更新人：Claude Code（本轮临时顶替 Codex 的游戏逻辑/Manager/数据/流程职责——Codex
-临时无 token，由 Claude Code 在独立会话中代打这部分；同一时间另一个 Claude Code
-会话仍在并行做场景/UI/美术。Codex 恢复后请按下方记录核对，不要误以为是
-Codex 自己之前做的）
+更新人：Codex + Claude Code（代 Codex，物品系统）——两边在同一份未提交工作区
+里并行工作，本次是把双方改动合并成一次快照提交。已确认两边改动在文件层面
+互相独立（不同函数/不同区块），已跑过 headless 验证确认整体能正常启动，
+详情见下方"验证"和"对共用核心文件的改动记录"。
 
 ## 正在进行
 
-（暂无，"水资源系统"设计已实现完成，本轮改动已提交）
+- 开局方向正在调整为"玩家先依赖登陆飞船求生仓，7 天内接管旧基地"（Codex）。
+  本轮只做了抵达电影场景的轻量表达改动，完整求生仓倒计时/返航节点/补给链
+  门槛暂未实现。
+- 物品系统（ItemDatabase / InventoryManager）本轮由 Claude Code 完整实现
+  完成，不再是"进行中"。之前"先别碰 ItemDatabase.gd / InventoryManager.gd"
+  的提示本轮已解除，两个文件已完工并通过验证。
 
-## 最近完成
+## Codex 本轮完成：维修/故障系统 v1 基础
 
-- **Claude Code（代 Codex）**：完成水资源系统实现。
-  - **新增 `scripts/managers/WaterSystemManager.gd`**，注册为
-    `/root/WaterSystemManager`（放在 `PowerSystemManager` 之后、
-    `AirSystemManager` 之前，settlement 顺序：Power → Water → Base → Air →
-    Plant → Health(+Power/+Water 一次性行动耗电耗水)）。管理：
-    - `current_water`（抵达 42 W）/ `water_capacity`（=水箱模块数×40，抵达
-      80 W）/ `water_tank_module_count`（抵达 2）/ `current_ice`（抵达 0 I）/
-      `ice_capacity`（=冰仓模块数×60，抵达 120 I）/
-      `ice_storage_module_count`（抵达 2）/ `water_recycling_level`（抵达 1，
-      0–4）/ `water_recycling_efficiency`（抵达 1.0）/
-      `ice_processing_efficiency`（抵达 1.0，只降低冰处理耗电，不提高水产出
-      比例——1 I 恒等于 1 W，按需求文档明确要求不做"凭空造水"）。
-    - 冰处理 `process_ice(amount)`：on-demand 动作（不是每小时自动结算的
-      一部分），限于当前冰量/水箱剩余空间/当前电力可负担量三者取最小值，
-      电力扣除走 `PowerSystemManager.consume_energy()`（新增的通用扣电接口）。
-    - 水循环回收率 = `min(基础回收率[0/15/30/45/60%] × 效率倍率, 80%)`，硬
-      上限 80%。可回收耗水（生活用水+植物供水）按 `需求×(1-回收率)` 实际
-      扣款；不可回收耗水（制氧）全额扣款。数学上证明"每笔单独打折"和需求
-      文档"日终批量结算"等价，所以没做批处理。
-    - 每小时结算：基础生活用水（0.025W/h，可回收，连续缺水≥24h 每小时追加
-      `morale -2/24`）+ 制氧耗水（读 `AirSystemManager.get_water_load()`，
-      不可回收，算出"供水满足率"）。
-    - 一次性行动耗水：进食 0.10W / 营养液 0.20W（可回收，尽力而为不硬阻断，
-      跟 PowerSystemManager 的一次性行动耗电走同一套简化）。
-    - 植物供水**不在**上面的每小时结算里，而是挂在 PlantGrowthManager 自己
-      的每日循环上（详见 PlantGrowthManager 改动）。
-    - 存档 `user://saves/water_system_state.json`，同时接入旧基地/温室/第一周
-      存档与训练进度存档的 `WaterSystemState` 字段。
-  - **AirSystemManager 的 O₂ 产出新增"供水满足率"节流**：
-    `WaterSystemManager.get_oxygen_water_satisfaction()`（0–1，水完全不够时
-    为 0，只剩人类呼吸的固定消耗，不影响消耗侧只影响产出侧）。新增
-    `get_water_load()`（制氧模块耗水，跟已有的 `get_air_power_load()` 共用
-    `SUPPLY_TARGETS` 常量字典，新增了 `water_load` 键，避免重复维护同一张表）。
-  - **PowerSystemManager** 新增 `consume_energy(amount)`（通用扣电接口，供
-    冰处理这类"变动量算不出固定值"的场景调用）和
-    `_water_power_load()`（水循环运行耗电，读
-    `WaterSystemManager.get_water_power_load()`，纳入总负载）。
-  - **PlantGrowthManager 的水条件判断完全重构**：`_water_ok(crop)` 现在是
-    纯 peek（调用 `WaterSystemManager.can_supply_plant_water()`，UI/专业提示
-    随便调用不会消耗水）；真正的每日一次真实扣款走新增的
-    `_consume_daily_plant_water(crop)`（调用
-    `WaterSystemManager.consume_plant_water()`），只在
-    `_process_daily_growth_for_slot()` 里调用一次。旧字段
-    `water_cycle_level` **现在纯装饰**，只在 WaterSystemManager 缺失时当
-    兜底判断用。新增 `get_daily_water_demand()`（当前所有作物每日需水总和，
-    供水面板展示）和 `get_highest_planted_water_requirement()`（供水系统的
-    植物科学专业提示判断"番茄还在不在场"）。
-  - **UI**：新增 `scripts/ui/water_system_panel.gd`，在 `sprint06_base_scene.gd`
-    里用新按键 `I` 开关。屏幕右侧已经被 Base(Tab,1170/180)、Plant(G,1170/500,
-    仅温室)、Air(O,740/180)、Power(P,740/500) 占满 2×2 网格，水面板做窄了
-    （330 宽而非 420）塞进 HUD 安全区和空气面板之间的空隙
-    （`Vector2(400, 180)`）。
-  - **Debug 支持**：主菜单开发菜单新增 Water Debug 分组（水/冰加减、加水箱
-    模块/加冰仓模块、水循环等级循环、"处理 20 冰"（对应需求文档自己的算例）/
-    "处理全部冰"、重置 Day 01、设为最低稳定状态）。
-  - 设计参考文档 `docs/handoff/SYSTEMS_REFERENCE_FOR_DESIGN.md` 已同步更新
-    （按用户要求，新增/改动数值系统时必须同步这份文档）：新增第六节"水资源
-    系统 WaterSystemManager"，空气系统章节补充供水满足率节流机制和
-    `get_water_load()`，电力系统章节补充 `consume_energy()` 和
-    `_water_power_load()`，植物生长系统章节的"水"条件描述完全重写，
-    "尚未覆盖"清单新增了几条水系统特有的简化点。
+- **新增 `scripts/data/FaultDatabase.gd`**：16 张故障卡，覆盖电力/空气/密封/
+  温控/水/温室六个子系统。
+- **新增 `scripts/managers/RepairManager.gd`**，注册为 autoload
+  `/root/RepairManager`。运行时状态含 active/resolved、诊断次数、已排除的
+  错误维修选项、尝试次数、严重故障恶化计数、最近一次结果/提示文案。
+  - `diagnose_fault(fault_id)`：耗时 15 分钟（`TimeManager.advance_time(15,
+    "fault_diagnosis")`），排除一个错误选项但不直接揭示正确答案。
+  - `attempt_repair(fault_id, option_id)`：正确维修消耗时间/材料并解决故障；
+    错误维修消耗时间、可能消耗材料，严重故障会记录"恶化"。
+  - 维修材料只从 `StorageManager` 扣除。
+  - 轻量跨系统效果（`BaseStatusManager.adjust_stat`/
+    `AirSystemManager.adjust_stat`/`WaterSystemManager.debug_adjust_water`/
+    `PowerSystemManager.debug_adjust_energy`）。
+  - 存档 `user://saves/repair_state.json`，已加入 Demo 进度清除列表。
+  - `main.gd` 新增 Repair Debug 分组（显示状态/播种材料/加样例故障/诊断
+    第一个/正确尝试第一个/错误尝试第一个/重置）。
+  - 目前**只有系统骨架 + Debug 入口，没有正式的玩家可见维修面板 UI**；
+    未解决故障的持续影响目前只是数据存在，没有接"随时间持续恶化"的结算；
+    错误/正确效果刻意做得很轻，没有做完整的电力/空气/水失效模拟；严重
+    维修失败只记录 `worsening`，还没有接到任何失败态判定。
+  - Codex 自己的验证记录：本轮 headless 校验没能跑完（第一次运行在打开
+    `user://logs` 时超时/崩溃，重试又被环境用量限制拒绝），已经手动加强了
+    GDScript 类型安全，但还需要在能跑 Godot 的时候补一次 parse/check。
+    **Claude Code 已经代跑了这次验证**（见下方"验证"），确认
+    `RepairManager`/`FaultDatabase` 能正常加载，`main.tscn` 反复 headless
+    启动无 `SCRIPT ERROR`/`Parse Error`。
+  - 本轮 Codex 明确没有碰的文件：`reference_prop.gd`、
+    `training_module_scene.gd`、`training_manager.gd`、
+    `opening_flow_manager.gd`、`sprint06_base_scene.gd`；也没有碰物品系统
+    归属文件：`ItemDatabase.gd`/`InventoryManager.gd`/`BackpackManager.gd`/
+    `StorageManager.gd`。
 
-## 对共用核心文件的改动记录（第一档文件，已按规则先查 git log 再改）
+## Codex 上一轮完成：抵达电影场景表达调整
 
-- `scripts/managers/AirSystemManager.gd`：`SUPPLY_TARGETS` 常量字典追加
-  `water_load` 键；新增 `get_water_load()`、`_water_satisfaction_multiplier()`、
-  `_water_system_manager()`；`_apply_o2_change()` 里给 `generator_rate` 追加
-  乘 `_water_satisfaction_multiplier()`（默认 1.0，WaterSystemManager 缺失
-  时不影响旧行为）。O₂/CO₂ 的其余结算逻辑完全未改动。
-- `scripts/managers/PowerSystemManager.gd`：新增
-  `consume_energy(amount)`、`_water_power_load()`、`_water_system_manager()`；
-  `_total_power_load()` 追加 `_water_power_load()` 项。其余逻辑完全未改动。
-- `scripts/systems/PlantGrowthManager.gd`：`_water_ok(crop)` 内部实现改为
-  查询 WaterSystemManager（原有签名/调用方不变）；新增
-  `_consume_daily_plant_water(crop)`、`_plant_daily_water_amount(crop)`、
-  `get_daily_water_demand()`、`get_highest_planted_water_requirement()`、
-  `_water_system_manager()`；`_process_daily_growth_for_slot()` 里的评分逻辑
-  从"读 `_water_ok()`"改成"调用 `_consume_daily_plant_water()`"（这是本次
-  唯一改动了实际调用点的地方，其余全是新增方法）。生长/收获/专业提示的
-  其余逻辑完全未改动。
-- `scripts/managers/TimeManager.gd`：`advance_time()` 在
-  `_apply_power_system_time()` 之后、`_apply_base_status_time()` 之前新增
-  `_apply_water_system_time()`；在 `_apply_power_action_cost()` 之后新增
-  `_apply_water_action_cost()`。`reset_to_arrival()` 里
-  `WaterSystemManager.reset_to_arrival()` 排在 `AirSystemManager` 之前、
-  `PowerSystemManager` 之后（顺序本身不影响正确性，因为 Water 的 reset
-  不反向同步任何其他 Manager 的字段，纯粹跟随既有习惯摆放）。
-- `scripts/base/sprint06_base_scene.gd`（10 个场景共用）：
-  - `_save_state()`/`_load_state()` 追加 `WaterSystemState`
-    序列化/反序列化，对齐已有的 `PowerSystemState` 处理方式。
-  - 新增 I 键（`toggle_water_status`）开关新的 `WaterSystemPanel`，只在
-    `_setup_ui()`/`_unhandled_input()`/`_update_ui()` 各加了几行，没有动
-    现有的交互逻辑。
-- `scripts/training/training_manager.gd`：`default_data()`/`load_progress()`/
-  `save_progress()`/`reset_progress()` 追加 `WaterSystemState` 字段，写法
-  对齐已有的 `PowerSystemState` 处理。
-- `scripts/props/reference_prop.gd`：本次未触碰。
+- 更新 `scripts/arrival/arrival_cinematic_scene.gd`：初始提示改为"停下，
+  透过舷窗望向地球"；观察地球台词改为"透过求生仓舷窗，可以看见地球"；
+  前景从月面运输船剪影改成求生仓舷窗/内舱框架/工程面板；玩家仍可停下观察
+  地球，结束后仍显示 `E / Enter 前往基地气闸`；场景跳转目标未变，仍进入
+  `BaseAirlockEntryScene`。
+
+## Codex 工作区里仍在推进、本轮未展开的系统（供后续参考）
+
+- 地球补给系统 v1：`scripts/managers/SupplyManager.gd`、`SupplyManager`
+  autoload、`TimeManager.advance_time()` 里的补给事件检查、
+  `supply_state.json`、F12 Supply Debug。
+- 背包/仓库/负重系统 v1：`BackpackManager`、`StorageManager`、
+  `ItemContainer`、`HealthManager` 负重上限字段（`base_carry_capacity`/
+  `effective_carry_capacity`/`carry_health_score`/`carry_health_multiplier`）。
+
+## Claude Code 本轮完成：物品系统 v1
+
+- **新增 `scripts/data/ItemDatabase.gd`**（纯数据，`extends RefCounted`，无
+  `class_name`，`preload()` 引用，对齐 `PlantCropData.gd` 写法避免 class_name
+  缓存问题）：`const ITEMS` 共 33 条，覆盖食物(5)/种子(5)/消耗品(5)/材料(6)/
+  工具(6，含2个默认工具+4个耐久工具)/系统资源编号(6)。详细字段/数值见
+  `docs/handoff/SYSTEMS_REFERENCE_FOR_DESIGN.md` 第八节。
+- **新增 `scripts/managers/InventoryManager.gd`**，注册为 autoload
+  `/root/InventoryManager`。`stack_items`（item_id→数量）+ `durable_items`
+  （instance_id→{item_id, current_durability, max_durability, state}）两套
+  结构；`add_item`/`remove_item`/`has_item`/`get_item_count`/`eat_item`/
+  `use_item`/`add_durable_item`/`use_durable_item`/`repair_durable_item`/
+  `get_durable_item_state`/`panel_status_text`/序列化/Debug helper 全部按
+  需求文档接口清单实现。**不挂在 `TimeManager.advance_time()` 的每小时结算
+  链上**，纯被动响应动作。
+- **`PlantGrowthManager.harvest()` 改造为"只产物品，不再直接回血"**：调用
+  `InventoryManager.add_item(harvest_item_id, 1)`，不再直接调
+  `HealthManager.adjust_stat()`。`PlantCropData.gd` 五种作物新增
+  `harvest_item_id` 字段（`FO-CR-001`~`FO-CR-005`），旧的
+  `harvest_fullness/nutrition/morale` 三个字段保留但 `harvest()` 已不读，
+  这三个数字的新家是 `ItemDatabase.gd` 对应食物条目的 `effects`。
+- **`HealthManager.gd` 新增 `apply_item_effects(effects: Dictionary)`**：
+  给 `InventoryManager` 调用，内部走已有的 `adjust_stat()` 逐项应用，不绕过
+  clamp/存档/信号。
+- **`WaterSystemManager._action_water_cost()` 新增 `"eat_item"` case**，
+  金额沿用 `EAT_WATER_COST`，让 `eat_item()` 推进时间时也会正确耗水（旧
+  `"eat"`/`"nutrition_drink"` case 完全没动，两条路径独立）。
+- **避免双重回血的关键设计**：`eat_item()`/`use_item()` 推进 `TimeManager`
+  用的 reason 是 `"eat_item"`/`"use_item"`，故意不匹配
+  `HealthManager.apply_action_cost()`/`WaterSystemManager.apply_action_cost()`
+  里原有的固定 `"eat"`/`"nutrition_drink"` case，避免"吃一次加两次血"。
+- **UI**：新增 `scripts/ui/inventory_panel.gd`，`sprint06_base_scene.gd` 里
+  用新按键 `B` 开关，位置 `(400, 500)`，紧跟在水面板 `(400,180)` 下方，凑成
+  右侧 3×2 网格的最后一格。
+- **Debug 支持**：`main.gd` 新增 Inventory Debug 分组（加食物/种子/消耗品/
+  材料样本各一套、加一把便携钻具耐久工具、吃生菜、吃营养液包、使用最后一个
+  耐久物品、重置到 Day 01）。
+- **存档接入**：`sprint06_base_scene.gd`（`_load_state()`/`_save_state()`）
+  和 `training_manager.gd`（`default_data()`/`load_progress()`/
+  `save_progress()`/`reset_progress()`）都追加了 `InventoryState` 字段 +
+  `_inventory_manager()` helper，写法对齐已有的 `WaterSystemState` 处理。
+- 设计参考文档同步更新：新增第八节"物品系统"，原"尚未覆盖"章节顺延为
+  第九节，修正了插入新章节产生的几处"见第 X 节"交叉引用漂移。
+
+## 顺手修复的 Bug（Claude Code 发现并修复，跟物品系统本身无关，属于工作区
+里其他未提交代码的既有问题）
+
+给物品系统跑收尾 headless 验证时，发现只要触发过一次"继续任务"存档读取
+路径，就会在 `BackpackManager.deserialize()`/`StorageManager.deserialize()`
+里报 `Invalid call. Nonexistent function 'normalize_slots'`，根因是
+`scripts/systems/ItemContainer.gd` 里两处经典"`min()`/三元表达式赋值给
+`var x := ...` 导致类型推断失败"Parse Error（跟本项目之前在
+AirSystemManager.gd/WaterSystemManager.gd 踩过的是同一类问题），编译失败
+连带拖垮了预加载它的 `BackpackManager.gd`/`StorageManager.gd`。另外
+`SupplyManager.gd._format_time()` 里也有两处同款 Parse Error，导致
+`SupplyManager` autoload **完全无法实例化**。已加显式类型标注修复：
+- `ItemContainer.gd` `add_existing_slot()` 里 `rejected` 改成
+  `var rejected: Variant = ...`（后面会被赋值 `null`，不能是 Dictionary）。
+- `ItemContainer.gd` `take_from_slot()` 里 `take_count` 改成显式 `: int`。
+- `SupplyManager.gd` `_format_time()` 里 `total_from_start`/`minute`
+  改成显式 `: int`。
+纯语法层面的机械修复，**没有改动任何背包/仓库/补给系统的行为逻辑**。修复后
+`BackpackManager`/`StorageManager`/`SupplyManager` 三个 autoload 都能正常
+实例化。之后新加入工作区的 `RepairManager.gd`/`FaultDatabase.gd` 已单独
+验证过，没有类似问题。
+
+## 对共用核心文件的改动记录
+
+- `scripts/arrival/arrival_cinematic_scene.gd`（Codex，未改动状态机）。
+- `scripts/managers/TimeManager.gd`（Codex：接入 `SupplyManager` 补给事件
+  检查；本轮 Claude Code 未再改动这个文件）。
+- `scripts/managers/HealthManager.gd`（Codex 的负重字段 + Claude Code 的
+  `apply_item_effects()`，两处改动在文件里不同位置，互不冲突）。
+- `scripts/data/PlantCropData.gd`（只有 Claude Code：新增 `harvest_item_id`
+  字段）。
+- `scripts/managers/WaterSystemManager.gd`（只有 Claude Code：新增
+  `"eat_item"` 耗水 case）。
+- `scripts/systems/PlantGrowthManager.gd`（只有 Claude Code：`harvest()`
+  改为只产物品）。
+- `scripts/systems/ItemContainer.gd` / `scripts/managers/SupplyManager.gd`
+  （Codex 的功能代码 + Claude Code 顺手修的 4 处类型推断 Parse Error，
+  详见上方"顺手修复的 Bug"）。
+- `scripts/base/sprint06_base_scene.gd`（Codex 的 Backpack/Storage 面板 +
+  存档字段，Claude Code 的 Inventory 面板 + 存档字段，各自新增独立函数块，
+  没有互相修改对方代码）。
+- `scripts/main.gd`（Codex 的 Backpack/Storage/Supply/Repair Debug 分组，
+  Claude Code 的 Inventory Debug 分组，各自独立按钮 + handler 函数）。
+- `scripts/training/training_manager.gd`（Codex 的 `BackpackState`/
+  `StorageState`，Claude Code 的 `InventoryState`，分别追加，写法都对齐
+  已有的 `WaterSystemState` 处理）。
+- `project.godot`：`[autoload]` 追加了 `InventoryManager`（Claude Code）/
+  `BackpackManager`/`StorageManager`/`SupplyManager`/`RepairManager`
+  （Codex）五个 autoload。
+- `docs/handoff/SYSTEMS_REFERENCE_FOR_DESIGN.md`：Codex 加了 RepairManager
+  v1 的参考条目，Claude Code 加了第八节"物品系统"整节 + 交叉引用修正。
 
 ## 验证
 
-- Godot 4.7 headless 逐个加载并确认无 `SCRIPT ERROR`/`Parse Error`：
-  `main.tscn`、`OldBaseInteriorScene.tscn`、`OldGreenhouseScene.tscn`、
-  `Day02StartScene.tscn`、`WeekRoutineStartScene.tscn`、
-  `SolarArrayExteriorScene.tscn`、`Training_03_PowerRepair.tscn`、
-  `FinalAssessmentScene.tscn`。
-- 又踩到一次同款 `min()`/三元表达式类型推断 Parse Error（这次在
-  `WaterSystemManager.gd` 里有 6 处），已通过显式 `: float` 类型标注全部
-  修复并重新验证通过——以后新写涉及 `min()`/`max()`/三元表达式赋值给 `var`
-  的地方，记得直接标类型，省得每次都要在 headless 加载失败后才发现。
-- 临时脚本（未提交，验证后已删除）跑通了：抵达初始值精确匹配（42/80W、
-  0/120I、回收率15%）；回收率硬上限 80% 生效（4 级×效率 2.0 本应 120% 被
-  压到 80%）；24 小时纯生活用水结算精确匹配 `-0.6×0.85=-0.51`；标准供氧
-  1 小时耗水精确匹配 `0.02125+0.008=0.02925`；水量耗尽时制氧供水满足率
-  正确降到 0，O₂ 产出侧完全归零（只剩人类呼吸消耗）；冰处理受水箱空间/
-  电力双重限制的结果精确匹配手算；加水箱/冰仓模块不凭空增加当前存量；
-  植物面板文本多次调用不消耗水（纯 peek），每日结算的真实扣款金额精确匹配
-  `生活用水×0.85 + 番茄需水×0.85 + 制氧耗水`（三项相加验证过）。全程只有
-  上面提到的类型推断问题，逻辑本身未发现缺陷。
-- 未跑图形界面截图（本次未涉及新视觉资产，新增的水资源面板默认隐藏、按 I
-  打开；截图验收留给人类玩测或下一轮）。
+- ArrivalCinematicScene headless 加载通过（Codex）。
+- Claude Code 本轮验证：`main.tscn` +
+  `OldBaseInteriorScene`/`OldGreenhouseScene`/`Day02StartScene`/
+  `WeekRoutineStartScene`/`SolarArrayExteriorScene`/`Training_03_PowerRepair`/
+  `FinalAssessmentScene` 共 8 个共用场景 headless 加载，反复验证均无
+  `SCRIPT ERROR`/`Parse Error`（含修复 ItemContainer.gd/SupplyManager.gd
+  前后各跑一遍的对比，以及 RepairManager/FaultDatabase 加入后再跑一遍确认
+  它们也没有类似问题）。临时脚本（未提交，验证后已删除）跑通了：库存加/减/
+  堆叠、耐久物品拒绝走 `add_item()`、`eat_item()` 正确回血+正确耗水、收获
+  只产物品不直接回血（专门断言过"收获前后 HealthManager 数值不变"）、耐久
+  工具磨损到 0 后正确进入 broken 状态且拒绝继续使用、
+  `InventoryManager` 序列化/反序列化往返一致。
 
 ## 已知问题 / 暂不覆盖范围
 
-- **"喝营养液不可用"这条硬门槛没做**：水不够时 `WaterSystemManager` 只是
-  尽力打折扣款到 0，不会阻止玩家继续执行 `eat`/`nutrition_drink` 动作，
-  跟 PowerSystemManager 的一次性行动耗电走同一套"尽力而为、不做硬门槛"简化。
-- **水不足时"生活用水 vs 制氧"没有按比例分配，完全按结算顺序决定**：
-  `advance_water_time()` 里生活用水先结算，水快耗尽时制氧只能分到剩下的
-  部分（可能是 0）。这是实现顺序的自然结果，不是需求文档明确要求的优先级；
-  如果要做更公平的分配需要重构这部分。
-- **材料科学"水箱老化/冰仓隔热"专业提示只是文案**，没有真实的模块老化/
-  损耗机制（需求文档自己也说第一版可以只做文案）。
-- **`WaterSystemManager.add_ice()`/`add_water()` 目前只有 Debug 菜单在调**，
-  没有真正的"外出采集"系统在生产月球冰——这两个方法是留给未来采集系统的
-  空接口，调用方尚不存在。
-- `BaseStatusManager.power_system_status`（供电系统档位）在电力系统重构后
-  已经是纯装饰字段，本次未处理；`BaseStatusManager.get_power_label()` 仍是
-  旧的 4 档文案，没有跟着 `PowerSystemManager.get_power_label()` 的新 5 档
-  同步更新——两处历史遗留问题延续到本轮，未做进一步清理。
-- Godot 在本地会刷新大量已跟踪 `.import` 文件和生成 `.uid`/`.godot_appdata/`，
-  它们不属于本次改动，提交时未暂存。
+- 本轮没有实现完整飞船求生仓系统、7 天求生仓倒计时、"补给系统改成求生仓
+  返航后才开启"、求生仓内部可交互生活空间（Codex，均为下一轮方向）。
+- `ArrivalLandingScene` 仍是旧月面原型表达；正式流程主要使用
+  `ArrivalCinematicScene`（Codex）。
+- **RepairManager 目前只有系统骨架 + Debug 入口，没有正式玩家可见 UI**，
+  故障持续恶化/完整失效模拟/严重维修失败的失败态判定都还没做（Codex）。
+- **物品系统没有背包容量/负重、格子摆放、装备栏、物品腐坏/过期、品质/
+  随机词条、复杂合成、工具维修、批量烹饪、玩家交易**——按需求文档明确列出
+  的"本轮不做"清单，第一版只做了数据定义+库存数量+吃/用+耐久（Claude Code）。
+- **旧的固定 `eat`/`nutrition_drink` 行动没有被物品系统取代**，两条吃东西
+  的路径（`HealthManager.apply_action_cost("eat")` 固定值 vs
+  `InventoryManager.eat_item(item_id)` 真实库存）并存，互不替代，详见
+  `SYSTEMS_REFERENCE_FOR_DESIGN.md` 第九节（Claude Code）。
+- 详细的物品系统数值/接口清单见
+  `docs/handoff/SYSTEMS_REFERENCE_FOR_DESIGN.md` 第八节。
 
 ## 先别碰
 
-（暂无）
+- （已解除）`scripts/data/ItemDatabase.gd` / `scripts/managers/InventoryManager.gd`
+  本轮已经完工，不再需要避让，改前照旧先 `git log --oneline -- <file>`。
+- `scripts/managers/BackpackManager.gd` / `StorageManager.gd` /
+  `SupplyManager.gd` / `RepairManager.gd` / `scripts/data/FaultDatabase.gd`
+  都是 Codex 自己正在推进的系统，Claude Code 本轮只顺手修了
+  `ItemContainer.gd`/`SupplyManager.gd` 里纯语法层面的类型推断 Parse
+  Error，没有改动任何行为逻辑，其余部分不要动，留给 Codex 继续。

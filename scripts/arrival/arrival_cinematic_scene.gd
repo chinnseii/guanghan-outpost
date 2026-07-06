@@ -18,7 +18,7 @@ var observe_triggered := false
 var hud_alpha := 0.34
 var dialogue_alpha := 0.0
 var dialogue_text := ""
-var prompt_text := "停下，望向地球"
+var prompt_text := "停下，透过舷窗望向地球"
 var entry_prompt_delay := 0.0
 var walk_phase := 0.0
 var camera_lock_time := 0.0
@@ -178,7 +178,7 @@ func _trigger_observe_earth() -> void:
 	dialogue_alpha = 1.0
 	entry_prompt_delay = 4.2
 	camera_lock_time = 3.2
-	dialogue_text = "那里，是地球。\n距离：384,400公里。\n预计通信延迟：1.3秒。"
+	dialogue_text = "透过求生仓舷窗，可以看见地球。\n距离：384,400公里。\n预计通信延迟：1.3秒。"
 	event_manager.call("trigger", "observe_earth", {"scene": "ArrivalCinematicScene"}, true)
 	audio_manager.call("play_ui", 480.0, 0.08, 0.05)
 
@@ -203,7 +203,7 @@ func _update_ui() -> void:
 		prompt_text = "E / Enter 前往基地气闸" if _entry_prompt_ready() else ""
 	else:
 		var left: float = max(0.0, 5.0 - observe_hold)
-		prompt_text = "停下，望向地球 %.1fs" % left
+		prompt_text = "停下，透过舷窗望向地球 %.1fs" % left
 	prompt.text = prompt_text
 	var debug: Label = $UI/Root/Debug
 	debug.visible = debug_visible
@@ -276,12 +276,10 @@ func _draw_midground() -> void:
 	draw_line(Vector2(660, 750), Vector2(900, 682), Color("#302117", 0.18), 2)
 
 func _draw_foreground() -> void:
-	_draw_transport_ship()
+	_draw_survival_habitat_window()
 	_draw_player()
-	draw_circle(Vector2(455, 804), 130, Color("#0b0704", 0.20))
-	draw_circle(Vector2(604, 802), 84, Color("#e3863e", 0.055))
-	for i in range(8):
-		draw_circle(Vector2(475 + i * 32, 818 + sin(float(i)) * 12.0), 18.0 + float(i % 3) * 8.0, Color("#b78c62", 0.035))
+	draw_rect(Rect2(Vector2(330, 820), Vector2(470, 16)), Color("#02060a", 0.22), true)
+	draw_circle(Vector2(604, 802), 84, Color("#d7a766", 0.035))
 
 func _draw_transport_ship() -> void:
 	var base := Vector2(230, 610)
@@ -307,6 +305,38 @@ func _draw_transport_ship() -> void:
 	draw_circle(base + Vector2(62, 184), 30, Color("#f09a47", 0.28))
 	draw_circle(base + Vector2(250, 196), 24, Color("#f09a47", 0.22))
 	draw_circle(base + Vector2(168, 220), 86, Color("#e3863e", 0.045))
+
+func _draw_survival_habitat_window() -> void:
+	var window_rect := Rect2(Vector2(185, 88), Vector2(1230, 654))
+	var inner_rect := window_rect.grow(-34)
+	draw_rect(Rect2(Vector2(-40, -20), Vector2(1680, 980)), Color("#02070c", 0.28))
+	draw_rect(window_rect.grow(36), Color("#0a1118", 0.72), true)
+	draw_rect(window_rect.grow(18), Color("#23323d", 0.94), false, 24.0)
+	draw_rect(window_rect, Color("#4f6472", 0.9), false, 9.0)
+	draw_rect(inner_rect, Color("#a8daf4", 0.045), true)
+	draw_rect(inner_rect, Color("#c8efff", 0.18), false, 2.0)
+	draw_line(inner_rect.position + Vector2(26, 32), inner_rect.position + Vector2(332, 188), Color("#dff8ff", 0.10), 6.0)
+	draw_line(inner_rect.position + Vector2(704, 24), inner_rect.position + Vector2(1090, 218), Color("#dff8ff", 0.075), 4.0)
+	draw_line(Vector2(800, 88), Vector2(800, 742), Color("#596b74", 0.45), 5.0)
+	draw_line(Vector2(185, 414), Vector2(1415, 414), Color("#596b74", 0.32), 4.0)
+	draw_rect(Rect2(Vector2(0, 742), Vector2(1600, 210)), Color("#0d141b", 0.92), true)
+	draw_rect(Rect2(Vector2(0, 742), Vector2(1600, 18)), Color("#283946", 0.94), true)
+	for i in range(9):
+		var x := 270.0 + float(i) * 132.0
+		draw_rect(Rect2(Vector2(x, 778), Vector2(72, 10)), Color("#283b47"))
+		draw_circle(Vector2(x + 88, 783), 5.0, Color("#d4b36c", 0.55 if i % 3 == 0 else 0.20))
+	draw_rect(Rect2(Vector2(90, 622), Vector2(245, 112)), Color("#111b23", 0.86), true)
+	draw_rect(Rect2(Vector2(90, 622), Vector2(245, 112)), Color("#405766", 0.85), false, 2.0)
+	draw_rect(Rect2(Vector2(112, 646), Vector2(152, 18)), Color("#2d4f66", 0.82), true)
+	draw_rect(Rect2(Vector2(112, 680), Vector2(188, 8)), Color("#7fa8b6", 0.36), true)
+	draw_rect(Rect2(Vector2(112, 706), Vector2(82, 7)), Color("#d4b36c", 0.52), true)
+	draw_rect(Rect2(Vector2(1248, 616), Vector2(230, 122)), Color("#101920", 0.86), true)
+	draw_rect(Rect2(Vector2(1248, 616), Vector2(230, 122)), Color("#405766", 0.78), false, 2.0)
+	draw_rect(Rect2(Vector2(1272, 642), Vector2(144, 18)), Color("#2f5368", 0.78), true)
+	draw_rect(Rect2(Vector2(1272, 681), Vector2(96, 7)), Color("#8fb8c8", 0.30), true)
+	draw_rect(Rect2(Vector2(1272, 707), Vector2(126, 7)), Color("#d4b36c", 0.42), true)
+	draw_string(ThemeDB.fallback_font, Vector2(114, 638), "LANDER HABITAT", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color("#9eb4bf", 0.72))
+	draw_string(ThemeDB.fallback_font, Vector2(1270, 632), "DOCKED TO GHO", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color("#9eb4bf", 0.72))
 
 func _draw_player() -> void:
 	var feet := Vector2(player_x, 748)

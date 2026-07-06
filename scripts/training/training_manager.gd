@@ -56,6 +56,9 @@ static func default_data() -> Dictionary:
 		"AirSystemState": {},
 		"PowerSystemState": {},
 		"WaterSystemState": {},
+		"InventoryState": {},
+		"BackpackState": {},
+		"StorageState": {},
 		"PlantGrowthState": {},
 	}
 
@@ -90,6 +93,15 @@ static func load_progress() -> Dictionary:
 	var water_system_manager := _water_system_manager()
 	if water_system_manager != null and water_system_manager.has_method("deserialize") and data.get("WaterSystemState", {}) is Dictionary:
 		water_system_manager.call("deserialize", data.get("WaterSystemState", {}))
+	var inventory_manager := _inventory_manager()
+	if inventory_manager != null and inventory_manager.has_method("deserialize") and data.get("InventoryState", {}) is Dictionary:
+		inventory_manager.call("deserialize", data.get("InventoryState", {}))
+	var backpack_manager := _backpack_manager()
+	if backpack_manager != null and backpack_manager.has_method("deserialize") and data.get("BackpackState", {}) is Dictionary:
+		backpack_manager.call("deserialize", data.get("BackpackState", {}))
+	var storage_manager := _storage_manager()
+	if storage_manager != null and storage_manager.has_method("deserialize") and data.get("StorageState", {}) is Dictionary:
+		storage_manager.call("deserialize", data.get("StorageState", {}))
 	var plant_growth_manager := _plant_growth_manager()
 	if plant_growth_manager != null and plant_growth_manager.has_method("deserialize") and data.get("PlantGrowthState", {}) is Dictionary:
 		plant_growth_manager.call("deserialize", data.get("PlantGrowthState", {}))
@@ -114,6 +126,15 @@ static func save_progress(data: Dictionary) -> void:
 	var water_system_manager := _water_system_manager()
 	if water_system_manager != null and water_system_manager.has_method("serialize"):
 		data["WaterSystemState"] = water_system_manager.call("serialize")
+	var inventory_manager := _inventory_manager()
+	if inventory_manager != null and inventory_manager.has_method("serialize"):
+		data["InventoryState"] = inventory_manager.call("serialize")
+	var backpack_manager := _backpack_manager()
+	if backpack_manager != null and backpack_manager.has_method("serialize"):
+		data["BackpackState"] = backpack_manager.call("serialize")
+	var storage_manager := _storage_manager()
+	if storage_manager != null and storage_manager.has_method("serialize"):
+		data["StorageState"] = storage_manager.call("serialize")
 	var plant_growth_manager := _plant_growth_manager()
 	if plant_growth_manager != null and plant_growth_manager.has_method("serialize"):
 		data["PlantGrowthState"] = plant_growth_manager.call("serialize")
@@ -141,6 +162,15 @@ static func reset_progress() -> void:
 	var water_system_manager := _water_system_manager()
 	if water_system_manager != null and water_system_manager.has_method("reset_to_arrival"):
 		water_system_manager.call("reset_to_arrival")
+	var inventory_manager := _inventory_manager()
+	if inventory_manager != null and inventory_manager.has_method("reset_to_arrival"):
+		inventory_manager.call("reset_to_arrival")
+	var backpack_manager := _backpack_manager()
+	if backpack_manager != null and backpack_manager.has_method("reset_to_arrival"):
+		backpack_manager.call("reset_to_arrival")
+	var storage_manager := _storage_manager()
+	if storage_manager != null and storage_manager.has_method("reset_to_arrival"):
+		storage_manager.call("reset_to_arrival")
 	var plant_growth_manager := _plant_growth_manager()
 	if plant_growth_manager != null and plant_growth_manager.has_method("reset_to_arrival"):
 		plant_growth_manager.call("reset_to_arrival")
@@ -330,3 +360,21 @@ static func _plant_growth_manager() -> Node:
 	if tree == null or tree.root == null:
 		return null
 	return tree.root.get_node_or_null("PlantGrowthManager")
+
+static func _inventory_manager() -> Node:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null("InventoryManager")
+
+static func _backpack_manager() -> Node:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null("BackpackManager")
+
+static func _storage_manager() -> Node:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null("StorageManager")

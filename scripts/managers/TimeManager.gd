@@ -75,6 +75,9 @@ func reset_to_arrival() -> void:
 	var plant_growth_manager := _plant_growth_manager()
 	if plant_growth_manager != null and plant_growth_manager.has_method("reset_to_arrival"):
 		plant_growth_manager.call("reset_to_arrival")
+	var supply_manager := _supply_manager()
+	if supply_manager != null and supply_manager.has_method("reset_to_arrival"):
+		supply_manager.call("reset_to_arrival")
 	_save_state()
 	time_changed.emit(current_day, hour, minute)
 	lunar_phase_changed.emit(lunar_phase)
@@ -82,6 +85,7 @@ func reset_to_arrival() -> void:
 func advance_time(minutes_to_add: int, reason: String = "") -> void:
 	if minutes_to_add <= 0:
 		return
+	var previous_minutes := total_minutes
 	var final_minutes := _adjusted_minutes(minutes_to_add, reason)
 	total_minutes += final_minutes
 	_update_clock()
@@ -95,6 +99,7 @@ func advance_time(minutes_to_add: int, reason: String = "") -> void:
 	_apply_health_action_cost(reason)
 	_apply_power_action_cost(reason)
 	_apply_water_action_cost(reason)
+	_check_supply_events(previous_minutes, total_minutes)
 	time_advanced.emit(final_minutes, reason)
 	time_changed.emit(current_day, hour, minute)
 
@@ -379,3 +384,15 @@ func _apply_health_action_cost(reason: String) -> void:
 	if manager == null or not manager.has_method("apply_action_cost"):
 		return
 	manager.call("apply_action_cost", reason)
+
+func _supply_manager() -> Node:
+	var tree := get_tree()
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null("SupplyManager")
+
+func _check_supply_events(previous_minutes: int, current_minutes: int) -> void:
+	var manager := _supply_manager()
+	if manager == null or not manager.has_method("check_supply_events"):
+		return
+	manager.call("check_supply_events", previous_minutes, current_minutes)

@@ -152,6 +152,13 @@ func _action_water_cost(action_id: String) -> float:
 			return EAT_WATER_COST
 		"nutrition_drink":
 			return NUTRITION_DRINK_WATER_COST
+		"eat_item":
+			# InventoryManager.eat_item() covers both regular food and
+			# CN-FD-002 (营养液包) through one generic reason string, so this
+			# collapses the old eat/nutrition_drink distinction to the
+			# regular-food cost. See docs/handoff/SYSTEMS_REFERENCE_FOR_DESIGN.md
+			# for the known simplification.
+			return EAT_WATER_COST
 	return 0.0
 
 ## -- Plant supply (called from PlantGrowthManager's own daily settlement)
