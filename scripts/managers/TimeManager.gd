@@ -54,6 +54,9 @@ func reset_to_arrival() -> void:
 	lunar_phase = "night_late"
 	minutes_until_phase_change = DAYLIGHT_START_MINUTE
 	last_phase_notice = ""
+	var health_manager := _health_manager()
+	if health_manager != null and health_manager.has_method("reset_to_arrival"):
+		health_manager.call("reset_to_arrival")
 	_save_state()
 	time_changed.emit(current_day, hour, minute)
 	lunar_phase_changed.emit(lunar_phase)
@@ -61,11 +64,13 @@ func reset_to_arrival() -> void:
 func advance_time(minutes_to_add: int, reason: String = "") -> void:
 	if minutes_to_add <= 0:
 		return
-	total_minutes += minutes_to_add
+	var final_minutes := _adjusted_minutes(minutes_to_add, reason)
+	total_minutes += final_minutes
 	_update_clock()
 	_update_lunar_phase()
 	_save_state()
-	time_advanced.emit(minutes_to_add, reason)
+	_apply_health_action_cost(reason)
+	time_advanced.emit(final_minutes, reason)
 	time_changed.emit(current_day, hour, minute)
 
 func action_minutes(action_name: String) -> int:
@@ -92,9 +97,13 @@ func action_minutes(action_name: String) -> int:
 			return TIME_EXPLORE_LONG
 		"plant_diagnosis":
 			return TIME_PLANT_DIAGNOSIS
+		"plant_diagnosis_positive", "plant_diagnosis_negative":
+			return TIME_PLANT_DIAGNOSIS
 		"organize_supplies":
 			return TIME_ORGANIZE_SUPPLIES
 		"send_report":
+			return TIME_SEND_REPORT
+		"send_report_positive", "send_report_negative":
 			return TIME_SEND_REPORT
 	return 0
 
@@ -234,3 +243,23 @@ func _save_state() -> void:
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file != null:
 		file.store_string(JSON.stringify(serialize(), "\t"))
+
+func _health_manager() -> Node:
+	var tree := get_tree()
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null("HealthManager")
+
+func _adjusted_minutes(base_minutes: int, reason: String) -> int:
+	var manager := _health_manager()
+	if manager == null or not manager.has_method("adjusted_action_minutes"):
+		return base_minutes
+	return int(manager.call("adjusted_action_minutes", base_minutes, reason))
+
+func _apply_health_action_cost(reason: String) -> void:
+	if reason.is_empty() or reason == "move" or reason.begins_with("debug_jump"):
+		return
+	var manager := _health_manager()
+	if manager == null or not manager.has_method("apply_action_cost"):
+		return
+	manager.call("apply_action_cost", reason)

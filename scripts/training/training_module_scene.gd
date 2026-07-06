@@ -1626,6 +1626,28 @@ func _time_hud_text() -> String:
 		return ""
 	return String(manager.call("compact_hud_text"))
 
+func _health_manager() -> Node:
+	var tree := get_tree()
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null("HealthManager")
+
+func _health_hud_text() -> String:
+	var manager := _health_manager()
+	if manager == null or not manager.has_method("compact_hud_text"):
+		return ""
+	return String(manager.call("compact_hud_text"))
+
+func _resident_status_hud_text() -> String:
+	var lines: Array[String] = []
+	var time_text := _time_hud_text()
+	var health_text := _health_hud_text()
+	if not time_text.is_empty():
+		lines.append(time_text)
+	if not health_text.is_empty():
+		lines.append(health_text)
+	return "\n".join(lines)
+
 func _interaction_pose_for_step(step: Dictionary) -> String:
 	var objective := String(step.get("objective", ""))
 	if objective.contains("维修") or objective.contains("恢复") or objective.contains("重启") or objective.contains("启动"):
@@ -2074,7 +2096,7 @@ func _update_hud() -> void:
 	if minimal_objective_label != null:
 		minimal_objective_label.text = "当前目标：%s" % objective
 	if minimal_time_label != null:
-		minimal_time_label.text = _time_hud_text().replace("\n", " · ")
+		minimal_time_label.text = _resident_status_hud_text().replace("\n", " · ")
 	if module_id == "airlock_procedure":
 		hud_label.text = _airlock_hud_text()
 	elif module_id == "power_repair":
@@ -2087,7 +2109,7 @@ func _update_hud() -> void:
 		hud_label.text = _assessment_hud_text()
 	else:
 		hud_label.text = String(module_data.get("hud", "氧气模拟值：98%\n电力模拟值：稳定\n生命支持状态：训练环境"))
-	var time_text := _time_hud_text()
+	var time_text := _resident_status_hud_text()
 	if not time_text.is_empty():
 		hud_label.text = "%s\n\n%s" % [time_text, hud_label.text]
 	if module_id == "suit_control" and not completed:

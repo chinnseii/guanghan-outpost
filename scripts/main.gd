@@ -12,6 +12,7 @@ const DEMO_PROGRESS_PATHS := [
 	"user://saves/training_progress.json",
 	"user://saves/sprint06_progress.json",
 	"user://saves/time_state.json",
+	"user://saves/health_state.json",
 ]
 
 const PLAYER_SCENE := preload("res://scenes/player.tscn")
@@ -3670,6 +3671,22 @@ func _setup_dev_menu() -> void:
 	box.add_child(_make_dev_button("Time Debug: 跳到月昼", _debug_jump_to_daylight))
 	box.add_child(_make_dev_button("Time Debug: 跳到月夜", _debug_jump_to_night))
 	box.add_child(_make_dev_button("Time Debug: 重置 Day 01", _debug_reset_time))
+	box.add_child(_make_dev_button("Health Debug: Energy -20", func(): _debug_adjust_health("energy", -20.0)))
+	box.add_child(_make_dev_button("Health Debug: Energy +20", func(): _debug_adjust_health("energy", 20.0)))
+	box.add_child(_make_dev_button("Health Debug: Fullness -20", func(): _debug_adjust_health("fullness", -20.0)))
+	box.add_child(_make_dev_button("Health Debug: Fullness +20", func(): _debug_adjust_health("fullness", 20.0)))
+	box.add_child(_make_dev_button("Health Debug: Nutrition -20", func(): _debug_adjust_health("nutrition", -20.0)))
+	box.add_child(_make_dev_button("Health Debug: Nutrition +20", func(): _debug_adjust_health("nutrition", 20.0)))
+	box.add_child(_make_dev_button("Health Debug: Morale -20", func(): _debug_adjust_health("morale", -20.0)))
+	box.add_child(_make_dev_button("Health Debug: Morale +20", func(): _debug_adjust_health("morale", 20.0)))
+	box.add_child(_make_dev_button("Health Debug: Reset Healthy", _debug_reset_health))
+	box.add_child(_make_dev_button("Health Debug: Set Danger", _debug_set_health_danger))
+	box.add_child(_make_dev_button("Health Action: Sleep", func(): _debug_health_action("sleep_standard")))
+	box.add_child(_make_dev_button("Health Action: Eat", func(): _debug_health_action("eat")))
+	box.add_child(_make_dev_button("Health Action: Nutrition Drink", func(): _debug_health_action("nutrition_drink")))
+	box.add_child(_make_dev_button("Health Action: Short Entertainment", func(): _debug_health_action("entertainment_short")))
+	box.add_child(_make_dev_button("Health Action: Light Repair", func(): _debug_health_action("repair_light")))
+	box.add_child(_make_dev_button("Health Action: Short Explore", func(): _debug_health_action("explore_short")))
 	box.add_child(_make_dev_button("Dev Only: Training Start", func(): get_tree().change_scene_to_file("res://scenes/training/TrainingStartScene.tscn")))
 	box.add_child(_make_dev_button("Dev Only: Training Module 01", func():
 		TrainingManagerScript.set_current_module("suit_control")
@@ -3736,6 +3753,33 @@ func _debug_reset_time() -> void:
 	if manager != null and manager.has_method("reset_to_arrival"):
 		manager.call("reset_to_arrival")
 		add_log("Time debug: reset to Day 01 lunar night late.")
+
+func _debug_adjust_health(stat_name: String, delta: float) -> void:
+	var manager := get_node_or_null("/root/HealthManager")
+	if manager != null and manager.has_method("adjust_stat"):
+		manager.call("adjust_stat", stat_name, delta)
+		add_log("Health debug:\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_reset_health() -> void:
+	var manager := get_node_or_null("/root/HealthManager")
+	if manager != null and manager.has_method("reset_to_arrival"):
+		manager.call("reset_to_arrival")
+		add_log("Health debug: reset.\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_set_health_danger() -> void:
+	var manager := get_node_or_null("/root/HealthManager")
+	if manager != null and manager.has_method("set_danger_state"):
+		manager.call("set_danger_state")
+		add_log("Health debug: danger state.\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_health_action(action_id: String) -> void:
+	var time_manager := get_node_or_null("/root/TimeManager")
+	if time_manager != null and time_manager.has_method("action_minutes") and time_manager.has_method("advance_time"):
+		var minutes := int(time_manager.call("action_minutes", action_id))
+		time_manager.call("advance_time", minutes, action_id)
+	var health_manager := get_node_or_null("/root/HealthManager")
+	if health_manager != null and health_manager.has_method("detail_text"):
+		add_log("Health action %s:\n%s" % [action_id, String(health_manager.call("detail_text", true))])
 
 func _toggle_dev_menu() -> void:
 	if not has_node("UI/Root/DevMenu"):

@@ -346,7 +346,7 @@ func _setup_ui() -> void:
 
 	time_hud_panel = PanelContainer.new()
 	time_hud_panel.position = Vector2(1250, 20)
-	time_hud_panel.custom_minimum_size = Vector2(326, 84)
+	time_hud_panel.custom_minimum_size = Vector2(326, 108)
 	root.add_child(time_hud_panel)
 	time_hud_label = Label.new()
 	time_hud_label.modulate = Color("#9fb4c4", 0.95)
@@ -1439,7 +1439,7 @@ func _open_plant_diagnosis_after_feedback(condition: String) -> void:
 	)
 
 func _show_plant_diagnosis(condition: String) -> void:
-	_advance_action_time("plant_diagnosis")
+	_advance_action_time("plant_diagnosis_positive" if condition == "stable" or condition == "recovering" else "plant_diagnosis_negative")
 	plant_diagnosis_condition = condition
 	plant_diagnosis_feedback = ""
 	plant_diagnosis_specialist = _player_is_plant_scientist()
@@ -1660,6 +1660,28 @@ func _time_hud_text() -> String:
 		return ""
 	return String(manager.call("compact_hud_text"))
 
+func _health_manager() -> Node:
+	var tree := get_tree()
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null("HealthManager")
+
+func _health_hud_text() -> String:
+	var manager := _health_manager()
+	if manager == null or not manager.has_method("compact_hud_text"):
+		return ""
+	return String(manager.call("compact_hud_text"))
+
+func _resident_status_hud_text() -> String:
+	var lines: Array[String] = []
+	var time_text := _time_hud_text()
+	var health_text := _health_hud_text()
+	if not time_text.is_empty():
+		lines.append(time_text)
+	if not health_text.is_empty():
+		lines.append(health_text)
+	return "\n".join(lines)
+
 func _transition_to(scene_path: String) -> void:
 	input_enabled = false
 	sequence_running = true
@@ -1676,8 +1698,9 @@ func _update_ui() -> void:
 	prompt_label.visible = not _hide_gameplay_hud_for_narrative()
 	ai_label.text = ai_text
 	if time_hud_panel != null:
-		time_hud_label.text = _time_hud_text()
-		time_hud_panel.visible = not _time_hud_text().is_empty() and not _hide_gameplay_hud_for_narrative()
+		var resident_status := _resident_status_hud_text()
+		time_hud_label.text = resident_status
+		time_hud_panel.visible = not resident_status.is_empty() and not _hide_gameplay_hud_for_narrative()
 
 func _hide_gameplay_hud_for_narrative() -> bool:
 	return fade_rect != null and fade_rect.color.a > 0.35 and (scene_kind == "week_end" or scene_kind == "day_end" or scene_kind == "day02_end")
@@ -2232,11 +2255,17 @@ func _load_state() -> void:
 	var manager := _time_manager()
 	if manager != null and manager.has_method("deserialize") and state.get("TimeState", {}) is Dictionary:
 		manager.call("deserialize", state.get("TimeState", {}))
+	var health_manager := _health_manager()
+	if health_manager != null and health_manager.has_method("deserialize") and state.get("HealthState", {}) is Dictionary:
+		health_manager.call("deserialize", state.get("HealthState", {}))
 
 func _save_state() -> void:
 	var manager := _time_manager()
 	if manager != null and manager.has_method("serialize"):
 		state["TimeState"] = manager.call("serialize")
+	var health_manager := _health_manager()
+	if health_manager != null and health_manager.has_method("serialize"):
+		state["HealthState"] = health_manager.call("serialize")
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("user://saves"))
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file != null:

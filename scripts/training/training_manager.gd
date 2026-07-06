@@ -51,6 +51,7 @@ static func default_data() -> Dictionary:
 		"OpeningFlowStage": "",
 		"CurrentSceneAfterTraining": START_SCENE,
 		"TimeState": {},
+		"HealthState": {},
 	}
 
 static func load_progress() -> Dictionary:
@@ -69,12 +70,18 @@ static func load_progress() -> Dictionary:
 	var manager := _time_manager()
 	if manager != null and manager.has_method("deserialize") and data.get("TimeState", {}) is Dictionary:
 		manager.call("deserialize", data.get("TimeState", {}))
+	var health_manager := _health_manager()
+	if health_manager != null and health_manager.has_method("deserialize") and data.get("HealthState", {}) is Dictionary:
+		health_manager.call("deserialize", data.get("HealthState", {}))
 	return data
 
 static func save_progress(data: Dictionary) -> void:
 	var manager := _time_manager()
 	if manager != null and manager.has_method("serialize"):
 		data["TimeState"] = manager.call("serialize")
+	var health_manager := _health_manager()
+	if health_manager != null and health_manager.has_method("serialize"):
+		data["HealthState"] = health_manager.call("serialize")
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("user://saves"))
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file != null:
@@ -84,6 +91,9 @@ static func reset_progress() -> void:
 	var manager := _time_manager()
 	if manager != null and manager.has_method("reset_to_arrival"):
 		manager.call("reset_to_arrival")
+	var health_manager := _health_manager()
+	if health_manager != null and health_manager.has_method("reset_to_arrival"):
+		health_manager.call("reset_to_arrival")
 	save_progress(default_data())
 
 static func start_training() -> void:
@@ -234,3 +244,9 @@ static func _time_manager() -> Node:
 	if tree == null or tree.root == null:
 		return null
 	return tree.root.get_node_or_null("TimeManager")
+
+static func _health_manager() -> Node:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null("HealthManager")
