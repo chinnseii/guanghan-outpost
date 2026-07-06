@@ -17,6 +17,7 @@ const PlayerControllerScript := preload("res://scripts/controllers/player_contro
 const InteractionAreaScript := preload("res://scripts/controllers/interaction_area_2d.gd")
 const BaseStatusPanelScript := preload("res://scripts/ui/base_status_panel.gd")
 const PlantGrowthPanelScript := preload("res://scripts/ui/plant_growth_panel.gd")
+const AirSystemPanelScript := preload("res://scripts/ui/air_system_panel.gd")
 const HUD_SAFE_POSITION := Vector2(24, 96)
 const HUD_SAFE_SIZE := Vector2(360, 464)
 const HUD_SAFE_WORLD_MIN_X := 140.0
@@ -51,6 +52,7 @@ var time_hud_panel: PanelContainer
 var time_hud_label: Label
 var base_status_panel: PanelContainer
 var plant_growth_panel: PanelContainer
+var air_system_panel: PanelContainer
 var interaction_panel: PanelContainer
 var interaction_label: Label
 var interaction_bar: ProgressBar
@@ -104,6 +106,7 @@ func _setup_input() -> void:
 	_add_key_action("load_game", [KEY_F9])
 	_add_key_action("toggle_base_status", [KEY_TAB])
 	_add_key_action("toggle_plant_status", [KEY_G])
+	_add_key_action("toggle_air_status", [KEY_O])
 
 func _add_key_action(action_name: String, keys: Array[int]) -> void:
 	if not InputMap.has_action(action_name):
@@ -369,6 +372,7 @@ func _setup_ui() -> void:
 	_setup_plant_diagnosis_ui(root)
 	_setup_base_status_panel(root)
 	_setup_plant_growth_panel(root)
+	_setup_air_system_panel(root)
 
 func _setup_interaction_feedback_ui(root: Control) -> void:
 	interaction_panel = PanelContainer.new()
@@ -417,6 +421,19 @@ func _toggle_plant_growth_panel() -> void:
 	plant_growth_panel.visible = not plant_growth_panel.visible
 	if plant_growth_panel.visible and plant_growth_panel.has_method("refresh"):
 		plant_growth_panel.call("refresh")
+
+func _setup_air_system_panel(root: Control) -> void:
+	air_system_panel = AirSystemPanelScript.new()
+	air_system_panel.position = Vector2(740, 180)
+	air_system_panel.visible = false
+	root.add_child(air_system_panel)
+
+func _toggle_air_system_panel() -> void:
+	if air_system_panel == null:
+		return
+	air_system_panel.visible = not air_system_panel.visible
+	if air_system_panel.visible and air_system_panel.has_method("refresh"):
+		air_system_panel.call("refresh")
 
 func _setup_plant_diagnosis_ui(root: Control) -> void:
 	plant_diagnosis_scrim = ColorRect.new()
@@ -551,6 +568,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		_toggle_base_status_panel()
 	if event.is_action_pressed("toggle_plant_status"):
 		_toggle_plant_growth_panel()
+	if event.is_action_pressed("toggle_air_status"):
+		_toggle_air_system_panel()
 
 func _move_player(delta: float) -> void:
 	var movement_bounds := Rect2(Vector2(_world_left_limit(), 190.0), Vector2(1510.0 - _world_left_limit(), 580.0))
@@ -1743,6 +1762,8 @@ func _update_ui() -> void:
 		base_status_panel.call("refresh")
 	if plant_growth_panel != null and plant_growth_panel.visible and plant_growth_panel.has_method("refresh"):
 		plant_growth_panel.call("refresh")
+	if air_system_panel != null and air_system_panel.visible and air_system_panel.has_method("refresh"):
+		air_system_panel.call("refresh")
 
 func _hide_gameplay_hud_for_narrative() -> bool:
 	return fade_rect != null and fade_rect.color.a > 0.35 and (scene_kind == "week_end" or scene_kind == "day_end" or scene_kind == "day02_end")
@@ -2303,6 +2324,9 @@ func _load_state() -> void:
 	var base_status_manager := _base_status_manager()
 	if base_status_manager != null and base_status_manager.has_method("deserialize") and state.get("BaseStatusState", {}) is Dictionary:
 		base_status_manager.call("deserialize", state.get("BaseStatusState", {}))
+	var air_system_manager := _air_system_manager()
+	if air_system_manager != null and air_system_manager.has_method("deserialize") and state.get("AirSystemState", {}) is Dictionary:
+		air_system_manager.call("deserialize", state.get("AirSystemState", {}))
 	var plant_growth_manager := _plant_growth_manager()
 	if plant_growth_manager != null and plant_growth_manager.has_method("deserialize") and state.get("PlantGrowthState", {}) is Dictionary:
 		plant_growth_manager.call("deserialize", state.get("PlantGrowthState", {}))
@@ -2318,6 +2342,9 @@ func _save_state() -> void:
 	var base_status_manager := _base_status_manager()
 	if base_status_manager != null and base_status_manager.has_method("serialize"):
 		state["BaseStatusState"] = base_status_manager.call("serialize")
+	var air_system_manager := _air_system_manager()
+	if air_system_manager != null and air_system_manager.has_method("serialize"):
+		state["AirSystemState"] = air_system_manager.call("serialize")
 	var plant_growth_manager := _plant_growth_manager()
 	if plant_growth_manager != null and plant_growth_manager.has_method("serialize"):
 		state["PlantGrowthState"] = plant_growth_manager.call("serialize")
@@ -2332,6 +2359,12 @@ func _base_status_manager() -> Node:
 		return null
 	return tree.root.get_node_or_null("BaseStatusManager")
 
+func _air_system_manager() -> Node:
+	var tree := get_tree()
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null("AirSystemManager")
+
 func _plant_growth_manager() -> Node:
 	var tree := get_tree()
 	if tree == null or tree.root == null:
@@ -2340,15 +2373,16 @@ func _plant_growth_manager() -> Node:
 
 func _sync_base_status_from_state() -> void:
 	var manager := _base_status_manager()
-	if manager == null:
-		return
-	_apply_base_status_repair_once(manager, "PowerPanelRepaired", "BaseStatusPowerLightApplied", "repair_power_light")
-	_apply_base_status_repair_once(manager, "BasePowerRestored", "BaseStatusPowerHeavyApplied", "repair_power_heavy")
-	_apply_base_status_repair_once(manager, "MinimalLifeSupportStable", "BaseStatusLifeSupportLightApplied", "repair_life_support_light")
-	if bool(state.get("LastPlantStable", false)) and not bool(state.get("BaseStatusPlantBonusApplied", false)):
-		state["BaseStatusPlantBonusApplied"] = true
-		if manager.has_method("set_last_plant_recovered"):
-			manager.call("set_last_plant_recovered", true)
+	if manager != null:
+		_apply_base_status_repair_once(manager, "PowerPanelRepaired", "BaseStatusPowerLightApplied", "repair_power_light")
+		_apply_base_status_repair_once(manager, "BasePowerRestored", "BaseStatusPowerHeavyApplied", "repair_power_heavy")
+		if bool(state.get("LastPlantStable", false)) and not bool(state.get("BaseStatusPlantBonusApplied", false)):
+			state["BaseStatusPlantBonusApplied"] = true
+			if manager.has_method("set_last_plant_recovered"):
+				manager.call("set_last_plant_recovered", true)
+	var air_manager := _air_system_manager()
+	if air_manager != null:
+		_apply_base_status_repair_once(air_manager, "MinimalLifeSupportStable", "AirSystemOxygenGeneratorLightApplied", "repair_oxygen_generator_light")
 
 func _apply_base_status_repair_once(manager: Node, state_key: String, applied_key: String, method_name: String) -> void:
 	if bool(state.get(state_key, false)) and not bool(state.get(applied_key, false)):

@@ -8,85 +8,84 @@ Codex 自己之前做的）
 
 ## 正在进行
 
-（暂无，Plant Growth System v1 已完成，本轮改动已提交）
+（暂无，"空气系统拆分与基地系统改造"重构已完成，本轮改动已提交）
 
 ## 最近完成
 
-- **Claude Code（代 Codex）**：实现 Plant Growth System v1（植物生长系统）。
-  - 新增 `scripts/systems/PlantGrowthManager.gd`，在 `project.godot` 注册为
-    `/root/PlantGrowthManager`（放在 `BaseStatusManager` 之后）。
-  - 新增 `scripts/data/PlantCropData.gd`：生菜/土豆/小麦/番茄/大豆五种作物的
-    静态数据（生长天数、水/光需求档位、适宜温度、收获饱腹/营养/心理、
-    番茄的多次收获参数），无 `class_name`，通过 `preload()` 常量在
-    `PlantGrowthManager` 里引用（踩过一次 `class_name` 全局缓存还没建好导致
-    headless 解析失败的坑，见下方"已知问题"，所以这两个新文件都不依赖
-    `class_name` 跨文件引用）。
-  - 植物只在 `TimeManager.advance_time()` 推进后按累计分钟数结算，每满 1440
-    分钟做一次"日结算"，不是实时生长——`advance_plant_time(minutes)` 由
-    `TimeManager` 调用，`PlantGrowthManager` 自己不推进时间。
-  - 月昼/月夜光照：月昼固定满级自然光（等级 4）且不耗电；月夜光照等级取自
-    `greenhouse_light_system_level`（0–4，独立于 `BaseStatusManager` 的四档
-    枚举，是本次新增的第五种"温室补光"抽象），再按 `BaseStatusManager.power`
-    的四个电力区间做衰减（70–100 不衰减，40–69 -1，20–39 -2，0–19 强制
-    ≤1）。
-  - 水循环等级 `water_cycle_level`（0–4）是本次新增的独立抽象，不接现有的
-    `PartialWaterCycleRestored` 等旧温室叙事标志（没有可复用的数值系统，见
-    已知问题）。
-  - 温度直接读 `BaseStatusManager.temperature`，无温室独立温度。
-  - 每日结算：水/光/温度各达标 +1 分，按 3/2/1/0 分对应
-    `growth_progress_days` 增量与 `stress` 增减（规则来自需求文档第七节）；
-    `stress` clamp 到 ≥0；`health_state` 由 `stress` 映射
-    Healthy/Stressed/Withering/Dead；Dead 后停止生长。
-  - **光照高于需求不会扣分/不会生病**——只判断"够不够"，不判断"是否过强"，
-    严格按需求文档第四节/第十六节执行，没有做任何"光照过强"惩罚。
-  - 成熟规则：`growth_progress_days >= growth_days` 进入 Mature；收获时
-    `HealthManager.adjust_stat` 分别加饱腹/营养/心理；番茄
-    `repeat_harvest=true`，收获后若 `extra_harvests_used < 3` 则重置进度、
-    进入新的 3 天再收获周期，否则终结为 Harvested。
-  - 专业提示 `get_specialist_hint()`：只有 `EducationBackground == "植物科学"`
-    才返回文字，不提供任何数值加成；光照满足或超过需求时明确提示"不会造成
-    额外风险"，不产生"光照过强"话术。
-  - 存档：`user://saves/plant_growth_state.json` 独立文件，同时接入旧基地/
-    温室/第一周存档（`sprint06_progress.json`）与训练进度存档
-    （`training_progress.json`）的 `PlantGrowthState` 字段，写法对齐已有的
-    `BaseStatusState`。
-  - Debug 支持：主菜单开发菜单新增播种生菜/土豆/小麦/番茄/大豆、循环切换
-    水循环等级/温室补光等级（0→1→2→3→4→0）、强制成熟当前作物、收获当前
-    作物、清空温室作物；"推进植物生长 1/3 天"复用 `_debug_advance_time`
-    （直接推进 TimeManager 真实时间，会连带结算 BaseStatusManager 和
-    HealthManager，语义上更一致）；"切换月昼/月夜"复用已有 Time Debug
-    跳转按钮；"设置基地温度"复用已有 Base Debug 温度按钮，均未重复新增。
-  - UI：新增 `scripts/ui/plant_growth_panel.gd`（`PanelContainer`，纯代码
-    构建，风格与 `base_status_panel.gd` 一致），在 `sprint06_base_scene.gd`
-    里用新按键 G（`toggle_plant_status` action）开关，只在温室场景
-    （`scene_kind == "greenhouse"`）生效，默认隐藏、显示"最近播种/当前
-    焦点"的那株作物（`last_sown_slot_id`），不做多地块选择 UI。
-  - 与"最后一株植物"系统的联动：本次**没有**改动
-    `sprint06_base_scene.gd` 里原有的 `LastPlantStable` 相关叙事逻辑，
-    `PlantGrowthManager` 是完全独立的新系统（多地块 `Dictionary`，key 为
-    slot_id），两者暂不交叉引用——按需求文档"如已有 LastPlantSystem，请不要
-    重写"的要求，只做了并行新增，没有做形式联动（见已知问题）。
+- **Claude Code（代 Codex）**：完成空气系统拆分与基地系统改造。
+  - **BaseStatusManager 移除氧气职责**：删掉 `oxygen` 变量、`life_support_status`
+    档位、`_apply_oxygen_change()`、`repair_life_support_light/heavy()`、
+    `get_oxygen_label()`；`get_environment_energy_multiplier()` 改名为
+    `get_temperature_energy_multiplier()`，只保留温度倍率，氧气倍率完全移出。
+    现在只管电力/舱压/温度 + 供电/温控/密封三个设备档位。
+  - **新增 `scripts/managers/AirSystemManager.gd`**，注册为
+    `/root/AirSystemManager`（放在 `BaseStatusManager` 之后、
+    `PlantGrowthManager` 之前）。管理：
+    - `o2_percent`（抵达 20.4%）、`co2_percent`（抵达 0.42%）、
+      `inert_gas_percent`（= `100 - o2 - co2`，每次结算后重算，不单独存档）、
+      `inert_gas_reserve`（抵达 55.0，独立库存，第一版不能生产，只在密封
+      泄漏/自动补压时消耗）。
+    - 三个设备档位：`oxygen_generator_status`/`co2_filter_status`/
+      `air_circulation_status`（初始 CRITICAL/CRITICAL/BASIC），用
+      AirSystemManager 自己的局部 `SystemStatus` 枚举（跟 BaseStatusManager
+      的枚举顺序一致但不共享脚本引用，避免跨文件 class_name 依赖）。
+    - O₂/CO₂ 每小时结算：人类呼吸固定值 + 设备产出（乘电力倍率，CO₂ 还要乘
+      空气循环倍率）+ 最后一株植物微弱加成（读
+      `BaseStatusManager.last_plant_recovered_bonus_active`，不自己存一份）。
+    - 惰性气体：密封档位决定储备每小时消耗速率；舱压<70 且储备>0 时自动消耗
+      储备帮基地补压（换算率是本次自定的 v1 占位值，已在参考文档里标注）。
+    - **无富氧惩罚**：O₂>22% 只有资源提示文案，不影响精力消耗倍率、不扣心理。
+    - 制氧模块/CO₂过滤/空气循环三组维修方法（只改档位+一次性数值，不推进
+      时间，跟 BaseStatusManager 维修方法同一套写法）。
+    - 供氧目标档位 `supply_target_mode`（关闭/节能/标准/充足/应急）：预留
+      字段，只存档 + 显示 + Debug 循环，暂不影响任何数值结算。
+    - 四种教育背景的专业提示（医学/机械工程/材料科学/植物科学），不加数值。
+    - 存档 `user://saves/air_system_state.json`，同时接入旧基地/温室/第一周
+      存档与训练进度存档的 `AirSystemState` 字段。
+  - **HealthManager** 的 `get_energy_cost_multiplier()` 改为
+    `fullness_multiplier × BaseStatusManager.get_temperature_energy_multiplier()
+    × AirSystemManager.get_air_energy_multiplier()`，任一 Manager 缺失时对应
+    项退化为 1.0。
+  - **UI**：新增 `scripts/ui/air_system_panel.gd`，在 `sprint06_base_scene.gd`
+    里用新按键 `O` 开关（Tab=基地状态面板，G=植物面板仅温室场景生效，
+    O=空气面板不限场景），默认隐藏，位置 `Vector2(740, 180)`，跟另外两个
+    面板都在 1600x900 视口内不重叠。
+  - **Debug 支持**：主菜单开发菜单新增 Air Debug 分组（O₂/CO₂/惰性气体储备
+    加减、三个设备档位循环、供氧目标档位循环、重置 Day 01、设为最低稳定
+    状态），并删除了原来 Base Debug 里的 Oxygen 加减按钮和 Life Support
+    档位循环按钮（因为对应字段已经不在 BaseStatusManager 上）。
+  - 设计参考文档 `docs/handoff/SYSTEMS_REFERENCE_FOR_DESIGN.md` 已同步更新
+    （按用户要求，新增/改动数值系统时必须同步这份文档）：BaseStatusManager
+    章节改为只含电力/舱压/温度，新增独立的空气系统章节，健康系统章节的耦合
+    公式和"尚未覆盖"清单也一并更新。
 
 ## 对共用核心文件的改动记录（第一档文件，已按规则先查 git log 再改）
 
-- `scripts/managers/TimeManager.gd`：
-  - `advance_time()` 里在 `_apply_base_status_time()` 之后、
-    `_apply_health_action_cost()` 之前新增 `_apply_plant_growth_time()`
-    调用。
-  - `reset_to_arrival()` 追加对 `PlantGrowthManager.reset_to_arrival()` 的
-    级联调用，写法与已有的 Health/BaseStatus 级联一致。
+- `scripts/managers/BaseStatusManager.gd`：移除 `oxygen`/`life_support_status`
+  相关的全部代码（变量、结算函数、维修方法、标签、存档字段、专业提示里引用
+  氧气的分支），保留电力/舱压/温度三项 + 三个设备档位的其余逻辑完全不变。
+- `scripts/managers/HealthManager.gd`：`get_energy_cost_multiplier()` 内部
+  改为分别调用 `BaseStatusManager.get_temperature_energy_multiplier()` 和
+  新增的 `AirSystemManager.get_air_energy_multiplier()`，两者相乘；fullness
+  分段数值本身未改动。
+- `scripts/managers/TimeManager.gd`：`advance_time()` 在
+  `_apply_base_status_time()` 之后、`_apply_plant_growth_time()` 之前新增
+  `_apply_air_system_time()` 调用；`reset_to_arrival()` 追加对
+  `AirSystemManager.reset_to_arrival()` 的级联调用。
 - `scripts/base/sprint06_base_scene.gd`（10 个场景共用）：
-  - `_save_state()`/`_load_state()` 追加 `PlantGrowthState`
-    序列化/反序列化，对齐已有的 `BaseStatusState` 处理方式。
-  - 新增 G 键（`toggle_plant_status`）开关新的 `PlantGrowthPanel`，面板
-    位置 `Vector2(1170, 500)`（避开另一会话刚修过的
-    `BaseStatusPanel` 在 `Vector2(1170, 180)` 的区域，二者都在
-    1600x900 视口内不重叠），只在 `_setup_ui()`/`_unhandled_input()`/
-    `_update_ui()` 各加了几行，没有动现有的 greenhouse 交互逻辑
-    （`_interact_greenhouse()` 等一律未改）。
-- `scripts/training/training_manager.gd`：
-  - `default_data()`/`load_progress()`/`save_progress()`/`reset_progress()`
-    追加 `PlantGrowthState` 字段，写法对齐已有的 `BaseStatusState` 处理。
+  - `_save_state()`/`_load_state()` 追加 `AirSystemState` 序列化/反序列化。
+  - `_sync_base_status_from_state()` 拆成两部分：`BaseStatusManager` 的
+    `PowerPanelRepaired`/`BasePowerRestored`/最后一株植物加成钩子保持不变；
+    原来挂在 `BaseStatusManager` 上的 `MinimalLifeSupportStable` →
+    `repair_life_support_light` 那个钩子，改成挂到 `AirSystemManager` 的
+    `repair_oxygen_generator_light`（新增一次性 applied 标记
+    `AirSystemOxygenGeneratorLightApplied`，避免重复触发）。
+  - 新增 O 键（`toggle_air_status`）开关新的 `AirSystemPanel`，只在
+    `_setup_ui()`/`_unhandled_input()`/`_update_ui()` 各加了几行，没有动
+    greenhouse/interior 的既有交互逻辑。
+- `scripts/training/training_manager.gd`：`default_data()`/`load_progress()`/
+  `save_progress()`/`reset_progress()` 追加 `AirSystemState` 字段，写法对齐
+  已有的 `BaseStatusState` 处理。
 - `scripts/props/reference_prop.gd`：本次未触碰。
 
 ## 验证
@@ -96,39 +95,35 @@ Codex 自己之前做的）
   `Day02StartScene.tscn`、`WeekRoutineStartScene.tscn`、
   `SolarArrayExteriorScene.tscn`、`Training_03_PowerRepair.tscn`、
   `FinalAssessmentScene.tscn`。
-- 临时脚本（未提交，验证后已删除）跑通了：生菜在理想条件下推进 3 天后
-  正常生长（受当天温度波动影响，进度/分数符合水/光/温度三项打分公式）；
-  番茄强制成熟→收获→自动进入再收获周期→用满 3 次额外收获后终结为
-  Harvested、心理/饱腹/营养奖励只在真正处于 Mature 时才发放；小麦在夜间
-  弱光+低电力+持续多日后 `stress` 累积到 6，`health_state`/`stage`
-  正确变为 Dead 且不再继续生长；存档序列化/反序列化往返后水循环等级、
-  地块字典都正确恢复。
-- 验证过程中发现并修复一个 debug 工具的边界问题：`debug_force_mature_current()`
-  原本会把已经处于终态 `Harvested` 的地块强制拉回 `Mature`，配合
-  "收获当前作物" 按钮反复点击可以无限刷饱腹/营养/心理奖励（正常玩法走不到
-  这条路径，只有连点 debug 按钮才会触发）；已加 `stage == "Harvested"` 时
-  直接跳过的判断，回归测试确认奖励不再重复发放。
+- 过程中先遇到一次真实的 Parse Error（`min()` 返回值在严格模式下无法推断
+  类型，导致 `pressure_gain`/`reserve_used` 报错，AirSystemManager 整个
+  autoload 加载失败），已通过显式类型标注 `: float` 修复并重新验证通过。
+- 临时脚本（未提交，验证后已删除）跑通了：抵达初始值精确匹配需求文档
+  （O₂ 20.4% / CO₂ 0.42% / 惰性气体 79.18% / 储备 55）；24 小时结算下 O₂/CO₂
+  按设备档位正确变化；制氧/过滤/循环三组维修正确跳档并生效；O₂ 推到 30%
+  （供氧过量）时能耗倍率精确为 1.0（无富氧惩罚），推到危险区间（O₂15%+
+  CO₂3.5%）时能耗倍率精确为 1.5×1.4=2.1，心理按预期速率下降；密封 CRITICAL
+  下惰性气体储备消耗速率、自动补压对舱压的回升幅度都与手算结果完全一致；
+  序列化/反序列化往返正确。
+- 未跑图形界面截图（本次未涉及新视觉资产，新增的空气面板默认隐藏、按 O
+  打开；截图验收留给人类玩测或下一轮）。
 
 ## 已知问题 / 暂不覆盖范围
 
-- `water_cycle_level`（水循环等级）和 `greenhouse_light_system_level`
-  （温室补光等级）都是本次新增的独立数值抽象，默认值 1，只能通过 debug
-  菜单调整——没有接入旧温室场景里原有的 `PartialWaterCycleRestored` 等
-  叙事型布尔标志，因为那些标志本身不是数值系统，没有可直接复用的结构。
-- 没有做真正的"温室多地块"交互 UI（走进某块地、点击播种/收获）——本次的
-  播种/收获只能通过 Debug 菜单触发；`PlantGrowthPanel` 显示的是
-  `last_sown_slot_id`（最近一次播种的地块），不是"玩家当前站在哪块地前"。
-  场景里加地块拾取交互属于更深的场景/UI 工作，留给下一轮或场景/UI 会话。
-  另外，温度目前只能靠 `BaseStatusManager` 侧的维修/时间结算间接影响，
-  水循环等级和补光等级还完全没有面向玩家的操作 UI（只有 Debug 按钮）——
-  如果要让玩家自己调节水循环/补光，需要场景/UI 那边再搭一层交互控件。
-- 与"最后一株植物"系统（`LastPlantStable` 等）暂无交叉引用——两个系统
-  并行存在，没有互相影响对方的判定，符合"预留接口但不强行耦合"的要求。
-- 新文件（`PlantCropData.gd`、`PlantGrowthManager.gd`）都避免了跨文件用
-  裸类名（`class_name`）互相引用——之前做 Base Status System 时踩过一次坑：
-  新脚本的 `class_name` 要等 Godot 编辑器扫描一次项目后才会进全局缓存，纯
-  headless 运行会报 `Could not find type X in current scope`；这次新数据类
-  干脆不写 `class_name`，全部走 `preload()` 常量。
+- 供氧目标档位（`supply_target_mode`）是纯预留字段，不影响任何数值结算，
+  也没有玩家可操作的面板控件（只有 Debug 循环切换）——按需求文档"如果尚未
+  实现真实水资源，先只记录预留字段"的说明保留为占位。
+- CO₂过滤模块、空气循环系统（AirSystemManager）以及温控、密封
+  （BaseStatusManager）都还没有场景内的维修交互入口，只有方法 + Debug
+  按钮；目前只有供电（BaseStatusManager）和制氧模块（AirSystemManager，
+  接的是旧基地 `MinimalLifeSupportStable` 那个既有交互点）真正接了玩法。
+- 惰性气体自动补压的换算率（0.15/0.20）、空气设备维修的一次性数值都是本次
+  实现自定的 v1 占位值，原始需求文档没有给这部分具体数字，已在
+  `SYSTEMS_REFERENCE_FOR_DESIGN.md` 里明确标注为"占位值，可以直接改常量
+  调整"。
+- 水循环等级、温室补光等级（PlantGrowthManager）依旧是独立数值，跟这次的
+  空气系统没有关联——植物系统读的是自己的 `water_cycle_level`，不是空气
+  系统的任何数值。
 - Godot 在本地会刷新大量已跟踪 `.import` 文件和生成 `.uid`/`.godot_appdata/`，
   它们不属于本次改动，提交时未暂存。
 

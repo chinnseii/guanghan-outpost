@@ -3689,18 +3689,27 @@ func _setup_dev_menu() -> void:
 	box.add_child(_make_dev_button("Health Action: Short Explore", func(): _debug_health_action("explore_short")))
 	box.add_child(_make_dev_button("Base Debug: Power -10", func(): _debug_adjust_base_status("power", -10.0)))
 	box.add_child(_make_dev_button("Base Debug: Power +10", func(): _debug_adjust_base_status("power", 10.0)))
-	box.add_child(_make_dev_button("Base Debug: Oxygen -10", func(): _debug_adjust_base_status("oxygen", -10.0)))
-	box.add_child(_make_dev_button("Base Debug: Oxygen +10", func(): _debug_adjust_base_status("oxygen", 10.0)))
 	box.add_child(_make_dev_button("Base Debug: Pressure -10", func(): _debug_adjust_base_status("pressure", -10.0)))
 	box.add_child(_make_dev_button("Base Debug: Pressure +10", func(): _debug_adjust_base_status("pressure", 10.0)))
 	box.add_child(_make_dev_button("Base Debug: Temperature -2", func(): _debug_adjust_base_status("temperature", -2.0)))
 	box.add_child(_make_dev_button("Base Debug: Temperature +2", func(): _debug_adjust_base_status("temperature", 2.0)))
 	box.add_child(_make_dev_button("Base Debug: Power System Critical/Basic/Stable", func(): _debug_cycle_base_system("power_system_status")))
-	box.add_child(_make_dev_button("Base Debug: Life Support Critical/Basic/Stable", func(): _debug_cycle_base_system("life_support_status")))
 	box.add_child(_make_dev_button("Base Debug: Thermal Control Critical/Basic/Stable", func(): _debug_cycle_base_system("thermal_control_status")))
 	box.add_child(_make_dev_button("Base Debug: Seal Critical/Basic/Stable", func(): _debug_cycle_base_system("seal_status")))
 	box.add_child(_make_dev_button("Base Debug: Reset to Day 01", _debug_reset_base_status))
 	box.add_child(_make_dev_button("Base Debug: Set Minimum Stable", _debug_set_base_status_minimum_stable))
+	box.add_child(_make_dev_button("Air Debug: O2 -2", func(): _debug_adjust_air("o2_percent", -2.0)))
+	box.add_child(_make_dev_button("Air Debug: O2 +2", func(): _debug_adjust_air("o2_percent", 2.0)))
+	box.add_child(_make_dev_button("Air Debug: CO2 -0.2", func(): _debug_adjust_air("co2_percent", -0.2)))
+	box.add_child(_make_dev_button("Air Debug: CO2 +0.2", func(): _debug_adjust_air("co2_percent", 0.2)))
+	box.add_child(_make_dev_button("Air Debug: Inert Reserve -10", func(): _debug_adjust_air("inert_gas_reserve", -10.0)))
+	box.add_child(_make_dev_button("Air Debug: Inert Reserve +10", func(): _debug_adjust_air("inert_gas_reserve", 10.0)))
+	box.add_child(_make_dev_button("Air Debug: Oxygen Generator Critical/Basic/Stable", func(): _debug_cycle_air_system("oxygen_generator_status")))
+	box.add_child(_make_dev_button("Air Debug: CO2 Filter Critical/Basic/Stable", func(): _debug_cycle_air_system("co2_filter_status")))
+	box.add_child(_make_dev_button("Air Debug: Air Circulation Critical/Basic/Stable", func(): _debug_cycle_air_system("air_circulation_status")))
+	box.add_child(_make_dev_button("Air Debug: Cycle Supply Target", _debug_cycle_air_supply_target))
+	box.add_child(_make_dev_button("Air Debug: Reset to Day 01", _debug_reset_air_system))
+	box.add_child(_make_dev_button("Air Debug: Set Minimum Stable", _debug_set_air_minimum_stable))
 	box.add_child(_make_dev_button("Plant Debug: Sow Lettuce", func(): _debug_sow_plant("lettuce")))
 	box.add_child(_make_dev_button("Plant Debug: Sow Potato", func(): _debug_sow_plant("potato")))
 	box.add_child(_make_dev_button("Plant Debug: Sow Wheat", func(): _debug_sow_plant("wheat")))
@@ -3838,6 +3847,44 @@ func _debug_set_base_status_minimum_stable() -> void:
 	if manager != null and manager.has_method("set_minimum_stable_state"):
 		manager.call("set_minimum_stable_state")
 		add_log("Base status debug: minimum stable state.\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_adjust_air(stat_name: String, delta: float) -> void:
+	var manager := get_node_or_null("/root/AirSystemManager")
+	if manager != null and manager.has_method("adjust_stat"):
+		manager.call("adjust_stat", stat_name, delta)
+		add_log("Air system debug:\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_cycle_air_system(system_name: String) -> void:
+	var manager := get_node_or_null("/root/AirSystemManager")
+	if manager == null or not manager.has_method("debug_set_system_status"):
+		return
+	# SystemStatus enum order is Offline, Critical, Basic, Stable; cycle Critical -> Basic -> Stable -> Critical.
+	var current := int(manager.get(system_name))
+	var next_status := "critical"
+	if current == 1:
+		next_status = "basic"
+	elif current == 2:
+		next_status = "stable"
+	manager.call("debug_set_system_status", system_name, next_status)
+	add_log("Air system debug (%s -> %s):\n%s" % [system_name, next_status, String(manager.call("debug_values_text"))])
+
+func _debug_cycle_air_supply_target() -> void:
+	var manager := get_node_or_null("/root/AirSystemManager")
+	if manager != null and manager.has_method("debug_cycle_supply_target"):
+		manager.call("debug_cycle_supply_target")
+		add_log("Air system debug:\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_reset_air_system() -> void:
+	var manager := get_node_or_null("/root/AirSystemManager")
+	if manager != null and manager.has_method("reset_to_arrival"):
+		manager.call("reset_to_arrival")
+		add_log("Air system debug: reset to Day 01.\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_set_air_minimum_stable() -> void:
+	var manager := get_node_or_null("/root/AirSystemManager")
+	if manager != null and manager.has_method("set_minimum_stable_state"):
+		manager.call("set_minimum_stable_state")
+		add_log("Air system debug: minimum stable state.\n%s" % String(manager.call("debug_values_text")))
 
 func _debug_sow_plant(crop_id: String) -> void:
 	var manager := get_node_or_null("/root/PlantGrowthManager")

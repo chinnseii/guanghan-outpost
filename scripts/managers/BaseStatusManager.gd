@@ -14,19 +14,16 @@ enum SystemStatus {
 }
 
 const ARRIVAL_POWER := 42.0
-const ARRIVAL_OXYGEN := 68.0
 const ARRIVAL_PRESSURE := 76.0
 const ARRIVAL_TEMPERATURE := 14.0
 
 const COMFORT_TEMPERATURE := 21.0
 
 var power: float = ARRIVAL_POWER
-var oxygen: float = ARRIVAL_OXYGEN
 var pressure: float = ARRIVAL_PRESSURE
 var temperature: float = ARRIVAL_TEMPERATURE
 
 var power_system_status: int = SystemStatus.CRITICAL
-var life_support_status: int = SystemStatus.CRITICAL
 var thermal_control_status: int = SystemStatus.CRITICAL
 var seal_status: int = SystemStatus.BASIC
 
@@ -37,11 +34,9 @@ func _ready() -> void:
 
 func reset_to_arrival() -> void:
 	power = ARRIVAL_POWER
-	oxygen = ARRIVAL_OXYGEN
 	pressure = ARRIVAL_PRESSURE
 	temperature = ARRIVAL_TEMPERATURE
 	power_system_status = SystemStatus.CRITICAL
-	life_support_status = SystemStatus.CRITICAL
 	thermal_control_status = SystemStatus.CRITICAL
 	seal_status = SystemStatus.BASIC
 	last_plant_recovered_bonus_active = false
@@ -50,11 +45,9 @@ func reset_to_arrival() -> void:
 
 func set_minimum_stable_state() -> void:
 	power = 45.0
-	oxygen = 72.0
 	pressure = 76.0
 	temperature = 18.5
 	power_system_status = SystemStatus.BASIC
-	life_support_status = SystemStatus.BASIC
 	thermal_control_status = SystemStatus.BASIC
 	seal_status = SystemStatus.BASIC
 	clamp_base_values()
@@ -63,7 +56,6 @@ func set_minimum_stable_state() -> void:
 
 func clamp_base_values() -> void:
 	power = clamp(power, 0.0, 100.0)
-	oxygen = clamp(oxygen, 0.0, 100.0)
 	pressure = clamp(pressure, 0.0, 100.0)
 	temperature = clamp(temperature, -40.0, 60.0)
 
@@ -74,7 +66,6 @@ func advance_base_time(minutes: int) -> void:
 	var hours := float(minutes) / 60.0
 	var is_daylight := _is_daylight_phase()
 	_apply_power_change(hours, is_daylight)
-	_apply_oxygen_change(hours)
 	_apply_pressure_change(hours)
 	_apply_temperature_change(hours, is_daylight)
 	clamp_base_values()
@@ -105,41 +96,6 @@ func _apply_power_change(hours: float, is_daylight: bool) -> void:
 			SystemStatus.STABLE:
 				rate = -0.10
 	power += rate * hours
-
-func _apply_oxygen_change(hours: float) -> void:
-	var base_rate := 0.0
-	match life_support_status:
-		SystemStatus.OFFLINE:
-			base_rate = -0.30
-		SystemStatus.CRITICAL:
-			base_rate = -0.08
-		SystemStatus.BASIC:
-			base_rate = 0.02
-		SystemStatus.STABLE:
-			base_rate = 0.08
-	var power_multiplier := 1.0
-	if power >= 70.0:
-		power_multiplier = 1.0
-	elif power >= 40.0:
-		power_multiplier = 0.8
-	elif power >= 20.0:
-		power_multiplier = 0.5
-	else:
-		if base_rate > 0.0:
-			power_multiplier = 0.0
-		else:
-			power_multiplier = 1.5
-	var pressure_penalty := 0.0
-	if pressure >= 70.0:
-		pressure_penalty = 0.0
-	elif pressure >= 40.0:
-		pressure_penalty = -0.03
-	elif pressure >= 20.0:
-		pressure_penalty = -0.10
-	else:
-		pressure_penalty = -0.25
-	var plant_bonus := 0.01 if last_plant_recovered_bonus_active else 0.0
-	oxygen += (base_rate * power_multiplier + pressure_penalty + plant_bonus) * hours
 
 func _apply_pressure_change(hours: float) -> void:
 	var rate := 0.0
@@ -221,16 +177,9 @@ func _apply_health_environment_effects(hours: float) -> void:
 	if morale_delta != 0.0:
 		health_manager.call("adjust_stat", "morale", morale_delta)
 
-## Consulted by HealthManager.get_energy_cost_multiplier(); defaults to 1.0 when absent.
-func get_environment_energy_multiplier() -> float:
-	var multiplier := _temperature_energy_multiplier()
-	if oxygen <= 19.0:
-		multiplier *= 1.5
-	elif oxygen < 40.0:
-		multiplier *= 1.2
-	return multiplier
-
-func _temperature_energy_multiplier() -> float:
+## Consulted by HealthManager.get_energy_cost_multiplier(); defaults to 1.0 when
+## absent. Oxygen/CO2 no longer factor in here — see AirSystemManager.get_air_energy_multiplier().
+func get_temperature_energy_multiplier() -> float:
 	if _temperature_comfortable():
 		return 1.0
 	if _temperature_is_dangerous():
@@ -256,18 +205,6 @@ func repair_power_heavy() -> void:
 	if power_system_status == SystemStatus.BASIC:
 		power_system_status = SystemStatus.STABLE
 	power += 5.0
-	_finish_repair()
-
-func repair_life_support_light() -> void:
-	if life_support_status == SystemStatus.CRITICAL:
-		life_support_status = SystemStatus.BASIC
-	oxygen += 4.0
-	_finish_repair()
-
-func repair_life_support_heavy() -> void:
-	if life_support_status == SystemStatus.BASIC:
-		life_support_status = SystemStatus.STABLE
-	oxygen += 6.0
 	_finish_repair()
 
 func repair_thermal_light() -> void:
@@ -319,15 +256,6 @@ func get_power_label() -> String:
 		return "低电力"
 	return "电力危机"
 
-func get_oxygen_label() -> String:
-	if oxygen >= 70.0:
-		return "氧气稳定"
-	if oxygen >= 40.0:
-		return "氧气偏低"
-	if oxygen >= 20.0:
-		return "氧气不足"
-	return "氧气危险"
-
 func get_pressure_label() -> String:
 	if pressure >= 70.0:
 		return "舱压稳定"
@@ -370,34 +298,29 @@ func panel_status_text() -> String:
 		"",
 		"电力：%s  %d%%" % [get_power_label(), int(round(power))],
 		"温度：%s  %d℃" % [get_temperature_label(), int(round(temperature))],
-		"氧气：%s  %d%%" % [get_oxygen_label(), int(round(oxygen))],
 		"舱压：%s  %d%%" % [get_pressure_label(), int(round(pressure))],
 		"",
 		"系统状态：",
 		"供电系统：%s" % get_system_status_label(power_system_status),
-		"生命支持：%s" % get_system_status_label(life_support_status),
 		"温控系统：%s" % get_system_status_label(thermal_control_status),
 		"密封状态：%s" % get_system_status_label(seal_status, true),
 	]
-	if oxygen <= 19.0:
-		lines.append("")
-		lines.append("警告：氧气水平危险，高消耗行动风险显著上升。")
 	return "\n".join(lines)
 
 func compact_hud_text() -> String:
-	return "基地状态：电力 %s · 氧气 %s" % [get_power_label(), get_oxygen_label()]
+	return "基地状态：电力 %s · 舱压 %s" % [get_power_label(), get_pressure_label()]
 
 func get_specialist_hint() -> String:
 	match _academic_background():
 		"机械工程":
-			if power < 70.0 or life_support_status != SystemStatus.STABLE or thermal_control_status != SystemStatus.STABLE:
-				return "专业判断：\n当前供电不足会限制生命支持和温控效率。\n建议优先恢复供电系统。"
+			if power < 70.0 or thermal_control_status != SystemStatus.STABLE:
+				return "专业判断：\n当前供电不足会限制温控效率。\n建议优先恢复供电系统。"
 		"材料科学":
 			if pressure < 80.0 or seal_status != SystemStatus.STABLE:
 				return "专业判断：\n舱压暂时可维持，但密封材料存在老化风险。\n建议检查舱门密封圈与舱体接缝。"
 		"医学":
-			if not _temperature_comfortable() or oxygen < 70.0 or power <= 19.0:
-				return "专业判断：\n低温和氧气偏低会增加精力消耗。\n建议避免连续高强度维修，并优先恢复生命支持环境。"
+			if not _temperature_comfortable() or power <= 19.0:
+				return "专业判断：\n低温会增加精力消耗，电力危机会进一步放大这一影响。\n建议避免连续高强度维修，并优先恢复供电与温控。"
 		"植物科学":
 			if not _temperature_comfortable() or power < 70.0 or not last_plant_recovered_bonus_active:
 				return "专业判断：\n当前温度偏低，不利于植物恢复。\n若温控无法稳定，最后一株植物恢复会延迟。"
@@ -409,8 +332,6 @@ func adjust_stat(stat_name: String, delta: float) -> void:
 	match stat_name:
 		"power":
 			power += delta
-		"oxygen":
-			oxygen += delta
 		"pressure":
 			pressure += delta
 		"temperature":
@@ -424,8 +345,6 @@ func debug_set_system_status(system_name: String, status_name: String) -> void:
 	match system_name:
 		"power_system_status":
 			power_system_status = status
-		"life_support_status":
-			life_support_status = status
 		"thermal_control_status":
 			thermal_control_status = status
 		"seal_status":
@@ -434,9 +353,8 @@ func debug_set_system_status(system_name: String, status_name: String) -> void:
 	base_status_changed.emit()
 
 func debug_values_text() -> String:
-	return "Power: %.0f (%s)\nOxygen: %.0f (%s)\nPressure: %.0f (%s)\nTemperature: %.1f (%s)" % [
+	return "Power: %.0f (%s)\nPressure: %.0f (%s)\nTemperature: %.1f (%s)" % [
 		power, get_system_status_label(power_system_status),
-		oxygen, get_system_status_label(life_support_status),
 		pressure, get_system_status_label(seal_status, true),
 		temperature, get_system_status_label(thermal_control_status),
 	]
@@ -458,11 +376,9 @@ func _status_from_name(status_name: String) -> int:
 func serialize() -> Dictionary:
 	return {
 		"power": power,
-		"oxygen": oxygen,
 		"pressure": pressure,
 		"temperature": temperature,
 		"power_system_status": power_system_status,
-		"life_support_status": life_support_status,
 		"thermal_control_status": thermal_control_status,
 		"seal_status": seal_status,
 		"last_plant_recovered_bonus_active": last_plant_recovered_bonus_active,
@@ -470,11 +386,9 @@ func serialize() -> Dictionary:
 
 func deserialize(data: Dictionary) -> void:
 	power = float(data.get("power", power))
-	oxygen = float(data.get("oxygen", oxygen))
 	pressure = float(data.get("pressure", pressure))
 	temperature = float(data.get("temperature", temperature))
 	power_system_status = int(data.get("power_system_status", power_system_status))
-	life_support_status = int(data.get("life_support_status", life_support_status))
 	thermal_control_status = int(data.get("thermal_control_status", thermal_control_status))
 	seal_status = int(data.get("seal_status", seal_status))
 	last_plant_recovered_bonus_active = bool(data.get("last_plant_recovered_bonus_active", last_plant_recovered_bonus_active))
