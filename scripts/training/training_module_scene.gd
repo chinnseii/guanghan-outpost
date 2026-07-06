@@ -2756,7 +2756,7 @@ func _suit_control_config() -> Dictionary:
 			{"type": "suit_status_panel", "target": "suit_rack", "objective": "按 Tab 查看宇航服状态面板", "line": "宇航服状态已确认。", "state_updates": {"SuitStatusConfirmed": true, "ExitDoorUnlocked": true}},
 			{"type": "interact", "target": "exit", "objective": "进入模拟气闸舱", "line": "宇航服整备室训练完成。", "requires": {"ExitDoorUnlocked": true}, "blocked_hint": "请先确认宇航服状态。"},
 		],
-	})
+	}, true)
 	return data
 
 func _airlock_config() -> Dictionary:
@@ -2785,7 +2785,7 @@ func _airlock_config() -> Dictionary:
 			{"type": "interact", "target": "outer_door", "objective": "打开外舱门", "line": "外舱门已打开。", "state_key": "OuterDoorOpen", "requires": {"InnerDoorClosed": true, "PressureStable": true}, "blocked_hint": "舱压尚未稳定。外舱门保持锁定。"},
 			{"type": "move", "target": "exterior", "objective": "进入外部模拟区", "line": "气闸流程完成。", "state_key": "Module02Completed"},
 		],
-	})
+	}, true)
 	return data
 
 func _power_config() -> Dictionary:
@@ -2813,7 +2813,7 @@ func _power_config() -> Dictionary:
 			{"type": "wait", "target": "light", "objective": "确认灯光恢复", "line": "测试灯已亮起。\n训练舱供电状态：稳定。", "duration": 1.2, "state_key": "TestLightOn", "requires": {"PowerRestored": true}},
 			{"type": "interact", "target": "exit", "objective": "进入下一训练模块", "line": "供电维修训练完成。", "state_key": "Module03Completed", "requires": {"TestLightOn": true}, "blocked_hint": "训练模块尚未完成。"},
 		],
-	})
+	}, true)
 	return data
 
 func _life_support_config() -> Dictionary:
@@ -2844,7 +2844,7 @@ func _life_support_config() -> Dictionary:
 			{"type": "interact", "target": "vent", "objective": "确认生命支持稳定", "line": "氧气、水、电力与温度均已稳定。\n训练环境具备基础生命支持条件。", "state_key": "LifeSupportConfirmed", "requires": {"LifeSupportStable": true}},
 			{"type": "interact", "target": "exit", "objective": "进入下一训练模块", "line": "生命支持训练完成。", "state_key": "Module04Completed", "requires": {"LifeSupportConfirmed": true}, "blocked_hint": "生命支持状态尚未稳定。训练模块未完成。"},
 		],
-	})
+	}, true)
 	return data
 
 func _plant_config() -> Dictionary:
@@ -2870,7 +2870,7 @@ func _plant_config() -> Dictionary:
 			{"type": "wait", "target": "plant", "objective": "确认植物状态稳定", "line": "植物状态趋于稳定。\n叶片反应：恢复中。\n补光输出：正常。", "duration": 1.5, "state_updates": {"PlantStable": true, "PlantStatus": "稳定"}},
 			{"type": "interact", "target": "exit", "objective": "进入最终考核", "line": "植物状态诊断训练完成。", "state_key": "Module05Completed", "requires": {"PlantStable": true}, "blocked_hint": "训练模块尚未完成。"},
 		],
-	})
+	}, true)
 	return data
 
 func _assessment_config() -> Dictionary:
@@ -2915,5 +2915,5 @@ func _assessment_config() -> Dictionary:
 			{"type": "wait", "target": "plant", "objective": "等待植物状态稳定", "line": "植物状态：稳定。\n叶片反应：恢复中。\n补光输出：正常。", "duration": 1.4, "state_updates": {"PlantStable": true, "PlantStatus": "稳定"}},
 			{"type": "interact", "target": "terminal", "objective": "提交考核结果", "line": "最终考核完成。\n\n供电恢复。\n生命支持稳定。\n植物舱状态稳定。\n\n候选人具备进入月面长期驻留任务后续阶段的基础资格。", "state_key": "FinalAssessmentCompleted", "requires": {"PowerRestored": true, "LifeSupportStable": true, "PlantStable": true}, "blocked_hint": "考核结果不完整。请确认供电、生命支持与植物舱状态。"},
 		],
-	})
+	}, true)
 	return data
