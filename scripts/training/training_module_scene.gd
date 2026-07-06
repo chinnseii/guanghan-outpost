@@ -1093,7 +1093,7 @@ func _build_training_area() -> void:
 		exit_visual.kind = "exit"
 		exit_visual.label_text = "考核出口"
 		exit_visual.name = "exit"
-		exit_visual.position = Vector2(684, 388)
+		exit_visual.position = Vector2(1350, 610)
 		exit_visual.size = Vector2(74, 106)
 		training_area.add_child(exit_visual)
 		target_nodes["exit"] = exit_visual
@@ -1263,14 +1263,9 @@ func _plant_room_target(target: Dictionary) -> Dictionary:
 			room_target["label"] = "训练植物舱"
 			room_target["position"] = Vector2(330, 168)
 			room_target["size"] = Vector2(150, 170)
-		"scanner":
-			room_target["kind"] = "plant_scanner"
-			room_target["label"] = "植物扫描器"
-			room_target["position"] = Vector2(92, 286)
-			room_target["size"] = Vector2(132, 108)
 		"light_console":
 			room_target["kind"] = "plant_console"
-			room_target["label"] = "补光控制台"
+			room_target["label"] = "植物控制台"
 			room_target["position"] = Vector2(590, 248)
 			room_target["size"] = Vector2(138, 94)
 		"grow_light":
@@ -1278,11 +1273,6 @@ func _plant_room_target(target: Dictionary) -> Dictionary:
 			room_target["label"] = "补光灯"
 			room_target["position"] = Vector2(338, 82)
 			room_target["size"] = Vector2(134, 82)
-		"plant_status":
-			room_target["kind"] = "plant_status"
-			room_target["label"] = "植物状态"
-			room_target["position"] = Vector2(558, 104)
-			room_target["size"] = Vector2(154, 82)
 		"exit":
 			room_target["kind"] = "exit"
 			room_target["label"] = "训练出口"
@@ -1354,14 +1344,9 @@ func _assessment_room_target(target: Dictionary) -> Dictionary:
 			room_target["label"] = "植物舱"
 			room_target["position"] = Vector2(1110, 216)
 			room_target["size"] = Vector2(112, 132)
-		"scanner":
-			room_target["kind"] = "plant_scanner"
-			room_target["label"] = "植物扫描器"
-			room_target["position"] = Vector2(1272, 194)
-			room_target["size"] = Vector2(74, 82)
 		"light_console":
 			room_target["kind"] = "plant_console"
-			room_target["label"] = "补光控制台"
+			room_target["label"] = "植物控制台"
 			room_target["position"] = Vector2(1240, 318)
 			room_target["size"] = Vector2(94, 76)
 		"grow_light":
@@ -1369,15 +1354,10 @@ func _assessment_room_target(target: Dictionary) -> Dictionary:
 			room_target["label"] = "补光灯"
 			room_target["position"] = Vector2(1110, 152)
 			room_target["size"] = Vector2(112, 52)
-		"plant_status":
-			room_target["kind"] = "plant_status"
-			room_target["label"] = "植物状态"
-			room_target["position"] = Vector2(1110, 356)
-			room_target["size"] = Vector2(108, 58)
 		"exit":
 			room_target["kind"] = "exit"
 			room_target["label"] = "考核出口"
-			room_target["position"] = Vector2(1275, 440)
+			room_target["position"] = Vector2(1350, 610)
 			room_target["size"] = Vector2(74, 106)
 	return room_target
 
@@ -1419,7 +1399,7 @@ func _try_interact() -> void:
 		return
 	var step_type := String(step.get("type", "interact"))
 	if step_type == "diagnosis":
-		hint_label.text = "请在左侧选择诊断结果。"
+		hint_label.text = "请在诊断弹窗中选择诊断结果。"
 		return
 	var target := String(step.get("target", ""))
 	if step_type == "move":
@@ -1437,6 +1417,9 @@ func _try_interact() -> void:
 		return
 	if _blocked_by_order(step):
 		hint_label.text = String(step.get("blocked_hint", "流程顺序错误。请按当前目标执行。"))
+		return
+	if step_type == "plant_control":
+		_show_plant_control_options(step.get("options", []), String(step.get("correct", "")))
 		return
 	_begin_step_interaction_feedback(step)
 
@@ -1459,7 +1442,7 @@ func _complete_step() -> void:
 	_add_log(String(step.get("line", "")))
 	step_index += 1
 	wait_timer = 0.0
-	if String(step.get("type", "")) == "diagnosis":
+	if String(step.get("type", "")) == "diagnosis" or String(step.get("type", "")) == "plant_control":
 		if diagnosis_panel != null:
 			diagnosis_panel.visible = false
 		_hide_training_diagnosis_modal()
@@ -1663,8 +1646,6 @@ func _wrong_order_hint() -> String:
 		if target_nodes.has("exit") and _is_near("exit") and not bool(state.get("LifeSupportConfirmed", false)):
 			return "生命支持状态尚未稳定。训练模块未完成。"
 	if module_id == "plant_diagnosis":
-		if target_nodes.has("scanner") and _is_near("scanner") and not bool(state.get("PlantObserved", false)):
-			return "请先靠近植物舱进行观察。"
 		if target_nodes.has("light_console") and _is_near("light_console") and not bool(state.get("DiagnosisSelected", false)):
 			return "请先确认植物异常原因。"
 		if target_nodes.has("exit") and _is_near("exit") and not bool(state.get("PlantStable", false)):
@@ -1672,7 +1653,7 @@ func _wrong_order_hint() -> String:
 	if module_id == "final_assessment":
 		if target_nodes.has("life_console") and _is_near("life_console") and not bool(state.get("PowerRestored", false)):
 			return "供电尚未恢复。生命支持系统无法进入稳定流程。"
-		if (target_nodes.has("plant") and _is_near("plant")) or (target_nodes.has("scanner") and _is_near("scanner")):
+		if target_nodes.has("plant") and _is_near("plant"):
 			if not bool(state.get("LifeSupportStable", false)):
 				return "生命支持状态尚未稳定。植物舱诊断结果可能不可靠。"
 		if target_nodes.has("light_console") and _is_near("light_console") and String(state.get("CorrectDiagnosis", "")) != "LightInsufficient":
@@ -1766,10 +1747,11 @@ func _update_room_prompt() -> void:
 		return
 	var target: Control = target_nodes[target_id]
 	var near := _is_near(target_id)
+	var prompt_step_type := String(step.get("type", ""))
 	if target is TrainingTargetVisual:
-		target.active = interaction_running and target.name == interaction_target_id or near and (completed or String(step.get("type", "")) == "interact")
+		target.active = interaction_running and target.name == interaction_target_id or near and (completed or prompt_step_type == "interact" or prompt_step_type == "plant_control")
 		target.queue_redraw()
-	if near and (completed or String(step.get("type", "")) == "interact"):
+	if near and (completed or prompt_step_type == "interact" or prompt_step_type == "plant_control"):
 		prompt_label.text = _interaction_prompt(target_id)
 		prompt_label.position = target.position + Vector2(8, target.size.y + 20)
 		prompt_label.visible = true
@@ -1826,11 +1808,9 @@ func _interaction_prompt(target_id: String) -> String:
 	if module_id == "plant_diagnosis":
 		match target_id:
 			"plant":
-				return "E 观察植物"
-			"scanner":
-				return "E 使用扫描器"
+				return "E 查看植物状态"
 			"light_console":
-				return "E 调整补光"
+				return "E 使用植物控制台"
 			"exit":
 				return "E 进入最终考核"
 	if module_id == "final_assessment":
@@ -1855,11 +1835,9 @@ func _interaction_prompt(target_id: String) -> String:
 					return "E 启动稳定程序"
 				return "E 打开生命支持控制台"
 			"plant":
-				return "E 观察植物"
-			"scanner":
-				return "E 使用扫描器"
+				return "E 查看植物状态"
 			"light_console":
-				return "E 调整补光"
+				return "E 使用植物控制台"
 	if target_id == "terminal":
 		return "E 使用训练终端"
 	return "E 交互"
@@ -1893,6 +1871,40 @@ func _show_diagnosis_options(options: Array, correct: String) -> void:
 	close.custom_minimum_size = Vector2(0, 42)
 	close.pressed.connect(func():
 		hint_label.text = "诊断视图已关闭。"
+		_hide_training_diagnosis_modal()
+	)
+	diagnosis_modal_actions.add_child(close)
+	_sync_overlay_visibility()
+
+func _show_plant_control_options(options: Array, correct: String) -> void:
+	if diagnosis_panel != null:
+		diagnosis_panel.visible = false
+	if diagnosis_modal_scrim != null:
+		diagnosis_modal_scrim.visible = true
+	if diagnosis_modal != null:
+		diagnosis_modal.visible = true
+	if diagnosis_modal_image != null:
+		diagnosis_modal_image.texture = _load_diagnosis_texture("res://assets/art/greenhouse/plant_states/light_low.png")
+	if diagnosis_modal_text != null:
+		diagnosis_modal_text.text = "植物控制台\nPLANT CONTROL\n\n当前维护目标\n根据植物舱诊断结果选择一项维护动作。\n\n传感器摘要\n补光输出：低于维持阈值\n水循环：最低运行\n根区温度：正常\n生命信号：弱\n\n可用操作\n调节温度：用于根区温度异常。\n浇水：用于水分不足。\n补光：用于光照不足。\n\n请选择维护动作。"
+	_clear_container(diagnosis_modal_actions)
+	for option in options:
+		var button := Button.new()
+		button.text = String(option)
+		button.custom_minimum_size = Vector2(0, 42)
+		button.pressed.connect(func():
+			if button.text == correct:
+				_hide_training_diagnosis_modal()
+				_complete_step()
+			else:
+				hint_label.text = String(_current_step().get("wrong_hint", "维护动作不匹配。请重新核对植物舱诊断结果。"))
+		)
+		diagnosis_modal_actions.add_child(button)
+	var close := Button.new()
+	close.text = "关闭弹窗"
+	close.custom_minimum_size = Vector2(0, 42)
+	close.pressed.connect(func():
+		hint_label.text = "植物控制台已关闭。"
 		_hide_training_diagnosis_modal()
 	)
 	diagnosis_modal_actions.add_child(close)
@@ -2120,9 +2132,6 @@ func _plant_visual_status(node_name: String) -> String:
 		"light_console":
 			if bool(state.get("PlantStable", false)):
 				return "stable"
-		"scanner":
-			if bool(state.get("PlantScanned", false)):
-				return "scanned"
 	return ""
 
 func _plant_hint(step: Dictionary) -> String:
@@ -2131,17 +2140,15 @@ func _plant_hint(step: Dictionary) -> String:
 			var state: Dictionary = module_data.get("state", {})
 			if bool(state.get("PlantStable", false)):
 				return "请确认植物状态已经趋于稳定。"
-			return "请靠近训练植物舱进行观察。"
-		"scanner":
-			return "请前往植物扫描器并按 E。"
+			return "请靠近训练植物，查看植物舱状态。"
 		"light_console":
-			return "请前往补光控制台并按 E。"
-		"plant_status":
-			return "请等待植物状态恢复稳定。"
+			return "请前往植物控制台并按 E。"
 		"exit":
 			return "模块五记录已完成。\n请前往训练出口，进入最终考核。"
 	if String(step.get("type", "")) == "diagnosis":
-		return "请根据观察与扫描结果选择异常原因。"
+		return "请根据植物舱状态选择异常原因。"
+	if String(step.get("type", "")) == "plant_control":
+		return "请在植物控制台选择维护动作。"
 	if String(step.get("type", "")) == "wait":
 		return "请等待植物状态恢复稳定。"
 	return "请按植物诊断流程继续。"
@@ -2226,9 +2233,6 @@ func _assessment_visual_status(node_name: String) -> String:
 			if bool(state.get("GrowLightAdjusted", false)):
 				return "stabilizing"
 			return "abnormal"
-		"scanner":
-			if bool(state.get("PlantScanned", false)):
-				return "scanned"
 		"grow_light":
 			if bool(state.get("GrowLightAdjusted", false)):
 				return "on"
@@ -2261,15 +2265,13 @@ func _assessment_hint(step: Dictionary) -> String:
 		"life_core":
 			return "请等待生命支持系统稳定。"
 		"plant":
-			return "请观察植物舱状态。"
-		"scanner":
-			return "请使用植物扫描器。"
+			return "请查看植物舱状态。"
 		"light_console":
-			return "请调整补光方案。"
-		"plant_status":
-			return "请等待植物舱状态稳定。"
+			return "请使用植物控制台选择维护动作。"
 	if String(step.get("type", "")) == "diagnosis":
-		return "请根据扫描结果选择植物异常原因。"
+		return "请根据植物舱状态选择植物异常原因。"
+	if String(step.get("type", "")) == "plant_control":
+		return "请在植物控制台选择维护动作。"
 	if String(step.get("type", "")) == "wait":
 		return "请等待模拟状态稳定。"
 	return "请按最终考核流程处理模拟事故。"
@@ -2451,18 +2453,15 @@ func _plant_config() -> Dictionary:
 		"hud": "氧气模拟值：98%\n电力模拟值：稳定\n生命支持状态：稳定\n植物状态：异常\n提示信息：观察，再诊断。",
 		"targets": [
 			{"id": "plant", "label": "训练植物", "position": Vector2(350, 260), "color": Color("#2d5b3f")},
-			{"id": "scanner", "label": "植物扫描器", "position": Vector2(160, 350), "color": Color("#31536f")},
-			{"id": "light_console", "label": "补光控制台", "position": Vector2(620, 260), "color": Color("#31536f")},
+			{"id": "light_console", "label": "植物控制台", "position": Vector2(620, 260), "color": Color("#31536f")},
 			{"id": "grow_light", "label": "生长灯", "position": Vector2(570, 130), "color": Color("#4b4f37")},
-			{"id": "plant_status", "label": "植物状态显示", "position": Vector2(560, 150), "color": Color("#244563")},
 			{"id": "exit", "label": "训练出口", "position": Vector2(710, 410), "color": Color("#4d6473")},
 		],
 		"steps": [
-			{"type": "interact", "target": "plant", "objective": "观察训练植物", "line": "叶片颜色偏浅。\n植株姿态轻微下垂。\n\n植物不会主动报警。\n你需要先观察。", "state_updates": {"Module05Started": true, "PlantObserved": true, "PlantStatus": "异常"}},
-			{"type": "interact", "target": "scanner", "objective": "使用植物扫描器", "line": "扫描完成。\n叶绿素反应偏低。\n根区温度正常。\n水分状态正常。", "state_updates": {"PlantScanned": true, "ScannerResult": "叶绿素反应偏低；根区温度正常；水分状态正常"}, "requires": {"PlantObserved": true}, "blocked_hint": "请先靠近植物舱进行观察。"},
-			{"type": "diagnosis", "objective": "选择诊断结果", "line": "诊断确认：光照不足。", "options": ["缺水", "光照不足", "根区温度异常"], "correct": "光照不足", "wrong_hint": "诊断结果不匹配。\n请重新查看扫描信息。", "state_updates": {"DiagnosisSelected": true, "CorrectDiagnosis": "LightInsufficient"}, "requires": {"PlantScanned": true}, "blocked_hint": "诊断信息不足。请先使用植物扫描器。"},
-			{"type": "interact", "target": "light_console", "objective": "调整补光方案", "line": "补光方案已调整。\n植物状态正在恢复。", "state_updates": {"GrowLightAdjusted": true, "PlantStatus": "稳定中", "GrowLightStatus": "正常"}, "requires": {"DiagnosisSelected": true}, "blocked_hint": "请先确认植物异常原因。"},
-			{"type": "wait", "target": "plant_status", "objective": "确认植物状态稳定", "line": "植物状态趋于稳定。\n叶片反应：恢复中。\n补光输出：正常。", "duration": 1.5, "state_updates": {"PlantStable": true, "PlantStatus": "稳定"}},
+			{"type": "interact", "target": "plant", "objective": "查看训练植物", "line": "植物舱诊断视图已打开。", "state_updates": {"Module05Started": true, "PlantObserved": true, "PlantStatus": "异常"}},
+			{"type": "diagnosis", "objective": "选择诊断结果", "line": "诊断确认：光照不足。", "options": ["缺水", "光照不足", "根区温度异常"], "correct": "光照不足", "wrong_hint": "诊断结果不匹配。\n请重新查看植物舱状态。", "state_updates": {"DiagnosisSelected": true, "CorrectDiagnosis": "LightInsufficient"}, "requires": {"PlantObserved": true}, "blocked_hint": "诊断信息不足。请先查看训练植物。"},
+			{"type": "plant_control", "target": "light_console", "objective": "调整植物控制台", "line": "补光方案已调整。\n植物状态正在恢复。", "options": ["调节温度", "浇水", "补光"], "correct": "补光", "wrong_hint": "该操作无法解决当前异常。\n请根据植物舱诊断结果选择维护动作。", "state_updates": {"GrowLightAdjusted": true, "PlantStatus": "稳定中", "GrowLightStatus": "正常"}, "requires": {"DiagnosisSelected": true}, "blocked_hint": "请先确认植物异常原因。"},
+			{"type": "wait", "target": "plant", "objective": "确认植物状态稳定", "line": "植物状态趋于稳定。\n叶片反应：恢复中。\n补光输出：正常。", "duration": 1.5, "state_updates": {"PlantStable": true, "PlantStatus": "稳定"}},
 			{"type": "interact", "target": "exit", "objective": "进入最终考核", "line": "植物状态诊断训练完成。", "state_key": "Module05Completed", "requires": {"PlantStable": true}, "blocked_hint": "训练模块尚未完成。"},
 		],
 	})
@@ -2492,10 +2491,8 @@ func _assessment_config() -> Dictionary:
 			{"id": "temperature", "label": "温度状态"},
 			{"id": "life_core", "label": "生命支持核心"},
 			{"id": "plant", "label": "植物舱"},
-			{"id": "scanner", "label": "植物扫描器"},
-			{"id": "light_console", "label": "补光控制台"},
+			{"id": "light_console", "label": "植物控制台"},
 			{"id": "grow_light", "label": "补光灯"},
-			{"id": "plant_status", "label": "植物状态"},
 		],
 		"steps": [
 			{"type": "interact", "target": "terminal", "objective": "读取考核终端", "line": "最终考核开始。\n\n模拟事故：\n供电下降。\n生命支持不稳定。\n植物舱状态异常。\n\n考核目标：\n恢复供电。\n稳定生命支持。\n处理植物舱异常。\n提交考核结果。", "state_updates": {"FinalAssessmentStarted": true, "AssessmentBriefingRead": true, "PowerStatus": "故障", "LifeSupportStatus": "未稳定", "PlantStatus": "异常", "OxygenStatus": "偏低", "WaterStatus": "稳定", "TemperatureStatus": "偏低", "TestLightOn": false, "GrowLightStatus": "偏低"}},
@@ -2506,11 +2503,10 @@ func _assessment_config() -> Dictionary:
 			{"type": "interact", "target": "life_console", "objective": "打开生命支持控制台", "line": "检测到氧气偏低。\n检测到温度偏低。\n水循环与电力状态稳定。", "state_updates": {"LifeSupportConsoleOpened": true, "LifeSupportStatusRead": true, "LifeSupportStatus": "未稳定", "OxygenStatus": "偏低", "WaterStatus": "稳定", "TemperatureStatus": "偏低"}, "requires": {"PowerRestored": true}, "blocked_hint": "供电尚未恢复。生命支持系统无法进入稳定流程。"},
 			{"type": "interact", "target": "life_console", "objective": "启动生命支持稳定程序", "line": "稳定程序启动。\n正在调整氧气输出与温控系统。", "state_updates": {"StabilizationStarted": true, "LifeSupportStatus": "稳定中"}, "requires": {"PowerRestored": true, "LifeSupportConsoleOpened": true}, "blocked_hint": "供电尚未恢复。生命支持系统无法进入稳定流程。"},
 			{"type": "wait", "target": "life_core", "objective": "等待生命支持稳定", "line": "氧气状态：稳定。\n水循环状态：稳定。\n电力状态：稳定。\n温度状态：稳定。\n生命支持状态：稳定。", "duration": 1.4, "state_updates": {"LifeSupportStable": true, "LifeSupportStatus": "稳定", "OxygenStatus": "稳定", "WaterStatus": "稳定", "TemperatureStatus": "稳定"}},
-			{"type": "interact", "target": "plant", "objective": "观察植物舱", "line": "叶片颜色偏浅。\n植株姿态轻微下垂。\n\n植物舱仍处于异常状态。\n请进行诊断。", "state_updates": {"PlantObserved": true, "PlantStatus": "异常"}, "requires": {"LifeSupportStable": true}, "blocked_hint": "生命支持状态尚未稳定。植物舱诊断结果可能不可靠。"},
-			{"type": "interact", "target": "scanner", "objective": "扫描训练植物", "line": "扫描完成。\n叶绿素反应偏低。\n根区温度正常。\n水分状态正常。", "state_updates": {"PlantScanned": true, "ScannerResult": "叶绿素反应偏低；根区温度正常；水分状态正常"}, "requires": {"PlantObserved": true, "LifeSupportStable": true}, "blocked_hint": "生命支持状态尚未稳定。植物舱诊断结果可能不可靠。"},
-			{"type": "diagnosis", "objective": "选择植物异常原因", "line": "诊断确认：光照不足。", "options": ["缺水", "光照不足", "根区温度异常"], "correct": "光照不足", "wrong_hint": "诊断结果不匹配。\n请重新查看扫描信息。", "state_updates": {"CorrectDiagnosis": "LightInsufficient", "DiagnosisSelected": true}, "requires": {"PlantScanned": true}},
-			{"type": "interact", "target": "light_console", "objective": "调整补光方案", "line": "补光方案已调整。\n植物状态正在恢复。", "state_updates": {"GrowLightAdjusted": true, "GrowLightStatus": "稳定", "PlantStatus": "稳定中"}, "requires": {"CorrectDiagnosis": "LightInsufficient"}, "blocked_hint": "请先确认植物异常原因。"},
-			{"type": "wait", "target": "plant_status", "objective": "等待植物状态稳定", "line": "植物状态：稳定。\n叶片反应：恢复中。\n补光输出：正常。", "duration": 1.4, "state_updates": {"PlantStable": true, "PlantStatus": "稳定"}},
+			{"type": "interact", "target": "plant", "objective": "查看植物舱状态", "line": "植物舱诊断视图已打开。", "state_updates": {"PlantObserved": true, "PlantStatus": "异常"}, "requires": {"LifeSupportStable": true}, "blocked_hint": "生命支持状态尚未稳定。植物舱诊断结果可能不可靠。"},
+			{"type": "diagnosis", "objective": "选择植物异常原因", "line": "诊断确认：光照不足。", "options": ["缺水", "光照不足", "根区温度异常"], "correct": "光照不足", "wrong_hint": "诊断结果不匹配。\n请重新查看植物舱状态。", "state_updates": {"CorrectDiagnosis": "LightInsufficient", "DiagnosisSelected": true}, "requires": {"PlantObserved": true}},
+			{"type": "plant_control", "target": "light_console", "objective": "使用植物控制台", "line": "补光方案已调整。\n植物状态正在恢复。", "options": ["调节温度", "浇水", "补光"], "correct": "补光", "wrong_hint": "该操作无法解决当前异常。\n请根据植物舱诊断结果选择维护动作。", "state_updates": {"GrowLightAdjusted": true, "GrowLightStatus": "稳定", "PlantStatus": "稳定中"}, "requires": {"CorrectDiagnosis": "LightInsufficient"}, "blocked_hint": "请先确认植物异常原因。"},
+			{"type": "wait", "target": "plant", "objective": "等待植物状态稳定", "line": "植物状态：稳定。\n叶片反应：恢复中。\n补光输出：正常。", "duration": 1.4, "state_updates": {"PlantStable": true, "PlantStatus": "稳定"}},
 			{"type": "interact", "target": "terminal", "objective": "提交考核结果", "line": "最终考核完成。\n\n供电恢复。\n生命支持稳定。\n植物舱状态稳定。\n\n候选人具备进入月面长期驻留任务后续阶段的基础资格。", "state_key": "FinalAssessmentCompleted", "requires": {"PowerRestored": true, "LifeSupportStable": true, "PlantStable": true}, "blocked_hint": "考核结果不完整。请确认供电、生命支持与植物舱状态。"},
 		],
 	})
