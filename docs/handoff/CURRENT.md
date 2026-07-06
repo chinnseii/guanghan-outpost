@@ -1,13 +1,28 @@
 # 当前状态（滚动文档，每次覆盖重写）
 
 更新时间：2026-07-06
-更新人：Codex
+更新人：Claude Code
 
 ## 正在进行
 
-（暂无，Action-Based Time System 第一版已完成本地实现与基础验证，待提交 / 推送）
+（暂无）
 
 ## 最近完成
+
+- **Claude Code**：接手时间系统的 HUD 显示部分（Codex 已完成 `TimeManager` 核心逻辑）。
+  - `scripts/base/sprint06_base_scene.gd`：新增独立的 `time_hud_panel`/`time_hud_label`
+    （右上角小面板，`Vector2(1250, 20)`，随 `_hide_gameplay_hud_for_narrative()`
+    一起隐藏），把时间信息从"系统状态"大段文字顶部搬出来，移除了
+    `_safe_hud_text()` 里原来的 `time_text` 拼接。
+  - `scripts/training/training_module_scene.gd`：在常驻的 `minimal_hud`
+    （左上角任务卡）里加了 `minimal_time_label`，显示单行压缩格式
+    （`_time_hud_text().replace("\n", " · ")`），面板高度相应从 96 调到 118。
+  - 截图验证：`tools/capture_time_hud_check.gd`，产出
+    `docs/screenshots/prop_bridge_check/31_old_base_time_hud.png` 和
+    `32_training_time_hud.png`，确认两处都不跟已有 HUD 元素重叠。
+  - 未触碰 `TimeManager.gd` 本身，只读了它已公开的
+    `compact_hud_text()`/`consume_phase_notice()`（Codex 已经在两个场景里
+    接好的 `_time_hud_text()` 包装函数）。
 
 - **Codex**：实现第一版行动推进制时间系统。
   - 新增正式 autoload：`scripts/managers/TimeManager.gd`，并在 `project.godot` 注册为 `/root/TimeManager`。

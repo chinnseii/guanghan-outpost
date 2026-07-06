@@ -42,6 +42,8 @@ var hud_label: Label
 var message_label: Label
 var prompt_label: Label
 var ai_label: Label
+var time_hud_panel: PanelContainer
+var time_hud_label: Label
 var interaction_panel: PanelContainer
 var interaction_label: Label
 var interaction_bar: ProgressBar
@@ -338,6 +340,15 @@ func _setup_ui() -> void:
 	ai_label.modulate = Color("#cfe3f2", 0.92)
 	ai_label.add_theme_font_size_override("font_size", 23)
 	root.add_child(ai_label)
+
+	time_hud_panel = PanelContainer.new()
+	time_hud_panel.position = Vector2(1250, 20)
+	time_hud_panel.custom_minimum_size = Vector2(326, 84)
+	root.add_child(time_hud_panel)
+	time_hud_label = Label.new()
+	time_hud_label.modulate = Color("#9fb4c4", 0.95)
+	time_hud_label.add_theme_font_size_override("font_size", 14)
+	time_hud_panel.add_child(time_hud_label)
 
 	fade_rect = ColorRect.new()
 	fade_rect.color = Color(0, 0, 0, 0)
@@ -1655,6 +1666,9 @@ func _update_ui() -> void:
 	prompt_label.text = _prompt_text()
 	prompt_label.visible = not _hide_gameplay_hud_for_narrative()
 	ai_label.text = ai_text
+	if time_hud_panel != null:
+		time_hud_label.text = _time_hud_text()
+		time_hud_panel.visible = not _time_hud_text().is_empty() and not _hide_gameplay_hud_for_narrative()
 
 func _hide_gameplay_hud_for_narrative() -> bool:
 	return fade_rect != null and fade_rect.color.a > 0.35 and (scene_kind == "week_end" or scene_kind == "day_end" or scene_kind == "day02_end")
@@ -1689,10 +1703,7 @@ func _hud_text() -> String:
 	return _safe_hud_text("广寒前哨 · 旧基地", plant, "", objective_text, power, oxygen, temp, life)
 
 func _safe_hud_text(title: String, plant: String, checklist: String, objective: String, power: String = "基础供电", oxygen: String = "稳定", temp: String = "可维持", life: String = "最低稳定") -> String:
-	var time_text := _time_hud_text()
 	var text := "%s\n\n系统状态\n电力：%s\n氧气：%s\n温度：%s\n生命支持：%s\n植物生命信号：%s" % [title, power, oxygen, temp, life, plant]
-	if not time_text.is_empty():
-		text = "%s\n\n%s" % [time_text, text]
 	if not checklist.is_empty():
 		text += "\n\n今日巡检\n%s" % checklist
 	text += "\n\n当前目标\n> %s" % objective

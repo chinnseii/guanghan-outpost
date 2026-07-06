@@ -695,6 +695,7 @@ var left_panel: PanelContainer
 var minimal_hud: PanelContainer
 var minimal_title_label: Label
 var minimal_objective_label: Label
+var minimal_time_label: Label
 var briefing_scrim: ColorRect
 var briefing_modal: PanelContainer
 var pause_panel: PanelContainer
@@ -863,7 +864,7 @@ func _build_screen() -> void:
 func _build_training_overlays() -> void:
 	minimal_hud = PanelContainer.new()
 	minimal_hud.position = Vector2(60, 84)
-	minimal_hud.custom_minimum_size = Vector2(390, 96)
+	minimal_hud.custom_minimum_size = Vector2(390, 118)
 	add_child(minimal_hud)
 	var hud_box := VBoxContainer.new()
 	hud_box.add_theme_constant_override("separation", 6)
@@ -877,6 +878,11 @@ func _build_training_overlays() -> void:
 	minimal_objective_label.modulate = Color("#f0c766")
 	minimal_objective_label.add_theme_font_size_override("font_size", 15)
 	hud_box.add_child(minimal_objective_label)
+	minimal_time_label = Label.new()
+	minimal_time_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	minimal_time_label.modulate = Color("#9fb4c4")
+	minimal_time_label.add_theme_font_size_override("font_size", 13)
+	hud_box.add_child(minimal_time_label)
 	var key_hint := Label.new()
 	key_hint.text = "Tab 查看任务    Esc 暂停"
 	key_hint.modulate = Color("#7f93a3")
@@ -2056,6 +2062,8 @@ func _update_hud() -> void:
 		minimal_title_label.text = String(module_data.get("title", "训练模块"))
 	if minimal_objective_label != null:
 		minimal_objective_label.text = "当前目标：%s" % objective
+	if minimal_time_label != null:
+		minimal_time_label.text = _time_hud_text().replace("\n", " · ")
 	if module_id == "airlock_procedure":
 		hud_label.text = _airlock_hud_text()
 	elif module_id == "power_repair":
