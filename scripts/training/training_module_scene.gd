@@ -723,6 +723,7 @@ var player_controller: RefCounted
 
 func _ready() -> void:
 	_ensure_input_actions()
+	_release_stale_movement_input()
 	module_data = _module_config(module_id)
 	TrainingManagerScript.set_current_module(module_id)
 	_sync_completed_state_from_progress()
@@ -772,6 +773,24 @@ func _ensure_input_actions() -> void:
 		var panel_event := InputEventKey.new()
 		panel_event.physical_keycode = KEY_TAB
 		InputMap.action_add_event("mission_panel", panel_event)
+
+## Godot's input action state is global, not per-scene -- if the player
+## reached this room by pressing Enter/an arrow key on a button in the
+## previous screen (e.g. TrainingStartScene's "开始训练" button, or the
+## previous training module's exit prompt), that key's "pressed" state can
+## still read as true here for a frame or more after change_scene_to_file(),
+## since there's no guaranteed "key released" event delivered across the
+## scene swap. _move_player() reads ui_up/ui_down/ui_left/ui_right via
+## Input.get_axis() every frame, so a stuck action reads as the player
+## silently drifting in that direction with no way to counter it (pressing
+## the opposite key competes against, but doesn't clear, the phantom
+## held state). Clearing every action this room's movement/interaction
+## code cares about on entry is a cheap, safe guard against that class of
+## bug regardless of exactly which key carried over.
+func _release_stale_movement_input() -> void:
+	for action in ["ui_up", "ui_down", "ui_left", "ui_right", "interact", "mission_panel", "ui_cancel", "ui_accept"]:
+		if InputMap.has_action(action):
+			Input.action_release(action)
 
 func _build_screen() -> void:
 	var background := ColorRect.new()
