@@ -1889,10 +1889,10 @@ func _show_diagnosis_options(options: Array, correct: String) -> void:
 		)
 		diagnosis_modal_actions.add_child(button)
 	var close := Button.new()
-	close.text = "继续观察"
+	close.text = "关闭弹窗"
 	close.custom_minimum_size = Vector2(0, 42)
 	close.pressed.connect(func():
-		hint_label.text = "继续观察已记录。请重新核对植物舱状态。"
+		hint_label.text = "诊断视图已关闭。"
 		_hide_training_diagnosis_modal()
 	)
 	diagnosis_modal_actions.add_child(close)
