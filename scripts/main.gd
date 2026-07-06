@@ -3817,6 +3817,15 @@ func _setup_dev_menu() -> void:
 	box.add_child(_make_dev_button("Training Time Debug: Pause", _debug_training_time_pause))
 	box.add_child(_make_dev_button("Training Time Debug: Resume", _debug_training_time_resume))
 	box.add_child(_make_dev_button("Training Time Debug: Force Timeout", _debug_training_time_force_timeout))
+	box.add_child(_make_dev_button("Suit Debug: Wear Suit", _debug_suit_wear))
+	box.add_child(_make_dev_button("Suit Debug: Remove to Service Station", _debug_suit_remove))
+	box.add_child(_make_dev_button("Suit Debug: Simulate EVA Action (60 min)", func(): _debug_suit_simulate_eva(60, "eva_normal")))
+	box.add_child(_make_dev_button("Suit Debug: Simulate Heavy EVA (60 min)", func(): _debug_suit_simulate_eva(60, "eva_heavy")))
+	box.add_child(_make_dev_button("Suit Debug: Empty Oxygen/Power", _debug_suit_empty_reserves))
+	box.add_child(_make_dev_button("Suit Debug: Service Suit (Full)", _debug_suit_service_full))
+	box.add_child(_make_dev_button("Suit Debug: Upgrade Speed", _debug_suit_upgrade))
+	box.add_child(_make_dev_button("Suit Debug: Show Status", _debug_suit_status))
+	box.add_child(_make_dev_button("Suit Debug: Reset", _debug_suit_reset))
 	box.add_child(_make_dev_button("Dev Only: Clear Save", _clear_current_save))
 
 func _make_dev_button(text: String, callback: Callable) -> Button:
@@ -4306,6 +4315,58 @@ func _debug_training_time_force_timeout() -> void:
 	if manager != null and manager.has_method("debug_force_timeout"):
 		manager.call("debug_force_timeout")
 		add_log("Training time debug: forced timeout.\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_suit_wear() -> void:
+	var manager := get_node_or_null("/root/SuitManager")
+	if manager == null or not manager.has_method("wear_suit"):
+		return
+	var ok: bool = manager.call("wear_suit")
+	add_log("Suit debug: wear_suit() -> %s\n%s" % [ok, String(manager.call("debug_values_text"))])
+
+func _debug_suit_remove() -> void:
+	var manager := get_node_or_null("/root/SuitManager")
+	if manager == null or not manager.has_method("remove_suit_to_service_station"):
+		return
+	var ok: bool = manager.call("remove_suit_to_service_station")
+	add_log("Suit debug: remove_suit_to_service_station() -> %s\n%s" % [ok, String(manager.call("debug_values_text"))])
+
+func _debug_suit_simulate_eva(base_minutes: int, activity_type: String) -> void:
+	var manager := get_node_or_null("/root/SuitManager")
+	if manager == null or not manager.has_method("debug_simulate_eva_action"):
+		return
+	var ok: bool = manager.call("debug_simulate_eva_action", base_minutes, activity_type)
+	add_log("Suit debug: simulate %s (%d min base) -> %s\n%s" % [activity_type, base_minutes, ok, String(manager.call("debug_values_text"))])
+
+func _debug_suit_empty_reserves() -> void:
+	var manager := get_node_or_null("/root/SuitManager")
+	if manager != null and manager.has_method("debug_empty_suit_reserves"):
+		manager.call("debug_empty_suit_reserves")
+		add_log("Suit debug: emptied oxygen/power.\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_suit_service_full() -> void:
+	var manager := get_node_or_null("/root/SuitManager")
+	if manager == null or not manager.has_method("service_suit_full"):
+		return
+	var ok: bool = manager.call("service_suit_full")
+	add_log("Suit debug: service_suit_full() -> %s\n%s" % [ok, String(manager.call("debug_values_text"))])
+
+func _debug_suit_upgrade() -> void:
+	var manager := get_node_or_null("/root/SuitManager")
+	if manager == null or not manager.has_method("upgrade_suit_speed"):
+		return
+	var ok: bool = manager.call("upgrade_suit_speed")
+	add_log("Suit debug: upgrade_suit_speed() -> %s\n%s" % [ok, String(manager.call("debug_values_text"))])
+
+func _debug_suit_status() -> void:
+	var manager := get_node_or_null("/root/SuitManager")
+	if manager != null and manager.has_method("debug_values_text"):
+		add_log("Suit debug:\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_suit_reset() -> void:
+	var manager := get_node_or_null("/root/SuitManager")
+	if manager != null and manager.has_method("reset_to_arrival"):
+		manager.call("reset_to_arrival")
+		add_log("Suit debug: reset.\n%s" % String(manager.call("debug_values_text")))
 
 func _toggle_dev_menu() -> void:
 	if not has_node("UI/Root/DevMenu"):

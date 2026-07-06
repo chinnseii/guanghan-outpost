@@ -20,7 +20,9 @@ const PlantGrowthPanelScript := preload("res://scripts/ui/plant_growth_panel.gd"
 const AirSystemPanelScript := preload("res://scripts/ui/air_system_panel.gd")
 const PowerSystemPanelScript := preload("res://scripts/ui/power_system_panel.gd")
 const WaterSystemPanelScript := preload("res://scripts/ui/water_system_panel.gd")
+const InventoryPanelScript := preload("res://scripts/ui/inventory_panel.gd")
 const BackpackStoragePanelScript := preload("res://scripts/ui/backpack_storage_panel.gd")
+const SuitPanelScript := preload("res://scripts/ui/suit_panel.gd")
 const HUD_SAFE_POSITION := Vector2(24, 96)
 const HUD_SAFE_SIZE := Vector2(360, 464)
 const HUD_SAFE_WORLD_MIN_X := 140.0
@@ -59,6 +61,8 @@ var air_system_panel: PanelContainer
 var power_system_panel: PanelContainer
 var water_system_panel: PanelContainer
 var inventory_panel: PanelContainer
+var backpack_storage_panel: PanelContainer
+var suit_panel: PanelContainer
 var interaction_panel: PanelContainer
 var interaction_label: Label
 var interaction_bar: ProgressBar
@@ -116,6 +120,8 @@ func _setup_input() -> void:
 	_add_key_action("toggle_power_status", [KEY_P])
 	_add_key_action("toggle_water_status", [KEY_I])
 	_add_key_action("toggle_inventory_status", [KEY_B])
+	_add_key_action("toggle_backpack_storage_status", [KEY_K])
+	_add_key_action("toggle_suit_status", [KEY_U])
 
 func _add_key_action(action_name: String, keys: Array[int]) -> void:
 	if not InputMap.has_action(action_name):
@@ -385,6 +391,8 @@ func _setup_ui() -> void:
 	_setup_power_system_panel(root)
 	_setup_water_system_panel(root)
 	_setup_inventory_panel(root)
+	_setup_backpack_storage_panel(root)
+	_setup_suit_panel(root)
 
 func _setup_interaction_feedback_ui(root: Control) -> void:
 	interaction_panel = PanelContainer.new()
@@ -477,8 +485,13 @@ func _toggle_water_system_panel() -> void:
 
 ## Same narrow (330-wide) column as the water panel, directly below it —
 ## completes a 3x2 grid: Water/Air/Base on top, Inventory/Power/Plant below.
+## (Fixed a merge collision here: an earlier combined commit had this
+## function instantiating BackpackStoragePanelScript instead of
+## InventoryPanelScript, silently making the actual inventory panel
+## unreachable from the B key. Restored to the original inventory panel and
+## gave BackpackStoragePanel its own slot below.)
 func _setup_inventory_panel(root: Control) -> void:
-	inventory_panel = BackpackStoragePanelScript.new()
+	inventory_panel = InventoryPanelScript.new()
 	inventory_panel.position = Vector2(400, 500)
 	inventory_panel.visible = false
 	root.add_child(inventory_panel)
@@ -489,6 +502,37 @@ func _toggle_inventory_panel() -> void:
 	inventory_panel.visible = not inventory_panel.visible
 	if inventory_panel.visible and inventory_panel.has_method("refresh"):
 		inventory_panel.call("refresh")
+
+## Backpack/Storage is a bigger modal-style panel (520x430) rather than
+## another corner-grid cell, so it's roughly centered on the 1600x900
+## viewport instead of squeezed into the grid.
+func _setup_backpack_storage_panel(root: Control) -> void:
+	backpack_storage_panel = BackpackStoragePanelScript.new()
+	backpack_storage_panel.position = Vector2(540, 235)
+	backpack_storage_panel.visible = false
+	root.add_child(backpack_storage_panel)
+
+func _toggle_backpack_storage_panel() -> void:
+	if backpack_storage_panel == null:
+		return
+	backpack_storage_panel.visible = not backpack_storage_panel.visible
+	if backpack_storage_panel.visible and backpack_storage_panel.has_method("refresh"):
+		backpack_storage_panel.call("refresh")
+
+## Wide-and-short strip in the one remaining gap below the 3x2 grid
+## (y=800-900 across the full grid width) — see suit_panel.gd for why.
+func _setup_suit_panel(root: Control) -> void:
+	suit_panel = SuitPanelScript.new()
+	suit_panel.position = Vector2(400, 810)
+	suit_panel.visible = false
+	root.add_child(suit_panel)
+
+func _toggle_suit_panel() -> void:
+	if suit_panel == null:
+		return
+	suit_panel.visible = not suit_panel.visible
+	if suit_panel.visible and suit_panel.has_method("refresh"):
+		suit_panel.call("refresh")
 
 func _setup_plant_diagnosis_ui(root: Control) -> void:
 	plant_diagnosis_scrim = ColorRect.new()
@@ -631,6 +675,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		_toggle_water_system_panel()
 	if event.is_action_pressed("toggle_inventory_status"):
 		_toggle_inventory_panel()
+	if event.is_action_pressed("toggle_backpack_storage_status"):
+		_toggle_backpack_storage_panel()
+	if event.is_action_pressed("toggle_suit_status"):
+		_toggle_suit_panel()
 
 func _move_player(delta: float) -> void:
 	var movement_bounds := Rect2(Vector2(_world_left_limit(), 190.0), Vector2(1510.0 - _world_left_limit(), 580.0))
@@ -1831,6 +1879,10 @@ func _update_ui() -> void:
 		water_system_panel.call("refresh")
 	if inventory_panel != null and inventory_panel.visible and inventory_panel.has_method("refresh"):
 		inventory_panel.call("refresh")
+	if backpack_storage_panel != null and backpack_storage_panel.visible and backpack_storage_panel.has_method("refresh"):
+		backpack_storage_panel.call("refresh")
+	if suit_panel != null and suit_panel.visible and suit_panel.has_method("refresh"):
+		suit_panel.call("refresh")
 
 func _hide_gameplay_hud_for_narrative() -> bool:
 	return fade_rect != null and fade_rect.color.a > 0.35 and (scene_kind == "week_end" or scene_kind == "day_end" or scene_kind == "day02_end")
@@ -2412,6 +2464,9 @@ func _load_state() -> void:
 	var plant_growth_manager := _plant_growth_manager()
 	if plant_growth_manager != null and plant_growth_manager.has_method("deserialize") and state.get("PlantGrowthState", {}) is Dictionary:
 		plant_growth_manager.call("deserialize", state.get("PlantGrowthState", {}))
+	var suit_manager := _suit_manager()
+	if suit_manager != null and suit_manager.has_method("deserialize") and state.get("SuitState", {}) is Dictionary:
+		suit_manager.call("deserialize", state.get("SuitState", {}))
 
 func _save_state() -> void:
 	_sync_base_status_from_state()
@@ -2445,6 +2500,9 @@ func _save_state() -> void:
 	var plant_growth_manager := _plant_growth_manager()
 	if plant_growth_manager != null and plant_growth_manager.has_method("serialize"):
 		state["PlantGrowthState"] = plant_growth_manager.call("serialize")
+	var suit_manager := _suit_manager()
+	if suit_manager != null and suit_manager.has_method("serialize"):
+		state["SuitState"] = suit_manager.call("serialize")
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("user://saves"))
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file != null:
@@ -2497,6 +2555,12 @@ func _plant_growth_manager() -> Node:
 	if tree == null or tree.root == null:
 		return null
 	return tree.root.get_node_or_null("PlantGrowthManager")
+
+func _suit_manager() -> Node:
+	var tree := get_tree()
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null("SuitManager")
 
 func _sync_base_status_from_state() -> void:
 	var manager := _base_status_manager()

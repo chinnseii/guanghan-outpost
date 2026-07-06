@@ -62,6 +62,7 @@ static func default_data() -> Dictionary:
 		"BackpackState": {},
 		"StorageState": {},
 		"PlantGrowthState": {},
+		"SuitState": {},
 	}
 
 static func load_progress() -> Dictionary:
@@ -107,6 +108,9 @@ static func load_progress() -> Dictionary:
 	var plant_growth_manager := _plant_growth_manager()
 	if plant_growth_manager != null and plant_growth_manager.has_method("deserialize") and data.get("PlantGrowthState", {}) is Dictionary:
 		plant_growth_manager.call("deserialize", data.get("PlantGrowthState", {}))
+	var suit_manager := _suit_manager()
+	if suit_manager != null and suit_manager.has_method("deserialize") and data.get("SuitState", {}) is Dictionary:
+		suit_manager.call("deserialize", data.get("SuitState", {}))
 	return data
 
 static func save_progress(data: Dictionary) -> void:
@@ -140,6 +144,9 @@ static func save_progress(data: Dictionary) -> void:
 	var plant_growth_manager := _plant_growth_manager()
 	if plant_growth_manager != null and plant_growth_manager.has_method("serialize"):
 		data["PlantGrowthState"] = plant_growth_manager.call("serialize")
+	var suit_manager := _suit_manager()
+	if suit_manager != null and suit_manager.has_method("serialize"):
+		data["SuitState"] = suit_manager.call("serialize")
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("user://saves"))
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file != null:
@@ -176,6 +183,9 @@ static func reset_progress() -> void:
 	var plant_growth_manager := _plant_growth_manager()
 	if plant_growth_manager != null and plant_growth_manager.has_method("reset_to_arrival"):
 		plant_growth_manager.call("reset_to_arrival")
+	var suit_manager := _suit_manager()
+	if suit_manager != null and suit_manager.has_method("reset_to_arrival"):
+		suit_manager.call("reset_to_arrival")
 	var training_time_manager := _training_time_manager()
 	if training_time_manager != null and training_time_manager.has_method("start_training_time"):
 		# Fully clears elapsed/remaining/time_log back to defaults, then
@@ -408,6 +418,12 @@ static func _plant_growth_manager() -> Node:
 	if tree == null or tree.root == null:
 		return null
 	return tree.root.get_node_or_null("PlantGrowthManager")
+
+static func _suit_manager() -> Node:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null("SuitManager")
 
 static func _inventory_manager() -> Node:
 	var tree := Engine.get_main_loop() as SceneTree

@@ -349,12 +349,26 @@ func debug_adjust_energy(delta: float) -> void:
 
 ## Generic energy deduction for cross-system actions (e.g. WaterSystemManager's
 ## ice processing). Same clamp/sync behavior as debug_adjust_energy, just
-## named for non-debug gameplay callers.
+## named for non-debug gameplay callers. Unconditional -- callers are
+## expected to have already verified affordability themselves (as
+## WaterSystemManager.process_ice() does), so this never refuses.
 func consume_energy(amount: float) -> void:
 	current_energy = clamp(current_energy - amount, 0.0, battery_capacity)
 	_sync_base_status_power()
 	_save_state()
 	power_system_changed.emit()
+
+## Checked variant for cross-system callers (e.g. SuitManager's oxygen
+## refill/recharge) that need a hard insufficient-funds refusal instead of
+## consume_energy()'s "always succeeds, just clamps to 0" behavior. `reason`
+## isn't branched on, it's carried through only for debug/log readability.
+func consume_energy_checked(amount: float, reason: String = "") -> bool:
+	if amount <= 0.0:
+		return true
+	if current_energy < amount:
+		return false
+	consume_energy(amount)
+	return true
 
 func debug_set_battery_module_count(count: int) -> void:
 	battery_module_count = max(1, count)

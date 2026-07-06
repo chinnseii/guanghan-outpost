@@ -179,6 +179,22 @@ func consume_plant_water(amount: float) -> bool:
 	water_system_changed.emit()
 	return true
 
+## Generic checked withdrawal for cross-system callers (e.g. SuitManager's
+## oxygen refill) that need a flat, non-recyclable cost with a hard
+## insufficient-funds refusal -- unlike consume_plant_water()/apply_action_cost(),
+## which both apply the recycling discount and never refuse (they just clamp
+## to 0). `reason` isn't branched on, it's carried through only for
+## debug/log readability.
+func consume_water_checked(amount: float, reason: String = "") -> bool:
+	if amount <= 0.0:
+		return true
+	if current_water < amount:
+		return false
+	current_water = clamp(current_water - amount, 0.0, water_capacity)
+	_save_state()
+	water_system_changed.emit()
+	return true
+
 ## -- Ice collection / processing
 
 ## External collection systems (not owned by this manager) call this with
