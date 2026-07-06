@@ -16,6 +16,7 @@ func _initialize() -> void:
 
 func _run() -> void:
 	_prepare_output()
+	_write_application_profile("植物科学")
 
 	await _load_and_wait(AIRLOCK_SCENE)
 	_call_if_available("_close_briefing")
@@ -173,6 +174,22 @@ func _capture(file_name: String) -> void:
 
 func _prepare_output() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT_DIR))
+
+func _write_application_profile(education_background: String) -> void:
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("user://saves"))
+	var data := {
+		"PlayerName": "陈圣威",
+		"BirthYear": 2000,
+		"GenderDisplay": "男",
+		"ApplicationId": "GHO-APP-2068-0421",
+		"CandidateFileStatus": "训练序列中",
+		"MissionIdentity": "常驻开拓者候选人",
+		"EducationBackground": education_background,
+		"CurrentApplicationStep": "training_start",
+	}
+	var file := FileAccess.open("user://saves/application_profile.json", FileAccess.WRITE)
+	if file != null:
+		file.store_string(JSON.stringify(data, "\t"))
 
 func _base_state() -> Dictionary:
 	return {

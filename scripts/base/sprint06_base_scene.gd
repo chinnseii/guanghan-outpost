@@ -1,6 +1,7 @@
 extends Node2D
 
 const SAVE_PATH := "user://saves/sprint06_progress.json"
+const APPLICATION_PROFILE_PATH := "user://saves/application_profile.json"
 const PLAYER_SPEED := 230.0
 
 const SCENE_AIRLOCK := "res://scenes/base/BaseAirlockEntryScene.tscn"
@@ -35,6 +36,7 @@ var interaction_target := ""
 var player_pose := "idle"
 var plant_diagnosis_condition := "critical"
 var plant_diagnosis_feedback := ""
+var plant_diagnosis_specialist := false
 
 var hud_label: Label
 var message_label: Label
@@ -368,46 +370,46 @@ func _setup_interaction_feedback_ui(root: Control) -> void:
 
 func _setup_plant_diagnosis_ui(root: Control) -> void:
 	plant_diagnosis_scrim = ColorRect.new()
-	plant_diagnosis_scrim.color = Color("#02070d", 0.74)
+	plant_diagnosis_scrim.color = Color("#02070d", 0.84)
 	plant_diagnosis_scrim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	plant_diagnosis_scrim.visible = false
 	root.add_child(plant_diagnosis_scrim)
 
 	plant_diagnosis_panel = PanelContainer.new()
-	plant_diagnosis_panel.position = Vector2(280, 96)
-	plant_diagnosis_panel.custom_minimum_size = Vector2(1040, 660)
+	plant_diagnosis_panel.position = Vector2(160, 90)
+	plant_diagnosis_panel.custom_minimum_size = Vector2(1280, 720)
 	plant_diagnosis_panel.visible = false
 	root.add_child(plant_diagnosis_panel)
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color("#07121c", 0.96)
-	style.border_color = Color("#3f6075", 0.9)
+	style.bg_color = Color("#06111a", 0.98)
+	style.border_color = Color("#496c80", 0.95)
 	style.set_border_width_all(2)
 	style.set_corner_radius_all(4)
-	style.content_margin_left = 18
-	style.content_margin_top = 18
-	style.content_margin_right = 18
-	style.content_margin_bottom = 18
+	style.content_margin_left = 22
+	style.content_margin_top = 20
+	style.content_margin_right = 22
+	style.content_margin_bottom = 20
 	plant_diagnosis_panel.add_theme_stylebox_override("panel", style)
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 30)
+	row.add_theme_constant_override("separation", 28)
 	plant_diagnosis_panel.add_child(row)
 	plant_diagnosis_texture = TextureRect.new()
-	plant_diagnosis_texture.custom_minimum_size = Vector2(500, 590)
+	plant_diagnosis_texture.custom_minimum_size = Vector2(620, 660)
 	plant_diagnosis_texture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	row.add_child(plant_diagnosis_texture)
 	var right := VBoxContainer.new()
-	right.custom_minimum_size = Vector2(440, 590)
-	right.add_theme_constant_override("separation", 14)
+	right.custom_minimum_size = Vector2(560, 660)
+	right.add_theme_constant_override("separation", 12)
 	row.add_child(right)
 	var title := Label.new()
-	title.text = "植物诊断视图\nLAST PLANT DIAGNOSTIC"
+	title.text = "植物舱诊断详情\nPLANT CHAMBER DIAGNOSTIC"
 	title.modulate = Color("#eaf4ff")
 	title.add_theme_font_size_override("font_size", 22)
 	right.add_child(title)
 	plant_sensor_label = Label.new()
 	plant_sensor_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	plant_sensor_label.modulate = Color("#cfe3f2")
-	plant_sensor_label.add_theme_font_size_override("font_size", 16)
+	plant_sensor_label.add_theme_font_size_override("font_size", 15)
 	right.add_child(plant_sensor_label)
 	plant_feedback_label = Label.new()
 	plant_feedback_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -1405,6 +1407,7 @@ func _open_plant_diagnosis_after_feedback(condition: String) -> void:
 func _show_plant_diagnosis(condition: String) -> void:
 	plant_diagnosis_condition = condition
 	plant_diagnosis_feedback = ""
+	plant_diagnosis_specialist = _player_is_plant_scientist()
 	input_enabled = false
 	sequence_running = true
 	if plant_diagnosis_scrim != null:
@@ -1416,10 +1419,7 @@ func _show_plant_diagnosis(condition: String) -> void:
 	if plant_sensor_label != null:
 		plant_sensor_label.text = _plant_sensor_hint(condition)
 	if plant_feedback_label != null:
-		plant_feedback_label.text = "请选择维护动作。"
-
-	if plant_feedback_label != null:
-		plant_feedback_label.text = "植物状态稳定。\n无需执行维护动作。" if condition == "stable" else "请选择维护动作。"
+		plant_feedback_label.text = _plant_action_prompt(condition, plant_diagnosis_specialist)
 	_update_plant_action_buttons(condition)
 
 func _hide_plant_diagnosis() -> void:
@@ -1431,16 +1431,25 @@ func _hide_plant_diagnosis() -> void:
 	sequence_running = false
 
 func _update_plant_action_buttons(condition: String) -> void:
+	var suggested_actions := _correct_plant_actions(condition)
 	for button in plant_action_buttons:
 		var label := button.text
+		var is_observe := label == "继续观察"
+		var is_close := label == "关闭诊断视图"
+		var is_professional_action := _is_plant_professional_action(label)
 		if condition == "stable":
-			button.visible = label == "继续观察" or label == "关闭诊断视图"
+			button.visible = is_observe or is_close
 		else:
-			button.visible = label != "关闭诊断视图"
+			button.visible = is_observe or is_close or (plant_diagnosis_specialist and is_professional_action and suggested_actions.has(label))
 
 func _choose_plant_maintenance(action_text: String) -> void:
 	if action_text == "关闭诊断视图":
 		_hide_plant_diagnosis()
+		return
+	if _is_plant_professional_action(action_text) and not plant_diagnosis_specialist:
+		plant_diagnosis_feedback = "已记录异常原因。\n建议措施仅对植物科学背景显示。"
+		if plant_feedback_label != null:
+			plant_feedback_label.text = plant_diagnosis_feedback
 		return
 	var correct_actions := _correct_plant_actions(plant_diagnosis_condition)
 	if action_text == "继续观察":
@@ -1487,16 +1496,16 @@ func _complete_plant_maintenance(action_text: String) -> void:
 func _plant_diagnostic_image_path(condition: String) -> String:
 	match condition:
 		"stable":
-			return "res://assets/art/plants/diagnostics/last_plant_stable.png"
+			return "res://assets/art/greenhouse/plant_states/stable.png"
 		"water_low":
-			return "res://assets/art/plants/diagnostics/last_plant_water_low.png"
+			return "res://assets/art/greenhouse/plant_states/water_low.png"
 		"light_low":
-			return "res://assets/art/plants/diagnostics/last_plant_light_low.png"
+			return "res://assets/art/greenhouse/plant_states/light_low.png"
 		"temp_high":
-			return "res://assets/art/plants/diagnostics/last_plant_temp_high.png"
+			return "res://assets/art/greenhouse/plant_states/temp_high.png"
 		"temp_low":
-			return "res://assets/art/plants/diagnostics/last_plant_temp_low.png"
-	return "res://assets/art/plants/diagnostics/last_plant_critical.png"
+			return "res://assets/art/greenhouse/plant_states/temp_low.png"
+	return "res://assets/art/greenhouse/plant_states/water_low.png"
 
 func _load_diagnostic_texture(path: String) -> Texture2D:
 	var image := Image.load_from_file(ProjectSettings.globalize_path(path))
@@ -1507,16 +1516,41 @@ func _load_diagnostic_texture(path: String) -> Texture2D:
 func _plant_sensor_hint(condition: String) -> String:
 	match condition:
 		"stable":
-			return "传感器读数：\n水循环：最低运行\n补光：低功率稳定\n温度：可维持\n\n视觉观察：\n叶片略微上扬，颜色较昨日恢复。"
+			return "传感器读数\n水循环：最低运行\n补光：低功率稳定\n温度：可维持\n生命信号：稳定\n\n环境状态\n植物舱湿度：可维持\n根区温度：稳定\n补光反射：正常\n\n植物状态\n叶片略微上扬，颜色较昨日恢复。\n茎部支撑稳定。\n\n原因分析\n当前无新增异常，建议继续观察。"
 		"water_low":
-			return "传感器读数：\n根区湿度：低\n水循环：低 / 波动\n补光：稳定\n\n视觉观察：\n叶片下垂，基质表面偏干。"
+			return "传感器读数\n根区湿度：低\n水循环：低 / 波动\n补光：稳定\n生命信号：弱\n\n环境状态\n基质表面偏干。\n回流水量不足。\n\n植物状态\n叶片下垂，叶缘失水。\n茎部仍有微弱支撑。\n\n原因分析\n最低水循环供给不足，根区水分无法维持稳定吸收。"
 		"light_low":
-			return "传感器读数：\n补光输出：低于维持阈值\n水循环：最低运行\n温度：可维持\n\n视觉观察：\n叶片偏淡，植株向补光灯方向倾斜。"
+			return "传感器读数\n补光输出：低于维持阈值\n水循环：最低运行\n温度：可维持\n生命信号：弱\n\n环境状态\n顶部补光反射不足。\n叶面受光不均。\n\n植物状态\n叶片偏淡，植株向补光灯方向倾斜。\n新叶展开缓慢。\n\n原因分析\n补光输出不足，无法支撑最低光合维持。"
 		"temp_high":
-			return "传感器读数：\n温度：偏高\n湿度：偏低\n补光：正常\n\n视觉观察：\n叶缘干枯上卷，舱内偏干。"
+			return "传感器读数\n温度：偏高\n湿度：偏低\n补光：正常\n生命信号：波动\n\n环境状态\n植物舱热量积累。\n根区蒸散压力升高。\n\n植物状态\n叶缘干枯上卷，局部出现浅褐灼伤。\n舱内表面偏干。\n\n原因分析\n舱内热量未及时排出，导致蒸散过强。"
 		"temp_low":
-			return "传感器读数：\n温度：偏低\n水循环：最低运行\n补光：正常\n\n视觉观察：\n叶片偏深，姿态僵硬，舱壁有轻微凝结。"
-	return "传感器读数：\n生命信号：极弱\n补光输出：不足\n水循环：中断\n根区温度：偏低\n\n视觉观察：\n叶片下垂，颜色暗淡。"
+			return "传感器读数\n温度：偏低\n水循环：最低运行\n补光：正常\n生命信号：弱\n\n环境状态\n舱壁出现轻微凝结。\n根区温度低于维持区间。\n\n植物状态\n叶片偏蓝绿，姿态僵硬卷曲。\n茎部支撑反应迟缓。\n\n原因分析\n根区温度偏低，水分与养分吸收效率下降。"
+	return "传感器读数\n生命信号：极弱\n补光输出：不足\n水循环：中断\n根区温度：偏低\n\n环境状态\n植物舱处于最低维持边缘。\n监测回路仍可读取微弱数据。\n\n植物状态\n叶片下垂，颜色暗淡。\n茎部仍有微弱支撑。\n\n原因分析\n补光与水循环同时不足，生命信号接近失稳。"
+
+func _plant_action_prompt(condition: String, is_specialist: bool) -> String:
+	if condition == "stable":
+		return "植物状态稳定。\n无需执行维护动作。"
+	if is_specialist:
+		return "植物科学提示：\n可根据诊断结果选择建议措施。"
+	return "异常原因已记录。\n建议措施仅对植物科学背景显示。"
+
+func _is_plant_professional_action(action_text: String) -> bool:
+	return ["调整水循环", "调整补光", "降低舱内温度", "提升舱内温度"].has(action_text)
+
+func _player_is_plant_scientist() -> bool:
+	if String(state.get("EducationBackground", "")) == "植物科学":
+		return true
+	if String(state.get("education_background", "")) == "植物科学":
+		return true
+	if not FileAccess.file_exists(APPLICATION_PROFILE_PATH):
+		return false
+	var file := FileAccess.open(APPLICATION_PROFILE_PATH, FileAccess.READ)
+	if file == null:
+		return false
+	var parsed: Variant = JSON.parse_string(file.get_as_text())
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return false
+	return String((parsed as Dictionary).get("EducationBackground", "")) == "植物科学"
 
 func _correct_plant_actions(condition: String) -> Array[String]:
 	match condition:
