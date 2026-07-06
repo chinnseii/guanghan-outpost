@@ -62,6 +62,14 @@ func _draw() -> void:
 			_draw_earth()
 		"distant_base":
 			_draw_distant_base()
+		"tool_station":
+			_draw_tool_station()
+		"test_light":
+			_draw_test_light()
+		"ventilation":
+			_draw_ventilation()
+		"training_exit":
+			_draw_training_exit()
 		_:
 			_draw_console()
 
@@ -109,28 +117,91 @@ func _draw_console() -> void:
 	var r := Rect2(Vector2.ZERO, prop_size)
 	draw_rect(r, Color("#313b42"), true)
 	draw_rect(r.grow(-12), Color("#101820"), true)
-	var screen := Color("#2f82b6", 0.85) if active else Color("#41505a", 0.44)
-	draw_rect(Rect2(Vector2(24, 20), Vector2(prop_size.x - 48, 30)), screen, true)
-	draw_rect(Rect2(Vector2(26, prop_size.y - 28), Vector2(prop_size.x - 52, 6)), Color("#e2bf63", 0.35 if active else 0.14), true)
+	if status_text.is_empty():
+		var screen := Color("#2f82b6", 0.85) if active else Color("#41505a", 0.44)
+		draw_rect(Rect2(Vector2(24, 20), Vector2(prop_size.x - 48, 30)), screen, true)
+		draw_rect(Rect2(Vector2(26, prop_size.y - 28), Vector2(prop_size.x - 52, 6)), Color("#e2bf63", 0.35 if active else 0.14), true)
+	else:
+		# Terminal state feedback: standby / active / fault / completed.
+		var screen_color := Color("#41505a", 0.44)
+		var bar_alpha := 0.14
+		match status_text:
+			"active", "restored", "on", "open", "ready":
+				screen_color = Color("#2f82b6", 0.85)
+				bar_alpha = 0.35
+			"stabilizing":
+				screen_color = Color("#e2bf63", 0.72)
+				bar_alpha = 0.4
+			"fault":
+				screen_color = Color("#d66a4f", 0.75)
+				bar_alpha = 0.4
+			"completed", "complete", "stable":
+				screen_color = Color("#7dbd75", 0.8)
+				bar_alpha = 0.3
+		draw_rect(Rect2(Vector2(24, 20), Vector2(prop_size.x - 48, 30)), screen_color, true)
+		draw_rect(Rect2(Vector2(26, prop_size.y - 28), Vector2(prop_size.x - 52, 6)), Color("#e2bf63", bar_alpha), true)
 	_label(Vector2(6, -8))
 
 func _draw_power_panel() -> void:
 	var r := Rect2(Vector2.ZERO, prop_size)
 	draw_rect(r, Color("#2b3337"), true)
 	draw_rect(r.grow(-10), Color("#111820"), true)
-	var warn := Color("#d66a4f", 0.62 if damaged else 0.12)
-	draw_rect(r, warn, false, 3)
-	for i in range(4):
-		draw_line(Vector2(22 + i * 24, 38), Vector2(30 + i * 24, prop_size.y - 34), Color("#b45a56", 0.58 if damaged else 0.12), 2)
-	draw_circle(Vector2(prop_size.x - 20, 22), 6, Color("#d66a4f", 0.78 if damaged else 0.16))
+	if status_text.is_empty():
+		var warn := Color("#d66a4f", 0.62 if damaged else 0.12)
+		draw_rect(r, warn, false, 3)
+		for i in range(4):
+			draw_line(Vector2(22 + i * 24, 38), Vector2(30 + i * 24, prop_size.y - 34), Color("#b45a56", 0.58 if damaged else 0.12), 2)
+		draw_circle(Vector2(prop_size.x - 20, 22), 6, Color("#d66a4f", 0.78 if damaged else 0.16))
+	else:
+		# Power panel state feedback: repairing (warning blink) / restored / fault.
+		match status_text:
+			"repairing":
+				draw_rect(r, Color("#e2bf63", 0.55), false, 3)
+				for i in range(4):
+					draw_line(Vector2(22 + i * 24, 38), Vector2(30 + i * 24, prop_size.y - 34), Color("#e2bf63", 0.42), 2)
+				draw_circle(Vector2(prop_size.x - 20, 22), 6, Color("#e2bf63", 0.68))
+			"restored", "on", "repaired":
+				draw_rect(r, Color("#4fb7f0", 0.22), false, 3)
+				draw_circle(Vector2(prop_size.x - 20, 22), 6, Color("#7dbd75", 0.78))
+			"fault", "damaged":
+				draw_rect(r, Color("#d66a4f", 0.62), false, 3)
+				for i in range(4):
+					draw_line(Vector2(22 + i * 24, 38), Vector2(30 + i * 24, prop_size.y - 34), Color("#b45a56", 0.58), 2)
+				draw_circle(Vector2(prop_size.x - 20, 22), 6, Color("#d66a4f", 0.78))
+			_:
+				draw_rect(r, Color("#d66a4f", 0.12), false, 3)
+				draw_circle(Vector2(prop_size.x - 20, 22), 6, Color("#d66a4f", 0.16))
 	_label(Vector2(6, -8))
 
 func _draw_door() -> void:
 	var r := Rect2(Vector2.ZERO, prop_size)
 	draw_rect(r, Color("#2c3740"), true)
 	draw_rect(r.grow(-12), Color("#141c24"), true)
-	draw_rect(r, Color("#9fb2c0", 0.56 if active else 0.28), false, 3)
-	draw_line(Vector2(prop_size.x * 0.5, 16), Vector2(prop_size.x * 0.5, prop_size.y - 16), Color("#d8e7f2", 0.34), 2)
+	if status_text.is_empty():
+		draw_rect(r, Color("#9fb2c0", 0.56 if active else 0.28), false, 3)
+		draw_line(Vector2(prop_size.x * 0.5, 16), Vector2(prop_size.x * 0.5, prop_size.y - 16), Color("#d8e7f2", 0.34), 2)
+	else:
+		# Airlock state feedback: locked / unlocking / opened / emergency.
+		match status_text:
+			"locked":
+				draw_rect(r, Color("#d66a4f", 0.5), false, 3)
+				draw_line(Vector2(prop_size.x * 0.5, 16), Vector2(prop_size.x * 0.5, prop_size.y - 16), Color("#d8e7f2", 0.34), 2)
+			"unlocking":
+				draw_rect(r, Color("#e2bf63", 0.55), false, 3)
+				draw_line(Vector2(prop_size.x * 0.5, 16), Vector2(prop_size.x * 0.5, prop_size.y - 16), Color("#e2bf63", 0.4), 2)
+			"opened":
+				draw_rect(r, Color("#4fb7f0", 0.6), false, 3)
+			"emergency":
+				draw_rect(r, Color("#d66a4f", 0.85), false, 4)
+				draw_line(Vector2(prop_size.x * 0.5, 16), Vector2(prop_size.x * 0.5, prop_size.y - 16), Color("#d66a4f", 0.7), 3)
+			_:
+				draw_rect(r, Color("#9fb2c0", 0.28), false, 3)
+				draw_line(Vector2(prop_size.x * 0.5, 16), Vector2(prop_size.x * 0.5, prop_size.y - 16), Color("#d8e7f2", 0.34), 2)
+	if damaged:
+		# `damaged` doubles as a generic "locked" flag for doors without an
+		# explicit status_text state (e.g. training airlock doors).
+		draw_rect(Rect2(Vector2(12, prop_size.y * 0.5 - 14), Vector2(prop_size.x - 24, 22)), Color("#0d1822", 0.72), true)
+		draw_string(ThemeDB.fallback_font, Vector2(18, prop_size.y * 0.5 + 4), "锁定", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color("#9fb2c0"))
 	_label(Vector2(-6, -8))
 
 func _draw_locker() -> void:
@@ -183,17 +254,32 @@ func _draw_hydro_rack() -> void:
 
 func _draw_plant_chamber() -> void:
 	var r := Rect2(Vector2.ZERO, prop_size)
-	var frame := Color("#3a4446") if active else Color("#333b3e")
-	draw_rect(r, frame, true)
-	draw_rect(r.grow(-18), Color("#111a18", 0.78), true)
-	draw_rect(r.grow(-18), Color("#b8d8ce", 0.22), false, 2)
-	draw_rect(Rect2(Vector2(prop_size.x - 54, 20), Vector2(34, prop_size.y - 40)), Color("#1a2224"), true)
-	var plant_color := Color("#77b86d") if active else Color("#7b7540")
-	draw_line(Vector2(prop_size.x * 0.46, prop_size.y - 58), Vector2(prop_size.x * 0.46, prop_size.y * (0.38 if active else 0.48)), plant_color, 5)
-	draw_circle(Vector2(prop_size.x * 0.39, prop_size.y * (0.42 if active else 0.52)), 16, plant_color)
-	draw_circle(Vector2(prop_size.x * 0.54, prop_size.y * (0.48 if active else 0.58)), 14, plant_color.darkened(0.1))
-	if not active:
-		draw_line(Vector2(prop_size.x * 0.39, prop_size.y * 0.52), Vector2(prop_size.x * 0.31, prop_size.y * 0.64), plant_color, 3)
+	if status_text.is_empty():
+		var frame := Color("#3a4446") if active else Color("#333b3e")
+		draw_rect(r, frame, true)
+		draw_rect(r.grow(-18), Color("#111a18", 0.78), true)
+		draw_rect(r.grow(-18), Color("#b8d8ce", 0.22), false, 2)
+		draw_rect(Rect2(Vector2(prop_size.x - 54, 20), Vector2(34, prop_size.y - 40)), Color("#1a2224"), true)
+		var plant_color := Color("#77b86d") if active else Color("#7b7540")
+		draw_line(Vector2(prop_size.x * 0.46, prop_size.y - 58), Vector2(prop_size.x * 0.46, prop_size.y * (0.38 if active else 0.48)), plant_color, 5)
+		draw_circle(Vector2(prop_size.x * 0.39, prop_size.y * (0.42 if active else 0.52)), 16, plant_color)
+		draw_circle(Vector2(prop_size.x * 0.54, prop_size.y * (0.48 if active else 0.58)), 14, plant_color.darkened(0.1))
+		if not active:
+			draw_line(Vector2(prop_size.x * 0.39, prop_size.y * 0.52), Vector2(prop_size.x * 0.31, prop_size.y * 0.64), plant_color, 3)
+	else:
+		# Plant chamber state feedback: abnormal / stabilizing / stable.
+		var stable_state := status_text == "stable"
+		var stabilizing_state := status_text == "stabilizing"
+		draw_rect(r, Color("#3a4446") if stable_state else Color("#333b3e"), true)
+		draw_rect(r.grow(-18), Color("#111a18", 0.78), true)
+		draw_rect(r.grow(-18), Color("#b8d8ce", 0.22), false, 2)
+		draw_rect(Rect2(Vector2(prop_size.x - 54, 20), Vector2(34, prop_size.y - 40)), Color("#1a2224"), true)
+		var plant_color := Color("#7dbd75", 0.92) if stable_state else Color("#6f8f62", 0.72 if stabilizing_state else 0.55)
+		draw_line(Vector2(prop_size.x * 0.46, prop_size.y - 58), Vector2(prop_size.x * 0.46, prop_size.y * (0.38 if stable_state else 0.48)), plant_color, 5)
+		draw_circle(Vector2(prop_size.x * 0.39, prop_size.y * (0.42 if stable_state else 0.52)), 16, plant_color)
+		draw_circle(Vector2(prop_size.x * 0.54, prop_size.y * (0.48 if stable_state else 0.58)), 14, plant_color.darkened(0.1))
+		if not stable_state:
+			draw_line(Vector2(prop_size.x * 0.39, prop_size.y * 0.52), Vector2(prop_size.x * 0.31, prop_size.y * 0.64), plant_color, 3)
 	_label(Vector2(10, -8))
 
 func _draw_last_plant() -> void:
@@ -222,10 +308,11 @@ func _draw_monitor() -> void:
 	draw_rect(Rect2(Vector2(24, prop_size.y - 18), Vector2(prop_size.x - 48, 5)), c, true)
 
 func _draw_grow_light() -> void:
-	var c := Color("#f0d28c", 0.76) if active else Color("#6f8493", 0.18)
+	var on := (status_text == "on" or status_text == "stable") if not status_text.is_empty() else active
+	var c := Color("#f0d28c", 0.76) if on else Color("#6f8493", 0.18)
 	draw_rect(Rect2(Vector2.ZERO, prop_size), Color("#2d353a"), true)
 	draw_rect(Rect2(Vector2(16, 12), prop_size - Vector2(32, 24)), c, true)
-	if active:
+	if on:
 		draw_circle(Vector2(prop_size.x * 0.5, prop_size.y + 135), 180, Color("#f0d28c", 0.08))
 	_label(Vector2(8, -8))
 
@@ -278,3 +365,47 @@ func _draw_distant_base() -> void:
 	for i in range(4):
 		draw_rect(Rect2(Vector2(20 + i * 34, prop_size.y * 0.55), Vector2(14, 5)), Color("#f0c766", 0.72), true)
 	_label(Vector2(0, -8), Color("#8fa3b2"))
+
+func _draw_tool_station() -> void:
+	draw_rect(Rect2(Vector2(6, 34), Vector2(prop_size.x - 12, prop_size.y - 40)), Color("#303d47"), true)
+	draw_rect(Rect2(Vector2(0, 24), Vector2(prop_size.x, 16)), Color("#52616c"), true)
+	draw_rect(Rect2(Vector2(18, 8), Vector2(26, 18)), Color("#7d8b94"), true)
+	draw_rect(Rect2(Vector2(58, 10), Vector2(46, 8)), Color("#f0c766", 0.7), true)
+	draw_line(Vector2(64, 18), Vector2(96, 30), Color("#d8e7f2", 0.65), 3.0)
+	draw_rect(Rect2(Vector2(22, 54), Vector2(18, 18)), Color("#1a2b38"), true)
+	draw_rect(Rect2(Vector2(52, 54), Vector2(18, 18)), Color("#1a2b38"), true)
+	_label(Vector2(6, -8))
+
+func _draw_test_light() -> void:
+	var on := status_text == "on"
+	var center := prop_size * 0.5
+	draw_rect(Rect2(Vector2(8, prop_size.y - 18), Vector2(prop_size.x - 16, 12)), Color("#303b44"), true)
+	draw_line(Vector2(center.x, 8), Vector2(center.x, prop_size.y - 22), Color("#5d6f7d"), 4.0)
+	var glow := Color("#f0c766", 0.85) if on else Color("#5d6f7d", 0.35)
+	draw_circle(center + Vector2(0, -6), 18, Color(glow.r, glow.g, glow.b, 0.22 if on else 0.1))
+	draw_circle(center + Vector2(0, -6), 10, glow)
+	if on:
+		draw_circle(center + Vector2(0, -6), 28, Color("#f0c766", 0.08))
+
+func _draw_ventilation() -> void:
+	var active_state := status_text == "stable" or status_text == "stabilizing"
+	draw_rect(Rect2(Vector2.ZERO, prop_size), Color("#303d47"), true)
+	draw_rect(Rect2(Vector2(10, 10), prop_size - Vector2(20, 20)), Color("#101d28"), true)
+	var air_color := Color("#9fd7ff", 0.65) if active_state else Color("#5d6f7d", 0.35)
+	for i in range(5):
+		var y := 18 + i * 10
+		draw_line(Vector2(18, y), Vector2(prop_size.x - 18, y), air_color, 2.0)
+	if active_state:
+		draw_rect(Rect2(Vector2(18, prop_size.y - 18), Vector2(prop_size.x - 36, 4)), Color("#9fd7ff", 0.5), true)
+
+func _draw_training_exit() -> void:
+	var locked := not active
+	var edge := Color("#89d8ff", 0.28) if locked else Color("#f0c766", 0.7)
+	draw_rect(Rect2(Vector2(14, 0), Vector2(prop_size.x - 28, prop_size.y)), Color("#34414c"), true)
+	draw_rect(Rect2(Vector2(24, 10), Vector2(prop_size.x - 48, prop_size.y - 20)), Color("#1d2832"), true)
+	draw_line(Vector2(prop_size.x * 0.5, 12), Vector2(prop_size.x * 0.5, prop_size.y - 12), Color("#d8e7f2", 0.55), 2.0)
+	draw_rect(Rect2(Vector2(4, 18), Vector2(10, prop_size.y - 36)), edge, true)
+	draw_rect(Rect2(Vector2(prop_size.x - 14, 18), Vector2(10, prop_size.y - 36)), edge, true)
+	draw_rect(Rect2(Vector2(28, prop_size.y - 20), Vector2(prop_size.x - 56, 4)), Color("#f0c766", 0.18 if locked else 0.55), true)
+	if locked:
+		draw_string(ThemeDB.fallback_font, Vector2(28, prop_size.y * 0.5), "锁定", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color("#8fa3b2"))

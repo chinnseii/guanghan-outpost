@@ -147,7 +147,7 @@ func _setup_art_slice_layers() -> void:
 	art_marker_layer.source_scene = self
 	art_layers["ObjectiveMarkerLayer"].add_child(art_marker_layer)
 
-func _spawn_prop(scene_path: String, pos: Vector2, size := Vector2.ZERO, active_value := false, damaged_value := false, label := "") -> Node2D:
+func _spawn_prop(scene_path: String, pos: Vector2, size := Vector2.ZERO, active_value := false, damaged_value := false, label := "", status_text_value := "") -> Node2D:
 	var packed := load(scene_path) as PackedScene
 	if packed == null:
 		return Node2D.new()
@@ -159,6 +159,8 @@ func _spawn_prop(scene_path: String, pos: Vector2, size := Vector2.ZERO, active_
 	node.set("damaged", damaged_value)
 	if not label.is_empty():
 		node.set("prop_label", label)
+	if not status_text_value.is_empty():
+		node.set("status_text", status_text_value)
 	prop_root.add_child(node)
 	return node
 

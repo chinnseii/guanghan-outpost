@@ -2,6 +2,29 @@ extends Control
 
 const TrainingManagerScript := preload("res://scripts/training/training_manager.gd")
 
+# Maps TrainingTargetVisual.kind -> a reusable res://scenes/props/... scene
+# (reference_prop.gd based). Kinds without an entry keep drawing procedurally
+# via TrainingTargetVisual's own _draw() match, unchanged (HUD-like readouts
+# and nav triggers: marker, zone, status_display, life_status, life_core,
+# plant_scanner, plant_status -- the last two are already unreachable dead
+# kinds since no module config produces them anymore).
+const KIND_PROP_SCENES := {
+	"tool_station": "res://scenes/props/training/ToolStation.tscn",
+	"power_panel": "res://scenes/props/training/TrainingPowerPanel.tscn",
+	"power_console": "res://scenes/props/old_base/PowerRestartConsole.tscn",
+	"test_light": "res://scenes/props/training/TestLight.tscn",
+	"terminal": "res://scenes/props/old_base/CentralConsole.tscn",
+	"pressure_console": "res://scenes/props/old_base/CentralConsole.tscn",
+	"plant_console": "res://scenes/props/old_base/CentralConsole.tscn",
+	"assessment_terminal": "res://scenes/props/old_base/CentralConsole.tscn",
+	"door": "res://scenes/props/training/TrainingDoor.tscn",
+	"life_console": "res://scenes/props/old_base/LifeSupportConsole.tscn",
+	"plant_chamber": "res://scenes/props/greenhouse/CentralPlantChamber.tscn",
+	"grow_light": "res://scenes/props/greenhouse/GrowLight.tscn",
+	"ventilation": "res://scenes/props/training/Ventilation.tscn",
+	"exit": "res://scenes/props/training/TrainingExitDoor.tscn",
+}
+
 class TrainingRoomBlockout:
 	extends Control
 
@@ -247,11 +270,40 @@ class TrainingTargetVisual:
 	var locked := false
 	var show_trigger_debug := false
 	var status_text := ""
+	var prop_scene_path := ""
+	var _prop_node: Node2D = null
 
 	func _ready() -> void:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		if not prop_scene_path.is_empty():
+			var packed := load(prop_scene_path) as PackedScene
+			if packed != null:
+				_prop_node = packed.instantiate()
+				_prop_node.position = Vector2.ZERO
+				_prop_node.set("prop_size", size)
+				if not label_text.is_empty():
+					_prop_node.set("prop_label", label_text)
+				add_child(_prop_node)
+
+	func _sync_prop_node() -> void:
+		if _prop_node == null:
+			return
+		_prop_node.set("active", active)
+		_prop_node.set("damaged", locked)
+		_prop_node.set("status_text", status_text)
+		_prop_node.queue_redraw()
+
+	func _draw_highlight_ring() -> void:
+		if not highlighted:
+			return
+		draw_rect(Rect2(Vector2(-8, -8), size + Vector2(16, 16)), Color("#f0c766", 0.12), true)
+		draw_rect(Rect2(Vector2(-8, -8), size + Vector2(16, 16)), Color("#f0c766", 0.55), false, 2.0)
 
 	func _draw() -> void:
+		if _prop_node != null:
+			_draw_highlight_ring()
+			_draw_debug_label()
+			return
 		match kind:
 			"marker":
 				_draw_marker()
@@ -1070,6 +1122,7 @@ func _build_training_area() -> void:
 			var visual := TrainingTargetVisual.new()
 			visual.kind = String(target.get("kind", target.get("id", "target")))
 			visual.label_text = String(target.get("label", ""))
+			visual.prop_scene_path = String(KIND_PROP_SCENES.get(visual.kind, ""))
 			node = visual
 		else:
 			var block := ColorRect.new()
@@ -1696,6 +1749,7 @@ func _update_room_prompt() -> void:
 				node.locked = _target_locked(String(node.name), "")
 				node.modulate = Color(0.62, 0.68, 0.74, 0.48)
 				node.queue_redraw()
+				node._sync_prop_node()
 		prompt_label.visible = false
 		return
 	var step := _current_step()
@@ -1719,6 +1773,7 @@ func _update_room_prompt() -> void:
 			if module_id == "airlock_procedure" and node.name == "pressure_display":
 				node.status_text = "舱压：%s" % _airlock_pressure_status()
 			node.queue_redraw()
+			node._sync_prop_node()
 	if module_id == "power_repair" and floor_node != null:
 		var state: Dictionary = module_data.get("state", {})
 		floor_node.set("power_on", bool(state.get("PowerRestored", false)))
@@ -1751,6 +1806,7 @@ func _update_room_prompt() -> void:
 	if target is TrainingTargetVisual:
 		target.active = interaction_running and target.name == interaction_target_id or near and (completed or prompt_step_type == "interact" or prompt_step_type == "plant_control")
 		target.queue_redraw()
+		target._sync_prop_node()
 	if near and (completed or prompt_step_type == "interact" or prompt_step_type == "plant_control"):
 		prompt_label.text = _interaction_prompt(target_id)
 		prompt_label.position = target.position + Vector2(8, target.size.y + 20)
@@ -2023,6 +2079,7 @@ func _power_visual_status(node_name: String) -> String:
 				return "repaired"
 			if bool(state.get("PowerPanelInspected", false)):
 				return "repairing"
+			return "fault"
 		"console":
 			if bool(state.get("PowerRestored", false)):
 				return "restored"
@@ -2202,6 +2259,7 @@ func _assessment_visual_status(node_name: String) -> String:
 				return "repaired"
 			if bool(state.get("PowerPanelInspected", false)):
 				return "repairing"
+			return "fault"
 		"power_console":
 			if bool(state.get("PowerRestored", false)):
 				return "restored"
