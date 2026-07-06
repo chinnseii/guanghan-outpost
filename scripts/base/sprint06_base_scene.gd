@@ -686,6 +686,9 @@ func _move_player(delta: float) -> void:
 	player_controller.bounds = movement_bounds
 	player_controller.speed = PLAYER_SPEED
 	player_controller.set_time_manager(_time_manager())
+	player_controller.set_movement_time_manager(_movement_time_manager())
+	player_controller.terrain_type = _current_terrain_type()
+	player_controller.movement_context = "mission"
 	player_controller.sync_position(player_pos)
 	var result: Dictionary = player_controller.move_with_actions(delta, "move_left", "move_right", "move_up", "move_down")
 	player_pos = result.get("position", player_pos)
@@ -696,6 +699,14 @@ func _ensure_player_controller(movement_bounds: Rect2) -> void:
 		return
 	player_controller = PlayerControllerScript.new()
 	player_controller.configure(player_pos, Vector2.ZERO, PLAYER_SPEED, movement_bounds, true, _time_manager())
+
+## No per-tile terrain map exists yet -- scene_kind is the only signal we
+## have for "this scene is outdoors," so it's a per-scene default rather
+## than something that varies as the player walks around within one scene.
+func _current_terrain_type() -> String:
+	if scene_kind == "solar_array":
+		return "lunar_flat"
+	return "indoor"
 
 func _world_left_limit() -> float:
 	if scene_kind == "interior" and (_is_week_routine_active() or _is_day02_active()):
@@ -2561,6 +2572,12 @@ func _suit_manager() -> Node:
 	if tree == null or tree.root == null:
 		return null
 	return tree.root.get_node_or_null("SuitManager")
+
+func _movement_time_manager() -> Node:
+	var tree := get_tree()
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null("MovementTimeManager")
 
 func _sync_base_status_from_state() -> void:
 	var manager := _base_status_manager()

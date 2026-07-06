@@ -161,6 +161,20 @@ func get_effective_carry_capacity() -> float:
 	effective_carry_capacity = base_carry_capacity * carry_health_multiplier
 	return effective_carry_capacity
 
+## Read by MovementTimeManager. Deliberately its own thresholds/values --
+## not the same table as get_action_time_multiplier() or
+## get_carry_health_multiplier() -- movement should feel like a mild slow
+## at low energy, not a full action-time or carry-capacity penalty.
+## fullness/nutrition/morale intentionally don't factor in here: fullness
+## already affects movement indirectly via the energy-cost multiplier, and
+## nutrition/morale are sleep-recovery concerns, not movement concerns.
+func get_movement_health_multiplier() -> float:
+	if energy >= 40.0:
+		return 1.0
+	if energy >= 20.0:
+		return 0.8
+	return 0.67
+
 func get_energy_cost_multiplier() -> float:
 	var fullness_multiplier := 1.0
 	if fullness >= 70.0:

@@ -1432,6 +1432,11 @@ func _move_player(delta: float) -> void:
 	player_controller.size = player.size
 	player_controller.speed = player_speed
 	player_controller.set_time_manager(_time_manager())
+	# Training rooms are always indoor and must advance TrainingTimeManager,
+	# never the real TimeManager -- see TrainingTimeManager.gd for why.
+	player_controller.set_movement_time_manager(_movement_time_manager())
+	player_controller.terrain_type = "indoor"
+	player_controller.movement_context = "training"
 	player_controller.sync_position(player.position)
 	var result: Dictionary = player_controller.move_with_actions(delta, "ui_left", "ui_right", "ui_up", "ui_down")
 	player.position = result.get("position", player.position)
@@ -1631,6 +1636,12 @@ func _training_time_manager() -> Node:
 	if tree == null or tree.root == null:
 		return null
 	return tree.root.get_node_or_null("TrainingTimeManager")
+
+func _movement_time_manager() -> Node:
+	var tree := get_tree()
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null("MovementTimeManager")
 
 ## Shows the training archive countdown, not the real lunar day/time --
 ## training happens before Day 01, so surfacing official mission time here

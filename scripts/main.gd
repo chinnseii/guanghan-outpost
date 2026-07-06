@@ -3826,6 +3826,11 @@ func _setup_dev_menu() -> void:
 	box.add_child(_make_dev_button("Suit Debug: Upgrade Speed", _debug_suit_upgrade))
 	box.add_child(_make_dev_button("Suit Debug: Show Status", _debug_suit_status))
 	box.add_child(_make_dev_button("Suit Debug: Reset", _debug_suit_reset))
+	box.add_child(_make_dev_button("Movement Debug: Show Status", _debug_movement_status))
+	box.add_child(_make_dev_button("Movement Debug: Simulate 10 Tiles (indoor)", func(): _debug_movement_simulate(10, "indoor", "mission")))
+	box.add_child(_make_dev_button("Movement Debug: Simulate 30 Tiles (lunar_flat)", func(): _debug_movement_simulate(30, "lunar_flat", "mission")))
+	box.add_child(_make_dev_button("Movement Debug: Simulate 30 Tiles (lunar_rough)", func(): _debug_movement_simulate(30, "lunar_rough", "mission")))
+	box.add_child(_make_dev_button("Movement Debug: Reset", _debug_movement_reset))
 	box.add_child(_make_dev_button("Dev Only: Clear Save", _clear_current_save))
 
 func _make_dev_button(text: String, callback: Callable) -> Button:
@@ -4367,6 +4372,24 @@ func _debug_suit_reset() -> void:
 	if manager != null and manager.has_method("reset_to_arrival"):
 		manager.call("reset_to_arrival")
 		add_log("Suit debug: reset.\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_movement_status() -> void:
+	var manager := get_node_or_null("/root/MovementTimeManager")
+	if manager != null and manager.has_method("debug_values_text"):
+		add_log("Movement debug:\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_movement_simulate(tile_count: int, terrain_type: String, context: String) -> void:
+	var manager := get_node_or_null("/root/MovementTimeManager")
+	if manager == null or not manager.has_method("debug_simulate_move"):
+		return
+	manager.call("debug_simulate_move", tile_count, terrain_type, context)
+	add_log("Movement debug: simulated %d tiles on %s (%s).\n%s" % [tile_count, terrain_type, context, String(manager.call("debug_values_text"))])
+
+func _debug_movement_reset() -> void:
+	var manager := get_node_or_null("/root/MovementTimeManager")
+	if manager != null and manager.has_method("debug_reset"):
+		manager.call("debug_reset")
+		add_log("Movement debug: reset.\n%s" % String(manager.call("debug_values_text")))
 
 func _toggle_dev_menu() -> void:
 	if not has_node("UI/Root/DevMenu"):

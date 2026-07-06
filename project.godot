@@ -34,6 +34,7 @@ SupplyManager="*res://scripts/managers/SupplyManager.gd"
 RepairManager="*res://scripts/managers/RepairManager.gd"
 TrainingTimeManager="*res://scripts/managers/TrainingTimeManager.gd"
 SuitManager="*res://scripts/managers/SuitManager.gd"
+MovementTimeManager="*res://scripts/managers/MovementTimeManager.gd"
 
 [display]
 

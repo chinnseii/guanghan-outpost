@@ -11,6 +11,13 @@ var uses_center_position := false
 var time_step_pixels := DEFAULT_TIME_STEP_PIXELS
 var time_action := "move"
 var time_manager: Node
+## Optional: when set (and it responds to on_player_moved_tiles), movement
+## time/multipliers/suit drain are fully delegated to MovementTimeManager
+## instead of the flat "1 minute per step" fallback below. terrain_type/
+## movement_context are only read by that delegated path.
+var movement_time_manager: Node
+var terrain_type := "indoor"
+var movement_context := "mission"
 
 var _distance_accumulator := 0.0
 
@@ -25,6 +32,9 @@ func configure(start_position: Vector2, player_size: Vector2, move_speed: float,
 
 func set_time_manager(manager: Node) -> void:
 	time_manager = manager
+
+func set_movement_time_manager(manager: Node) -> void:
+	movement_time_manager = manager
 
 func sync_position(new_position: Vector2) -> void:
 	position = _clamped_position(new_position)
@@ -73,6 +83,11 @@ func _advance_time_for_distance(moved_distance: float) -> int:
 	return steps
 
 func _advance_time_steps(steps: int) -> void:
+	if movement_time_manager != null and movement_time_manager.has_method("on_player_moved_tiles"):
+		movement_time_manager.call("on_player_moved_tiles", steps, terrain_type, movement_context)
+		return
+	# Fallback used only when no MovementTimeManager has been wired in --
+	# flat 1-minute-per-step, no health/suit/load/terrain multipliers.
 	if time_manager == null or not time_manager.has_method("advance_time"):
 		return
 	var minutes_per_step := 1
