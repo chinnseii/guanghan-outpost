@@ -27,18 +27,37 @@
 
 ## 共用核心文件——谁都可能碰，但要小心
 
-以下文件不属于任何单个 sprint，是所有 sprint 共用的底层：
+这份清单是按实际引用数（`grep` 每个文件被多少个不同场景/脚本用到）核实过的，
+不是凭印象写的，2026-07-06 更新。
 
-- `scripts/game_state_manager.gd`
-- `scripts/time_manager.gd`
-- `scripts/save_manager.gd`
-- `scripts/asset_catalog.gd`
-- `scripts/audio_feedback.gd`
-- `scripts/robot_task_manager.gd`
-- `scripts/props/reference_prop.gd`
-- `scripts/training/training_module_scene.gd`
+**第一档：真正跨 sprint 共用，改之前必须按下面的规则来**
 
-规则：
+- `scripts/props/reference_prop.gd` —— 目前被 48 处场景/脚本引用，覆盖旧基地、
+  温室、太阳能阵列、训练模块四条线，是整个项目里复用面最广的文件。
+- `scripts/base/sprint06_base_scene.gd` —— 被 10 个场景共用（旧基地、旧温室、
+  Day01/Day02、Week Routine 开始/结束、太阳能阵列外景、美术切片版本），
+  Sprint 06/07/08 的日常流程基本都跑在这一个脚本上。
+- `scripts/training/training_module_scene.gd` —— 驱动全部 6 个训练模块
+  （suit_control / airlock_procedure / power_repair / life_support /
+  plant_diagnosis / final_assessment），Sprint 04 的核心。
+- `scripts/training/training_manager.gd` —— 训练进度存档/读取，被 5 个训练相关
+  脚本 + `main.gd`（继续任务判断）共用。
+- `scripts/training/opening_flow_manager.gd` —— 接受派遣后黑屏转场逻辑，被
+  `assignment_black_screen_scene.gd` 和 `mission_assignment_notice_scene.gd`
+  两处共用，范围小但容易漏改一处。
+
+**第二档：过去以为是"共用基础设施"，实际已经是遗留代码，不影响当前主线**
+
+`game_state_manager.gd`、`time_manager.gd`、`camera_manager.gd`、
+`ui_manager.gd`、`event_manager.gd`、`audio_manager.gd`、`save_manager.gd`、
+`asset_catalog.gd`、`audio_feedback.gd`、`robot_task_manager.gd` 这一批
+（README 里叫"Foundation Manager"）——查证后发现只有 `scripts/main.gd`
+（Sprint 01 沙盒）和 `scripts/arrival/*`（Sprint 02 抵达原型）在用，
+`application/`、`training/`、`base/`（也就是现在主菜单实际能走到的正式流程）
+完全不依赖它们。除非哪天要复活沙盒玩法，否则改这批文件不影响当前主线开发，
+不需要按第一档的规则谨慎对待，但也别顺手删掉——`main.gd` 还在用。
+
+规则（针对第一档文件）：
 
 1. **改之前**：先跑 `git log --oneline -- <文件路径>`（几秒钟出结果），看最近
    有没有人改过；如果有，针对那一两个 commit 用 `git show <commit> -- <文件>`
