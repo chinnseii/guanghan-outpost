@@ -5,9 +5,27 @@
 
 ## 正在进行
 
-（暂无——上一个任务已完成并提交）
+- **Codex**：实现 Action-Based Time System（`scripts/managers/TimeManager.gd`，
+  行动推进时间、月面阶段 NIGHT_LATE/DAYLIGHT/NIGHT、存档接入）。
+  - **重要架构纠正**：spec 原文说"如果已有 GameState/SaveManager，请接入
+    现有结构"——但 `scripts/game_state_manager.gd` / `scripts/save_manager.gd`
+    是遗留代码，只有 `main.gd`（Sprint 01 沙盒）和 `scripts/arrival/*`
+    （Sprint 02 原型）在用，跟当前主线（申请→训练→抵达→旧基地→Day02→
+    第一周）完全无关。当前主线是每个场景各自写自己的存档 JSON
+    （`sprint06_base_scene.gd` 写 `user://saves/sprint06_progress.json`，
+    `training_module_scene.gd` 走 `training_manager.gd` 的存档）。
+    时间状态应该并入这两条现有存档路径，不要接到 game_state_manager.gd
+    上（那样时间系统会跟正式流程脱节，等于没做）。
+- **Claude Code**：等 Codex 的 `TimeManager` 落地并推送后，再接 HUD 时间显示
+  （Day/时分/月面阶段/距切换剩余时间 + 阶段切换弹窗）。本次会话未动代码，
+  纯等待交接。
 
 ## 最近完成
+
+- **Codex**：已阅读并确认 `docs/handoff/COLLABORATION_RULES.md` 与本文件。
+  - 本次只做协作规则同步，没有修改游戏逻辑、场景或共用核心脚本。
+  - 后续触碰第一档共用核心文件前，会先执行 `git log --oneline -- <文件路径>`，必要时查看最近相关 commit。
+  - 后续改共用文件时默认使用新增可选参数 / 新增分支方式，保留旧默认行为。
 
 - **Claude Code**：训练模块设备接入可复用道具场景（`reference_prop.gd` 体系）。
   - 涉及文件：`scripts/props/reference_prop.gd`、
@@ -21,6 +39,7 @@
 
 ## 对共用核心文件的改动记录
 
+- 本次 Codex 规则同步没有触碰共用核心文件。
 - `scripts/props/reference_prop.gd`：给 `console`/`power_panel`/`door`/
   `plant_chamber`/`grow_light` 的绘制函数加了 `status_text` 驱动的多状态
   渲染分支。**规则**：`status_text` 为空时完全走原逻辑，不影响旧场景
