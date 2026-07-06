@@ -1492,6 +1492,7 @@ func _complete_step() -> void:
 		var updates: Dictionary = step.get("state_updates", {})
 		for key in updates.keys():
 			module_data["state"][String(key)] = updates[key]
+	_advance_time_for_step(step)
 	_add_log(String(step.get("line", "")))
 	step_index += 1
 	wait_timer = 0.0
@@ -1542,6 +1543,71 @@ func _begin_step_interaction_feedback(step: Dictionary) -> void:
 		player.set("pose", "idle")
 		player.queue_redraw()
 	_complete_step()
+
+func _advance_time_for_step(step: Dictionary) -> void:
+	var manager := _time_manager()
+	if manager == null or not manager.has_method("advance_time"):
+		return
+	var minutes := int(step.get("time_minutes", _default_time_minutes_for_step(step)))
+	if minutes <= 0:
+		return
+	manager.call("advance_time", minutes, String(step.get("time_reason", _time_reason_for_step(step))))
+
+func _default_time_minutes_for_step(step: Dictionary) -> int:
+	var step_type := String(step.get("type", "interact"))
+	var objective := String(step.get("objective", ""))
+	if step_type == "move" or String(step.get("target", "")) == "exit":
+		# TODO: connect free movement distance to TimeManager.advance_time(1, "move")
+		return 0
+	if step_type == "diagnosis":
+		return _action_minutes("plant_diagnosis", 15)
+	if step_type == "plant_control":
+		return _action_minutes("repair_light", 30)
+	if objective.contains("维修") or objective.contains("恢复") or objective.contains("重启") or objective.contains("启动"):
+		return _action_minutes("repair_light", 30)
+	if objective.contains("发送"):
+		return _action_minutes("send_report", 15)
+	if objective.contains("诊断") or objective.contains("扫描"):
+		return _action_minutes("plant_diagnosis", 15)
+	if objective.contains("检查") or objective.contains("读取") or objective.contains("确认"):
+		return _action_minutes("organize_supplies", 30)
+	return 0
+
+func _time_reason_for_step(step: Dictionary) -> String:
+	var step_type := String(step.get("type", "interact"))
+	var objective := String(step.get("objective", ""))
+	if step_type == "diagnosis":
+		return "plant_diagnosis"
+	if step_type == "plant_control":
+		return "repair_light"
+	if objective.contains("发送"):
+		return "send_report"
+	if objective.contains("维修") or objective.contains("恢复") or objective.contains("重启") or objective.contains("启动"):
+		return "repair_light"
+	if objective.contains("诊断") or objective.contains("扫描"):
+		return "plant_diagnosis"
+	if objective.contains("检查") or objective.contains("读取") or objective.contains("确认"):
+		return "organize_supplies"
+	return ""
+
+func _action_minutes(action_name: String, fallback: int) -> int:
+	var manager := _time_manager()
+	if manager == null or not manager.has_method("action_minutes"):
+		return fallback
+	var value := int(manager.call("action_minutes", action_name))
+	return value if value > 0 else fallback
+
+func _time_manager() -> Node:
+	var tree := get_tree()
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null("TimeManager")
+
+func _time_hud_text() -> String:
+	var manager := _time_manager()
+	if manager == null or not manager.has_method("compact_hud_text"):
+		return ""
+	return String(manager.call("compact_hud_text"))
 
 func _interaction_pose_for_step(step: Dictionary) -> String:
 	var objective := String(step.get("objective", ""))
@@ -2002,6 +2068,9 @@ func _update_hud() -> void:
 		hud_label.text = _assessment_hud_text()
 	else:
 		hud_label.text = String(module_data.get("hud", "氧气模拟值：98%\n电力模拟值：稳定\n生命支持状态：训练环境"))
+	var time_text := _time_hud_text()
+	if not time_text.is_empty():
+		hud_label.text = "%s\n\n%s" % [time_text, hud_label.text]
 	if module_id == "suit_control" and not completed:
 		hint_label.text = _suit_control_hint(step)
 	elif module_id == "airlock_procedure" and not completed:
@@ -2569,4 +2638,3 @@ func _assessment_config() -> Dictionary:
 		],
 	})
 	return data
-

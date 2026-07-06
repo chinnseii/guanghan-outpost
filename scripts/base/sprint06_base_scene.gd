@@ -1164,7 +1164,9 @@ func _send_day02_report() -> void:
 	message_text = "报告已加入传输队列。\n预计通信延迟：1.3 秒。"
 	state["Day02ReportSent"] = true
 	state["ArchiveEntry_Day02Report"] = true
+	_advance_action_time("send_report")
 	_save_state()
+	_consume_time_phase_notice()
 	await get_tree().create_timer(1.2).timeout
 	message_text = "地面确认收到。"
 	await get_tree().create_timer(1.0).timeout
@@ -1203,7 +1205,9 @@ func _send_week_report() -> void:
 		state["Archive_WeekOne_Report"] = true
 	else:
 		state["Archive_Day%02d_Report" % _current_day()] = true
+	_advance_action_time("send_report")
 	_save_state()
+	_consume_time_phase_notice()
 	await get_tree().create_timer(1.15).timeout
 	message_text = "地面确认收到。"
 	await get_tree().create_timer(1.1).timeout
@@ -1272,7 +1276,9 @@ func _after_delayed_updates() -> void:
 
 func _finish_day_one() -> void:
 	state["Day01Completed"] = true
+	_advance_action_time("sleep_standard")
 	_save_state()
+	_consume_time_phase_notice()
 	input_enabled = false
 	message_text = "Day 01 记录：\n\n基础供电恢复。\n最低生命支持恢复。\n温室生命信号稳定。"
 	ai_text = "第一日驻留记录已保存。"
@@ -1291,7 +1297,9 @@ func _finish_day_two() -> void:
 	state["Day02Completed"] = true
 	state["DayNumber"] = 2
 	state["CurrentDay"] = 3
+	_advance_action_time("sleep_standard")
 	_save_state()
+	_consume_time_phase_notice()
 	input_enabled = false
 	message_text = "Day 02 记录：\n\n基础巡检完成。\n温室生命信号维持稳定。\n对地驻留报告已发送。"
 	ai_text = "第二日驻留记录已保存。"
@@ -1312,7 +1320,9 @@ func _finish_week_day() -> void:
 	state["DayNumber"] = day
 	if day == 7:
 		state["WeekOneCompleted"] = true
+	_advance_action_time("sleep_standard")
 	_save_state()
+	_consume_time_phase_notice()
 	input_enabled = false
 	message_text = "%s 记录：\n\n今日巡检完成。\n温室生命信号维持稳定。\n对地驻留报告已发送。" % _day_label()
 	if day == 7:
@@ -1379,7 +1389,9 @@ func _run_equipment_interaction(kind: String, done_text: String, duration: float
 		state[String(key)] = updates[key]
 	if after.is_valid():
 		after.call()
+	_advance_time_for_equipment_kind(kind)
 	_save_state()
+	_consume_time_phase_notice()
 	await get_tree().create_timer(0.45).timeout
 	if interaction_panel != null:
 		interaction_panel.visible = false
@@ -1407,6 +1419,7 @@ func _open_plant_diagnosis_after_feedback(condition: String) -> void:
 	)
 
 func _show_plant_diagnosis(condition: String) -> void:
+	_advance_action_time("plant_diagnosis")
 	plant_diagnosis_condition = condition
 	plant_diagnosis_feedback = ""
 	plant_diagnosis_specialist = _player_is_plant_scientist()
@@ -1491,7 +1504,9 @@ func _complete_plant_maintenance(action_text: String) -> void:
 			state["PlantTemperatureLowAddressed"] = true
 	if bool(state.get("GrowLightRestored", false)) and bool(state.get("PartialWaterCycleRestored", false)) and not bool(state.get("LastPlantStable", false)):
 		state["PendingPlantStabilization"] = true
+	_advance_action_time("repair_light")
 	_save_state()
+	_consume_time_phase_notice()
 	await get_tree().create_timer(0.65).timeout
 	_hide_plant_diagnosis()
 
@@ -1568,6 +1583,63 @@ func _correct_plant_actions(condition: String) -> Array[String]:
 			return ["调整水循环", "调整补光"]
 	return ["继续观察"]
 
+func _time_manager() -> Node:
+	var tree := get_tree()
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null("TimeManager")
+
+func _advance_action_time(action_name: String) -> void:
+	var manager := _time_manager()
+	if manager == null or not manager.has_method("advance_time"):
+		return
+	var minutes := _action_minutes(action_name)
+	if minutes <= 0:
+		return
+	manager.call("advance_time", minutes, action_name)
+
+func _advance_time_for_equipment_kind(kind: String) -> void:
+	match kind:
+		"repair", "restore":
+			_advance_action_time("repair_light")
+		"diagnose":
+			_advance_action_time("plant_diagnosis")
+		"inspect":
+			_advance_action_time("organize_supplies")
+		"send":
+			_advance_action_time("send_report")
+
+func _action_minutes(action_name: String) -> int:
+	var manager := _time_manager()
+	if manager != null and manager.has_method("action_minutes"):
+		return int(manager.call("action_minutes", action_name))
+	match action_name:
+		"sleep_standard":
+			return 360
+		"send_report":
+			return 15
+		"plant_diagnosis":
+			return 15
+		"repair_light", "organize_supplies":
+			return 30
+	return 0
+
+func _consume_time_phase_notice() -> void:
+	var manager := _time_manager()
+	if manager == null or not manager.has_method("consume_phase_notice"):
+		return
+	var notice := String(manager.call("consume_phase_notice"))
+	if notice.is_empty():
+		return
+	message_text = notice
+	ai_text = "广寒前哨时间系统已更新。"
+
+func _time_hud_text() -> String:
+	var manager := _time_manager()
+	if manager == null or not manager.has_method("compact_hud_text"):
+		return ""
+	return String(manager.call("compact_hud_text"))
+
 func _transition_to(scene_path: String) -> void:
 	input_enabled = false
 	sequence_running = true
@@ -1617,7 +1689,10 @@ func _hud_text() -> String:
 	return _safe_hud_text("广寒前哨 · 旧基地", plant, "", objective_text, power, oxygen, temp, life)
 
 func _safe_hud_text(title: String, plant: String, checklist: String, objective: String, power: String = "基础供电", oxygen: String = "稳定", temp: String = "可维持", life: String = "最低稳定") -> String:
+	var time_text := _time_hud_text()
 	var text := "%s\n\n系统状态\n电力：%s\n氧气：%s\n温度：%s\n生命支持：%s\n植物生命信号：%s" % [title, power, oxygen, temp, life, plant]
+	if not time_text.is_empty():
+		text = "%s\n\n%s" % [time_text, text]
 	if not checklist.is_empty():
 		text += "\n\n今日巡检\n%s" % checklist
 	text += "\n\n当前目标\n> %s" % objective
@@ -2134,8 +2209,14 @@ func _load_state() -> void:
 	var saved: Dictionary = parsed as Dictionary
 	for key in saved.keys():
 		state[key] = saved[key]
+	var manager := _time_manager()
+	if manager != null and manager.has_method("deserialize") and state.get("TimeState", {}) is Dictionary:
+		manager.call("deserialize", state.get("TimeState", {}))
 
 func _save_state() -> void:
+	var manager := _time_manager()
+	if manager != null and manager.has_method("serialize"):
+		state["TimeState"] = manager.call("serialize")
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("user://saves"))
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file != null:

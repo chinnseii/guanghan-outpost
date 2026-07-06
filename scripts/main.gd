@@ -11,6 +11,7 @@ const DEMO_PROGRESS_PATHS := [
 	"user://saves/application_profile.json",
 	"user://saves/training_progress.json",
 	"user://saves/sprint06_progress.json",
+	"user://saves/time_state.json",
 ]
 
 const PLAYER_SCENE := preload("res://scenes/player.tscn")
@@ -3663,6 +3664,12 @@ func _setup_dev_menu() -> void:
 	box.add_child(_make_dev_button("Dev Only: Week Routine End", func(): get_tree().change_scene_to_file("res://scenes/base/WeekRoutineEndScene.tscn")))
 	box.add_child(_make_dev_button("Dev Only: Day 07 Report Test", _start_day07_report_test))
 	box.add_child(_make_dev_button("Dev Only: Solar Array Exterior", func(): get_tree().change_scene_to_file("res://scenes/base/SolarArrayExteriorScene.tscn")))
+	box.add_child(_make_dev_button("Time Debug: +15 分钟", func(): _debug_advance_time(15, "debug_plus_15")))
+	box.add_child(_make_dev_button("Time Debug: +1 小时", func(): _debug_advance_time(60, "debug_plus_1h")))
+	box.add_child(_make_dev_button("Time Debug: +6 小时", func(): _debug_advance_time(360, "debug_plus_6h")))
+	box.add_child(_make_dev_button("Time Debug: 跳到月昼", _debug_jump_to_daylight))
+	box.add_child(_make_dev_button("Time Debug: 跳到月夜", _debug_jump_to_night))
+	box.add_child(_make_dev_button("Time Debug: 重置 Day 01", _debug_reset_time))
 	box.add_child(_make_dev_button("Dev Only: Training Start", func(): get_tree().change_scene_to_file("res://scenes/training/TrainingStartScene.tscn")))
 	box.add_child(_make_dev_button("Dev Only: Training Module 01", func():
 		TrainingManagerScript.set_current_module("suit_control")
@@ -3706,6 +3713,30 @@ func _make_dev_button(text: String, callback: Callable) -> Button:
 	button.pressed.connect(callback)
 	return button
 
+func _debug_advance_time(minutes: int, reason: String) -> void:
+	var manager := get_node_or_null("/root/TimeManager")
+	if manager != null and manager.has_method("advance_time"):
+		manager.call("advance_time", minutes, reason)
+		add_log("Time debug: %s" % String(manager.call("compact_hud_text")))
+
+func _debug_jump_to_daylight() -> void:
+	var manager := get_node_or_null("/root/TimeManager")
+	if manager != null and manager.has_method("advance_to_daylight_start"):
+		manager.call("advance_to_daylight_start")
+		add_log("Time debug: jumped to daylight.")
+
+func _debug_jump_to_night() -> void:
+	var manager := get_node_or_null("/root/TimeManager")
+	if manager != null and manager.has_method("advance_to_night_start"):
+		manager.call("advance_to_night_start")
+		add_log("Time debug: jumped to night.")
+
+func _debug_reset_time() -> void:
+	var manager := get_node_or_null("/root/TimeManager")
+	if manager != null and manager.has_method("reset_to_arrival"):
+		manager.call("reset_to_arrival")
+		add_log("Time debug: reset to Day 01 lunar night late.")
+
 func _toggle_dev_menu() -> void:
 	if not has_node("UI/Root/DevMenu"):
 		return
@@ -3725,6 +3756,7 @@ func _start_application_flow() -> void:
 
 func _start_clean_new_stay() -> void:
 	_clear_demo_progress()
+	_debug_reset_time()
 	get_tree().change_scene_to_file("res://scenes/application/ApplicationStartScene.tscn")
 
 func _continue_mission() -> void:
@@ -3802,6 +3834,7 @@ func _clear_demo_progress() -> void:
 func _reset_demo_progress_from_dev() -> void:
 	_clear_demo_progress()
 	TrainingManagerScript.reset_progress()
+	_debug_reset_time()
 	add_log("Dev: demo progress reset.")
 	_set_title_menu_notice("试玩进度已清除。可以从“开始新驻留”重新开始。")
 

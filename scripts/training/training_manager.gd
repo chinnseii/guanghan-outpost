@@ -50,6 +50,7 @@ static func default_data() -> Dictionary:
 		"MissionAssignmentAccepted": false,
 		"OpeningFlowStage": "",
 		"CurrentSceneAfterTraining": START_SCENE,
+		"TimeState": {},
 	}
 
 static func load_progress() -> Dictionary:
@@ -65,15 +66,24 @@ static func load_progress() -> Dictionary:
 	var saved: Dictionary = parsed
 	for key in saved.keys():
 		data[key] = saved[key]
+	var manager := _time_manager()
+	if manager != null and manager.has_method("deserialize") and data.get("TimeState", {}) is Dictionary:
+		manager.call("deserialize", data.get("TimeState", {}))
 	return data
 
 static func save_progress(data: Dictionary) -> void:
+	var manager := _time_manager()
+	if manager != null and manager.has_method("serialize"):
+		data["TimeState"] = manager.call("serialize")
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("user://saves"))
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file != null:
 		file.store_string(JSON.stringify(data, "\t"))
 
 static func reset_progress() -> void:
+	var manager := _time_manager()
+	if manager != null and manager.has_method("reset_to_arrival"):
+		manager.call("reset_to_arrival")
 	save_progress(default_data())
 
 static func start_training() -> void:
@@ -119,6 +129,9 @@ static func mark_module_completed(module_id: String, next_module_id: String) -> 
 
 static func accept_assignment(opening_stage := "AssignmentBlackScreen") -> void:
 	var data := load_progress()
+	var manager := _time_manager()
+	if manager != null and manager.has_method("reset_to_arrival"):
+		manager.call("reset_to_arrival")
 	data["MissionAssignmentAccepted"] = true
 	data["OpeningFlowStage"] = opening_stage
 	data["CurrentTrainingModule"] = "assignment_black_screen"
@@ -215,3 +228,9 @@ static func player_name() -> String:
 		return "候选人"
 	var value := String((parsed as Dictionary).get("PlayerName", "")).strip_edges()
 	return value if not value.is_empty() else "候选人"
+
+static func _time_manager() -> Node:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null("TimeManager")

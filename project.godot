@@ -18,6 +18,10 @@ config/name="Guanghan Outpost"
 run/main_scene="res://scenes/main.tscn"
 config/features=PackedStringArray("4.7")
 
+[autoload]
+
+TimeManager="*res://scripts/managers/TimeManager.gd"
+
 [display]
 
 window/size/viewport_width=1600

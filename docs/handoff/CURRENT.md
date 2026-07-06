@@ -1,63 +1,57 @@
 # 当前状态（滚动文档，每次覆盖重写）
 
 更新时间：2026-07-06
-更新人：Claude Code
+更新人：Codex
 
 ## 正在进行
 
-- **Codex**：实现 Action-Based Time System（`scripts/managers/TimeManager.gd`，
-  行动推进时间、月面阶段 NIGHT_LATE/DAYLIGHT/NIGHT、存档接入）。
-  - **重要架构纠正**：spec 原文说"如果已有 GameState/SaveManager，请接入
-    现有结构"——但 `scripts/game_state_manager.gd` / `scripts/save_manager.gd`
-    是遗留代码，只有 `main.gd`（Sprint 01 沙盒）和 `scripts/arrival/*`
-    （Sprint 02 原型）在用，跟当前主线（申请→训练→抵达→旧基地→Day02→
-    第一周）完全无关。当前主线是每个场景各自写自己的存档 JSON
-    （`sprint06_base_scene.gd` 写 `user://saves/sprint06_progress.json`，
-    `training_module_scene.gd` 走 `training_manager.gd` 的存档）。
-    时间状态应该并入这两条现有存档路径，不要接到 game_state_manager.gd
-    上（那样时间系统会跟正式流程脱节，等于没做）。
-- **Claude Code**：等 Codex 的 `TimeManager` 落地并推送后，再接 HUD 时间显示
-  （Day/时分/月面阶段/距切换剩余时间 + 阶段切换弹窗）。本次会话未动代码，
-  纯等待交接。
+（暂无，Action-Based Time System 第一版已完成本地实现与基础验证，待提交 / 推送）
 
 ## 最近完成
 
-- **Codex**：已阅读并确认 `docs/handoff/COLLABORATION_RULES.md` 与本文件。
-  - 本次只做协作规则同步，没有修改游戏逻辑、场景或共用核心脚本。
-  - 后续触碰第一档共用核心文件前，会先执行 `git log --oneline -- <文件路径>`，必要时查看最近相关 commit。
-  - 后续改共用文件时默认使用新增可选参数 / 新增分支方式，保留旧默认行为。
-
-- **Claude Code**：训练模块设备接入可复用道具场景（`reference_prop.gd` 体系）。
-  - 涉及文件：`scripts/props/reference_prop.gd`、
-    `scripts/training/training_module_scene.gd`、
-    `scripts/base/sprint06_base_scene.gd`（改了共用文件 `_spawn_prop()`，
-    新增了一个尾部可选参数 `status_text_value`，旧调用不受影响）。
-  - 新增 `scenes/props/training/*.tscn`（6 个训练专用道具场景）。
-  - 删除了 `scenes/props/old_base_art/`（确认全仓库零引用的死代码）。
-  - commit: `1ab59de`（删除死代码）、`92dc74a`（道具桥接主改动）。
-  - 已推送到 `origin/feature/sprint-04-national-training`。
+- **Codex**：实现第一版行动推进制时间系统。
+  - 新增正式 autoload：`scripts/managers/TimeManager.gd`，并在 `project.godot` 注册为 `/root/TimeManager`。
+  - 初始时间：Day 01 06:40，月面状态为“月夜末期”，距月昼 7 天。
+  - 支持统一 `advance_time(minutes, reason)`、行动耗时常量、月昼 / 月夜阶段切换、阶段切换提示、序列化 / 反序列化。
+  - 主菜单开发入口新增时间调试按钮：+15 分钟、+1 小时、+6 小时、跳到月昼、跳到月夜、重置 Day 01。
+  - `TrainingManager` 保存 / 读取 `TimeState`；接受月面派遣时重置为月面 Day 01，避免地面训练时间污染正式抵达时间线。
+  - 旧基地、旧温室、第一周 HUD 顶部显示基地时间、月面状态、距阶段切换时间。
+  - 训练 HUD 的系统状态中显示同一套时间信息。
+  - 关键交互已接入耗时：植物诊断、维修 / 恢复、整理 / 检查、发送报告、睡觉 / 休息。
 
 ## 对共用核心文件的改动记录
 
-- 本次 Codex 规则同步没有触碰共用核心文件。
-- `scripts/props/reference_prop.gd`：给 `console`/`power_panel`/`door`/
-  `plant_chamber`/`grow_light` 的绘制函数加了 `status_text` 驱动的多状态
-  渲染分支。**规则**：`status_text` 为空时完全走原逻辑，不影响旧场景
-  （`OldPowerPanel.tscn` 等）。以后要给这几个 kind 加新状态，去改这个文件
-  里对应函数的 `match status_text:` 分支，不要在别处再写一套。
-- `scripts/base/sprint06_base_scene.gd` 的 `_spawn_prop()`：新增了
-  `status_text_value := ""` 尾部可选参数（第 7 个参数），用于把状态字符串
-  传给 `ReferenceProp` 实例。旧调用不用改。
+- **Codex 本次触碰了第一档共用核心文件**：
+  - `scripts/training/training_module_scene.gd`
+    - 已按规则先查看 `git log --oneline -- scripts/training/training_module_scene.gd`。
+    - 新增 `_advance_time_for_step()`、`_default_time_minutes_for_step()`、`_time_hud_text()` 等分支式辅助函数。
+    - 训练步骤完成时按步骤类型推进时间；未改原有步骤状态机默认流程。
+    - 自由移动耗时暂未接入，代码内保留 TODO：`connect free movement distance to TimeManager.advance_time(1, "move")`。
+  - `scripts/base/sprint06_base_scene.gd`
+    - 已按规则先查看 `git log --oneline -- scripts/base/sprint06_base_scene.gd`。
+    - 在设备交互完成、植物诊断 / 维护、发送报告、睡觉休息处接入 TimeManager。
+    - `_save_state()` 写入 `TimeState`，`_load_state()` 恢复 `TimeState`。
+    - HUD 文本顶部追加时间信息，不改旧状态 / 任务文本结构。
+  - `scripts/training/training_manager.gd`
+    - 训练存档附带 `TimeState`，`reset_progress()` 同步重置 TimeManager 后再保存默认进度。
+    - `accept_assignment()` 在读取训练进度后重置月面时间，再保存派遣状态。
+- `scripts/props/reference_prop.gd`：本次未触碰。
+
+## 验证
+
+- `git diff --check`：通过，仅有 CRLF 工作区提示。
+- Godot headless 场景加载通过：
+  - `res://scenes/main.tscn`
+  - `res://scenes/base/OldBaseInteriorScene.tscn`
+  - `res://scenes/training/Training_05_PlantDiagnosis.tscn`
+- `--check-only` 在当前 Godot / 项目组合下会挂到超时，但未输出新的脚本错误；以上关键场景加载均退出码 0。
 
 ## 已知问题 / 暂不覆盖范围
 
-- P2（环境叙事细节：标签、磨损、灰尘等）还没做。
-- `suit_control` / `life_support` / `final_assessment` 三个训练模块虽然复用
-  了已验证过的 kind（console/power_panel 等），但没有像 power_repair /
-  plant_diagnosis / airlock_procedure 那样逐一截图复核过。
-- 一次性验证脚本留在了 `tools/capture_power_repair_prop_bridge_check.gd`、
-  `tools/capture_plant_diagnosis_prop_bridge_check.gd`、
-  `tools/capture_airlock_prop_bridge_check.gd`，可以重新运行来复核视觉状态。
+- 移动耗时尚未接入自由移动控制器。本次只接入关键交互耗时，并在代码内保留 TODO。
+- 本次不包含健康、精力、饱腹、心理、资源消耗、完整白昼采集或月夜生存系统。
+- P2 环境叙事细节（标签、磨损、灰尘等）仍未覆盖。
+- `suit_control` / `life_support` / `final_assessment` 三个训练模块虽然复用已验证的 kind，但没有像 `power_repair` / `plant_diagnosis` / `airlock_procedure` 那样逐一截图复核。
 
 ## 先别碰
 
