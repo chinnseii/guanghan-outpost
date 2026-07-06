@@ -5,6 +5,17 @@ extends RefCounted
 ## Category prefixes: FO Food, SD Seed, RS Resource, MT Material,
 ## CP Component, TL Tool, CN Consumable, SP Specimen, QI Quest Item.
 
+## Item quality tiers (cosmetic only in v1 — only affects name color, never
+## effects/weight/durability/repair odds). Missing/unrecognized "quality"
+## falls back to 2 (普通/common) via get_quality().
+const QUALITY_LEVELS := {
+	1: {"name": "劣质", "color": "#D6D6D6"},
+	2: {"name": "普通", "color": "#4A90E2"},
+	3: {"name": "稀有", "color": "#9B5DE5"},
+	4: {"name": "史诗", "color": "#D6A23A"},
+	5: {"name": "传奇", "color": "#D94A4A"},
+}
+
 const ITEMS := {
 	# -- Food (harvested crops; one-time consumable, no durability)
 	"FO-CR-001": {
@@ -27,6 +38,7 @@ const ITEMS := {
 		"use_time_minutes": 30,
 		"storage_type": "stack",
 		"tags": ["food", "crop"],
+		"quality": 2,
 	},
 	"FO-CR-002": {
 		"display_name": "土豆",
@@ -48,6 +60,7 @@ const ITEMS := {
 		"use_time_minutes": 30,
 		"storage_type": "stack",
 		"tags": ["food", "crop"],
+		"quality": 2,
 	},
 	"FO-CR-003": {
 		"display_name": "小麦",
@@ -69,6 +82,7 @@ const ITEMS := {
 		"use_time_minutes": 30,
 		"storage_type": "stack",
 		"tags": ["food", "crop"],
+		"quality": 2,
 	},
 	"FO-CR-004": {
 		"display_name": "番茄",
@@ -90,6 +104,7 @@ const ITEMS := {
 		"use_time_minutes": 30,
 		"storage_type": "stack",
 		"tags": ["food", "crop"],
+		"quality": 3,
 	},
 	"FO-CR-005": {
 		"display_name": "大豆",
@@ -111,6 +126,7 @@ const ITEMS := {
 		"use_time_minutes": 30,
 		"storage_type": "stack",
 		"tags": ["food", "crop"],
+		"quality": 3,
 	},
 
 	# -- Seeds (not force-consumed on sow yet; data reserved for future use)
@@ -134,6 +150,7 @@ const ITEMS := {
 		"use_time_minutes": 0,
 		"storage_type": "stack",
 		"tags": ["seed", "crop", "lettuce"],
+		"quality": 1,
 	},
 	"SD-CR-002": {
 		"display_name": "土豆种薯",
@@ -155,6 +172,7 @@ const ITEMS := {
 		"use_time_minutes": 0,
 		"storage_type": "stack",
 		"tags": ["seed", "crop", "potato"],
+		"quality": 1,
 	},
 	"SD-CR-003": {
 		"display_name": "小麦种子",
@@ -176,6 +194,7 @@ const ITEMS := {
 		"use_time_minutes": 0,
 		"storage_type": "stack",
 		"tags": ["seed", "crop", "wheat"],
+		"quality": 1,
 	},
 	"SD-CR-004": {
 		"display_name": "番茄种子",
@@ -197,6 +216,7 @@ const ITEMS := {
 		"use_time_minutes": 0,
 		"storage_type": "stack",
 		"tags": ["seed", "crop", "tomato"],
+		"quality": 1,
 	},
 	"SD-CR-005": {
 		"display_name": "大豆种子",
@@ -218,6 +238,7 @@ const ITEMS := {
 		"use_time_minutes": 0,
 		"storage_type": "stack",
 		"tags": ["seed", "crop", "soybean"],
+		"quality": 1,
 	},
 
 	# -- Consumables
@@ -241,6 +262,7 @@ const ITEMS := {
 		"use_time_minutes": 30,
 		"storage_type": "stack",
 		"tags": ["consumable", "food"],
+		"quality": 2,
 	},
 	"CN-FD-002": {
 		"display_name": "营养液包",
@@ -262,6 +284,7 @@ const ITEMS := {
 		"use_time_minutes": 15,
 		"storage_type": "stack",
 		"tags": ["consumable", "food", "nutrition_drink"],
+		"quality": 2,
 	},
 	"CN-MD-001": {
 		"display_name": "医疗包",
@@ -283,6 +306,7 @@ const ITEMS := {
 		"use_time_minutes": 15,
 		"storage_type": "stack",
 		"tags": ["consumable", "medical", "reserved"],
+		"quality": 3,
 	},
 	"CN-OX-001": {
 		"display_name": "应急氧气瓶",
@@ -304,6 +328,7 @@ const ITEMS := {
 		"use_time_minutes": 5,
 		"storage_type": "stack",
 		"tags": ["consumable", "air", "reserved"],
+		"quality": 3,
 	},
 	"CN-IG-001": {
 		"display_name": "小型惰性气体罐",
@@ -325,6 +350,7 @@ const ITEMS := {
 		"use_time_minutes": 5,
 		"storage_type": "stack",
 		"tags": ["consumable", "air", "reserved"],
+		"quality": 3,
 	},
 
 	# -- Materials (not directly usable; consumed by repair/build actions elsewhere)
@@ -348,6 +374,7 @@ const ITEMS := {
 		"use_time_minutes": 0,
 		"storage_type": "stack",
 		"tags": ["material", "repair"],
+		"quality": 1,
 	},
 	"MT-EL-001": {
 		"display_name": "电子零件",
@@ -369,6 +396,7 @@ const ITEMS := {
 		"use_time_minutes": 0,
 		"storage_type": "stack",
 		"tags": ["material", "power", "repair"],
+		"quality": 2,
 	},
 	"MT-SE-001": {
 		"display_name": "密封材料",
@@ -390,6 +418,7 @@ const ITEMS := {
 		"use_time_minutes": 0,
 		"storage_type": "stack",
 		"tags": ["material", "seal", "repair"],
+		"quality": 2,
 	},
 	"MT-FI-001": {
 		"display_name": "过滤材料",
@@ -411,6 +440,7 @@ const ITEMS := {
 		"use_time_minutes": 0,
 		"storage_type": "stack",
 		"tags": ["material", "air", "repair"],
+		"quality": 2,
 	},
 	"MT-IN-001": {
 		"display_name": "绝缘材料",
@@ -432,6 +462,7 @@ const ITEMS := {
 		"use_time_minutes": 0,
 		"storage_type": "stack",
 		"tags": ["material", "power", "thermal", "repair"],
+		"quality": 2,
 	},
 	"MT-GL-001": {
 		"display_name": "温室基质",
@@ -453,6 +484,7 @@ const ITEMS := {
 		"use_time_minutes": 0,
 		"storage_type": "stack",
 		"tags": ["material", "greenhouse"],
+		"quality": 1,
 	},
 
 	# -- Tools: default tools (suit/base built-in, never enter inventory) and
@@ -477,6 +509,7 @@ const ITEMS := {
 		"use_time_minutes": 0,
 		"storage_type": "default",
 		"tags": ["tool", "default"],
+		"quality": 2,
 	},
 	"TL-SC-001": {
 		"display_name": "手持扫描仪",
@@ -498,6 +531,7 @@ const ITEMS := {
 		"use_time_minutes": 0,
 		"storage_type": "default",
 		"tags": ["tool", "default"],
+		"quality": 2,
 	},
 	"TL-EX-002": {
 		"display_name": "便携钻具",
@@ -519,6 +553,7 @@ const ITEMS := {
 		"use_time_minutes": 0,
 		"storage_type": "durable",
 		"tags": ["tool", "durable", "ice"],
+		"quality": 3,
 	},
 	"TL-RP-001": {
 		"display_name": "密封修补枪",
@@ -540,6 +575,7 @@ const ITEMS := {
 		"use_time_minutes": 0,
 		"storage_type": "durable",
 		"tags": ["tool", "durable", "seal", "repair"],
+		"quality": 3,
 	},
 	"TL-RP-002": {
 		"display_name": "切割工具",
@@ -561,6 +597,7 @@ const ITEMS := {
 		"use_time_minutes": 0,
 		"storage_type": "durable",
 		"tags": ["tool", "durable", "salvage"],
+		"quality": 3,
 	},
 	"TL-BT-001": {
 		"display_name": "便携电池包",
@@ -582,6 +619,7 @@ const ITEMS := {
 		"use_time_minutes": 0,
 		"storage_type": "durable",
 		"tags": ["tool", "durable", "power", "reserved"],
+		"quality": 4,
 	},
 
 	# -- System resource IDs: naming references for other live systems' own
@@ -606,6 +644,7 @@ const ITEMS := {
 		"use_time_minutes": 0,
 		"storage_type": "system",
 		"tags": ["resource", "water"],
+		"quality": 2,
 	},
 	"RS-WA-001": {
 		"display_name": "可用水",
@@ -627,6 +666,7 @@ const ITEMS := {
 		"use_time_minutes": 0,
 		"storage_type": "system",
 		"tags": ["resource", "water"],
+		"quality": 2,
 	},
 	"RS-EN-001": {
 		"display_name": "电力",
@@ -648,6 +688,7 @@ const ITEMS := {
 		"use_time_minutes": 0,
 		"storage_type": "system",
 		"tags": ["resource", "power"],
+		"quality": 2,
 	},
 	"RS-OX-001": {
 		"display_name": "氧气",
@@ -669,6 +710,7 @@ const ITEMS := {
 		"use_time_minutes": 0,
 		"storage_type": "system",
 		"tags": ["resource", "air"],
+		"quality": 2,
 	},
 	"RS-CO-001": {
 		"display_name": "二氧化碳",
@@ -690,6 +732,7 @@ const ITEMS := {
 		"use_time_minutes": 0,
 		"storage_type": "system",
 		"tags": ["resource", "air"],
+		"quality": 2,
 	},
 	"RS-IG-001": {
 		"display_name": "惰性缓冲气体",
@@ -711,6 +754,7 @@ const ITEMS := {
 		"use_time_minutes": 0,
 		"storage_type": "system",
 		"tags": ["resource", "air"],
+		"quality": 2,
 	},
 }
 
@@ -729,3 +773,34 @@ static func item_ids_by_category(category: String) -> Array:
 		if String(ITEMS[item_id].get("category", "")) == category:
 			ids.append(item_id)
 	return ids
+
+## -- Quality helpers (v1: cosmetic only, see QUALITY_LEVELS above)
+
+static func get_quality(item_id: String) -> int:
+	var item := get_item(item_id)
+	if item.is_empty():
+		return 2
+	return int(item.get("quality", 2))
+
+static func quality_name_for_level(level: int) -> String:
+	var entry: Dictionary = QUALITY_LEVELS.get(level, QUALITY_LEVELS[2])
+	return String(entry.get("name", "普通"))
+
+static func quality_color_for_level(level: int) -> String:
+	var entry: Dictionary = QUALITY_LEVELS.get(level, QUALITY_LEVELS[2])
+	return String(entry.get("color", "#4A90E2"))
+
+static func get_quality_name(item_id: String) -> String:
+	return quality_name_for_level(get_quality(item_id))
+
+static func get_quality_color(item_id: String) -> String:
+	return quality_color_for_level(get_quality(item_id))
+
+## Shared BBCode-wrapped display name so every UI (inventory/backpack/
+## storage/supply/repair) renders the exact same quality color for the same
+## item. Callers must render this through a RichTextLabel with
+## bbcode_enabled = true — plain Label will show the raw [color=...] tags.
+static func colored_display_name(item_id: String) -> String:
+	var item := get_item(item_id)
+	var name := String(item.get("display_name", item_id))
+	return "[color=%s]%s[/color]" % [get_quality_color(item_id), name]

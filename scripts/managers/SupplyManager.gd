@@ -506,11 +506,16 @@ func _status_label(status: String) -> String:
 			return "已送达"
 	return status
 
+## Returns the name wrapped in [color=...] BBCode per the item quality
+## system (ItemDatabase.colored_display_name()) so Supply Debug output reads
+## the same quality colors as inventory/backpack/storage — this text is
+## shown through main.gd's add_log(), which already renders BBCode.
 func _item_display_name(item_id: String) -> String:
 	if item_id == FIRST_FORCED_ITEM_ID:
 		return "月球车"
-	var item := ItemDatabaseScript.get_item(item_id)
-	return String(item.get("display_name", item_id)) if not item.is_empty() else item_id
+	if not ItemDatabaseScript.has_item(item_id):
+		return item_id
+	return ItemDatabaseScript.colored_display_name(item_id)
 
 func _time_manager() -> Node:
 	return get_tree().root.get_node_or_null("TimeManager")

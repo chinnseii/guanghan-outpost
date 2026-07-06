@@ -1,6 +1,9 @@
 extends PanelContainer
 
-var _status_label: Label
+## Uses RichTextLabel (not Label) because item names are wrapped in
+## [color=...] BBCode by ItemDatabase.colored_display_name() for the item
+## quality system — a plain Label would show the raw tags as text.
+var _status_label: RichTextLabel
 
 func _ready() -> void:
 	custom_minimum_size = Vector2(330, 300)
@@ -17,10 +20,12 @@ func _ready() -> void:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 6)
 	add_child(box)
-	_status_label = Label.new()
-	_status_label.modulate = Color("#eadcf2")
-	_status_label.add_theme_font_size_override("font_size", 15)
-	_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_status_label = RichTextLabel.new()
+	_status_label.bbcode_enabled = true
+	_status_label.fit_content = true
+	_status_label.scroll_active = false
+	_status_label.add_theme_color_override("default_color", Color("#eadcf2"))
+	_status_label.add_theme_font_size_override("normal_font_size", 15)
 	box.add_child(_status_label)
 	refresh()
 

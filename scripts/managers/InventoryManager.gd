@@ -220,18 +220,17 @@ func _stack_lines_for_category(category: String) -> Array[String]:
 		var count := get_item_count(item_id)
 		if count <= 0:
 			continue
-		var item := ItemDatabaseScript.get_item(item_id)
-		lines.append("%s ×%d" % [String(item.get("display_name", item_id)), count])
+		lines.append("%s ×%d" % [ItemDatabaseScript.colored_display_name(item_id), count])
 	return lines
 
 func _durable_lines() -> Array[String]:
 	var lines: Array[String] = []
 	for instance_id in durable_items.keys():
 		var instance: Dictionary = durable_items[instance_id]
-		var item := ItemDatabaseScript.get_item(String(instance.get("item_id", "")))
+		var item_id := String(instance.get("item_id", ""))
 		var state_label := "损坏" if String(instance.get("state", "normal")) == "broken" else "正常"
 		lines.append("%s：%.0f / %.0f（%s）" % [
-			String(item.get("display_name", instance.get("item_id", ""))),
+			ItemDatabaseScript.colored_display_name(item_id),
 			float(instance.get("current_durability", 0.0)),
 			float(instance.get("max_durability", 0.0)),
 			state_label,

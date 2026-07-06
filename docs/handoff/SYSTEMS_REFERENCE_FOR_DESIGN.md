@@ -1067,6 +1067,62 @@ get_durable_item_state(instance_id) -> Dictionary
 按 食物/种子/消耗品/材料 四个分类分组显示数量，工具单独一段显示
 `当前耐久/最大耐久（正常/损坏）`，全部为空时显示"暂无物品。"。
 
+### 物品品质 Quality（v1，纯 UI 装饰，不影响任何数值）
+每个物品新增 `quality`（int，1–5）字段，`ItemDatabase.gd` 顶部
+`const QUALITY_LEVELS` 是唯一的等级→名字/颜色对照表：
+
+| 等级 | 品质 | 颜色 |
+|---|---|---|
+| 1 | 劣质 | `#D6D6D6` |
+| 2 | 普通 | `#4A90E2` |
+| 3 | 稀有 | `#9B5DE5` |
+| 4 | 史诗 | `#D6A23A` |
+| 5 | 传奇 | `#D94A4A` |
+
+用的是需求文档给的"冷色克制"第二组配色（跟《广寒前哨》整体美术基调更搭，
+而不是网游感更重的高饱和第一组）。33 个物品目前的等级分布：种子(5) + 金属
+碎片/温室基质 = 劣质(1)；基础食物三种(生菜/土豆/小麦)/两种基础消耗品(压缩
+食物/营养液包)/大部分材料/两个默认工具/系统资源编号(6) = 普通(2)；番茄/
+大豆/三种"预留"消耗品(医疗包/氧气瓶/惰性气体罐)/三个耐久工具(钻具/修补枪/
+切割工具) = 稀有(3)；便携电池包 = 史诗(4)；目前没有物品是传奇(5)（等级
+本身已经预留，留给后续内容）。这些等级是本次实现自己按"越基础越低阶"的
+直觉分配的（需求文档没有给出具体每个物品的等级），系统设计如果要重新分配
+不需要改任何结构，直接改 `ITEMS` 里对应条目的 `"quality"` 数字即可。
+
+`quality` 缺失时（理论上不会发生，因为本次已经给全部 33 条数据都写了这
+个字段，只是为了给以后新增物品兜底）自动按 2（普通）处理，通过
+`ItemDatabase.get_quality(item_id)` 的 `.get("quality", 2)` 兜底实现，不
+会抛错。
+
+**唯一的对外接口是 `ItemDatabase.colored_display_name(item_id)`**——返回
+`"[color=#RRGGBB]物品名[/color]"` 这个 BBCode 包裹后的字符串，所有需要显示
+物品名的地方都必须调用这一个函数，不要自己拼颜色，这样才能保证"背包、
+仓库、补给、维修界面都读取同一套颜色"这条硬性要求。渲染这个字符串的
+Control 节点必须是 `RichTextLabel` 且 `bbcode_enabled = true`——普通
+`Label` 不解析 BBCode，会把 `[color=...]` 标签原样显示成文字。本次已经
+接入的调用点：
+- `InventoryManager._stack_lines_for_category()` / `_durable_lines()`
+  （渲染节点：`scripts/ui/inventory_panel.gd`，已从 `Label` 换成
+  `RichTextLabel`）。
+- `ItemContainer.slot_label()`（`scripts/managers/BackpackManager.gd`/
+  `StorageManager.gd` 的 `_slot_lines()` 都调用它，渲染节点：
+  `scripts/ui/backpack_storage_panel.gd`，同样已从 `Label` 换成
+  `RichTextLabel`）。
+- `SupplyManager._item_display_name()`（渲染路径是 `debug_values_text()`
+  → `main.gd.add_log()`，那个 `TaskLog` 本来就是
+  `RichTextLabel(bbcode_enabled=true)`，不用改渲染节点）。
+- `RepairManager.gd` 目前完全不显示任何物品/材料的 `display_name`（只显示
+  `item_id` 和数量，见第九节维修系统的"已知问题"），所以本次没有改动它——
+  等它真正显示物品名的那天，直接调用同一个 `colored_display_name()` 即可，
+  不需要另外发明一套颜色。
+
+**v1 明确只做外观，不做数值联动**：品质不影响 `effects`/`weight`/
+`max_durability`/`durability_loss_per_use`/维修成功率/任何结算逻辑。需求
+文档列出的"后续可扩展作用"（食物按品质给不同恢复量、工具按品质给不同
+最大耐久、材料按品质影响维修成功效果、补给按品质影响重量/获取难度、
+植物收获按品质给不同心理/营养）本轮**全部没有实现**，只是留了
+`quality` 这个字段和等级表，方便以后接。
+
 ### 存档
 `user://saves/inventory_state.json`：`stack_items / durable_items /
 last_durable_instance_id / next_durable_instance_number`。`reset_to_arrival()`

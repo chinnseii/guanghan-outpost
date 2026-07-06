@@ -231,12 +231,14 @@ static func first_empty_index(slots: Array) -> int:
 			return i
 	return -1
 
+## Item name comes back wrapped in [color=...] BBCode (item quality system,
+## see ItemDatabase.colored_display_name()) — callers must render this
+## through a RichTextLabel with bbcode_enabled = true, not a plain Label.
 static func slot_label(slot: Dictionary) -> String:
 	if not _valid_slot(slot):
 		return "Empty"
 	var item_id := String(slot.get("item_id", ""))
-	var item := ItemDatabaseScript.get_item(item_id)
-	var name := String(item.get("display_name", item_id))
+	var name := ItemDatabaseScript.colored_display_name(item_id)
 	var instance_id := String(slot.get("instance_id", ""))
 	if not instance_id.is_empty():
 		return "%s %.0f/%.0f %s" % [

@@ -1,6 +1,9 @@
 extends PanelContainer
 
-var _status_label: Label
+## RichTextLabel (not Label): item names come back wrapped in [color=...]
+## BBCode from the item quality system (ItemDatabase.colored_display_name()
+## via ItemContainer.slot_label()) — a plain Label would show raw tags.
+var _status_label: RichTextLabel
 
 func _ready() -> void:
 	custom_minimum_size = Vector2(520, 430)
@@ -22,10 +25,12 @@ func _ready() -> void:
 	title.modulate = Color("#eaf4ff")
 	title.add_theme_font_size_override("font_size", 18)
 	box.add_child(title)
-	_status_label = Label.new()
-	_status_label.modulate = Color("#c8d8e2")
-	_status_label.add_theme_font_size_override("font_size", 14)
-	_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_status_label = RichTextLabel.new()
+	_status_label.bbcode_enabled = true
+	_status_label.fit_content = true
+	_status_label.scroll_active = false
+	_status_label.add_theme_color_override("default_color", Color("#c8d8e2"))
+	_status_label.add_theme_font_size_override("normal_font_size", 14)
 	_status_label.custom_minimum_size = Vector2(0, 250)
 	box.add_child(_status_label)
 	var buttons := GridContainer.new()
