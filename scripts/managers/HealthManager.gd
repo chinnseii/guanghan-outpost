@@ -140,13 +140,28 @@ func adjusted_action_minutes(base_minutes: int, action_id: String) -> int:
 	return int(ceil(float(base_minutes) * get_action_time_multiplier(action_id)))
 
 func get_energy_cost_multiplier() -> float:
+	var fullness_multiplier := 1.0
 	if fullness >= 70.0:
+		fullness_multiplier = 1.0
+	elif fullness >= 40.0:
+		fullness_multiplier = 1.2
+	elif fullness >= 20.0:
+		fullness_multiplier = 1.4
+	else:
+		fullness_multiplier = 1.6
+	return fullness_multiplier * _environment_energy_multiplier()
+
+func _environment_energy_multiplier() -> float:
+	var manager := _base_status_manager()
+	if manager == null or not manager.has_method("get_environment_energy_multiplier"):
 		return 1.0
-	if fullness >= 40.0:
-		return 1.2
-	if fullness >= 20.0:
-		return 1.4
-	return 1.6
+	return float(manager.call("get_environment_energy_multiplier"))
+
+func _base_status_manager() -> Node:
+	var tree := get_tree()
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null("BaseStatusManager")
 
 func get_nutrition_sleep_multiplier() -> float:
 	if nutrition >= 70.0:

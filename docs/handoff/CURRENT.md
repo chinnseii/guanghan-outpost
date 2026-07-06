@@ -1,73 +1,110 @@
 # 当前状态（滚动文档，每次覆盖重写）
 
 更新时间：2026-07-06
-更新人：Codex
+更新人：Claude Code（本轮临时顶替 Codex 的游戏逻辑/Manager/数据/流程职责——Codex
+临时无 token，由 Claude Code 在独立会话中代打这部分；同一时间另一个 Claude Code
+会话仍在并行做场景/UI/美术。Codex 恢复后请按下方记录核对，不要误以为是
+Codex 自己之前做的）
 
 ## 正在进行
 
-（暂无，Resident Health System v1 已完成；本轮完成训练 minimal HUD 健康显示排版修正，待提交 / 推送）
+（暂无，Base Status System v1 已完成，本轮改动已提交）
 
 ## 最近完成
 
-- **Codex**：完成训练 minimal HUD 的时间 + 健康显示排版修正。
-  - 文件：`scripts/training/training_module_scene.gd`
-  - 之前：`minimal_time_label` 把时间信息与健康摘要全部用 `·` 拼成一条长文本，390px 宽度下容易自动换行过挤。
-  - 现在：`minimal_time_label` 使用 `_minimal_resident_status_text()`：
-    - 第一行：时间信息压缩显示。
-    - 第二行：驻留者健康摘要。
-  - 任务卡高度暂不继续增加，避免左上常驻卡压迫训练画面。
-  - 尝试用窗口模式生成截图时被工具审批/额度拦截，因此没有新增验收截图；已通过 Godot headless 加载 `Training_03_PowerRepair.tscn` 验证脚本不报错。
+- **Claude Code（代 Codex）**：实现 Base Status System v1（基地状态系统）。
+  - 新增 `scripts/managers/BaseStatusManager.gd`，并在 `project.godot` 注册为
+    `/root/BaseStatusManager`（放在 `TimeManager`/`HealthManager` 之后）。
+  - 四项基地状态：电力 `power`、氧气 `oxygen`、舱压 `pressure`（均 0–100，越高
+    越好）、温度 `temperature`（摄氏度，-40~60 clamp）。
+  - 四个设备状态枚举 `SystemStatus`（OFFLINE/CRITICAL/BASIC/STABLE）：
+    `power_system_status`、`life_support_status`、`thermal_control_status`、
+    `seal_status`。
+  - 抵达初始值：电力 42、氧气 68、舱压 76、温度 14℃；供电/生命支持/温控 =
+    Critical，密封 = Basic（与需求文档第四节一致）。
+  - `advance_base_time(minutes)`：不自己推进时间，只做结算；电力/氧气/舱压/
+    温度按月夜/月昼、设备状态、电力对氧气与温控的倍率、舱压对氧气与温度的
+    附加影响分别结算，规则数值来自需求文档第八节。
+  - 轻/重维修方法（`repair_power_light/heavy`、`repair_life_support_light/heavy`、
+    `repair_thermal_light/heavy`、`repair_seal_light/heavy`）：只改变设备状态
+    档位 + 一次性数值增量，不推进时间——时间仍由调用方通过 TimeManager 推进。
+  - `set_last_plant_recovered(true)`：温室最后一株植物脱离 Critical 时触发，
+    氧气 +0.01/小时的小加成 + 一次性心理 +2（通过 HealthManager.adjust_stat）。
+  - 专业提示 `get_specialist_hint()`：读取 `application_profile.json` 的
+    `EducationBackground`，机械工程/材料科学/医学/植物科学四类文字提示，
+    不提供任何数值加成。
+  - `panel_status_text()` / `compact_hud_text()` / `debug_values_text()` /
+    各 `get_*_label()`：文本分段规则来自需求文档第六节。
+  - 存档：`user://saves/base_status_state.json`，独立文件，同时接入
+    旧基地/温室/第一周存档（`sprint06_progress.json`）与训练进度存档
+    （`training_progress.json`）的 `BaseStatusState` 字段。
+  - Debug 支持：主菜单开发菜单新增基地状态 Debug 按钮（电力/氧气/舱压/温度
+    加减、四个系统状态循环 Critical→Basic→Stable、重置 Day 01、设为最低稳定
+    状态）。原有 Time Debug 的 +1h/+6h/跳到月昼/跳到月夜按钮现在会自动带动
+    基地状态结算，未新增重复按钮。
+  - UI：新增 `scripts/ui/base_status_panel.gd`（`BaseStatusPanel`，
+    `PanelContainer`，纯代码构建，风格参照 `base_player_overlay.gd`），在
+    `sprint06_base_scene.gd` 中通过 Tab 键开关，默认隐藏，不常驻 HUD。
 
-- **Codex**：实现 Resident Health System v1。
-  - 新增 `scripts/managers/HealthManager.gd`，并在 `project.godot` 注册为 `/root/HealthManager`。
-  - `HealthManager` 负责四项驻留者健康状态：
-    - 精力 `energy`
-    - 饱腹 `fullness`
-    - 营养 `nutrition`
-    - 心理 `morale`
-  - 所有健康值统一为 0-100，数值越低状态越差，并在每次结算后 clamp。
-  - 初始抵达值：精力 80、饱腹 80、营养 85、心理 75。
-  - 健康状态会保存到独立文件：`user://saves/health_state.json`。
-  - 训练进度存档额外写入 / 恢复字段：`HealthState`。
-  - 旧基地 / 温室 / 第一周存档额外写入 / 恢复字段：`HealthState`。
-  - `TimeManager.advance_time()` 中央流程会先询问健康倍率，再推进时间，再调用健康结算；`HealthManager` 本身不直接推进时间。
-  - 已实现行动结算：睡觉、进食、营养液、短/长娱乐、植物诊断、整理物资、发送报告、轻/重维修、短/长采集。
-  - 已实现轻量惩罚：低精力增加部分行动耗时，低饱腹增加精力消耗，低营养/低心理降低睡眠恢复。
-  - 旧基地右上状态 HUD 与训练 HUD 显示简洁健康摘要，不显示四条大状态条。
-  - 主菜单开发菜单新增健康 Debug 按钮。
+## 对共用核心文件的改动记录（第一档文件，已按规则先查 git log 再改）
 
-- **Codex**：上一轮完成 PlayerController Foundation Sprint。
-  - 新增 `scripts/controllers/player_controller_2d.gd`。
-  - 新增 `scripts/controllers/interaction_area_2d.gd`。
-  - 训练模块与旧基地移动已接入统一移动距离计时底座。
-
-## 对共用核心文件的改动记录
-
-- **Codex 本次触碰了第一档共用核心文件**：
-  - `scripts/training/training_module_scene.gd`
-    - 已按规则先查看 `git log --oneline -- scripts/training/training_module_scene.gd`。
-    - 本次只调整 `minimal_time_label` 的显示格式：时间压缩一行，健康摘要单独一行。
-    - 未改训练步骤状态机、交互流程或模块配置。
-- 近期健康系统实现中也触碰过：
-  - `scripts/base/sprint06_base_scene.gd`
-    - 已接入 `HealthState` 保存/读取，并把健康摘要合并进既有右上状态面板。
-  - `scripts/training/training_manager.gd`
-    - 已在训练进度中附带 `HealthState`，并在 reset 时同步重置 HealthManager。
+- `scripts/base/sprint06_base_scene.gd`（10 个场景共用）：
+  - `_save_state()`/`_load_state()` 追加 `BaseStatusState` 序列化/反序列化，
+    写法完全对齐已有的 `TimeState`/`HealthState` 处理方式。
+  - 新增 `_sync_base_status_from_state()`，在 `_save_state()` 里统一调用，
+    用一次性 `BaseStatus*Applied` 标记把既有的
+    `PowerPanelRepaired`/`BasePowerRestored`/`MinimalLifeSupportStable`/
+    `LastPlantStable` 四个旧状态标志映射成对应的 BaseStatusManager 调用，
+    没有改动这四个标志原本的触发时机和文案。
+  - 新增 Tab 键（`toggle_base_status` action）开关 `BaseStatusPanel`，只在
+    `_setup_ui()`/`_unhandled_input()`/`_update_ui()` 分别加了几行，没有动
+    现有的 `_hud_text()`/`_safe_hud_text()` 常驻 HUD 文本。
+- `scripts/managers/TimeManager.gd`：
+  - `advance_time()` 在 `_update_lunar_phase()` 之后、
+    `_apply_health_action_cost()` 之前新增 `_apply_base_status_time()` 调用，
+    顺序符合需求文档第七节"先结算基地状态、再结算健康行动消耗"。
+  - `reset_to_arrival()` 追加对 `BaseStatusManager.reset_to_arrival()` 的
+    级联调用，写法与已有的 HealthManager 级联完全一致。
+- `scripts/managers/HealthManager.gd`：
+  - `get_energy_cost_multiplier()` 保留原有 fullness 分段数值不变，追加乘以
+    `_environment_energy_multiplier()`（读取 BaseStatusManager 的温度/氧气
+    倍率，BaseStatusManager 不存在时回退为 1.0，不影响旧行为）。
+- `scripts/training/training_manager.gd`：
+  - `default_data()`/`load_progress()`/`save_progress()`/`reset_progress()`
+    追加 `BaseStatusState` 字段，写法对齐已有的 `HealthState` 处理。
 - `scripts/props/reference_prop.gd`：本次未触碰。
 
 ## 验证
 
-- `git diff --check -- scripts/training/training_module_scene.gd docs/handoff/CURRENT.md`：通过，仅有 CRLF 提示。
-- Godot headless 场景加载通过：
-  - `res://scenes/training/Training_03_PowerRepair.tscn`
+- Godot 4.7 headless 逐个加载并确认无 `SCRIPT ERROR`/`Parse Error`：
+  `OldBaseInteriorScene.tscn`、`OldGreenhouseScene.tscn`、
+  `Training_03_PowerRepair.tscn`、`main.tscn`、`Day02StartScene.tscn`、
+  `WeekRoutineStartScene.tscn`、`SolarArrayExteriorScene.tscn`、
+  `FinalAssessmentScene.tscn`。
+- 临时脚本（未提交，验证后已删除）跑通了：抵达初始值、推进 6 小时后电力/
+  温度按月夜费率下降、轻/重维修使设备状态升档且立即加值、跳到月昼后供电
+  Stable 时电力明显回升、月昼下持续推进后氧气受电力/舱压影响、最后一株
+  植物 bonus 生效、"设为最低稳定状态"与"重置 Day 01"互相覆盖正确、寒冷
+  温度下 `HealthManager.get_energy_cost_multiplier()` 从 1.0 变为 1.1。
+- 未跑图形界面截图（本次未涉及新视觉资产，仅新增一个默认隐藏、按 Tab 打开
+  的面板；截图验收留给人类玩测或下一轮）。
 
 ## 已知问题 / 暂不覆盖范围
 
-- 本轮没有生成新的视觉截图：窗口模式截图被工具审批/额度拦截。
-- 本次不实现完整 ResidentStatusPanel；只保留常驻 HUD 的简洁健康摘要。
-- 本次不把健康消耗接入移动距离；移动仍只通过 TimeManager 计时。
-- 本次不重构 PlayerController、不迁移 CharacterBody2D、不做 TileMap collision。
-- Godot 在本地刷新了大量已跟踪 `.import` 文件，它们不属于本次逻辑，提交时不要暂存。
+- 密封（气密）目前只有方法 + Debug 按钮，没有接入任何现有玩法交互（旧基地
+  流程里没有密封维修的场景/按钮），按需求文档第九节末尾的说明这是允许的。
+- 温控系统同样只有方法 + Debug 按钮，没有接入现有交互（现有流程没有温控
+  维修点）。
+- "植物状态 Critical/Recovering"对植物科学专业提示的判断，用
+  `last_plant_recovered_bonus_active` 代理（BaseStatusManager 拿不到温室
+  内部的 Critical/Recovering/Stable 细分状态），是一版近似实现。
+- 氧气 0–19 的"高风险行动强提醒"目前只体现在 `panel_status_text()` 的警告行
+  里，没有强插到具体维修/采集交互的确认弹窗中。
+- 未新增 `scenes/ui/BaseStatusPanel.tscn`——面板用纯 GDScript
+  （`scripts/ui/base_status_panel.gd`）构建，跟仓库里其它自定义面板
+  （`base_player_overlay.gd`、`art_slice_marker_layer.gd`）的既有风格一致。
+- Godot 在本地会刷新大量已跟踪 `.import` 文件和生成 `.uid`/`.godot_appdata/`，
+  它们不属于本次改动，提交时未暂存。
 
 ## 先别碰
 

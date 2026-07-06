@@ -15,6 +15,7 @@ const SCENE_WEEK_END := "res://scenes/base/WeekRoutineEndScene.tscn"
 const ART_SLICE_MARKER_LAYER_SCRIPT := preload("res://scripts/base/art_slice_marker_layer.gd")
 const PlayerControllerScript := preload("res://scripts/controllers/player_controller_2d.gd")
 const InteractionAreaScript := preload("res://scripts/controllers/interaction_area_2d.gd")
+const BaseStatusPanelScript := preload("res://scripts/ui/base_status_panel.gd")
 const HUD_SAFE_POSITION := Vector2(24, 96)
 const HUD_SAFE_SIZE := Vector2(360, 464)
 const HUD_SAFE_WORLD_MIN_X := 140.0
@@ -47,6 +48,7 @@ var prompt_label: Label
 var ai_label: Label
 var time_hud_panel: PanelContainer
 var time_hud_label: Label
+var base_status_panel: PanelContainer
 var interaction_panel: PanelContainer
 var interaction_label: Label
 var interaction_bar: ProgressBar
@@ -98,6 +100,7 @@ func _setup_input() -> void:
 	_add_key_action("interact", [KEY_E, KEY_ENTER])
 	_add_key_action("save_game", [KEY_F5])
 	_add_key_action("load_game", [KEY_F9])
+	_add_key_action("toggle_base_status", [KEY_TAB])
 
 func _add_key_action(action_name: String, keys: Array[int]) -> void:
 	if not InputMap.has_action(action_name):
@@ -361,6 +364,7 @@ func _setup_ui() -> void:
 	root.add_child(fade_rect)
 	_setup_interaction_feedback_ui(root)
 	_setup_plant_diagnosis_ui(root)
+	_setup_base_status_panel(root)
 
 func _setup_interaction_feedback_ui(root: Control) -> void:
 	interaction_panel = PanelContainer.new()
@@ -383,6 +387,19 @@ func _setup_interaction_feedback_ui(root: Control) -> void:
 	interaction_bar.show_percentage = false
 	interaction_bar.custom_minimum_size = Vector2(0, 12)
 	box.add_child(interaction_bar)
+
+func _setup_base_status_panel(root: Control) -> void:
+	base_status_panel = BaseStatusPanelScript.new()
+	base_status_panel.position = Vector2(1250, 690)
+	base_status_panel.visible = false
+	root.add_child(base_status_panel)
+
+func _toggle_base_status_panel() -> void:
+	if base_status_panel == null:
+		return
+	base_status_panel.visible = not base_status_panel.visible
+	if base_status_panel.visible and base_status_panel.has_method("refresh"):
+		base_status_panel.call("refresh")
 
 func _setup_plant_diagnosis_ui(root: Control) -> void:
 	plant_diagnosis_scrim = ColorRect.new()
@@ -513,6 +530,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		_save_state()
 	if event.is_action_pressed("load_game"):
 		_load_state()
+	if event.is_action_pressed("toggle_base_status"):
+		_toggle_base_status_panel()
 
 func _move_player(delta: float) -> void:
 	var movement_bounds := Rect2(Vector2(_world_left_limit(), 190.0), Vector2(1510.0 - _world_left_limit(), 580.0))
@@ -1701,6 +1720,8 @@ func _update_ui() -> void:
 		var resident_status := _resident_status_hud_text()
 		time_hud_label.text = resident_status
 		time_hud_panel.visible = not resident_status.is_empty() and not _hide_gameplay_hud_for_narrative()
+	if base_status_panel != null and base_status_panel.visible and base_status_panel.has_method("refresh"):
+		base_status_panel.call("refresh")
 
 func _hide_gameplay_hud_for_narrative() -> bool:
 	return fade_rect != null and fade_rect.color.a > 0.35 and (scene_kind == "week_end" or scene_kind == "day_end" or scene_kind == "day02_end")
@@ -2258,15 +2279,46 @@ func _load_state() -> void:
 	var health_manager := _health_manager()
 	if health_manager != null and health_manager.has_method("deserialize") and state.get("HealthState", {}) is Dictionary:
 		health_manager.call("deserialize", state.get("HealthState", {}))
+	var base_status_manager := _base_status_manager()
+	if base_status_manager != null and base_status_manager.has_method("deserialize") and state.get("BaseStatusState", {}) is Dictionary:
+		base_status_manager.call("deserialize", state.get("BaseStatusState", {}))
 
 func _save_state() -> void:
+	_sync_base_status_from_state()
 	var manager := _time_manager()
 	if manager != null and manager.has_method("serialize"):
 		state["TimeState"] = manager.call("serialize")
 	var health_manager := _health_manager()
 	if health_manager != null and health_manager.has_method("serialize"):
 		state["HealthState"] = health_manager.call("serialize")
+	var base_status_manager := _base_status_manager()
+	if base_status_manager != null and base_status_manager.has_method("serialize"):
+		state["BaseStatusState"] = base_status_manager.call("serialize")
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("user://saves"))
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file != null:
 		file.store_string(JSON.stringify(state, "\t"))
+
+func _base_status_manager() -> Node:
+	var tree := get_tree()
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null("BaseStatusManager")
+
+func _sync_base_status_from_state() -> void:
+	var manager := _base_status_manager()
+	if manager == null:
+		return
+	_apply_base_status_repair_once(manager, "PowerPanelRepaired", "BaseStatusPowerLightApplied", "repair_power_light")
+	_apply_base_status_repair_once(manager, "BasePowerRestored", "BaseStatusPowerHeavyApplied", "repair_power_heavy")
+	_apply_base_status_repair_once(manager, "MinimalLifeSupportStable", "BaseStatusLifeSupportLightApplied", "repair_life_support_light")
+	if bool(state.get("LastPlantStable", false)) and not bool(state.get("BaseStatusPlantBonusApplied", false)):
+		state["BaseStatusPlantBonusApplied"] = true
+		if manager.has_method("set_last_plant_recovered"):
+			manager.call("set_last_plant_recovered", true)
+
+func _apply_base_status_repair_once(manager: Node, state_key: String, applied_key: String, method_name: String) -> void:
+	if bool(state.get(state_key, false)) and not bool(state.get(applied_key, false)):
+		state[applied_key] = true
+		if manager.has_method(method_name):
+			manager.call(method_name)

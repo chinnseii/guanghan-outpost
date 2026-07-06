@@ -3687,6 +3687,20 @@ func _setup_dev_menu() -> void:
 	box.add_child(_make_dev_button("Health Action: Short Entertainment", func(): _debug_health_action("entertainment_short")))
 	box.add_child(_make_dev_button("Health Action: Light Repair", func(): _debug_health_action("repair_light")))
 	box.add_child(_make_dev_button("Health Action: Short Explore", func(): _debug_health_action("explore_short")))
+	box.add_child(_make_dev_button("Base Debug: Power -10", func(): _debug_adjust_base_status("power", -10.0)))
+	box.add_child(_make_dev_button("Base Debug: Power +10", func(): _debug_adjust_base_status("power", 10.0)))
+	box.add_child(_make_dev_button("Base Debug: Oxygen -10", func(): _debug_adjust_base_status("oxygen", -10.0)))
+	box.add_child(_make_dev_button("Base Debug: Oxygen +10", func(): _debug_adjust_base_status("oxygen", 10.0)))
+	box.add_child(_make_dev_button("Base Debug: Pressure -10", func(): _debug_adjust_base_status("pressure", -10.0)))
+	box.add_child(_make_dev_button("Base Debug: Pressure +10", func(): _debug_adjust_base_status("pressure", 10.0)))
+	box.add_child(_make_dev_button("Base Debug: Temperature -2", func(): _debug_adjust_base_status("temperature", -2.0)))
+	box.add_child(_make_dev_button("Base Debug: Temperature +2", func(): _debug_adjust_base_status("temperature", 2.0)))
+	box.add_child(_make_dev_button("Base Debug: Power System Critical/Basic/Stable", func(): _debug_cycle_base_system("power_system_status")))
+	box.add_child(_make_dev_button("Base Debug: Life Support Critical/Basic/Stable", func(): _debug_cycle_base_system("life_support_status")))
+	box.add_child(_make_dev_button("Base Debug: Thermal Control Critical/Basic/Stable", func(): _debug_cycle_base_system("thermal_control_status")))
+	box.add_child(_make_dev_button("Base Debug: Seal Critical/Basic/Stable", func(): _debug_cycle_base_system("seal_status")))
+	box.add_child(_make_dev_button("Base Debug: Reset to Day 01", _debug_reset_base_status))
+	box.add_child(_make_dev_button("Base Debug: Set Minimum Stable", _debug_set_base_status_minimum_stable))
 	box.add_child(_make_dev_button("Dev Only: Training Start", func(): get_tree().change_scene_to_file("res://scenes/training/TrainingStartScene.tscn")))
 	box.add_child(_make_dev_button("Dev Only: Training Module 01", func():
 		TrainingManagerScript.set_current_module("suit_control")
@@ -3780,6 +3794,38 @@ func _debug_health_action(action_id: String) -> void:
 	var health_manager := get_node_or_null("/root/HealthManager")
 	if health_manager != null and health_manager.has_method("detail_text"):
 		add_log("Health action %s:\n%s" % [action_id, String(health_manager.call("detail_text", true))])
+
+func _debug_adjust_base_status(stat_name: String, delta: float) -> void:
+	var manager := get_node_or_null("/root/BaseStatusManager")
+	if manager != null and manager.has_method("adjust_stat"):
+		manager.call("adjust_stat", stat_name, delta)
+		add_log("Base status debug:\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_cycle_base_system(system_name: String) -> void:
+	var manager := get_node_or_null("/root/BaseStatusManager")
+	if manager == null or not manager.has_method("debug_set_system_status"):
+		return
+	# SystemStatus enum order is Offline, Critical, Basic, Stable; cycle Critical -> Basic -> Stable -> Critical.
+	var current := int(manager.get(system_name))
+	var next_status := "critical"
+	if current == 1:
+		next_status = "basic"
+	elif current == 2:
+		next_status = "stable"
+	manager.call("debug_set_system_status", system_name, next_status)
+	add_log("Base status debug (%s -> %s):\n%s" % [system_name, next_status, String(manager.call("debug_values_text"))])
+
+func _debug_reset_base_status() -> void:
+	var manager := get_node_or_null("/root/BaseStatusManager")
+	if manager != null and manager.has_method("reset_to_arrival"):
+		manager.call("reset_to_arrival")
+		add_log("Base status debug: reset to Day 01.\n%s" % String(manager.call("debug_values_text")))
+
+func _debug_set_base_status_minimum_stable() -> void:
+	var manager := get_node_or_null("/root/BaseStatusManager")
+	if manager != null and manager.has_method("set_minimum_stable_state"):
+		manager.call("set_minimum_stable_state")
+		add_log("Base status debug: minimum stable state.\n%s" % String(manager.call("debug_values_text")))
 
 func _toggle_dev_menu() -> void:
 	if not has_node("UI/Root/DevMenu"):
