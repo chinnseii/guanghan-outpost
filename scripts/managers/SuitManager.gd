@@ -166,6 +166,21 @@ func consume_suit_resources(minutes: int, activity_type: String = DEFAULT_ACTIVI
 	_save_state()
 	suit_changed.emit()
 
+## Fixed-amount drain for a single costed action (e.g. a training
+## inspection/repair step), as opposed to consume_suit_resources()'s
+## per-hour rate. Same "no-op if not worn" guard, but returns false in that
+## case so a caller building a training result dict can tell the
+## deduction didn't happen (consume_suit_resources() is void and used in a
+## fire-and-forget context, so it didn't need this).
+func consume_suit_resource_fixed(oxygen_cost: float, power_cost: float, reason: String = "") -> bool:
+	if not is_suit_worn:
+		return false
+	suit_oxygen = max(suit_oxygen - oxygen_cost, 0.0)
+	suit_power = max(suit_power - power_cost, 0.0)
+	_save_state()
+	suit_changed.emit()
+	return true
+
 ## -- Speed multiplier / upgrades
 
 func get_suit_speed_multiplier() -> float:

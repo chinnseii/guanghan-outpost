@@ -228,6 +228,85 @@ static func _faults() -> Dictionary:
 		"on_repair_success": {},
 		"unresolved_effect": {"greenhouse": {"light_stress": 0.15}},
 	},
+
+	# -- Training-only fault card (训练模块 03：月面太阳能板维修). Its options
+	# are written as plain Dictionary literals instead of going through
+	# _option() below, because they need extra fields (suit_oxygen_cost/
+	# suit_power_cost/energy_cost/option_type/result_message/new_hint) that
+	# only the training repair path
+	# (RepairManager.apply_repair_option(..., {"context": "training", ...}))
+	# reads -- the real mission's attempt_repair()/apply_repair_success()/
+	# apply_repair_failure() never look at these, so extending the shared
+	# _option() helper's positional signature for all 16 existing cards
+	# would've been unnecessary churn for a training-only feature.
+	"FA-TR-SOLAR-001": {
+		"display_name": "月尘导致主电缆接口接触不良",
+		"system": "power",
+		"severity": 1,
+		"training_module": "training_03_solar_panel_repair",
+		"symptom_text": "太阳能阵列输出低。\n阵列本体未破裂。\n控制器未报告核心损坏。\n主电缆接口处检测到月尘堆积。",
+		"hidden_hint": "控制器没有报告核心损坏代码，输出波动更像接口接触不良，不是控制器本身故障。",
+		"repair_options": [
+			{
+				"option_id": "adjust_panel_angle",
+				"display_name": "调整阵列角度",
+				"description": "尝试重新调整太阳能阵列朝向。",
+				"option_type": "suboptimal",
+				"is_correct": false,
+				"time_cost_minutes": 30,
+				"required_items": {},
+				"suit_oxygen_cost": 4.0,
+				"suit_power_cost": 4.0,
+				"energy_cost": 6.0,
+				"result_message": "角度调整完成，但输出仍不稳定。\n故障可能不在阵列朝向。",
+				"new_hint": "新的线索：主电缆接口仍有接触异常。",
+			},
+			{
+				"option_id": "clean_cable_interface",
+				"display_name": "清理电缆接口",
+				"description": "清理主电缆接口处的月尘堆积。",
+				"option_type": "correct",
+				"is_correct": true,
+				"time_cost_minutes": 30,
+				"required_items": {"TR-MT-001": 1},
+				"suit_oxygen_cost": 4.0,
+				"suit_power_cost": 4.0,
+				"energy_cost": 8.0,
+				"result_message": "月尘清理完成。\n太阳能阵列输出恢复。\n\n维修成功。\n太阳能阵列恢复基础输出。\n月昼期间，太阳能阵列将成为基地电力恢复的主要来源。",
+				"new_hint": "",
+			},
+			{
+				"option_id": "replace_solar_controller",
+				"display_name": "更换太阳能控制器",
+				"description": "尝试更换太阳能阵列控制器。",
+				"option_type": "wrong",
+				"is_correct": false,
+				"time_cost_minutes": 45,
+				"required_items": {"TR-MT-002": 1},
+				"suit_oxygen_cost": 6.0,
+				"suit_power_cost": 6.0,
+				"energy_cost": 10.0,
+				"result_message": "控制器更换完成，但输出异常仍然存在。\n太阳能阵列未修复。\n\n控制器没有损坏。\n电子元件已消耗。\n错误判断导致维修时间增加。",
+				"new_hint": "",
+			},
+			{
+				"option_id": "force_full_power_switch",
+				"display_name": "强行切换满功率输入：高风险",
+				"description": "强行让太阳能阵列切换到满功率输入模式，跳过故障确认。",
+				"option_type": "high_risk",
+				"is_correct": false,
+				"time_cost_minutes": 30,
+				"required_items": {"TR-MT-002": 1},
+				"suit_oxygen_cost": 5.0,
+				"suit_power_cost": 5.0,
+				"energy_cost": 8.0,
+				"result_message": "接口过载保护启动。\n太阳能阵列仍未修复。\n训练供电系统稳定性下降。",
+				"new_hint": "",
+			},
+		],
+		"on_repair_success": {},
+		"unresolved_effect": {},
+	},
 }
 
 static func _option(

@@ -487,6 +487,59 @@ const ITEMS := {
 		"quality": 1,
 	},
 
+	# -- Training-only materials: exist purely for training rooms' own
+	# InventoryManager containers (e.g. "training_03_parts"), never added to
+	# the real player inventory/StorageManager and never touched by mission
+	# gameplay. Kept in the same ITEMS table as everything else so
+	# RepairManager/FaultDatabase can reference a real, well-formed item_id
+	# instead of a magic string, but the "training" tag marks them as
+	# training-scope so they're easy to spot/exclude if a future pass wants
+	# to filter them out of any real-inventory UI listing.
+	"TR-MT-001": {
+		"display_name": "通用备件",
+		"category": "material",
+		"subcategory": "training",
+		"description": "训练用通用备件，仅用于训练场景的维修练习。",
+		"weight": 1.0,
+		"stackable": true,
+		"max_stack": 99,
+		"can_eat": false,
+		"can_use": false,
+		"use_model": "none",
+		"consumable": false,
+		"has_durability": false,
+		"max_durability": 0.0,
+		"durability_loss_per_use": 0.0,
+		"broken_when_zero": false,
+		"effects": {},
+		"use_time_minutes": 0,
+		"storage_type": "stack",
+		"tags": ["material", "training", "repair"],
+		"quality": 1,
+	},
+	"TR-MT-002": {
+		"display_name": "训练电子元件",
+		"category": "material",
+		"subcategory": "training",
+		"description": "训练用电子元件，仅用于训练场景的维修练习。",
+		"weight": 1.0,
+		"stackable": true,
+		"max_stack": 99,
+		"can_eat": false,
+		"can_use": false,
+		"use_model": "none",
+		"consumable": false,
+		"has_durability": false,
+		"max_durability": 0.0,
+		"durability_loss_per_use": 0.0,
+		"broken_when_zero": false,
+		"effects": {},
+		"use_time_minutes": 0,
+		"storage_type": "stack",
+		"tags": ["material", "training", "repair"],
+		"quality": 1,
+	},
+
 	# -- Tools: default tools (suit/base built-in, never enter inventory) and
 	# usable durable tools (do enter inventory, one instance per item).
 	"TL-EX-001": {

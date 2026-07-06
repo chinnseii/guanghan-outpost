@@ -18,6 +18,15 @@ var last_durable_instance_id: String = ""
 
 var _next_durable_instance_number: int = 1
 
+## Training-only named containers (e.g. "training_03_parts"), keyed by
+## container_id -> {item_id: quantity}. Completely separate from
+## stack_items/durable_items (the real player inventory) -- training rooms
+## get their own container instead of add_item()/remove_item() touching the
+## real inventory, and these are never persisted (see serialize() below):
+## training material shouldn't survive a reload any more than it should
+## leak into the mission save.
+var training_containers: Dictionary = {}
+
 func _ready() -> void:
 	load_state()
 
@@ -26,8 +35,56 @@ func reset_to_arrival() -> void:
 	durable_items.clear()
 	last_durable_instance_id = ""
 	_next_durable_instance_number = 1
+	training_containers.clear()
 	_save_state()
 	inventory_changed.emit()
+
+## -- Training-only containers
+
+func create_container(container_id: String) -> void:
+	if not training_containers.has(container_id):
+		training_containers[container_id] = {}
+
+func clear_container(container_id: String) -> void:
+	training_containers[container_id] = {}
+
+func add_item_to_container(container_id: String, item_id: String, amount: int = 1) -> bool:
+	if amount <= 0:
+		return false
+	create_container(container_id)
+	var container: Dictionary = training_containers[container_id]
+	container[item_id] = int(container.get(item_id, 0)) + amount
+	training_containers[container_id] = container
+	return true
+
+func remove_item_from_container(container_id: String, item_id: String, amount: int = 1) -> bool:
+	if amount <= 0:
+		return false
+	if not training_containers.has(container_id):
+		return false
+	var container: Dictionary = training_containers[container_id]
+	var current: int = int(container.get(item_id, 0))
+	if current < amount:
+		return false
+	var remaining: int = current - amount
+	if remaining <= 0:
+		container.erase(item_id)
+	else:
+		container[item_id] = remaining
+	training_containers[container_id] = container
+	return true
+
+func has_item_in_container(container_id: String, item_id: String, amount: int = 1) -> bool:
+	if not training_containers.has(container_id):
+		return false
+	var container: Dictionary = training_containers[container_id]
+	return int(container.get(item_id, 0)) >= amount
+
+func get_container_item_count(container_id: String, item_id: String) -> int:
+	if not training_containers.has(container_id):
+		return 0
+	var container: Dictionary = training_containers[container_id]
+	return int(container.get(item_id, 0))
 
 ## -- Stackable items
 

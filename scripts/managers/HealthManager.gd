@@ -312,6 +312,14 @@ func adjust_stat(stat_name: String, delta: float) -> void:
 	_save_state()
 	_emit_changed()
 
+## Fixed-amount energy deduction for cross-system callers that want to
+## spend a specific amount for a one-off action (e.g. a training repair
+## step) rather than go through the action-cost lookup table. `reason`
+## isn't branched on, it's for caller-side logging only. Goes through
+## adjust_stat() so clamping/saving/signal emission stay centralized.
+func consume_energy(amount: float, reason: String = "") -> void:
+	adjust_stat("energy", -amount)
+
 ## Called by InventoryManager when a food/consumable item is eaten or used.
 ## Keys are stat names matching adjust_stat(); unknown keys are ignored via
 ## adjust_stat()'s own match. Goes through adjust_stat() so clamping/saving/

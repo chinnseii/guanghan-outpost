@@ -7,7 +7,15 @@ const APPLICATION_PROFILE_PATH := "user://saves/application_profile.json"
 const START_SCENE := "res://scenes/training/TrainingStartScene.tscn"
 const MODULE_01 := "res://scenes/training/Training_01_SuitControl.tscn"
 const MODULE_02 := "res://scenes/training/Training_02_AirlockProcedure.tscn"
-const MODULE_03 := "res://scenes/training/Training_03_PowerRepair.tscn"
+## 训练模块 03："月面太阳能板维修" (太阳能阵列训练场) -- new content lives in a
+## new scene file per the design spec, but keeps the existing "power_repair"
+## module_id/PowerRepairCompleted flag (see the scene script's _power_config()
+## for why: renaming would touch are_required_modules_completed()/
+## default_data()/MODULE_SCENES for no functional benefit, same reasoning as
+## training room 1's "suit_control" module_id being kept). The old
+## Training_03_PowerRepair.tscn file is left in place, unused, rather than
+## deleted.
+const MODULE_03 := "res://scenes/training/SolarArrayTrainingField.tscn"
 const MODULE_04 := "res://scenes/training/Training_04_LifeSupport.tscn"
 const MODULE_05 := "res://scenes/training/Training_05_PlantDiagnosis.tscn"
 const FINAL_ASSESSMENT := "res://scenes/training/FinalAssessmentScene.tscn"
@@ -65,7 +73,21 @@ static func default_data() -> Dictionary:
 		"SuitState": {},
 	}
 
-static func load_progress() -> Dictionary:
+## Reads the raw progress flags (completion booleans, CurrentTrainingModule,
+## etc.) merged over default_data(), with NO side effects on live managers.
+## Use this (not load_progress()) from anywhere that just needs to read/edit
+## flags mid-session -- e.g. set_current_module()/mark_module_completed()
+## below. load_progress()'s manager-deserialize step is only correct for a
+## genuine restore-from-disk (app launch/resume), since it overwrites
+## whatever's currently live with the LAST-SAVED snapshot; calling it mid-session,
+## after live managers have already changed since that snapshot (e.g. the
+## player wore the EVA suit), would silently discard that change the moment
+## save_progress() is next called. (Found while wiring 训练模块 03's suit-worn
+## entry gate: SuitManager.is_suit_worn was being reset back to false by
+## mark_module_completed() at the end of every prior module, since that
+## function's own load_progress() call re-synced from the stale snapshot
+## captured when the module started, before the suit was worn.)
+static func _read_progress_data() -> Dictionary:
 	var data := default_data()
 	if not FileAccess.file_exists(SAVE_PATH):
 		return data
@@ -78,6 +100,10 @@ static func load_progress() -> Dictionary:
 	var saved: Dictionary = parsed
 	for key in saved.keys():
 		data[key] = saved[key]
+	return data
+
+static func load_progress() -> Dictionary:
+	var data := _read_progress_data()
 	var manager := _time_manager()
 	if manager != null and manager.has_method("deserialize") and data.get("TimeState", {}) is Dictionary:
 		manager.call("deserialize", data.get("TimeState", {}))
@@ -207,14 +233,14 @@ static func start_training() -> void:
 		training_time_manager.call("start_training_time")
 
 static func set_current_module(module_id: String) -> void:
-	var data := load_progress()
+	var data := _read_progress_data()
 	data["TrainingStarted"] = true
 	data["CurrentTrainingModule"] = module_id
 	data["CurrentSceneAfterTraining"] = String(MODULE_SCENES.get(module_id, START_SCENE))
 	save_progress(data)
 
 static func mark_module_completed(module_id: String, next_module_id: String) -> void:
-	var data := load_progress()
+	var data := _read_progress_data()
 	data["TrainingStarted"] = true
 	match module_id:
 		"suit_control":

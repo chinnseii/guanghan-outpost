@@ -3,6 +3,9 @@ extends Control
 const TrainingManagerScript := preload("res://scripts/training/training_manager.gd")
 const PlayerControllerScript := preload("res://scripts/controllers/player_controller_2d.gd")
 const InteractionAreaScript := preload("res://scripts/controllers/interaction_area_2d.gd")
+const FaultDatabaseScript := preload("res://scripts/data/FaultDatabase.gd")
+
+const TRAINING_03_CONTAINER_ID := "training_03_parts"
 
 # Maps TrainingTargetVisual.kind -> a reusable res://scenes/props/... scene
 # (reference_prop.gd based). Kinds without an entry keep drawing procedurally
@@ -720,6 +723,10 @@ var interaction_target_id := ""
 var wait_timer := 0.0
 var player_speed := 280.0
 var player_controller: RefCounted
+## power_repair (太阳能阵列训练场) only: true when SuitManager reports the
+## suit isn't worn on scene entry. Blocks movement/interaction and pins the
+## briefing modal open with an error, instead of the normal briefing flow.
+var entry_blocked := false
 
 func _ready() -> void:
 	_ensure_input_actions()
@@ -727,15 +734,24 @@ func _ready() -> void:
 	module_data = _module_config(module_id)
 	TrainingManagerScript.set_current_module(module_id)
 	_sync_completed_state_from_progress()
+	if module_id == "power_repair" and not completed:
+		var suit_manager := _suit_manager()
+		entry_blocked = suit_manager == null or not bool(suit_manager.get("is_suit_worn"))
 	_build_screen()
 	_update_hud()
 	if completed:
 		briefing_visible = false
 		if briefing_modal != null:
 			briefing_modal.visible = false
+	elif entry_blocked:
+		_show_entry_blocked_dialog()
+	elif module_id == "power_repair":
+		_setup_training_03_container()
 	_sync_overlay_visibility()
 
 func _process(delta: float) -> void:
+	if entry_blocked:
+		return
 	if briefing_visible or pause_visible or interaction_running:
 		_update_room_prompt()
 		return
@@ -746,6 +762,8 @@ func _process(delta: float) -> void:
 	_update_room_prompt()
 
 func _unhandled_input(event: InputEvent) -> void:
+	if entry_blocked:
+		return
 	if event.is_action_pressed("mission_panel"):
 		_toggle_mission_panel()
 	if event.is_action_pressed("interact") and completed and not briefing_visible and not pause_visible and not interaction_running:
@@ -1014,7 +1032,7 @@ func _build_suit_status_panel() -> void:
 	suit_status_text_label.add_theme_font_size_override("font_size", 16)
 	box.add_child(suit_status_text_label)
 	var confirm := Button.new()
-	confirm.text = "确认状态"
+	confirm.text = "确认外勤状态" if module_id == "power_repair" else "确认状态"
 	confirm.custom_minimum_size = Vector2(0, 42)
 	confirm.pressed.connect(_on_confirm_suit_status_pressed)
 	box.add_child(confirm)
@@ -1037,13 +1055,21 @@ func _refresh_suit_status_panel() -> void:
 		suit_status_text_label.text = "宇航服数据不可用。"
 		return
 	var data: Dictionary = suit_manager.call("get_suit_status_for_ui")
-	suit_status_text_label.text = "氧气：%.0f / %.0f\n电力：%.0f / %.0f\n密封：%s\n通信：%s\n移动倍率：%.2f\n\n初代宇航服会降低行动速度。后续升级可将移动倍率提升至 1.00。" % [
-		float(data.get("oxygen", 0.0)), float(data.get("oxygen_capacity", 0.0)),
-		float(data.get("power", 0.0)), float(data.get("power_capacity", 0.0)),
+	var text := "宇航服状态\n\n氧气储备：%.0f%%\n电力储备：%.0f%%\n密封状态：%s\n通信链路：%s\n移动倍率：%.2f" % [
+		float(data.get("oxygen", 0.0)), float(data.get("power", 0.0)),
 		_suit_seal_label(String(data.get("seal_status", "normal"))),
 		_suit_comm_label(String(data.get("comm_status", "online"))),
 		float(data.get("speed_multiplier", 0.8)),
 	]
+	# Extra narrative context lines specific to the solar array EVA training
+	# room -- kept as a module_id check here rather than a second copy of
+	# this whole panel, since every other module just wants the plain
+	# oxygen/power/seal/comm/speed readout.
+	if module_id == "power_repair":
+		text += "\n\n当前环境：真空模拟\n外勤任务：太阳能阵列维修"
+	else:
+		text += "\n\n初代宇航服会降低行动速度。后续升级可将移动倍率提升至 1.00。"
+	suit_status_text_label.text = text
 
 func _suit_seal_label(status: String) -> String:
 	if status == "normal":
@@ -1073,6 +1099,18 @@ func _suit_manager() -> Node:
 	if tree == null or tree.root == null:
 		return null
 	return tree.root.get_node_or_null("SuitManager")
+
+func _repair_manager() -> Node:
+	var tree := get_tree()
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null("RepairManager")
+
+func _training_inventory_manager() -> Node:
+	var tree := get_tree()
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null("InventoryManager")
 
 func _build_briefing_modal() -> void:
 	briefing_scrim = ColorRect.new()
@@ -1615,6 +1653,9 @@ func _try_interact() -> void:
 	if step_type == "suit_status_panel":
 		hint_label.text = "请按 Tab 查看宇航服状态面板。"
 		return
+	if step_type == "solar_fault_diagnosis":
+		hint_label.text = "请在维修方案面板中选择一个排查方向。"
+		return
 	var target := String(step.get("target", ""))
 	if step_type == "move":
 		if _is_inside_target_area(target):
@@ -1637,6 +1678,9 @@ func _try_interact() -> void:
 		return
 	if step_type == "wear_suit_confirm":
 		_show_wear_suit_confirm_dialog()
+		return
+	if step_type == "inspect_solar_array_confirm":
+		_show_inspect_solar_array_confirm_dialog()
 		return
 	_begin_step_interaction_feedback(step)
 
@@ -1880,6 +1924,10 @@ func _finish_module() -> void:
 	completed = true
 	var next_module := String(module_data.get("next_module", "mission_assignment"))
 	TrainingManagerScript.mark_module_completed(module_id, next_module)
+	if module_id == "power_repair":
+		var inventory_manager := _training_inventory_manager()
+		if inventory_manager != null and inventory_manager.has_method("clear_container"):
+			inventory_manager.call("clear_container", TRAINING_03_CONTAINER_ID)
 	if module_id == "final_assessment":
 		# Training passed -- stop the archive countdown so it can't still
 		# time out and fail an already-completed candidate.
@@ -2299,6 +2347,260 @@ func _show_wear_suit_confirm_dialog() -> void:
 	diagnosis_modal_actions.add_child(cancel)
 	_sync_overlay_visibility()
 
+## -- Training module 03 (太阳能阵列训练场) -- see FA-TR-SOLAR-001 in
+## FaultDatabase.gd for the actual fault/option data this reads.
+
+func _show_inspect_solar_array_confirm_dialog() -> void:
+	if diagnosis_panel != null:
+		diagnosis_panel.visible = false
+	if diagnosis_modal_scrim != null:
+		diagnosis_modal_scrim.visible = true
+	if diagnosis_modal != null:
+		diagnosis_modal.visible = true
+	if diagnosis_modal_image != null:
+		diagnosis_modal_image.texture = null
+	if diagnosis_modal_text != null:
+		diagnosis_modal_text.text = "检查太阳能阵列\n\n预计耗时：15 分钟。\n训练时间将推进。\n宇航服氧气与电力将少量消耗。\n\n是否继续？"
+	_clear_container(diagnosis_modal_actions)
+	var confirm := Button.new()
+	confirm.text = "确认检查"
+	confirm.custom_minimum_size = Vector2(0, 42)
+	confirm.pressed.connect(func():
+		_hide_training_diagnosis_modal()
+		_confirm_inspect_solar_array()
+	)
+	diagnosis_modal_actions.add_child(confirm)
+	var cancel := Button.new()
+	cancel.text = "取消"
+	cancel.custom_minimum_size = Vector2(0, 42)
+	cancel.pressed.connect(func():
+		hint_label.text = "已取消检查。"
+		_hide_training_diagnosis_modal()
+	)
+	diagnosis_modal_actions.add_child(cancel)
+	_sync_overlay_visibility()
+
+## Fixed costs per the design spec (15 min / -2 oxygen / -2 power / -2
+## energy) -- hand-applied here rather than going through
+## RepairManager.apply_repair_option() because this is a plain inspection
+## step, not a repair-option choice; RepairManager's training path is
+## reserved for the actual fault_id/option_id flow in
+## _execute_solar_repair_option() below.
+func _confirm_inspect_solar_array() -> void:
+	var training_time_manager := _training_time_manager()
+	if training_time_manager != null and training_time_manager.has_method("advance_training_time"):
+		training_time_manager.call("advance_training_time", 15, "inspect_solar_array")
+	var suit_manager := _suit_manager()
+	if suit_manager != null and suit_manager.has_method("consume_suit_resource_fixed"):
+		suit_manager.call("consume_suit_resource_fixed", 2.0, 2.0, "inspect_solar_array")
+	var health_manager := _health_manager()
+	if health_manager != null and health_manager.has_method("consume_energy"):
+		health_manager.call("consume_energy", 2.0, "inspect_solar_array")
+	_complete_step()
+
+## Auto-shown by _update_hud() whenever the current step is
+## "solar_fault_diagnosis" (same pattern as the existing "diagnosis" step
+## type) -- rebuilt every time so the option buttons/feedback text always
+## reflect the current training_03_parts container contents.
+func _show_solar_fault_diagnosis() -> void:
+	if diagnosis_panel != null:
+		diagnosis_panel.visible = false
+	if diagnosis_modal_scrim != null:
+		diagnosis_modal_scrim.visible = true
+	if diagnosis_modal != null:
+		diagnosis_modal.visible = true
+	if diagnosis_modal_image != null:
+		diagnosis_modal_image.texture = null
+	var fault: Dictionary = FaultDatabaseScript.get_fault("FA-TR-SOLAR-001")
+	if diagnosis_modal_text != null:
+		diagnosis_modal_text.text = _solar_fault_panel_text()
+	_clear_container(diagnosis_modal_actions)
+	for option in fault.get("repair_options", []):
+		if not (option is Dictionary):
+			continue
+		var option_data: Dictionary = option
+		var option_id := String(option_data.get("option_id", ""))
+		var is_high_risk := String(option_data.get("option_type", "")) == "high_risk"
+		var button := Button.new()
+		button.text = "[%s]" % String(option_data.get("display_name", option_id))
+		if is_high_risk:
+			button.modulate = Color("#ff6b6b")
+		button.custom_minimum_size = Vector2(0, 42)
+		button.pressed.connect(func():
+			if is_high_risk:
+				_show_high_risk_repair_confirm(option_id)
+			else:
+				_execute_solar_repair_option(option_id)
+		)
+		diagnosis_modal_actions.add_child(button)
+	_sync_overlay_visibility()
+
+## The "强行切换满功率输入" option requires its own second confirmation
+## (spec section 13) before actually executing -- reuses the same modal,
+## replacing its buttons with confirm/cancel; canceling rebuilds the
+## normal option list via _show_solar_fault_diagnosis().
+func _show_high_risk_repair_confirm(option_id: String) -> void:
+	if diagnosis_modal_text != null:
+		diagnosis_modal_text.text = "高风险操作\n\n当前故障原因未确认。\n强行切换满功率输入可能导致接口过载，并消耗额外训练资源。\n\n是否继续？"
+	_clear_container(diagnosis_modal_actions)
+	var confirm := Button.new()
+	confirm.text = "确认执行"
+	confirm.modulate = Color("#ff6b6b")
+	confirm.custom_minimum_size = Vector2(0, 42)
+	confirm.pressed.connect(func(): _execute_solar_repair_option(option_id))
+	diagnosis_modal_actions.add_child(confirm)
+	var cancel := Button.new()
+	cancel.text = "取消"
+	cancel.custom_minimum_size = Vector2(0, 42)
+	cancel.pressed.connect(func(): _show_solar_fault_diagnosis())
+	diagnosis_modal_actions.add_child(cancel)
+	_sync_overlay_visibility()
+
+## The one place that actually calls RepairManager.apply_repair_option()
+## with context == "training" -- materials come from training_03_parts
+## (never StorageManager), time goes to TrainingTimeManager (never the
+## real TimeManager), and no real BaseStatusManager/AirSystemManager/
+## WaterSystemManager/PowerSystemManager gets touched (the training path
+## in RepairManager skips _apply_effects() entirely). Only completes the
+## step (advancing past the diagnosis) when fault_fixed is true; wrong
+## options update the message/hint in place and leave the panel open for
+## another attempt, then check whether training_03_parts has run out of
+## the one material the correct option needs.
+func _execute_solar_repair_option(option_id: String) -> void:
+	var repair_manager := _repair_manager()
+	if repair_manager == null or not repair_manager.has_method("apply_repair_option"):
+		hint_label.text = "维修系统不可用。"
+		return
+	var result: Dictionary = repair_manager.call("apply_repair_option", "FA-TR-SOLAR-001", option_id, {
+		"context": "training",
+		"container_id": TRAINING_03_CONTAINER_ID,
+	})
+	var message := String(result.get("message", ""))
+	if bool(result.get("fault_fixed", false)):
+		_hide_training_diagnosis_modal()
+		_add_log(message)
+		_complete_step()
+		return
+	if not bool(result.get("success", false)):
+		hint_label.text = message
+		return
+	var new_hint := String(result.get("new_hint", ""))
+	if diagnosis_modal_text != null:
+		diagnosis_modal_text.text = "%s\n\n%s" % [message, _solar_fault_panel_text()] if new_hint.is_empty() else "%s\n\n%s\n\n%s" % [message, new_hint, _solar_fault_panel_text()]
+	_add_log(message)
+	_check_solar_parts_depleted()
+
+## Section 18 of the spec: if the one material the correct option needs
+## (通用备件/TR-MT-001) has run out and the fault still isn't fixed,
+## training fails outright rather than leaving the player stuck with no
+## way to ever complete the module.
+func _check_solar_parts_depleted() -> void:
+	var state: Dictionary = module_data.get("state", {})
+	if bool(state.get("SolarArrayRepaired", false)):
+		return
+	var inventory_manager := _training_inventory_manager()
+	if inventory_manager == null or not inventory_manager.has_method("has_item_in_container"):
+		return
+	if bool(inventory_manager.call("has_item_in_container", TRAINING_03_CONTAINER_ID, "TR-MT-001", 1)):
+		return
+	hint_label.text = "维修备件不足。\n太阳能阵列无法完成基础修复。"
+	TrainingManagerScript.fail_training("training_03_parts_depleted")
+
+func _solar_fault_panel_text() -> String:
+	var lines: Array[String] = [
+		"太阳能阵列 A：输出异常",
+		"",
+		"异常现象：",
+		"- 阵列角度偏移",
+		"- 输出功率低于预期",
+		"- 主电缆接口有月尘堆积",
+		"- 控制器未报告核心损坏",
+	]
+	var hint := _solar_specialist_hint()
+	if not hint.is_empty():
+		lines.append("")
+		lines.append(hint)
+	lines.append("")
+	lines.append("请选择排查方向：")
+	return "\n".join(lines)
+
+## Same background-reading convention as BaseStatusManager.get_specialist_hint()
+## (reads the same user://saves/application_profile.json "EducationBackground"
+## field) -- info only, per the spec: never reduces time/material cost, never
+## names the correct option outright.
+func _solar_specialist_hint() -> String:
+	match _academic_background():
+		"机械工程":
+			return "专业判断：\n控制器未出现核心损坏代码。\n输出波动更像接口接触不良。\n建议优先处理主电缆接口，而不是更换控制器。"
+		"材料科学":
+			return "专业判断：\n接口处月尘附着可能影响接触稳定。\n阵列表面未见明显结构裂纹。"
+		"医学":
+			return "专业判断：\n当前处于宇航服外勤状态。\n如果继续执行长时间操作，请注意氧气与精力消耗。"
+		"植物科学":
+			return "本模块无额外专业优势。"
+	return ""
+
+func _academic_background() -> String:
+	var path := "user://saves/application_profile.json"
+	if not FileAccess.file_exists(path):
+		return ""
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		return ""
+	var parsed: Variant = JSON.parse_string(file.get_as_text())
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return ""
+	var data := parsed as Dictionary
+	return String(data.get("EducationBackground", data.get("education_background", "")))
+
+## Entry gate (spec: player must already be wearing the suit to enter the
+## lunar-surface vacuum simulation). Pins the existing briefing modal open
+## with an error and a single "返回主菜单" button instead of the normal
+## "确认，开始训练" flow; _process()/_unhandled_input() bail out early
+## while entry_blocked is true, so no movement/interaction is possible.
+func _show_entry_blocked_dialog() -> void:
+	briefing_visible = true
+	if briefing_scrim != null:
+		briefing_scrim.visible = true
+	if briefing_modal == null:
+		return
+	briefing_modal.visible = true
+	_clear_container(briefing_modal)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 14)
+	briefing_modal.add_child(box)
+	var title := Label.new()
+	title.text = "无法进入训练"
+	title.modulate = Color("#ff6b6b")
+	title.add_theme_font_size_override("font_size", 24)
+	box.add_child(title)
+	var body := Label.new()
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.modulate = Color("#c6d5df")
+	body.add_theme_font_size_override("font_size", 16)
+	body.text = "未检测到宇航服穿戴状态。无法进入月面真空模拟环境。\n\n请先完成宇航服穿戴，再进入本训练模块。"
+	box.add_child(body)
+	var button := Button.new()
+	button.text = "返回主菜单"
+	button.custom_minimum_size = Vector2(0, 44)
+	button.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/main.tscn"))
+	box.add_child(button)
+
+## Training-only container, kept entirely separate from the real inventory/
+## StorageManager (per spec) -- reset every time the module is (re)entered
+## so retrying after a failure always starts with the full starting stock.
+func _setup_training_03_container() -> void:
+	var inventory_manager := _training_inventory_manager()
+	if inventory_manager == null:
+		return
+	if inventory_manager.has_method("create_container"):
+		inventory_manager.call("create_container", TRAINING_03_CONTAINER_ID)
+	if inventory_manager.has_method("clear_container"):
+		inventory_manager.call("clear_container", TRAINING_03_CONTAINER_ID)
+	if inventory_manager.has_method("add_item_to_container"):
+		inventory_manager.call("add_item_to_container", TRAINING_03_CONTAINER_ID, "TR-MT-001", 2)
+		inventory_manager.call("add_item_to_container", TRAINING_03_CONTAINER_ID, "TR-MT-002", 1)
+
 func _hide_training_diagnosis_modal() -> void:
 	if diagnosis_modal_scrim != null:
 		diagnosis_modal_scrim.visible = false
@@ -2356,6 +2658,8 @@ func _update_hud() -> void:
 		hint_label.text = String(step.get("hint", "移动至目标区域，按 E 交互。")) if not completed else "训练记录已保存。"
 	if String(step.get("type", "")) == "diagnosis":
 		_show_diagnosis_options(step.get("options", []), String(step.get("correct", "")))
+	if String(step.get("type", "")) == "solar_fault_diagnosis":
+		_show_solar_fault_diagnosis()
 	if completed:
 		hint_label.text = _completed_hint_text()
 	_sync_overlay_visibility()
@@ -2404,51 +2708,61 @@ func _airlock_hint(step: Dictionary) -> String:
 	return "请按气闸流程继续。"
 
 func _power_hud_text() -> String:
-	return "氧气模拟值：98%%\n电力模拟值：%s\n生命支持状态：训练环境\n提示信息：%s" % [_power_status(), _power_hint(_current_step())]
+	var lines: Array[String] = ["训练供电系统：%s" % _power_status()]
+	var warning := _eva_resource_warning()
+	if not warning.is_empty():
+		lines.append(warning)
+	return "\n".join(lines)
 
+## "Critical -> Basic" per the design spec's own wording -- this is a
+## training-scene-local flag (module_data["state"]["SolarArrayRepaired"]),
+## not a real BaseStatusManager/PowerSystemManager value. Training must
+## never touch those.
 func _power_status() -> String:
 	var state: Dictionary = module_data.get("state", {})
-	if bool(state.get("PowerRestored", false)) or bool(state.get("TestLightOn", false)):
-		return "稳定"
-	if bool(state.get("PowerPanelRepaired", false)) or bool(state.get("PowerPanelInspected", false)):
-		return "维修中"
-	return "故障"
+	return "Basic" if bool(state.get("SolarArrayRepaired", false)) else "Critical"
+
+## Low-resource EVA warning (spec section 17). Deliberately does not force
+## a scene transition or fail the module immediately -- if the player
+## can't recover, the archive time limit running out is what eventually
+## fails training (TrainingTimeManager.check_training_timeout() already
+## handles that; this room doesn't need its own timeout system).
+func _eva_resource_warning() -> String:
+	var suit_manager := _suit_manager()
+	if suit_manager == null:
+		return ""
+	var oxygen: float = float(suit_manager.get("suit_oxygen"))
+	var power: float = float(suit_manager.get("suit_power"))
+	if oxygen < 20.0:
+		return "宇航服氧气不足。\n外勤训练必须中止。"
+	if power < 20.0:
+		return "宇航服电力不足。\n外勤操作受限，请返回气闸。"
+	return ""
 
 func _power_visual_status(node_name: String) -> String:
 	var state: Dictionary = module_data.get("state", {})
-	match node_name:
-		"panel":
-			if bool(state.get("PowerPanelRepaired", false)):
-				return "repaired"
-			if bool(state.get("PowerPanelInspected", false)):
-				return "repairing"
-			return "fault"
-		"console":
-			if bool(state.get("PowerRestored", false)):
-				return "restored"
-		"light":
-			if bool(state.get("TestLightOn", false)) or bool(state.get("PowerRestored", false)):
-				return "on"
+	if node_name == "solar_array_fault":
+		if bool(state.get("SolarArrayRepaired", false)):
+			return "repaired"
+		if bool(state.get("SolarArrayInspected", false)):
+			return "inspected"
+		return "fault"
 	return ""
 
 func _power_hint(step: Dictionary) -> String:
-	var state: Dictionary = module_data.get("state", {})
-	match String(step.get("target", "")):
-		"tools":
-			return "请前往工具台，取用维修工具。"
-		"panel":
-			if bool(state.get("PowerPanelInspected", false)):
-				return "请使用维修工具修复供电面板。"
-			return "请靠近故障供电面板并按 E。"
-		"console":
-			return "请前往供电控制台，重启训练舱供电。"
-		"light":
-			return "请确认测试灯已亮起。"
-		"exit":
-			return "模块三记录已完成。\n请前往训练出口，进入下一训练模块。"
-	if String(step.get("type", "")) == "wait":
-		return "请观察测试灯恢复。"
-	return "请按供电维修流程继续。"
+	match String(step.get("type", "")):
+		"suit_status_panel":
+			return "按 Tab 查看宇航服外勤状态。"
+		"move":
+			return "请前往太阳能阵列故障点。"
+		"inspect_solar_array_confirm":
+			return "请靠近太阳能阵列 A 并按 E 检查故障。"
+		"solar_fault_diagnosis":
+			return "请按 E 打开维修方案面板，选择排查方向。"
+		"interact":
+			if String(step.get("target", "")) == "exit":
+				return "月面太阳能板维修训练已完成。\n请前往训练出口，进入下一训练模块。"
+	return "请按太阳能阵列维修流程继续。"
 
 func _life_support_hud_text() -> String:
 	var status := _life_support_status()
@@ -2788,30 +3102,31 @@ func _airlock_config() -> Dictionary:
 	}, true)
 	return data
 
+## Room name per design spec: 太阳能阵列训练场 (Solar Array Training Field).
+## Still module_id "power_repair" / SolarArrayTrainingField.tscn -- see the
+## const MODULE_03 comment in training_manager.gd for why the module_id
+## wasn't renamed to "training_03_solar_panel_repair" (same reasoning as
+## room 1 keeping "suit_control").
 func _power_config() -> Dictionary:
 	var data := _base_config()
 	data.merge({
-		"title": "训练模块三：供电维修",
-		"subtitle": "POWER REPAIR",
+		"title": "训练模块三：月面太阳能板维修",
+		"subtitle": "SOLAR ARRAY TRAINING FIELD",
 		"next_module": "life_support",
 		"next_scene": TrainingManagerScript.MODULE_04,
-		"player_start": Vector2(372, 396),
+		"player_start": Vector2(150, 380),
 		"player_size": Vector2(42, 54),
-		"hud": "氧气模拟值：97%\n电力模拟值：下降\n生命支持状态：待供电恢复\n提示信息：先取得工具。",
+		"hud": "当前环境：月面真空模拟\n宇航服生命支持已接管。",
 		"targets": [
-			{"id": "tools", "label": "工具台", "position": Vector2(110, 350), "color": Color("#4b4f37")},
-			{"id": "panel", "label": "故障供电面板", "position": Vector2(390, 170), "color": Color("#5b3c3c")},
-			{"id": "console", "label": "供电控制台", "position": Vector2(620, 220), "color": Color("#31536f")},
-			{"id": "light", "label": "测试灯", "position": Vector2(660, 410), "color": Color("#413f31")},
-			{"id": "exit", "label": "训练出口", "position": Vector2(710, 410), "color": Color("#4d6473")},
+			{"id": "solar_array_fault", "kind": "power_console", "label": "太阳能阵列 A", "position": Vector2(420, 260), "color": Color("#4b3f2a")},
+			{"id": "exit", "label": "返回训练出口", "position": Vector2(700, 400), "color": Color("#274f43")},
 		],
 		"steps": [
-			{"type": "interact", "target": "tools", "objective": "获取维修工具", "line": "维修工具已取用。", "state_updates": {"Module03Started": true, "HasRepairTool": true}},
-			{"type": "interact", "target": "panel", "objective": "检查供电面板", "line": "检测到供电面板故障。\n主供电回路未闭合。", "state_key": "PowerPanelInspected", "requires": {"HasRepairTool": true}, "blocked_hint": "未检测到维修工具。请先前往工具台。"},
-			{"type": "interact", "target": "panel", "objective": "维修供电面板", "line": "维修中……\n供电面板维修完成。", "state_key": "PowerPanelRepaired", "requires": {"HasRepairTool": true, "PowerPanelInspected": true}, "blocked_hint": "请先检查故障供电面板。"},
-			{"type": "interact", "target": "console", "objective": "重启供电", "line": "供电重启中……\n供电恢复。", "state_key": "PowerRestored", "requires": {"PowerPanelRepaired": true}, "blocked_hint": "供电面板尚未修复。无法重启供电。"},
-			{"type": "wait", "target": "light", "objective": "确认灯光恢复", "line": "测试灯已亮起。\n训练舱供电状态：稳定。", "duration": 1.2, "state_key": "TestLightOn", "requires": {"PowerRestored": true}},
-			{"type": "interact", "target": "exit", "objective": "进入下一训练模块", "line": "供电维修训练完成。", "state_key": "Module03Completed", "requires": {"TestLightOn": true}, "blocked_hint": "训练模块尚未完成。"},
+			{"type": "suit_status_panel", "target": "solar_array_fault", "objective": "按 Tab 查看宇航服外勤状态", "line": "宇航服外勤状态已确认。", "state_updates": {"EvaSuitStatusConfirmed": true}},
+			{"type": "move", "target": "solar_array_fault", "objective": "前往太阳能阵列故障点", "line": "已抵达太阳能阵列故障点。"},
+			{"type": "inspect_solar_array_confirm", "target": "solar_array_fault", "objective": "检查太阳能阵列 A", "line": "太阳能阵列检查完成。", "state_updates": {"SolarArrayInspected": true}, "time_minutes": 0},
+			{"type": "solar_fault_diagnosis", "target": "solar_array_fault", "objective": "选择维修方案", "line": "太阳能阵列维修完成。", "state_updates": {"SolarArrayRepaired": true, "Module03Completed": true}, "time_minutes": 0},
+			{"type": "interact", "target": "exit", "objective": "进入下一训练模块", "line": "月面太阳能板维修训练完成。", "requires": {"SolarArrayRepaired": true}, "blocked_hint": "太阳能阵列尚未恢复基础输出，请先完成维修。"},
 		],
 	}, true)
 	return data

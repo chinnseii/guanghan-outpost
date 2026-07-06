@@ -3787,7 +3787,7 @@ func _setup_dev_menu() -> void:
 	))
 	box.add_child(_make_dev_button("Dev Only: Training Module 03", func():
 		TrainingManagerScript.set_current_module("power_repair")
-		get_tree().change_scene_to_file("res://scenes/training/Training_03_PowerRepair.tscn")
+		get_tree().change_scene_to_file(TrainingManagerScript.MODULE_03)
 	))
 	box.add_child(_make_dev_button("Dev Only: Training Module 04", func():
 		TrainingManagerScript.set_current_module("life_support")

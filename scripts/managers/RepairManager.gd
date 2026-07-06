@@ -182,6 +182,146 @@ func apply_repair_failure(fault_id: String, option_id: String) -> bool:
 	repair_state_changed.emit()
 	return true
 
+## Training-aware repair entry point, additive alongside attempt_repair()
+## (which remains completely unchanged for the real mission). Returns a
+## rich result dict {success, fault_fixed, option_type, message, new_hint}
+## instead of a bare bool. When context.context == "training", materials
+## come from an InventoryManager container (context.container_id) instead
+## of the real StorageManager, time goes to TrainingTimeManager instead of
+## the real TimeManager, and _apply_effects()/active_faults/
+## repair_history/_save_state() are all skipped entirely -- training must
+## never touch BaseStatusManager/AirSystemManager/WaterSystemManager/
+## PowerSystemManager, and doesn't need this manager's own persistent
+## fault-tracking state (the training room tracks its own progress via its
+## step engine). For context == "mission" (the default), this just wraps
+## attempt_repair() in the same result shape, unconditionally still going
+## through the untouched real-system codepath.
+func apply_repair_option(fault_id: String, option_id: String, context: Dictionary = {}) -> Dictionary:
+	if String(context.get("context", "mission")) != "training":
+		return _apply_mission_repair_option(fault_id, option_id)
+	return _apply_training_repair_option(fault_id, option_id, context)
+
+func _apply_mission_repair_option(fault_id: String, option_id: String) -> Dictionary:
+	var fault: Dictionary = FaultDatabaseScript.get_fault(fault_id)
+	var option: Dictionary = _find_option(fault, option_id)
+	if option.is_empty():
+		return {"success": false, "fault_fixed": false, "message": "未找到维修方案：%s" % option_id}
+	var is_correct := bool(option.get("is_correct", false))
+	var ok := attempt_repair(fault_id, option_id)
+	return {
+		"success": ok,
+		"fault_fixed": ok and is_correct,
+		"option_type": "correct" if is_correct else "wrong",
+		"message": last_notice,
+	}
+
+func _apply_training_repair_option(fault_id: String, option_id: String, context: Dictionary) -> Dictionary:
+	var fault: Dictionary = FaultDatabaseScript.get_fault(fault_id)
+	if fault.is_empty():
+		return {"success": false, "fault_fixed": false, "message": "未找到故障：%s" % fault_id}
+	var option: Dictionary = _find_option(fault, option_id)
+	if option.is_empty():
+		return {"success": false, "fault_fixed": false, "message": "未找到维修方案：%s" % option_id}
+
+	var container_id := String(context.get("container_id", ""))
+	var is_correct := bool(option.get("is_correct", false))
+	# Training fault options (raw dict literals in FaultDatabase._faults(),
+	# not the shared _option() helper used by mission-only faults) always
+	# store their material cost under "required_items", for correct AND
+	# wrong choices alike -- there is no separate "wrong_item_loss" key here.
+	var items: Dictionary = option.get("required_items", {}) as Dictionary
+	var option_type := String(option.get("option_type", "correct" if is_correct else "wrong"))
+	var suit_oxygen_cost: float = float(option.get("suit_oxygen_cost", 0.0))
+	var suit_power_cost: float = float(option.get("suit_power_cost", 0.0))
+
+	if not _training_suit_can_afford(suit_oxygen_cost, suit_power_cost):
+		return {
+			"success": false,
+			"fault_fixed": false,
+			"option_type": option_type,
+			"message": "宇航服资源不足，无法执行该维修操作。",
+		}
+	if not _training_has_items(container_id, items):
+		return {
+			"success": false,
+			"fault_fixed": false,
+			"option_type": option_type,
+			"message": "维修备件不足，无法执行该操作。",
+		}
+	if not _training_consume_items(container_id, items):
+		return {
+			"success": false,
+			"fault_fixed": false,
+			"option_type": option_type,
+			"message": "维修备件扣除失败。",
+		}
+
+	var minutes: int = int(option.get("time_cost_minutes", 0))
+	_advance_training_time(minutes, "training_%s" % ("repair_success" if is_correct else "repair_failure"))
+
+	var suit_manager := _suit_manager()
+	if suit_manager != null and suit_manager.has_method("consume_suit_resource_fixed"):
+		suit_manager.call(
+			"consume_suit_resource_fixed",
+			suit_oxygen_cost,
+			suit_power_cost,
+			"training_repair_%s" % option_id
+		)
+	var health_manager := _health_manager()
+	if health_manager != null and health_manager.has_method("consume_energy"):
+		health_manager.call("consume_energy", float(option.get("energy_cost", 0.0)), "training_repair_%s" % option_id)
+
+	return {
+		"success": true,
+		"fault_fixed": is_correct,
+		"option_type": option_type,
+		"message": String(option.get("result_message", "")),
+		"new_hint": String(option.get("new_hint", "")),
+	}
+
+## Checked against the suit's *current* reserves, not the EVA-start
+## MIN_EVA_OXYGEN/MIN_EVA_POWER floor -- a repair option should be refused
+## the moment it would require more than what's left, even if the suit is
+## still above the general "can start EVA" threshold.
+func _training_suit_can_afford(oxygen_cost: float, power_cost: float) -> bool:
+	var suit_manager := _suit_manager()
+	if suit_manager == null:
+		return false
+	if not bool(suit_manager.get("is_suit_worn")):
+		return false
+	return float(suit_manager.get("suit_oxygen")) >= oxygen_cost and float(suit_manager.get("suit_power")) >= power_cost
+
+func _training_has_items(container_id: String, items: Dictionary) -> bool:
+	if items.is_empty():
+		return true
+	var inventory_manager := _inventory_manager()
+	if inventory_manager == null or not inventory_manager.has_method("has_item_in_container"):
+		return false
+	for item_id in items.keys():
+		if not bool(inventory_manager.call("has_item_in_container", container_id, String(item_id), int(items[item_id]))):
+			return false
+	return true
+
+func _training_consume_items(container_id: String, items: Dictionary) -> bool:
+	if items.is_empty():
+		return true
+	if not _training_has_items(container_id, items):
+		return false
+	var inventory_manager := _inventory_manager()
+	if inventory_manager == null or not inventory_manager.has_method("remove_item_from_container"):
+		return false
+	for item_id in items.keys():
+		if not bool(inventory_manager.call("remove_item_from_container", container_id, String(item_id), int(items[item_id]))):
+			return false
+	return true
+
+func _advance_training_time(minutes: int, reason: String) -> void:
+	if minutes <= 0:
+		return
+	var training_time_manager := _training_time_manager()
+	if training_time_manager != null and training_time_manager.has_method("advance_training_time"):
+		training_time_manager.call("advance_training_time", minutes, reason)
+
 func get_material_status(required_items: Dictionary) -> Dictionary:
 	var result: Dictionary = {}
 	var storage_manager := _storage_manager()
@@ -410,3 +550,15 @@ func _water_system_manager() -> Node:
 
 func _power_system_manager() -> Node:
 	return get_tree().root.get_node_or_null("PowerSystemManager")
+
+func _inventory_manager() -> Node:
+	return get_tree().root.get_node_or_null("InventoryManager")
+
+func _training_time_manager() -> Node:
+	return get_tree().root.get_node_or_null("TrainingTimeManager")
+
+func _suit_manager() -> Node:
+	return get_tree().root.get_node_or_null("SuitManager")
+
+func _health_manager() -> Node:
+	return get_tree().root.get_node_or_null("HealthManager")
