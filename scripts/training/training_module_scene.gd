@@ -1405,7 +1405,7 @@ func _airlock_room_target(target: Dictionary) -> Dictionary:
 		"exit":
 			room_target["kind"] = "exit"
 			room_target["label"] = "训练出口"
-			room_target["position"] = Vector2(1340, 388) if module_id == "power_repair" else Vector2(684, 388)
+			room_target["position"] = Vector2(684, 388)
 			room_target["size"] = Vector2(74, 106)
 	return room_target
 
@@ -1435,9 +1435,23 @@ func _power_room_target(target: Dictionary) -> Dictionary:
 			room_target["size"] = Vector2(86, 92)
 		"exit":
 			room_target["kind"] = "exit"
-			room_target["label"] = "训练出口"
-			room_target["position"] = Vector2(684, 388)
-			room_target["size"] = Vector2(74, 106)
+			# 太阳能阵列训练场 (power_repair): the way back is the airlock's
+			# outer door, so it sits on the RIGHT edge, vertically centered --
+			# mirroring the airlock room, whose outer door is on its left
+			# wall (user-requested spatial correspondence). The player also
+			# spawns beside it when arriving from the airlock (player_start
+			# in _power_config()). This override was previously mis-applied
+			# in _airlock_room_target(), which power_repair never routes
+			# through -- that's why the exit kept showing mid-room as
+			# "训练出口" despite the config saying otherwise.
+			if module_id == "power_repair":
+				room_target["label"] = "返回气闸外舱门"
+				room_target["position"] = Vector2(1340, 320)
+				room_target["size"] = Vector2(74, 128)
+			else:
+				room_target["label"] = "训练出口"
+				room_target["position"] = Vector2(684, 388)
+				room_target["size"] = Vector2(74, 106)
 	return room_target
 
 func _power_distribution_room_target(target: Dictionary) -> Dictionary:
@@ -2212,7 +2226,7 @@ func _interaction_prompt(target_id: String) -> String:
 			"console":
 				return "E 重启供电"
 			"exit":
-				return "E 进入下一模块"
+				return "E 返回气闸舱"
 	if module_id == "life_support":
 		match target_id:
 			"console":

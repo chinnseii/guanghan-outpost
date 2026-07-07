@@ -135,10 +135,19 @@ func _ready() -> void:
 	_update_hud()
 	_sync_overlay_visibility()
 
+## Choice/confirm modal open? Gameplay (movement, E-interact, door
+## crossings) must pause while one is up -- otherwise the player can walk
+## around underneath the dialog and even wander through an open door
+## mid-choice, leaving the modal orphaned over a different room
+## (user-reported as the pressure dialog "closing" confusingly after a
+## wrong choice).
+func _gameplay_modal_open() -> bool:
+	return (diagnosis_modal != null and diagnosis_modal.visible) or suit_status_panel_visible
+
 func _process(delta: float) -> void:
 	_rebuild_room_if_resized()
 	_update_toast(delta)
-	if briefing_visible or pause_visible or interaction_running:
+	if briefing_visible or pause_visible or interaction_running or _gameplay_modal_open():
 		_update_room_prompt()
 		return
 	_move_player(delta)
@@ -178,7 +187,7 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("interact") and not briefing_visible and not pause_visible and not interaction_running:
+	if event.is_action_pressed("interact") and not briefing_visible and not pause_visible and not interaction_running and not _gameplay_modal_open():
 		_try_interact()
 	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_F3:
 		show_trigger_debug = not show_trigger_debug
@@ -626,23 +635,32 @@ func _try_interact() -> void:
 		return
 	var step_type := String(step.get("type", "interact"))
 	if step_type == "diagnosis":
-		hint_label.text = "请在诊断弹窗中选择诊断结果。"
+		_show_toast("请在诊断弹窗中选择诊断结果。")
 		return
 	if step_type == "suit_status_panel":
-		hint_label.text = "请按 Tab 查看宇航服状态面板。"
+		_show_toast("请按 Tab 查看宇航服状态面板。")
 		return
 	var target := String(step.get("target", ""))
 	if step_type == "move":
 		if _is_inside_target_area(target):
 			_complete_step()
 		else:
-			hint_label.text = String(step.get("hint", "请移动至目标区域。"))
+			_show_toast(String(step.get("hint", "请移动至目标区域。")))
 		return
 	if not _is_near(target):
-		hint_label.text = "请先移动至目标区域。"
+		# Pressing E on a target the current step doesn't point at gave no
+		# visible feedback at all (hint_label lives in the hidden Tab panel)
+		# -- user-reported as "外舱门无法打开" after a wrong 舱压 choice left
+		# the console step still pending. Give a contextual explanation when
+		# the player is at a recognizable flow-locked target, else the
+		# generic move-first message.
+		var wrong_order := _wrong_order_toast()
+		hint_label.text = wrong_order if not wrong_order.is_empty() else "请先移动至目标区域。"
+		_show_toast(hint_label.text)
 		return
 	if _blocked_by_order(step):
 		hint_label.text = String(step.get("blocked_hint", "流程顺序错误。请按当前目标执行。"))
+		_show_toast(hint_label.text)
 		return
 	if step_type == "plant_control":
 		_show_plant_control_options(step.get("options", []), String(step.get("correct", "")))
@@ -657,6 +675,23 @@ func _try_interact() -> void:
 		_show_wear_suit_confirm_dialog()
 		return
 	_begin_step_interaction_feedback(step)
+
+## Contextual explanation for pressing E at a target that isn't the current
+## step's -- mirrors training_module_scene.gd's _wrong_order_hint() idea,
+## scoped to the airlock room where the sequencing confusion actually bites
+## (user tried the outer door while the console step was still pending).
+func _wrong_order_toast() -> String:
+	if current_area_id != "airlock_simulation_room":
+		return ""
+	var state: Dictionary = module_data.get("state", {})
+	if target_nodes.has("outer_door") and _is_near("outer_door"):
+		if not bool(state.get("InnerDoorClosed", false)) and String(module_data.get("module_id", "")) != "airlock_return":
+			return "流程顺序错误。请先关闭内舱门。"
+		if not bool(state.get("PressureStable", false)):
+			return "舱压尚未处理完成。外舱门保持锁定。请先操作舱压控制台。"
+	if target_nodes.has("console") and _is_near("console") and not bool(state.get("InnerDoorClosed", false)) and String(module_data.get("module_id", "")) != "airlock_return":
+		return "流程顺序错误。请先关闭内舱门。"
+	return ""
 
 ## Hub's "训练状态终端" is informational only -- shows current objective +
 ## archive time, does not consume/advance any step.
@@ -1027,7 +1062,7 @@ func _show_diagnosis_options(options: Array, correct: String) -> void:
 				_hide_training_diagnosis_modal()
 				_complete_step()
 			else:
-				hint_label.text = String(_current_step().get("wrong_hint", "诊断结论不足。请重新核对观察信息。"))
+				_show_modal_wrong_feedback(String(_current_step().get("wrong_hint", "诊断结论不足。请重新核对观察信息。")))
 		)
 		diagnosis_modal_actions.add_child(button)
 
@@ -1043,7 +1078,7 @@ func _show_plant_control_options(options: Array, correct: String) -> void:
 				_hide_training_diagnosis_modal()
 				_complete_step()
 			else:
-				hint_label.text = String(_current_step().get("wrong_hint", "维护动作不匹配。请重新核对植物舱诊断结果。"))
+				_show_modal_wrong_feedback(String(_current_step().get("wrong_hint", "维护动作不匹配。请重新核对植物舱诊断结果。")))
 		)
 		diagnosis_modal_actions.add_child(button)
 
@@ -1061,7 +1096,7 @@ func _show_life_control_options(options: Array, correct: String) -> void:
 				_hide_training_diagnosis_modal()
 				_complete_step()
 			else:
-				hint_label.text = String(_current_step().get("wrong_hint", "调节动作不匹配。请重新核对生命支持读数。"))
+				_show_modal_wrong_feedback(String(_current_step().get("wrong_hint", "调节动作不匹配。请重新核对生命支持读数。")))
 		)
 		diagnosis_modal_actions.add_child(button)
 
@@ -1081,7 +1116,7 @@ func _show_pressure_control_options(options: Array, correct: String) -> void:
 			if button.text == correct:
 				_confirm_pressure_choice()
 			else:
-				hint_label.text = String(_current_step().get("wrong_hint", "舱压操作不匹配。请重新选择。"))
+				_show_modal_wrong_feedback(String(_current_step().get("wrong_hint", "舱压操作不匹配。请重新选择。")))
 		)
 		diagnosis_modal_actions.add_child(button)
 
@@ -1139,6 +1174,17 @@ func _step_line_with_professional_hint(step: Dictionary) -> String:
 		return line + "\n\n" + professional_hint
 	return line
 
+## Base text of the currently-open choice modal -- kept so wrong-choice
+## feedback can be appended INSIDE the modal (user-reported: writing it to
+## hint_label only was invisible during normal play, so a wrong 舱压 choice
+## looked like the game silently ignoring the click).
+var _modal_base_text := ""
+
+func _show_modal_wrong_feedback(hint: String) -> void:
+	hint_label.text = hint
+	if diagnosis_modal_text != null and diagnosis_modal != null and diagnosis_modal.visible:
+		diagnosis_modal_text.text = "%s\n\n［操作反馈］\n%s" % [_modal_base_text, hint]
+
 func _open_diagnosis_modal(text: String) -> void:
 	if diagnosis_panel != null:
 		diagnosis_panel.visible = false
@@ -1150,6 +1196,7 @@ func _open_diagnosis_modal(text: String) -> void:
 		diagnosis_modal_image.texture = null
 	if diagnosis_modal_text != null:
 		diagnosis_modal_text.text = text
+	_modal_base_text = text
 	_clear_container(diagnosis_modal_actions)
 
 func _hide_training_diagnosis_modal() -> void:
