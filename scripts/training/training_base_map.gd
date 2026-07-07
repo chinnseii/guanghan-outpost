@@ -408,7 +408,7 @@ func _route_initial_area() -> void:
 	if power_repair_done and not toast_shown:
 		current_area_id = "airlock_simulation_room"
 		_apply_airlock_return_flow()
-		call_deferred("_notify", "太阳能阵列基础输出已恢复。请完成返舱增压流程。")
+		call_deferred("_notify", "太阳能阵列基础输出已恢复。请按气闸规程返回舱内。")
 		return
 	match String(progress.get("CurrentTrainingModule", "suit_control")):
 		"suit_control":
@@ -416,7 +416,16 @@ func _route_initial_area() -> void:
 		"airlock_procedure":
 			current_area_id = "airlock_simulation_room"
 		"power_distribution":
-			current_area_id = "power_distribution_room"
+			# Saved after the EVA return but before racking the suit? Send them
+			# back to the suit prep room to return it first (re-arm the gate).
+			var resume_suit_manager := _suit_manager()
+			if resume_suit_manager != null and bool(resume_suit_manager.get("is_suit_worn")):
+				current_area_id = "suit_prep_room"
+				var prep_state: Dictionary = areas["suit_prep_room"].get("state", {})
+				prep_state["SuitReturnPending"] = true
+				areas["suit_prep_room"]["state"] = prep_state
+			else:
+				current_area_id = "power_distribution_room"
 		"life_support":
 			current_area_id = "air_system_control_room"
 		"plant_diagnosis", "final_assessment":
@@ -463,7 +472,7 @@ func _restore_airlock_inner_door_walkthrough() -> void:
 	area["state"] = state
 	for target: Dictionary in area.get("targets", []):
 		if String(target.get("id", "")) == "inner_door":
-			target["door_to"] = "hub"
+			target["door_to"] = "suit_prep_room"
 			target["door_spawn"] = Vector2(90, 300)
 			target["door_press"] = "ui_right"
 			target["door_blocked_by_state"] = "InnerDoorClosed"
@@ -472,8 +481,8 @@ func _restore_airlock_inner_door_walkthrough() -> void:
 func _airlock_return_steps() -> Array:
 	return [
 		{"type": "interact", "target": "outer_door", "objective": "关闭外舱门", "line": "外舱门已关闭。", "state_key": "OuterDoorClosedAfterEva"},
-		{"type": "pressure_choice", "target": "console", "objective": "执行气闸舱增压", "line": "增压完成。\n舱压状态：稳定。", "options": ["充压", "降压"], "correct": "充压", "wrong_hint": "当前目标是返回舱内。\n需要先执行充压，使气闸舱恢复可开启内舱门状态。", "modal_text": "舱压控制台\n\n当前流程：返舱增压。\n请选择舱压操作。", "feedback_text": "增压中", "time_minutes": 15, "time_reason": "training_airlock_pressurize", "state_updates": {"PressureStable": true, "InnerDoorUnlocked": true, "PressureStatus": "稳定"}, "requires": {"OuterDoorClosedAfterEva": true}, "blocked_hint": "请先关闭外舱门。"},
-		{"type": "interact", "target": "inner_door", "objective": "打开内舱门", "line": "内舱门已解锁。\n返舱气闸流程完成。", "state_key": "InnerDoorOpenedAfterEva", "requires": {"PressureStable": true}, "blocked_hint": "气闸舱尚未完成增压。内舱门保持锁定。", "on_complete": "airlock_return"},
+		{"type": "pressure_choice", "target": "console", "objective": "执行气闸舱压力恢复", "line": "舱压恢复完成。\n舱压状态：稳定。", "options": ["充压", "降压"], "correct": "充压", "wrong_hint": "内舱门仍处于安全互锁状态。\n请根据当前所在环境与目标舱段的压力差重新判断操作。", "wrong_closes_modal": true, "wrong_center_text": "请重新判断：充压 或 降压", "wrong_time_minutes": 15, "wrong_time_reason": "training_airlock_pressure_wrong", "modal_text": "舱压控制台\n\n外舱门：关闭\n内舱门：安全互锁\n目标舱段：常压训练区\n\n请选择舱压操作。", "feedback_text": "压力恢复中", "time_minutes": 15, "time_reason": "training_airlock_pressurize", "state_updates": {"PressureStable": true, "InnerDoorUnlocked": true, "PressureStatus": "稳定", "AirlockPressureState": "充压"}, "requires": {"OuterDoorClosedAfterEva": true}, "blocked_hint": "请先关闭外舱门。"},
+		{"type": "interact", "target": "inner_door", "objective": "打开内舱门", "line": "内舱门已解锁。\n返舱气闸流程完成。", "state_key": "InnerDoorOpenedAfterEva", "requires": {"PressureStable": true, "AirlockPressureState": "充压"}, "blocked_hint": "内舱门需在充压状态下开启。请先在舱压控制台执行充压。", "on_complete": "airlock_return"},
 	]
 
 ## -- Room content configs --
@@ -501,7 +510,7 @@ func _hub_area_config() -> Dictionary:
 		"targets": [
 			{"id": "terminal", "kind": "terminal", "label": "训练状态终端", "position": Vector2(330, 210), "size": Vector2(100, 80), "info": true},
 			{"id": "door_suit", "kind": "door", "label": "宇航服整备室", "position": Vector2(30, 210), "size": Vector2(64, 140), "door_to": "suit_prep_room", "door_spawn": Vector2(560, 300)},
-			{"id": "door_power", "kind": "door", "label": "配电房", "position": Vector2(326, 18), "size": Vector2(108, 96), "door_to": "power_distribution_room", "door_spawn": Vector2(350, 400)},
+			{"id": "door_power", "kind": "door", "label": "配电房", "position": Vector2(326, 18), "size": Vector2(108, 96), "door_to": "power_distribution_room", "door_spawn": Vector2(350, 340)},
 			{"id": "door_air", "kind": "door", "label": "空气系统控制室", "position": Vector2(666, 210), "size": Vector2(64, 140), "door_to": "air_system_control_room", "door_spawn": Vector2(120, 300)},
 			{"id": "door_greenhouse", "kind": "door", "label": "训练温室", "position": Vector2(330, 446), "size": Vector2(100, 54), "door_to": "greenhouse_room", "door_spawn": Vector2(350, 116)},
 		],
@@ -524,7 +533,7 @@ func _suit_prep_area_config() -> Dictionary:
 			{"id": "suit_check_terminal", "kind": "terminal", "label": "整备状态终端", "position": Vector2(520, 126), "size": Vector2(124, 82), "info": true},
 			{"id": "locker_a", "kind": "locker", "label": "备用氧气柜", "position": Vector2(130, 392), "size": Vector2(118, 62)},
 			{"id": "locker_b", "kind": "locker", "label": "训练工具柜", "position": Vector2(560, 392), "size": Vector2(118, 62)},
-			{"id": "door_hub", "kind": "door", "label": "训练中控室", "position": Vector2(666, 236), "size": Vector2(64, 128), "door_to": "hub", "door_spawn": Vector2(90, 300)},
+			{"id": "door_hub", "kind": "door", "label": "训练中控室", "position": Vector2(666, 236), "size": Vector2(64, 128), "door_to": "hub", "door_spawn": Vector2(90, 300), "door_blocked_by_state": "SuitReturnPending"},
 		],
 		"steps": [
 			{"type": "move", "target": "suit_rack", "objective": "移动到宇航服整备架", "line": "已抵达宇航服整备架。"},
@@ -556,12 +565,12 @@ func _airlock_chamber_area_config() -> Dictionary:
 			# seals the passage the moment the close-door step completes.
 			# _apply_airlock_return_flow() strips door_to in the return flow,
 			# where the inner door must stay shut until repressurization.
-			{"id": "inner_door", "kind": "door", "label": "内舱门", "position": Vector2(666, 236), "size": Vector2(64, 128), "color": Color("#3d4e62"), "door_to": "hub", "door_spawn": Vector2(90, 300), "door_blocked_by_state": "InnerDoorClosed", "door_press": "ui_right"},
+			{"id": "inner_door", "kind": "door", "label": "内舱门", "position": Vector2(666, 236), "size": Vector2(64, 128), "color": Color("#3d4e62"), "door_to": "suit_prep_room", "door_spawn": Vector2(90, 300), "door_blocked_by_state": "InnerDoorClosed", "door_press": "ui_right"},
 		],
 		"steps": [
 			{"type": "interact", "target": "inner_door", "objective": "关闭内舱门", "line": "内舱门已关闭。", "state_key": "InnerDoorClosed"},
-			{"type": "pressure_choice", "target": "console", "objective": "操作舱压控制台", "line": "气体回收完成。\n舱压状态：低压稳定。", "options": ["充压", "降压"], "correct": "降压", "wrong_hint": "当前目标是前往舱外环境。\n需要先执行降压与气体回收。", "time_minutes": 15, "time_reason": "training_airlock_depressurize", "state_updates": {"PressureStable": true, "OuterDoorUnlocked": true, "PressureStatus": "低压稳定"}, "requires": {"InnerDoorClosed": true}, "blocked_hint": "请先关闭内舱门。"},
-			{"type": "interact", "target": "outer_door", "objective": "打开外舱门", "line": "外舱门已开启。\n正在进入太阳能阵列训练场。", "state_key": "OuterDoorOpen", "requires": {"InnerDoorClosed": true, "PressureStable": true}, "blocked_hint": "舱压尚未降至安全外出状态。外舱门保持锁定。", "on_complete": "airlock_procedure"},
+			{"type": "pressure_choice", "target": "console", "objective": "操作舱压控制台", "line": "气体回收完成。\n舱压状态：低压稳定。", "options": ["充压", "降压"], "correct": "降压", "wrong_hint": "当前目标是前往舱外环境。\n需要先执行降压与气体回收。", "wrong_closes_modal": true, "wrong_center_text": "请重新判断：充压 或 降压", "wrong_time_minutes": 15, "wrong_time_reason": "training_airlock_pressure_wrong", "time_minutes": 15, "time_reason": "training_airlock_depressurize", "state_updates": {"PressureStable": true, "OuterDoorUnlocked": true, "PressureStatus": "低压稳定", "AirlockPressureState": "低压"}, "requires": {"InnerDoorClosed": true}, "blocked_hint": "请先关闭内舱门。"},
+			{"type": "interact", "target": "outer_door", "objective": "打开外舱门", "line": "外舱门已开启。\n正在进入太阳能阵列训练场。", "state_key": "OuterDoorOpen", "requires": {"InnerDoorClosed": true, "PressureStable": true, "AirlockPressureState": "低压"}, "blocked_hint": "外舱门需在低压状态下开启。请先在舱压控制台执行降压。", "on_complete": "airlock_procedure"},
 		],
 	}
 
@@ -574,19 +583,19 @@ func _power_distribution_area_config() -> Dictionary:
 		"terrain_type": "indoor",
 		"blockout": "PowerRepairRoomBlockout",
 		"player_start": Vector2(350, 400),
-		"hud": "太阳能输入：已恢复\n储能模块：未接入\n配电主线：不稳定",
+		"hud": "当前电力：42%\n消耗速度：2.8E/小时\n充电速度：1.1E/小时\n预计充满：无法达到满电",
 		"targets": [
 			{"id": "door_hub", "kind": "door", "label": "训练中控室", "position": Vector2(330, 446), "size": Vector2(100, 54), "door_to": "hub", "door_spawn": Vector2(350, 116)},
-			{"id": "panel", "kind": "power_panel", "label": "储能接入面板", "position": Vector2(150, 180), "size": Vector2(120, 90)},
-			{"id": "console", "kind": "power_console", "label": "配电控制台", "position": Vector2(420, 180), "size": Vector2(120, 90)},
-			{"id": "power_display", "kind": "life_status", "label": "电力显示", "position": Vector2(585, 120), "size": Vector2(112, 76), "color": Color("#244563")},
-			{"id": "light", "kind": "test_light", "label": "供电测试灯", "position": Vector2(420, 320), "size": Vector2(90, 60)},
+			{"id": "battery_pack", "kind": "power_panel", "label": "电池组", "position": Vector2(120, 252), "size": Vector2(110, 90), "color": Color("#3b2d32")},
+			{"id": "console", "kind": "power_console", "label": "配电控制台", "position": Vector2(320, 236), "size": Vector2(120, 90)},
+			{"id": "power_display", "kind": "life_status", "label": "电力显示", "position": Vector2(324, 82), "size": Vector2(150, 82), "color": Color("#5a2430")},
+			{"id": "light", "kind": "test_light", "label": "供电测试灯", "position": Vector2(250, 270), "size": Vector2(54, 54)},
 		],
 		"steps": [
-			{"type": "interact", "target": "panel", "objective": "查看供电系统异常", "line": "太阳能输入已恢复。\n配电主线电压不稳定。\n储能模块未接入主供电回路。", "state_updates": {"SolarInputDetected": true, "PowerPanelInspected": true, "PowerStatus": "不稳定"}},
-			{"type": "interact", "target": "panel", "objective": "接入储能模块", "line": "正在接入储能模块……\n储能模块已接入主供电回路。", "time_minutes": 30, "time_reason": "training_connect_storage_module", "state_updates": {"PowerPanelRepaired": true, "StorageModuleConnected": true, "PowerStatus": "待重启"}, "requires": {"PowerPanelInspected": true}, "blocked_hint": "请先查看供电系统异常。"},
-			{"type": "interact", "target": "console", "objective": "重启配电系统", "line": "配电系统正在重启。\n主线电压稳定。\n训练供电状态：Basic -> Stable。", "time_minutes": 30, "time_reason": "training_restart_power_distribution", "state_updates": {"PowerRestored": true, "PowerStatus": "稳定", "TestLightOn": true}, "requires": {"PowerPanelRepaired": true}, "blocked_hint": "储能模块尚未接入。无法重启配电系统。"},
-			{"type": "interact", "target": "light", "objective": "确认供电稳定", "line": "测试灯已点亮。\n配电房供电恢复训练完成。", "state_key": "PowerDistributionConfirmed", "requires": {"PowerRestored": true}, "blocked_hint": "供电尚未稳定。", "on_complete": "power_distribution"},
+			{"type": "info_confirm", "target": "console", "objective": "查看配电状态", "confirm_text": "查看电池组", "modal_text": "配电控制台\n\n控制台读数：\n当前电力：42%\n消耗速度：2.8E/小时\n充电速度：1.1E/小时\n预计充满：无法达到满电\n\n系统提示：电池组异常。\n\n请前往电池组进一步检查。", "line": "配电控制台读数：电池组异常，需前往电池组检查。", "state_updates": {"SolarInputDetected": true, "PowerStatus": "不稳定", "PowerConsoleInspected": true}},
+			{"type": "power_battery_choice", "target": "battery_pack", "objective": "检查电池组", "line": "电池组接口重新固定。\n充电速度恢复到 3.4E/小时。", "options": ["更换整组电池", "清理并重新固定电池组接口", "降低配电控制台负载"], "correct": "清理并重新固定电池组接口", "wrong_hint": "读数没有改善。\n请重新核对充电速度与电池组接口状态。", "wrong_closes_modal": true, "wrong_time_minutes": 15, "wrong_time_reason": "training_battery_wrong", "state_updates": {"BatteryPackInspected": true, "PowerPanelRepaired": true, "StorageModuleConnected": true, "PowerStatus": "恢复中", "ChargeRateStable": true}, "requires": {"PowerConsoleInspected": true}, "blocked_hint": "请先在配电控制台查看供电读数。", "time_minutes": 30, "time_reason": "training_battery_pack_reseat"},
+			{"type": "wait", "target": "power_display", "objective": "等待供电读数稳定", "line": "电力显示板恢复稳定。\n当前电力：43%\n消耗速度：1.2E/小时\n充电速度：3.4E/小时\n预计充满：约 18 小时。", "duration": 1.2, "state_updates": {"PowerRestored": true, "PowerStatus": "稳定", "TestLightOn": true}},
+			{"type": "interact", "target": "light", "objective": "确认供电测试灯", "line": "供电测试灯已点亮。\n配电房供电恢复训练完成。", "state_key": "PowerDistributionConfirmed", "requires": {"PowerRestored": true}, "blocked_hint": "供电读数尚未稳定。", "on_complete": "power_distribution"},
 		],
 	}
 
@@ -609,9 +618,9 @@ func _air_system_area_config() -> Dictionary:
 			{"id": "temperature_terminal", "kind": "life_console", "label": "温控终端", "position": Vector2(560, 248), "size": Vector2(126, 88), "color": Color("#244563")},
 		],
 		"steps": [
-			{"type": "interact", "target": "console", "objective": "打开生命支持控制台", "line": "生命支持控制台已打开。\n检测到两项异常：\n氧气浓度：偏低\n温度状态：偏低", "professional_hint_tag": "medical", "professional_hint": "医学专业提示：\n氧气浓度过高或过低都会影响判断力与行动稳定性。\n温度过高或过低会增加失温、脱水或疲劳风险。", "state_updates": {"LifeSupportConsoleOpened": true, "LifeSupportStatusRead": true, "OxygenStatus": "偏低", "TemperatureStatus": "偏低", "LifeSupportStatus": "未稳定"}},
-			{"type": "life_control", "target": "oxygen_terminal", "objective": "调整制氧终端", "line": "制氧输出已上调。\n氧气状态：稳定。", "options": ["增加制氧", "减少制氧"], "correct": "增加制氧", "wrong_hint": "当前氧气浓度偏低。\n请提高制氧输出。", "state_updates": {"OxygenAdjusted": true, "OxygenStatus": "稳定"}, "requires": {"LifeSupportStatusRead": true}, "blocked_hint": "请先打开生命支持控制台。"},
-			{"type": "life_control", "target": "temperature_terminal", "objective": "调整温控终端", "line": "温控输出已上调。\n温度状态：可维持。", "options": ["升温", "降温"], "correct": "升温", "wrong_hint": "当前舱内温度偏低。\n请提高温控输出。", "state_updates": {"TemperatureAdjusted": true, "TemperatureStatus": "可维持"}, "requires": {"OxygenAdjusted": true}, "blocked_hint": "请先调整制氧终端。"},
+			{"type": "life_support_read", "target": "console", "objective": "读取生命支持数据", "confirm_text": "确认", "oxygen_value": "18.2%", "temperature_value": "15.6℃", "oxygen_doctor_hint": "过低", "temperature_doctor_hint": "过低", "line": "生命支持控制台读数：\n氧气浓度：18.2%\n舱内温度：15.6℃\n空气循环：基础运行。", "state_updates": {"LifeSupportConsoleOpened": true, "LifeSupportStatusRead": true, "OxygenStatus": "18.2%", "TemperatureStatus": "15.6℃", "LifeSupportStatus": "未稳定"}},
+			{"type": "life_control", "target": "oxygen_terminal", "objective": "调整制氧终端", "line": "制氧输出已上调。\n氧气浓度回升至 20.8%。", "options": ["增加制氧", "减少制氧"], "correct": "增加制氧", "wrong_hint": "控制台读数未改善。\n请重新判断氧气浓度与安全目标的关系。", "wrong_closes_modal": true, "wrong_center_text": "呼吸越发困难", "wrong_center_color": "#ffffff", "state_updates": {"OxygenAdjusted": true, "OxygenStatus": "20.8%"}, "requires": {"LifeSupportStatusRead": true}, "blocked_hint": "请先读取生命支持控制台数据。"},
+			{"type": "life_control", "target": "temperature_terminal", "objective": "调整温控终端", "line": "温控输出已上调。\n舱内温度回升至 19.2℃。", "options": ["升温", "降温"], "correct": "升温", "wrong_hint": "控制台读数未改善。\n请重新判断舱内温度与舒适训练区间的关系。", "wrong_closes_modal": true, "wrong_center_text": "越发寒冷", "wrong_center_color": "#ffffff", "state_updates": {"TemperatureAdjusted": true, "TemperatureStatus": "19.2℃"}, "requires": {"OxygenAdjusted": true}, "blocked_hint": "请先调整制氧终端。"},
 			{"type": "wait", "target": "core", "objective": "等待生命支持稳定", "line": "生命支持状态：稳定。", "duration": 1.6, "state_updates": {"LifeSupportStable": true, "LifeSupportStatus": "稳定"}},
 			{"type": "interact", "target": "core", "objective": "确认生命支持稳定", "line": "氧气与温度已回到可维持范围。\n训练仓空气系统恢复训练完成。", "state_key": "LifeSupportConfirmed", "requires": {"LifeSupportStable": true}, "blocked_hint": "生命支持状态尚未稳定。", "on_complete": "life_support"},
 		],
@@ -630,7 +639,7 @@ func _greenhouse_area_config() -> Dictionary:
 		"targets": [
 			{"id": "door_hub", "kind": "door", "label": "训练中控室", "position": Vector2(330, 20), "size": Vector2(100, 54), "door_to": "hub", "door_spawn": Vector2(350, 396)},
 			{"id": "plant", "kind": "plant_chamber", "label": "训练植物", "position": Vector2(350, 260), "size": Vector2(96, 96), "color": Color("#2d5b3f")},
-			{"id": "water_status", "kind": "life_status", "label": "水循环状态", "position": Vector2(170, 260), "size": Vector2(112, 76), "color": Color("#244563")},
+			{"id": "water_status", "kind": "life_status", "label": "水循环状态", "position": Vector2(292, 390), "size": Vector2(150, 70), "color": Color("#244563")},
 			{"id": "light_console", "kind": "plant_console", "label": "植物控制台", "position": Vector2(600, 260), "size": Vector2(120, 88), "color": Color("#31536f")},
 			{"id": "grow_light", "kind": "grow_light", "label": "生长灯", "position": Vector2(560, 130), "size": Vector2(120, 40), "color": Color("#4b4f37")},
 		],
@@ -868,8 +877,17 @@ func _try_interact() -> void:
 	if step_type == "life_control":
 		_show_life_control_options(step.get("options", []), String(step.get("correct", "")))
 		return
+	if step_type == "power_battery_choice":
+		_show_power_battery_options(step.get("options", []), String(step.get("correct", "")))
+		return
 	if step_type == "wear_suit_confirm":
 		_show_wear_suit_confirm_dialog()
+		return
+	if step_type == "info_confirm":
+		_show_info_confirm_modal(step)
+		return
+	if step_type == "life_support_read":
+		_show_life_support_read_modal(step)
 		return
 	_begin_step_interaction_feedback(step)
 
@@ -912,7 +930,11 @@ func _try_interact_suit_return() -> bool:
 		return false
 	if not _current_step().is_empty():
 		return false
-	if not _all_required_modules_completed():
+	# Post-EVA suit return: available once the solar-array (power_repair) EVA
+	# is done and the player is back at the rack still wearing the suit. This
+	# replaces the old "all six modules done" gate -- the suit now comes off
+	# right after coming back inside, not at the very end of training.
+	if not bool(TrainingManagerScript._read_progress_data().get("PowerRepairCompleted", false)):
 		return false
 	if not _is_near("suit_rack"):
 		return false
@@ -934,7 +956,11 @@ func _try_interact_suit_wear_fallback() -> bool:
 		return false
 	if not _current_step().is_empty():
 		return false
-	if _all_required_modules_completed():
+	# Only re-offer the wear dialog BEFORE the EVA (the suit is only needed to
+	# pass the airlock out to the solar array). Once power_repair is done the
+	# suit's job is over, so a stray "not worn" state here must not re-arm it
+	# (otherwise the post-EVA return would immediately offer to put it back on).
+	if bool(TrainingManagerScript._read_progress_data().get("PowerRepairCompleted", false)):
 		return false
 	if not _is_near("suit_rack"):
 		return false
@@ -989,7 +1015,7 @@ func _complete_step() -> void:
 	step_index += 1
 	areas[current_area_id]["step_index"] = step_index
 	wait_timer = 0.0
-	if String(step.get("type", "")) in ["diagnosis", "plant_control", "pressure_choice", "life_control"]:
+	if String(step.get("type", "")) in ["diagnosis", "plant_control", "pressure_choice", "life_control", "power_battery_choice", "info_confirm", "life_support_read"]:
 		if diagnosis_panel != null:
 			diagnosis_panel.visible = false
 		_hide_training_diagnosis_modal()
@@ -1026,8 +1052,14 @@ func _on_area_task_complete(module_id: String) -> void:
 			_restore_airlock_inner_door_walkthrough()
 			_register_training_doors()
 			_sync_training_door_locks()
-			_notify("返舱增压完成。请前往配电房，恢复供电。")
-			_switch_room("hub", Vector2(350, 120))
+			# The suit now comes off HERE, right after the EVA return, instead
+			# of at the very end of training. Arm the suit-return gate: the suit
+			# prep room's hub door stays sealed until the suit is racked.
+			var prep_state: Dictionary = areas["suit_prep_room"].get("state", {})
+			prep_state["SuitReturnPending"] = true
+			areas["suit_prep_room"]["state"] = prep_state
+			_notify("气闸返回流程完成。请将宇航服脱下并放回宇航服整备架。")
+			_switch_room("suit_prep_room", Vector2(90, 300))
 			return
 		"power_distribution":
 			TrainingManagerScript.mark_module_completed("power_distribution", "life_support")
@@ -1038,8 +1070,13 @@ func _on_area_task_complete(module_id: String) -> void:
 			areas["greenhouse_room"]["unlocked"] = true
 			_notify("训练仓空气系统已恢复。训练温室已解锁。")
 		"plant_diagnosis":
+			# Training ENDS here now. The suit was already returned right after
+			# the EVA, so there is no closing suit-return leg -- go straight to
+			# the mission assignment notice.
 			TrainingManagerScript.mark_module_completed("plant_diagnosis", "final_assessment")
-			_notify("训练模块六完成。请返回宇航服整备室，执行宇航服归位与维护。")
+			_notify("训练科目已全部完成。")
+			_complete_training_and_show_assignment_notice()
+			return
 	_sync_training_door_locks()
 	_update_hud()
 
@@ -1092,7 +1129,7 @@ func _default_time_minutes_for_step(step: Dictionary) -> int:
 		return 0
 	if step_type == "diagnosis":
 		return 15
-	if step_type == "plant_control" or step_type == "pressure_choice" or step_type == "life_control":
+	if step_type == "plant_control" or step_type == "pressure_choice" or step_type == "life_control" or step_type == "power_battery_choice":
 		return 30
 	if objective.contains("维修") or objective.contains("恢复") or objective.contains("重启") or objective.contains("启动"):
 		return 30
@@ -1136,6 +1173,12 @@ func _academic_background_manager() -> Node:
 		return null
 	return tree.root.get_node_or_null("AcademicBackgroundManager")
 
+func _penalty_manager() -> Node:
+	var tree := get_tree()
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null("PenaltyManager")
+
 func _time_hud_text() -> String:
 	var manager := _training_time_manager()
 	if manager == null or not manager.has_method("get_remaining_time_text"):
@@ -1168,13 +1211,18 @@ func _global_objective_text() -> String:
 		return "前往模拟气闸舱，执行气闸流程。"
 	if not bool(progress.get("PowerRepairCompleted", false)):
 		return "通过气闸前往太阳能阵列训练场，完成维修。"
+	# After the EVA the suit must be racked before anything else -- surface that
+	# as the active objective while it's still worn.
+	var suit_manager := _suit_manager()
+	if suit_manager != null and bool(suit_manager.get("is_suit_worn")):
+		return "返回宇航服整备室，将宇航服脱下并放回宇航服整备架。"
 	if not bool(progress.get("PowerDistributionCompleted", false)):
 		return "前往配电房，恢复供电。"
 	if not bool(progress.get("LifeSupportCompleted", false)):
 		return "前往空气系统控制室，恢复训练仓空气。"
 	if not bool(progress.get("PlantDiagnosisCompleted", false)):
 		return "前往训练温室，完成植物诊断。"
-	return "返回宇航服整备室，将宇航服脱下并放回维护位。"
+	return "训练科目已全部完成。"
 
 ## -- Suit-return closing sequence (宇航服整备室 collects both training 01's
 ## opening flow above and this closing gate once all 6 modules are done) --
@@ -1230,7 +1278,16 @@ func _show_return_suit_confirm_dialog() -> void:
 			success = suit_manager.call("remove_suit_to_service_station_training")
 		_hide_training_diagnosis_modal()
 		if success:
-			_complete_training_and_show_assignment_notice()
+			# Post-EVA return: take the suit off and unseal the hub door.
+			# Training CONTINUES (配电房 is next) -- it no longer ends here.
+			if areas.has("suit_prep_room"):
+				var prep_state: Dictionary = areas["suit_prep_room"].get("state", {})
+				prep_state["SuitReturnPending"] = false
+				areas["suit_prep_room"]["state"] = prep_state
+			if current_area_id == "suit_prep_room":
+				module_data["state"]["SuitReturnPending"] = false
+			_notify("宇航服已归位。请前往配电房，恢复供电。")
+			_update_hud()
 		else:
 			hint_label.text = "宇航服当前无法归位。"
 			_show_toast("宇航服当前无法归位。")
@@ -1263,7 +1320,7 @@ func _show_diagnosis_options(options: Array, correct: String) -> void:
 				_hide_training_diagnosis_modal()
 				_complete_step()
 			else:
-				_show_modal_wrong_feedback(String(_current_step().get("wrong_hint", "诊断结论不足。请重新核对观察信息。")))
+				_handle_wrong_choice(_current_step())
 		)
 		diagnosis_modal_actions.add_child(button)
 
@@ -1279,7 +1336,7 @@ func _show_plant_control_options(options: Array, correct: String) -> void:
 				_hide_training_diagnosis_modal()
 				_complete_step()
 			else:
-				_show_modal_wrong_feedback(String(_current_step().get("wrong_hint", "维护动作不匹配。请重新核对植物舱诊断结果。")))
+				_handle_wrong_choice(_current_step())
 		)
 		diagnosis_modal_actions.add_child(button)
 
@@ -1297,7 +1354,28 @@ func _show_life_control_options(options: Array, correct: String) -> void:
 				_hide_training_diagnosis_modal()
 				_complete_step()
 			else:
-				_show_modal_wrong_feedback(String(_current_step().get("wrong_hint", "调节动作不匹配。请重新核对生命支持读数。")))
+				_handle_wrong_choice(_current_step())
+		)
+		diagnosis_modal_actions.add_child(button)
+
+func _show_power_battery_options(options: Array, correct: String) -> void:
+	var text := "电池组检查\n\n控制台记录：\n当前电力：42%\n消耗速度：2.8E/小时\n充电速度：1.1E/小时\n预计充满：无法达到满电\n\n现场观察：\n电池组外壳完整；接口附近有月尘附着；主线负载未见突增。\n\n请选择处理方向。"
+	if _has_academic_background_tag("materials"):
+		text += "\n\n材料科学提示：\n外壳没有裂纹，异常更像接口接触不良。\n应选择『清理并重新固定电池组接口』。"
+	else:
+		text += "\n\n提示：\n外壳完整、主线负载正常，异常集中在接口月尘附着。\n应选择『清理并重新固定电池组接口』。"
+	_open_diagnosis_modal(text)
+	for option in options:
+		var button := Button.new()
+		button.text = String(option)
+		button.custom_minimum_size = Vector2(0, 42)
+		button.focus_mode = Control.FOCUS_NONE
+		button.pressed.connect(func():
+			if button.text == correct:
+				_hide_training_diagnosis_modal()
+				_complete_step()
+			else:
+				_handle_wrong_choice(_current_step())
 		)
 		diagnosis_modal_actions.add_child(button)
 
@@ -1317,7 +1395,7 @@ func _show_pressure_control_options(options: Array, correct: String) -> void:
 			if button.text == correct:
 				_confirm_pressure_choice()
 			else:
-				_show_modal_wrong_feedback(String(_current_step().get("wrong_hint", "舱压操作不匹配。请重新选择。")))
+				_handle_wrong_choice(_current_step())
 		)
 		diagnosis_modal_actions.add_child(button)
 
@@ -1328,11 +1406,12 @@ func _confirm_pressure_choice() -> void:
 	await _show_fading_center_notice(feedback_text)
 	_complete_step()
 
-func _show_fading_center_notice(text: String) -> void:
+func _show_fading_center_notice(text: String, base_color: Color = Color("#9fd7ff")) -> void:
 	var notice := Label.new()
 	notice.text = text
-	notice.modulate = Color("#9fd7ff", 1.0)
+	notice.modulate = Color(base_color.r, base_color.g, base_color.b, 1.0)
 	notice.add_theme_font_size_override("font_size", 24)
+	notice.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	notice.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	notice.set_anchors_preset(Control.PRESET_CENTER)
 	notice.offset_left = -180
@@ -1349,6 +1428,89 @@ func _show_fading_center_notice(text: String) -> void:
 		notice.modulate.a = clamp(1.0 - elapsed / duration, 0.0, 1.0)
 	notice.queue_free()
 
+## Unified wrong-choice handler for the option modals. Default behaviour
+## (no wrong_closes_modal flag) keeps the original in-modal "［操作反馈］"
+## feedback (植物诊断 / 诊断结论 still work this way). Steps that opt in with
+## wrong_closes_modal=true instead: close the modal, optionally burn training
+## minutes as a penalty, optionally show a fading centered notice, and leave
+## step_index unchanged so the player has to walk back and re-interact.
+func _handle_wrong_choice(step: Dictionary) -> void:
+	if not bool(step.get("wrong_closes_modal", false)):
+		_show_modal_wrong_feedback(String(step.get("wrong_hint", "操作不匹配。请重新判断。")))
+		return
+	_hide_training_diagnosis_modal()
+	var hint := String(step.get("wrong_hint", ""))
+	if not hint.is_empty():
+		hint_label.text = hint
+		_show_toast(hint)
+	var penalty := int(step.get("wrong_time_minutes", 0))
+	if penalty > 0:
+		var reason := String(step.get("wrong_time_reason", "training_wrong_choice"))
+		# Route the time penalty through the central PenaltyManager (silent --
+		# the training map already shows its own center notice + toast, so we
+		# don't want a second penalty notice). Fall back to a direct training-
+		# clock advance if the penalty system isn't present.
+		var penalty_manager := _penalty_manager()
+		if penalty_manager != null and penalty_manager.has_method("apply_penalty"):
+			penalty_manager.call("apply_penalty", {
+				"penalty_id": String(step.get("wrong_penalty_id", "training_wrong_choice")),
+				"display_name": "训练操作失误",
+				"context": "training",
+				"reason": reason,
+				"time_minutes": penalty,
+				"silent": true,
+			})
+		else:
+			var manager := _training_time_manager()
+			if manager != null and manager.has_method("advance_training_time"):
+				manager.call("advance_training_time", penalty, reason)
+		_update_hud()
+	var center_text := String(step.get("wrong_center_text", ""))
+	if not center_text.is_empty():
+		var color := Color(String(step.get("wrong_center_color", "#9fd7ff")))
+		await _show_fading_center_notice(center_text, color)
+
+## Generic "read a console -> modal with a single 确认 button -> complete the
+## step" interaction (used by the 配电控制台 battery-abnormal notice). The
+## step keeps its own state_updates; the confirm button just runs the normal
+## _complete_step() so those still fire.
+func _show_info_confirm_modal(step: Dictionary) -> void:
+	_open_diagnosis_modal(String(step.get("modal_text", String(step.get("line", "")))))
+	var confirm := Button.new()
+	confirm.text = String(step.get("confirm_text", "确认"))
+	confirm.custom_minimum_size = Vector2(0, 42)
+	confirm.focus_mode = Control.FOCUS_NONE
+	confirm.pressed.connect(func():
+		_hide_training_diagnosis_modal()
+		_complete_step()
+	)
+	diagnosis_modal_actions.add_child(confirm)
+	_sync_overlay_visibility()
+
+## 生命支持控制台 read-out modal: shows the concrete O2 / temperature values,
+## marked either as a neutral "异常" (non-doctor) or with a doctor's 过高/过低
+## read (medical background). Single 确认 button closes it and completes step.
+func _show_life_support_read_modal(step: Dictionary) -> void:
+	var oxygen_value := String(step.get("oxygen_value", "18.2%"))
+	var temperature_value := String(step.get("temperature_value", "15.6℃"))
+	var is_doctor := _has_academic_background_tag("medical")
+	var oxygen_mark := String(step.get("oxygen_doctor_hint", "过低")) if is_doctor else "异常"
+	var temperature_mark := String(step.get("temperature_doctor_hint", "过低")) if is_doctor else "异常"
+	var text := "生命支持控制台\n\n氧气浓度：%s（%s）\n舱内温度：%s（%s）\n空气循环：基础运行\n\n请根据读数判断需要调整的方向。" % [
+		oxygen_value, oxygen_mark, temperature_value, temperature_mark,
+	]
+	_open_diagnosis_modal(text)
+	var confirm := Button.new()
+	confirm.text = String(step.get("confirm_text", "确认"))
+	confirm.custom_minimum_size = Vector2(0, 42)
+	confirm.focus_mode = Control.FOCUS_NONE
+	confirm.pressed.connect(func():
+		_hide_training_diagnosis_modal()
+		_complete_step()
+	)
+	diagnosis_modal_actions.add_child(confirm)
+	_sync_overlay_visibility()
+
 func _airlock_pressure_professional_hint() -> String:
 	var manager := _academic_background_manager()
 	if manager == null:
@@ -1359,6 +1521,12 @@ func _airlock_pressure_professional_hint() -> String:
 			return "机械工程提示：\n返舱后应先关闭外舱门，再执行充压，使气闸舱恢复到可开启内舱门状态。"
 		return "机械工程提示：\n前往舱外前应先执行降压，并回收舱内气体。"
 	return ""
+
+func _has_academic_background_tag(tag: String) -> bool:
+	var manager := _academic_background_manager()
+	if manager == null or not manager.has_method("has_background_tag"):
+		return false
+	return bool(manager.call("has_background_tag", tag))
 
 func _step_line_with_professional_hint(step: Dictionary) -> String:
 	var line := String(step.get("line", ""))
@@ -1514,10 +1682,10 @@ func _update_hud() -> void:
 	if not time_text.is_empty():
 		hud_label.text = "%s\n\n%s" % [time_text, hud_label.text]
 	hint_label.text = String(step.get("hint", "移动至目标区域，按 E 交互。")) if not step.is_empty() else "按 Tab 查看任务面板。"
-	if current_area_id == "suit_prep_room" and step.is_empty() and _all_required_modules_completed():
+	if current_area_id == "suit_prep_room" and step.is_empty() and bool(TrainingManagerScript._read_progress_data().get("PowerRepairCompleted", false)):
 		var suit_manager := _suit_manager()
 		if suit_manager != null and bool(suit_manager.get("is_suit_worn")):
-			hint_label.text = "所有训练模块已完成。\n请靠近宇航服整备架，按 E 归还宇航服。"
+			hint_label.text = "舱外维修已完成。\n请靠近宇航服整备架，按 E 归还宇航服。"
 	if String(step.get("type", "")) == "diagnosis":
 		_show_diagnosis_options(step.get("options", []), String(step.get("correct", "")))
 	_sync_overlay_visibility()
@@ -2016,9 +2184,23 @@ func _update_room_prompt() -> void:
 				var life_status := String(state.get("LifeSupportStatus", "未稳定"))
 				node.status_text = "生命支持：" + life_status
 				node.label_text = "生命支持状态"
+			if current_area_id == "power_distribution_room":
+				match String(node.name):
+					"power_display":
+						node.label_text = "电力显示"
+						if bool(state.get("PowerRestored", false)):
+							node.status_text = "电力 43%\n消耗 1.2E/h\n充电 3.4E/h\n满电约 18h"
+						else:
+							node.status_text = "电力 42%\n消耗 2.8E/h\n充电 1.1E/h\n无法满电"
+					"light":
+						node.status_text = "测试灯：亮" if bool(state.get("TestLightOn", false)) else "测试灯：灭"
+					"battery_pack":
+						node.label_text = "电池组"
 			node.modulate = Color(1, 1, 1, 1) if node.highlighted else Color(0.64, 0.70, 0.76, 0.56)
 			if current_area_id == "air_system_control_room" and String(node.name) == "core" and not node.highlighted and not bool(state.get("LifeSupportStable", false)):
 				node.modulate = Color(1.0, 0.83, 0.36, 0.78)
+			if current_area_id == "power_distribution_room" and String(node.name) == "power_display" and not node.highlighted:
+				node.modulate = Color(0.95, 0.32, 0.36, 0.86) if not bool(state.get("PowerRestored", false)) else Color(0.45, 0.78, 1.0, 0.9)
 			node.queue_redraw()
 	if target_id.is_empty() or not target_nodes.has(target_id):
 		prompt_label.visible = false
@@ -2027,7 +2209,7 @@ func _update_room_prompt() -> void:
 	var target: Control = target_nodes[target_id]
 	var near := _is_near(target_id)
 	var prompt_step_type := String(step.get("type", ""))
-	if near and prompt_step_type in ["interact", "plant_control", "pressure_choice", "life_control", "wear_suit_confirm"]:
+	if near and prompt_step_type in ["interact", "plant_control", "pressure_choice", "life_control", "power_battery_choice", "wear_suit_confirm"]:
 		prompt_label.text = "E 交互"
 		prompt_label.position = target.position + Vector2(8, target.size.y + 20)
 		prompt_label.visible = true
