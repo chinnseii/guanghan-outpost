@@ -3252,7 +3252,11 @@ func _power_config() -> Dictionary:
 		"title": "训练模块三：月面太阳能板维修",
 		"subtitle": "SOLAR ARRAY TRAINING FIELD",
 		"next_module": "power_distribution",
-		"next_scene": TrainingManagerScript.MODULE_04,
+		## Returns to the training small map's hub (气闸 -> 太阳能阵列训练场 is the
+		## only leg of the training map that's still a real scene transition;
+		## see training_base_map.gd's file header) instead of the old
+		## standalone Training_04_PowerDistribution.tscn.
+		"next_scene": TrainingManagerScript.TRAINING_BASE_MAP,
 		"player_start": Vector2(150, 380),
 		"player_size": Vector2(42, 54),
 		"hud": "当前环境：月面真空模拟\n宇航服生命支持已接管。",

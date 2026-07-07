@@ -3778,28 +3778,37 @@ func _setup_dev_menu() -> void:
 	box.add_child(_make_dev_button("Repair Debug: Reset", _debug_repair_reset))
 	box.add_child(_make_dev_button("Dev Only: Training Start", func(): get_tree().change_scene_to_file("res://scenes/training/TrainingStartScene.tscn")))
 	box.add_child(_make_dev_button("Dev Only: Training Module 01", func():
+		TrainingManagerScript.dev_force_unlock_up_to("suit_control")
 		TrainingManagerScript.set_current_module("suit_control")
-		get_tree().change_scene_to_file("res://scenes/training/Training_01_SuitControl.tscn")
+		get_tree().change_scene_to_file(TrainingManagerScript.TRAINING_BASE_MAP)
 	))
 	box.add_child(_make_dev_button("Dev Only: Training Module 02", func():
+		TrainingManagerScript.dev_force_unlock_up_to("airlock_procedure")
 		TrainingManagerScript.set_current_module("airlock_procedure")
-		get_tree().change_scene_to_file("res://scenes/training/Training_02_AirlockProcedure.tscn")
+		get_tree().change_scene_to_file(TrainingManagerScript.TRAINING_BASE_MAP)
 	))
 	box.add_child(_make_dev_button("Dev Only: Training Module 03", func():
 		TrainingManagerScript.set_current_module("power_repair")
 		get_tree().change_scene_to_file(TrainingManagerScript.MODULE_03)
 	))
 	box.add_child(_make_dev_button("Dev Only: Training Module 04", func():
+		TrainingManagerScript.dev_force_unlock_up_to("power_distribution")
 		TrainingManagerScript.set_current_module("power_distribution")
-		get_tree().change_scene_to_file(TrainingManagerScript.MODULE_04)
+		get_tree().change_scene_to_file(TrainingManagerScript.TRAINING_BASE_MAP)
 	))
 	box.add_child(_make_dev_button("Dev Only: Training Module 05", func():
+		TrainingManagerScript.dev_force_unlock_up_to("life_support")
 		TrainingManagerScript.set_current_module("life_support")
-		get_tree().change_scene_to_file(TrainingManagerScript.MODULE_05)
+		get_tree().change_scene_to_file(TrainingManagerScript.TRAINING_BASE_MAP)
 	))
 	box.add_child(_make_dev_button("Dev Only: Training Module 06", func():
+		TrainingManagerScript.dev_force_unlock_up_to("plant_diagnosis")
 		TrainingManagerScript.set_current_module("plant_diagnosis")
-		get_tree().change_scene_to_file(TrainingManagerScript.MODULE_06)
+		get_tree().change_scene_to_file(TrainingManagerScript.TRAINING_BASE_MAP)
+	))
+	box.add_child(_make_dev_button("Dev Only: Training Base Map (Hub)", func():
+		TrainingManagerScript.set_current_module("suit_control")
+		get_tree().change_scene_to_file(TrainingManagerScript.TRAINING_BASE_MAP)
 	))
 	box.add_child(_make_dev_button("Dev Only: Final Assessment", func():
 		TrainingManagerScript.set_current_module("final_assessment")

@@ -19,6 +19,16 @@ const MODULE_03 := "res://scenes/training/SolarArrayTrainingField.tscn"
 const MODULE_04 := "res://scenes/training/Training_04_PowerDistribution.tscn"
 const MODULE_05 := "res://scenes/training/Training_05_AirSystemControl.tscn"
 const MODULE_06 := "res://scenes/training/Training_06_TrainingGreenhouse.tscn"
+## Training small map: one persistent hub scene hosting 训练中控室/宇航服整备室/
+## 模拟气闸舱/配电房/空气系统控制室/训练温室 as walkable rooms connected by doors,
+## instead of each module being its own full scene swap. MODULE_03 (太阳能阵列
+## 训练场) deliberately keeps its own separate scene -- see
+## training_base_map.gd's file header for why (its entry-gate/repair-
+## container/fault-diagnosis logic is complex and already hardened; the
+## user's own spec permits keeping it a separate scene reached via the
+## airlock's outer door). The old Training_01/02/04/05/06_*.tscn files are
+## left in place, unused, rather than deleted (same policy as MODULE_03).
+const TRAINING_BASE_MAP := "res://scenes/training/TrainingBaseMap.tscn"
 const FINAL_ASSESSMENT := "res://scenes/training/FinalAssessmentScene.tscn"
 const MISSION_NOTICE := "res://scenes/training/MissionAssignmentNoticeScene.tscn"
 const BLACK_SCREEN := "res://scenes/training/AssignmentBlackScreenScene.tscn"
@@ -35,13 +45,13 @@ const PHASE02_PLACEHOLDER := "res://scenes/base/Phase02PlaceholderScene.tscn"
 const SPRINT06_SAVE_PATH := "user://saves/sprint06_progress.json"
 
 const MODULE_SCENES := {
-	"suit_control": MODULE_01,
-	"airlock_procedure": MODULE_02,
+	"suit_control": TRAINING_BASE_MAP,
+	"airlock_procedure": TRAINING_BASE_MAP,
 	"power_repair": MODULE_03,
-	"power_distribution": MODULE_04,
-	"life_support": MODULE_05,
-	"plant_diagnosis": MODULE_06,
-	"final_assessment": FINAL_ASSESSMENT,
+	"power_distribution": TRAINING_BASE_MAP,
+	"life_support": TRAINING_BASE_MAP,
+	"plant_diagnosis": TRAINING_BASE_MAP,
+	"final_assessment": TRAINING_BASE_MAP,
 	"mission_assignment": MISSION_NOTICE,
 	"assignment_black_screen": BLACK_SCREEN,
 }
@@ -57,6 +67,11 @@ static func default_data() -> Dictionary:
 		"LifeSupportCompleted": false,
 		"PlantDiagnosisCompleted": false,
 		"CompletedTrainingModules": [],
+		## One-time flag so the hub's "太阳能阵列基础输出已恢复。请返回基地，进入
+		## 配电房。" toast (shown the first time the player is back in the hub
+		## after finishing training 03 in its own separate scene) only fires
+		## once, not every time the hub scene reloads afterward.
+		"PowerRepairUnlockToastShown": false,
 		"FinalAssessmentCompleted": false,
 		"MissionAssignmentAccepted": false,
 		"TrainingStatus": "",
@@ -234,6 +249,33 @@ static func start_training() -> void:
 	var training_time_manager := _training_time_manager()
 	if training_time_manager != null and training_time_manager.has_method("start_training_time"):
 		training_time_manager.call("start_training_time")
+
+## Dev-only convenience: the training small map derives each room's door
+## lock from the same 6 completion flags checked below, so a "Dev Only: jump
+## straight to training module NN" button now needs to force every EARLIER
+## module's flag true first, or the target room would just show up locked.
+## Does not touch module_id's own flag (that module hasn't been done yet --
+## the whole point is to test it).
+static func dev_force_unlock_up_to(module_id: String) -> void:
+	var order := ["suit_control", "airlock_procedure", "power_repair", "power_distribution", "life_support", "plant_diagnosis"]
+	var target_index := order.find(module_id)
+	if target_index < 0:
+		return
+	var data := _read_progress_data()
+	for i in range(target_index):
+		match order[i]:
+			"suit_control":
+				data["SuitControlCompleted"] = true
+			"airlock_procedure":
+				data["AirlockProcedureCompleted"] = true
+			"power_repair":
+				data["PowerRepairCompleted"] = true
+				data["PowerRepairUnlockToastShown"] = true
+			"power_distribution":
+				data["PowerDistributionCompleted"] = true
+			"life_support":
+				data["LifeSupportCompleted"] = true
+	save_progress(data)
 
 static func set_current_module(module_id: String) -> void:
 	var data := _read_progress_data()
