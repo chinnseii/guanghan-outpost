@@ -156,6 +156,56 @@ func set_forced_supply_item(target_supply_index: int, item_id: String) -> void:
 	forced_supply_items[key] = items
 	_save_state()
 
+## -- Penalty hooks (called by PenaltyManager's supply_effect dispatch) --
+## Additive: these only mutate the CURRENT (upcoming) supply and reuse the
+## existing status lifecycle, so nothing about the normal supply flow changes
+## unless a penalty actually fires.
+
+## Reduce the current supply's free (player-selectable) weight allowance by
+## `amount` (one-time, this supply only). If the existing draft now exceeds the
+## reduced allowance, confirm_supply_order() already refuses it until trimmed.
+func apply_supply_weight_penalty(amount: float) -> bool:
+	if amount <= 0.0:
+		return false
+	var supply := get_current_supply()
+	if supply.is_empty():
+		return false
+	var new_free: float = max(0.0, float(supply.get("free_weight_limit", 0.0)) - amount)
+	supply["free_weight_limit"] = new_free
+	last_notice = "补给可用重量因惩罚下调 %.0f。" % amount
+	_save_state()
+	supply_changed.emit()
+	return true
+
+## Push the current supply's arrival (and deadline) later by `minutes`.
+func delay_current_supply(minutes: int) -> bool:
+	if minutes <= 0:
+		return false
+	var supply := get_current_supply()
+	if supply.is_empty():
+		return false
+	supply["arrival_time_minutes"] = int(supply.get("arrival_time_minutes", 0)) + minutes
+	supply["deadline_time_minutes"] = int(supply.get("deadline_time_minutes", 0)) + minutes
+	last_notice = "补给到货时间因惩罚推迟。"
+	_save_state()
+	supply_changed.emit()
+	return true
+
+## Void the current supply window (reuses the existing "missed" state, so the
+## next window is auto-scheduled when this one's arrival time passes -- the
+## player loses this cycle's supply as the penalty).
+func cancel_current_supply() -> bool:
+	var supply := get_current_supply()
+	if supply.is_empty():
+		return false
+	supply["status"] = "missed"
+	supply["confirmed"] = false
+	last_notice = "当前补给班次因惩罚被取消。"
+	supply_deadline_passed.emit(String(supply.get("supply_id", "")), "missed")
+	_save_state()
+	supply_changed.emit()
+	return true
+
 func get_selected_weight(supply: Dictionary = {}) -> float:
 	var target := supply if not supply.is_empty() else get_current_supply()
 	if target.is_empty():

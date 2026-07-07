@@ -2674,3 +2674,83 @@ DoorStateManager 只是统一门状态层，不替代训练任务系统。
 `user://saves/door_state.json`：`{doors, last_notice}`，`doors` 是全部门实例的
 深拷贝。`load_state()` 找不到文件时回落 `reset_to_arrival()` 重建 10 扇预置门。
 `deserialize()` 逐门走 `register_door()` 重新归一化（老存档缺字段会补默认值）。
+
+---
+
+## 惩罚系统 PenaltyManager / PenaltyDatabase
+
+### 定位
+统一管理惩罚的中央调度器 autoload `/root/PenaltyManager`
+（`scripts/managers/PenaltyManager.gd`，`class_name GuanghanPenaltyManager`）。
+**只做分派，不检测触发条件、不做玩法计算**——各系统检测到该罚时调
+`PenaltyManager.apply_penalty(...)`，由它把一条惩罚的各项效果扇出到
+时间 / 健康 / 背包仓库 / 地球补给系统。和 PlayerStateManager 一样是路由层，
+不是规则引擎。**没有自己的数值**，数值都来自调用方或预设。
+
+代码：
+- `scripts/data/PenaltyDatabase.gd`（纯数据 `RefCounted`，preload，无 autoload）——
+  命名惩罚预设目录。
+- `scripts/managers/PenaltyManager.gd`（autoload）——分派 + 记录 + 信号。
+
+### 入口
+`apply_penalty(penalty, overrides := {}) -> Dictionary`
+- `penalty`：预设 id（String，查 PenaltyDatabase）或内联描述 Dictionary。
+- `overrides`：覆盖到描述上的字段（临时改 context/reason/silent/time_minutes…）。
+- 返回 `{applied, effects_applied[], blocked_reason}`；发 `penalty_applied` 信号
+  （即使 silent 也发，供 UI 观测）；非 silent 的进 `history`（最近 20 条）+
+  写 `last_notice`。
+
+### 惩罚描述字段
+| 字段 | 效果 | 对接 |
+|---|---|---|
+| `penalty_id`/`display_name`/`severity`(minor/major/critical)/`reason` | 元信息 | — |
+| `context` | "training"/"mission"/""(空=按 PlayerStateManager.get_context() 自动) | 决定时间路由 |
+| `silent` | true 跳过 notice/history（连续环境扣减用） | — |
+| `time_minutes` | 扣时间 | 训练→`TrainingTimeManager.advance_training_time`；正式→`TimeManager.advance_time` |
+| `health_deltas` `{energy/fullness/nutrition/morale}` | 扣属性（负值） | `HealthManager.adjust_stat` |
+| `energy_cost` | 额外耗电式精力 | `HealthManager.consume_energy` |
+| `remove_items` `[{item_id,amount,source}]` | 扣物品，source=backpack/storage/any（any 先背包后仓库补差额） | `BackpackManager`/`StorageManager.remove_item`（按 `get_item_count` 钳制） |
+| `supply_effect` `{type,...}` | 补给惩罚（见下） | `SupplyManager` |
+| `notice_text` | 覆盖默认 notice 文案 | — |
+
+每一路都用 `get_node_or_null` + `has_method` 守卫，目标系统缺失时该效果**优雅
+跳过**（不报错），`effects_applied` 里只记实际生效的项。
+
+### 补给惩罚 `supply_effect.type`（对接 SupplyManager 新增的加法式方法）
+- `reduce_weight` `{amount}` → `apply_supply_weight_penalty`：下调**当前（即将到来）**
+  补给的可用重量（一次性，钳制 ≥0；若草单超限，确认时按既有规则拒绝直到删减）。
+- `delay` `{minutes}` → `delay_current_supply`：当前补给到货 + 截止时间同步后推。
+- `cancel` → `cancel_current_supply`：复用既有 "missed" 状态作废当前补给窗口
+  （下个窗口按原有 `handle_supply_arrival` 机制在本班到货时刻自动排期，
+  玩家损失这一轮补给）。
+- `force_item` `{supply_index,item_id}` → 既有 `set_forced_supply_item`。
+
+### 已收编的现有惩罚
+- **训练答错扣时**：`training_base_map.gd` 的 `_handle_wrong_choice()` 里
+  15 分钟扣时（气闸充/降压、电池组处理）改走 PenaltyManager（silent；居中渐隐
+  文字仍由训练地图自己出）。带回退：PenaltyManager 缺失时直接扣训练时间。
+- **每小时环境 morale 扣减**：`BaseStatusManager`（电力/舱压/温度）、
+  `AirSystemManager`（O₂/CO₂）、`WaterSystemManager`（缺水）各自的
+  `_apply_health_environment_effects()` 里对 `HealthManager.adjust_stat("morale",…)`
+  的每小时调用，改为经各自新增的 `_route_environment_morale()` 走
+  PenaltyManager 的 silent 路径（`penalty_id="ambient_environment_morale"`）。
+  **数值逐笔不变**：PenaltyManager 收到 `health_deltas.morale` 后就是同一句
+  `adjust_stat("morale", delta)`；PenaltyManager 缺失时回退到原直接调用。
+  （BaseStatusManager 的"最后一株植物恢复 +2.0 morale"是奖励不是惩罚，未收编。）
+
+### 预设目录 `PenaltyDatabase.PENALTIES`
+当前预设：`training_pressure_wrong` / `training_battery_wrong`（训练答错，15 分钟，
+training 上下文）、`ambient_environment_morale`（环境每小时 morale，silent）。
+静态接口 `has_penalty` / `get_penalty`（会注入 penalty_id）/ `get_display_name` /
+`get_severity` / `all_ids`。
+
+### 存档
+本身不落盘（`history`/`last_notice` 是运行态派生值，重开重算）。惩罚的**效果**
+落在被扣的各系统自己的存档里。
+
+### 待办 / 设计可扩展点
+- 预设目录目前很小，正式任务的离散惩罚（超时、事故、误操作后果）可继续往
+  `PenaltyDatabase` 加，或调用方内联描述。
+- `severity` 目前只进记录/信号，UI 分级展示（颜色/音效）还没做。
+- `apply_penalty` 尚未做"部分失败"语义（某一路系统缺失只是跳过，仍算 applied）；
+  若将来需要"必须全部生效否则回滚"，要另加事务式包装。

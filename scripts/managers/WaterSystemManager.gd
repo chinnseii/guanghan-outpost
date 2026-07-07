@@ -132,7 +132,28 @@ func _apply_health_environment_effects(hours: float) -> void:
 	if health_manager == null or not health_manager.has_method("adjust_stat"):
 		return
 	if _life_water_shortfall_hours >= 24.0:
-		health_manager.call("adjust_stat", "morale", -2.0 / 24.0 * hours)
+		_route_environment_morale(health_manager, -2.0 / 24.0 * hours, "water_shortage")
+
+## Route an ambient (per-hour) morale drain through the central PenaltyManager
+## when present (unifies morale penalties under one dispatcher); silent and
+## numerically identical to the old direct adjust_stat call, with a direct
+## fallback when PenaltyManager isn't loaded.
+func _route_environment_morale(health_manager: Node, delta: float, reason: String) -> void:
+	if delta == 0.0:
+		return
+	var penalty_manager := get_node_or_null("/root/PenaltyManager")
+	if penalty_manager != null and penalty_manager.has_method("apply_penalty"):
+		penalty_manager.call("apply_penalty", {
+			"penalty_id": "ambient_environment_morale",
+			"display_name": "环境压力",
+			"context": "mission",
+			"reason": reason,
+			"silent": true,
+			"health_deltas": {"morale": delta},
+		})
+		return
+	if health_manager != null and health_manager.has_method("adjust_stat"):
+		health_manager.call("adjust_stat", "morale", delta)
 
 ## One-time action costs (eat / nutrition_drink). Called by TimeManager
 ## alongside HealthManager/PowerSystemManager's own action-cost hooks. Best

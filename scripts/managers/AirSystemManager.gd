@@ -215,7 +215,28 @@ func _apply_health_environment_effects(hours: float) -> void:
 	elif co2_percent > 0.50:
 		morale_delta -= 0.02 * hours
 	if morale_delta != 0.0:
-		health_manager.call("adjust_stat", "morale", morale_delta)
+		_route_environment_morale(health_manager, morale_delta, "environment_oxygen_co2")
+
+## Route an ambient (per-hour) morale drain through the central PenaltyManager
+## when present (unifies morale penalties under one dispatcher); silent and
+## numerically identical to the old direct adjust_stat call, with a direct
+## fallback when PenaltyManager isn't loaded.
+func _route_environment_morale(health_manager: Node, delta: float, reason: String) -> void:
+	if delta == 0.0:
+		return
+	var penalty_manager := get_node_or_null("/root/PenaltyManager")
+	if penalty_manager != null and penalty_manager.has_method("apply_penalty"):
+		penalty_manager.call("apply_penalty", {
+			"penalty_id": "ambient_environment_morale",
+			"display_name": "环境压力",
+			"context": "mission",
+			"reason": reason,
+			"silent": true,
+			"health_deltas": {"morale": delta},
+		})
+		return
+	if health_manager != null and health_manager.has_method("adjust_stat"):
+		health_manager.call("adjust_stat", "morale", delta)
 
 ## Consulted by HealthManager.get_energy_cost_multiplier(); defaults to 1.0 when absent.
 ## No high-O2 penalty exists by design: exceeding 22% never raises this multiplier.

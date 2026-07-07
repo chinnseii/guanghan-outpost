@@ -159,7 +159,29 @@ func _apply_health_environment_effects(hours: float) -> void:
 	if _temperature_is_dangerous():
 		morale_delta -= 0.05 * hours
 	if morale_delta != 0.0:
-		health_manager.call("adjust_stat", "morale", morale_delta)
+		_route_environment_morale(health_manager, morale_delta, "environment_power_pressure_temperature")
+
+## Route an ambient (per-hour) morale drain through the central PenaltyManager
+## when present -- unifies all morale penalties under one dispatcher. Silent
+## (no notice/history, continuous drain), and numerically identical to the old
+## direct adjust_stat call. Falls back to the direct call if PenaltyManager is
+## absent, so behaviour is unchanged when it isn't loaded.
+func _route_environment_morale(health_manager: Node, delta: float, reason: String) -> void:
+	if delta == 0.0:
+		return
+	var penalty_manager := get_node_or_null("/root/PenaltyManager")
+	if penalty_manager != null and penalty_manager.has_method("apply_penalty"):
+		penalty_manager.call("apply_penalty", {
+			"penalty_id": "ambient_environment_morale",
+			"display_name": "环境压力",
+			"context": "mission",
+			"reason": reason,
+			"silent": true,
+			"health_deltas": {"morale": delta},
+		})
+		return
+	if health_manager != null and health_manager.has_method("adjust_stat"):
+		health_manager.call("adjust_stat", "morale", delta)
 
 ## Consulted by HealthManager.get_energy_cost_multiplier(); defaults to 1.0 when
 ## absent. Oxygen/CO2 no longer factor in here — see AirSystemManager.get_air_energy_multiplier().
