@@ -3790,12 +3790,16 @@ func _setup_dev_menu() -> void:
 		get_tree().change_scene_to_file(TrainingManagerScript.MODULE_03)
 	))
 	box.add_child(_make_dev_button("Dev Only: Training Module 04", func():
-		TrainingManagerScript.set_current_module("life_support")
-		get_tree().change_scene_to_file("res://scenes/training/Training_04_LifeSupport.tscn")
+		TrainingManagerScript.set_current_module("power_distribution")
+		get_tree().change_scene_to_file(TrainingManagerScript.MODULE_04)
 	))
 	box.add_child(_make_dev_button("Dev Only: Training Module 05", func():
+		TrainingManagerScript.set_current_module("life_support")
+		get_tree().change_scene_to_file(TrainingManagerScript.MODULE_05)
+	))
+	box.add_child(_make_dev_button("Dev Only: Training Module 06", func():
 		TrainingManagerScript.set_current_module("plant_diagnosis")
-		get_tree().change_scene_to_file("res://scenes/training/Training_05_PlantDiagnosis.tscn")
+		get_tree().change_scene_to_file(TrainingManagerScript.MODULE_06)
 	))
 	box.add_child(_make_dev_button("Dev Only: Final Assessment", func():
 		TrainingManagerScript.set_current_module("final_assessment")

@@ -1,100 +1,108 @@
 # 当前状态（滚动文档，每次覆盖重写）
 
 更新时间：2026-07-07
-更新人：Claude Code（代 Codex，训练模块 03：月面太阳能板维修）
+更新人：Codex（训练系统重构）+ Claude Code（代 Codex，宇航服密封/通信字段移除，
+以下追加一节，本文档其余内容为 Codex 原文未改动）
 
-## 本轮完成：训练模块 03「太阳能阵列训练场」
+## 本轮完成：训练系统重构骨架
 
-按用户给的完整开发指令实现了训练第三房间的全部内容。**沿用既有
-module_id `"power_repair"`**，新场景文件
-`res://scenes/training/SolarArrayTrainingField.tscn`（旧的
-`Training_03_PowerRepair.tscn` 原样保留、不再引用）。完整设计细节见
-`docs/handoff/SYSTEMS_REFERENCE_FOR_DESIGN.md`「训练第三房间：太阳能阵列
-训练场」一节，这里只列要点：
+按用户新的训练系统指令，把训练主链路从旧的 5 段流程改为：
 
-- **入场门禁**：`SuitManager.is_suit_worn == false` 时阻止进入，
-  `briefing_modal` 替换成错误提示 + 返回主菜单。
-- **7 步任务链**：确认宇航服外勤状态（Tab）→ 移动到故障点 → 检查（E，
-  15 分钟固定档，消耗宇航服氧气/电力各 -2、精力 -2）→ 4 选项维修方案面板
-  → 正确选项修复 → 供电 Critical→Basic → 出口。
-- **新故障卡 `FA-TR-SOLAR-001`**（`FaultDatabase.gd`，4 个选项）+
-  `RepairManager.apply_repair_option(fault_id, option_id, context)`
-  训练分支（全新入口，`attempt_repair()`等既有正式流程函数一字未动）：
-  只认 `FaultDatabase` + `InventoryManager` 的训练容器 + 
-  `TrainingTimeManager` + `SuitManager`/`HealthManager`，绝不碰真实
-  `TimeManager`/`StorageManager`/`BaseStatusManager`。
-- **训练容器**：`InventoryManager.gd` 新增 `training_03_parts` 概念
-  （`create_container`/`add_item_to_container`/`remove_item_from_container`/
-  `has_item_in_container`/`get_container_item_count`/`clear_container`），
-  完全独立于真实背包/`StorageManager`，不参与存档。
-- **新物品** `TR-MT-001` 通用备件 / `TR-MT-002` 训练电子元件
-  （`ItemDatabase.gd`，training-only）。
-- **训练备件耗尽 -> 直接判负**：`TrainingManagerScript.fail_training(
-  "training_03_parts_depleted")`，跟既有的训练档案超时失败走同一个出口。
+1. Training 01：宇航服整备室（沿用 `suit_control`）
+2. Training 02：气闸流程（沿用 `airlock_procedure`）
+3. Training 03：月面太阳能阵列训练场（沿用 Claude Code 上轮的 `power_repair` / `SolarArrayTrainingField.tscn`）
+4. Training 04：配电房供电恢复（新增 `power_distribution`）
+5. Training 05：训练舱空气恢复（沿用 `life_support`，新场景入口）
+6. Training 06：温室植物诊断（沿用 `plant_diagnosis`，新场景入口）
+7. 收尾任务：返回宇航服整备室，脱下宇航服并放回维护位
+8. 查看训练结果后进入任务派遣通知
 
-## 本轮顺手修复的真实 Bug：`TrainingManager.load_progress()` 吃掉跨模块宇航服状态
+## 主要改动
 
-写入场门禁时发现并确认：`set_current_module()`/`mark_module_completed()`
-都是先 `load_progress()` 再 `save_progress()`，而 `load_progress()` 会把
-`SuitState`（以及 Time/Health/BaseStatus 等全部状态）无条件
-`deserialize()` 回活的 manager——用临时脚本实测复现：模块一穿好宇航服后，
-模块一 `_finish_module()` 一调 `mark_module_completed()`，
-`is_suit_worn` 就被悄悄改回 `false`（因为读到的是模块一**入场时**存的
-旧快照）。**这不是本轮新增的问题，是从 `SuitManager` 上线那次就存在的
-坑**，只是之前没有任何训练房间的逻辑依赖"宇航服状态跨模块存活"，这次
-的入场门禁第一次真正踩上。
+- 新增场景：
+  - `res://scenes/training/Training_04_PowerDistribution.tscn`
+  - `res://scenes/training/Training_05_AirSystemControl.tscn`
+  - `res://scenes/training/Training_06_TrainingGreenhouse.tscn`
+- `scripts/training/training_manager.gd`
+  - 新增 `MODULE_06`
+  - `MODULE_04` 指向配电房
+  - `MODULE_05` 指向空气系统控制室
+  - `plant_diagnosis` 改为第 6 个模块
+  - 新增 `PowerDistributionCompleted`
+  - `are_required_modules_completed()` 现在要求 6 个核心训练站完成
+  - 读取完成状态改用 `_read_progress_data()`，避免 timeout 检查时反序列化覆盖 live manager 状态
+- `scripts/training/training_module_scene.gd`
+  - 新增 `power_distribution` 模块配置
+  - 03 太阳能阵列完成后跳到 04 配电房
+  - 05 空气系统完成后跳到 06 温室
+  - 06 温室完成后跳到收尾任务
+  - `final_assessment` 当前作为“宇航服归位与维护”收尾场景使用
+  - 新增 `return_suit_confirm` 步骤类型
+- `scripts/managers/SuitManager.gd`
+  - 新增 `remove_suit_to_service_station_training()`
+  - 该方法只推进 `TrainingTimeManager.advance_training_time(...)`
+  - 不调用正式 `TimeManager.advance_time(...)`
+  - 用于训练收尾归位宇航服
+- `scripts/main.gd`
+  - Dev Menu 的 Training Module 04/05/06 入口已按新编号更新
 
-**修复**（`scripts/training/training_manager.gd`，纯新增）：拆出私有
-`_read_progress_data()`（只读 JSON + merge 进默认值，无 manager 副作用），
-`set_current_module()`/`mark_module_completed()` 改调它而不是
-`load_progress()`；`load_progress()` 本身签名和行为完全不变，其余调用方
-（`assignment_black_screen_scene.gd`/`mission_assignment_notice_scene.gd`/
-`main.gd`）不受影响。已用临时脚本验证：穿服 -> 模块完成 -> 下一模块
-入场，`is_suit_worn` 全程保持 `true`。
+## 触碰的共用文件
+
+本轮按协作规则，改动前已查看 git log：
+
+- `scripts/training/training_module_scene.gd`
+- `scripts/training/training_manager.gd`
+- `scripts/managers/SuitManager.gd`
+
+本轮没有修改：
+
+- `scripts/managers/RepairManager.gd`
+- `scripts/data/FaultDatabase.gd`
+- `scripts/managers/InventoryManager.gd`
+- `scripts/data/ItemDatabase.gd`
+
+Claude Code 上轮的 Training Module 03 / `FA-TR-SOLAR-001` 保持不覆盖。
 
 ## 验证
 
-- Godot 4.7 headless：新场景 + 其余全部 9 个既有场景（`main.tscn`/5 个
-  训练模块/考核/通知/黑屏）逐一 `--quit`，均无 `SCRIPT ERROR`/
-  `Parse Error`/`Nonexistent function`。
-- 临时脚本（未提交，验证后已删除）覆盖：
-  1. `FA-TR-SOLAR-001` 4 个选项的耗时/材料/氧气/电力/精力数值逐条对照
-     需求文档第十三节精确匹配。
-  2. 入场门禁：未穿服 `entry_blocked=true`，穿服后 `entry_blocked=false`。
-  3. 穿服状态跨 `mark_module_completed()`/`set_current_module()` 存活
-     （上面那个 Bug 的回归测试）。
-  4. 错误选项 -> 正确选项的完整流程（材料扣减、时间推进、资源扣减、
-     `fault_fixed` 正确）。
-  5. 高风险选项独立验证耗时/资源扣减。
-  6. 训练备件耗尽后维修失败、`fault_fixed` 仍为 false。
-  7. `TimeManager.serialize()` 前后完全一致（训练维修零污染正式时间
-     系统）。
+已用 Godot 4.7 console headless 单独加载以下场景，均无脚本解析错误：
 
-## 已知问题 / 暂不覆盖范围
+- `res://scenes/training/Training_04_PowerDistribution.tscn`
+- `res://scenes/training/Training_05_AirSystemControl.tscn`
+- `res://scenes/training/Training_06_TrainingGreenhouse.tscn`
+- `res://scenes/training/FinalAssessmentScene.tscn`
 
-- D 选项「强行切换满功率输入」目前只有文案层面的"稳定性下降"，没有实际
-  数值/状态惩罚——第一版按需求文档"不要炸毁设备，保持克制"故意保留
-  克制，下一轮如果要加真实惩罚需要另外设计。
-- `_read_progress_data()` 拆分只修了 `set_current_module()`/
-  `mark_module_completed()` 这两个已知会撞见"live 状态领先于快照"的
-  调用点；`start_training()`（训练最开始只调一次）仍用原始
-  `load_progress()`，本次没有动它（那个时间点还不存在状态领先的情况，
-  风险低）。
-- 训练宇航服状态可能"泄漏"进正式任务这个更早的已知问题没有变化（详见
-  `SYSTEMS_REFERENCE_FOR_DESIGN.md`「训练第一房间」一节）。
+完整 `--check-only` 曾因 Godot 写 `user://logs` 权限/超时问题未作为最终验证依据。
 
-## 先别碰 / 本轮触碰说明
+## 已知问题 / 后续建议
 
-- 本轮**打破了上一轮"RepairManager.gd / FaultDatabase.gd 是 Codex 自己
-  推进的系统，不要碰"的约定**——这是用户本轮需求文档明确要求的（复用
-  维修系统而不是新建一套训练维修管理器），改动方式是纯新增
-  （`apply_repair_option()` 等新函数 + 一张新故障卡），`attempt_repair()`/
-  `apply_repair_success()`/`apply_repair_failure()`/既有 16 张故障卡
-  一字未动。如果 Codex 这轮也在并行推进这两个文件，合并时请重点核对
-  `RepairManager.gd` 底部新增的 `apply_repair_option()` 及其私有 helper、
-  以及 `FaultDatabase.gd` 里的 `"FA-TR-SOLAR-001"` 条目。
-- `scripts/managers/BackpackManager.gd` / `StorageManager.gd` /
-  `SupplyManager.gd` 本轮仍然完全没有碰，继续由 Codex 维护。
-- `scripts/data/ItemDatabase.gd` / `scripts/managers/InventoryManager.gd`
-  本轮新增了 training-only 的两个物品和"训练容器"接口，继续由 Claude
-  Code 维护（改前先 `git log --oneline -- <file>`）。
+- Training 05 空气系统和 Training 06 温室目前复用旧生命支持/植物诊断内部逻辑，只修正了链路、编号和入口；后续可再细化成“制氧 16% -> 20%”和“光照不足”专门流程。
+- Training 收尾 HUD 目前部分状态使用 ASCII（`returned` / `servicing` / `pending`），避免本轮中文字符串在 PowerShell 输出中造成编码误判；后续 UI polish 可改回完整中文。
+- 旧的 `Training_04_LifeSupport.tscn` / `Training_05_PlantDiagnosis.tscn` 未删除，作为兼容/回退文件保留，但新链路不再引用它们。
+- 工作区还有大量 `.import` / `.uid` / 截图相关未跟踪或修改文件，是本轮之前已有的 Godot 自动生成/历史遗留状态；本轮未纳入处理。
+
+## 追加（Claude Code，代 Codex）：移除宇航服"密封状态"/"通信链路"
+
+应用户要求，把 `SuitManager.gd` 里纯展示、无任何机制读取的
+`suit_seal_status`/`suit_comm_status` 两个字段整体去掉：
+
+- `SuitManager.gd`：删掉字段声明、`reset_to_arrival()`/
+  `remove_suit_to_service_station_training()` 里的重置、
+  `_seal_label()`/`_comm_label()`、`get_suit_status_for_ui()`（现在只剩
+  oxygen/oxygen_capacity/power/power_capacity/speed_multiplier 五个键）、
+  `panel_status_text()`（密封/通信那行去掉，只留速度倍率）、
+  `serialize()`/`deserialize()` 里对应的两个键。
+- `scripts/training/training_module_scene.gd`：宇航服状态面板文案去掉
+  "密封状态"/"通信链路"两行，删掉不再用到的 `_suit_seal_label()`/
+  `_suit_comm_label()`。
+- `scripts/ui/suit_panel.gd`（正式游戏 `U` 键面板）只读
+  `panel_status_text()` 聚合文本，未受影响，无需改动。
+- 旧存档（`suit_state.json`）里如果残留这两个键，`deserialize()`的
+  `data.get(key, default)`模式会安全忽略，不会报错——已用 headless 扫了
+  一遍全部场景（含本轮新加的 04/05/06）确认无解析错误。
+- `docs/handoff/SYSTEMS_REFERENCE_FOR_DESIGN.md`「训练第一房间」一节已
+  补充说明这次移除。
+
+本次提交把这两部分改动（Codex 的训练系统重构 + Claude Code 的密封/通信
+移除）一起打进同一个 commit，因为改动落在同一批文件里，没法干净拆开；
+两边内容互不冲突，已一起过 headless 验证。

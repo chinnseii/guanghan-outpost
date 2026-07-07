@@ -64,11 +64,6 @@ var suit_power_capacity: float = 100.0
 var suit_speed_multiplier: float = 0.8
 var wear_time_minutes: int = 15
 var remove_to_station_time_minutes: int = 15
-## Decorative/display-only in v1 (see the 宇航服整备室 training-room spec) --
-## nothing currently reads these to gate anything; they exist so the status
-## panel can show a complete picture (oxygen/power/seal/comm/speed).
-var suit_seal_status: String = "normal"
-var suit_comm_status: String = "online"
 
 func _ready() -> void:
 	load_state()
@@ -84,8 +79,6 @@ func reset_to_arrival() -> void:
 	update_suit_speed_multiplier()
 	wear_time_minutes = 15
 	remove_to_station_time_minutes = 15
-	suit_seal_status = "normal"
-	suit_comm_status = "online"
 	_save_state()
 	suit_changed.emit()
 
@@ -132,6 +125,21 @@ func remove_suit_to_service_station() -> bool:
 	_advance_time(remove_to_station_time_minutes, "remove_suit_to_service_station")
 	is_suit_worn = false
 	suit_storage_state = "servicing"
+	_save_state()
+	suit_changed.emit()
+	return true
+
+func remove_suit_to_service_station_training() -> bool:
+	if not is_suit_worn:
+		return false
+	var training_time_manager := _training_time_manager()
+	if training_time_manager == null or not training_time_manager.has_method("advance_training_time"):
+		return false
+	training_time_manager.call("advance_training_time", remove_to_station_time_minutes, "training_return_spacesuit")
+	is_suit_worn = false
+	suit_storage_state = "servicing"
+	suit_oxygen = max(suit_oxygen, suit_oxygen_capacity)
+	suit_power = max(suit_power, suit_power_capacity)
 	_save_state()
 	suit_changed.emit()
 	return true
@@ -298,28 +306,16 @@ func get_status_label() -> String:
 			return "维护中"
 	return suit_storage_state
 
-func _seal_label() -> String:
-	if suit_seal_status == "normal":
-		return "正常"
-	return suit_seal_status
-
-func _comm_label() -> String:
-	if suit_comm_status == "online":
-		return "在线"
-	return suit_comm_status
-
-## Snapshot for UI code that wants all five status readouts in one call
-## (oxygen/power/seal/comm/speed) instead of reading fields individually --
-## used by the 宇航服整备室 training-room's status panel, but generic enough
-## for any future suit UI.
+## Snapshot for UI code that wants all status readouts in one call
+## (oxygen/power/speed) instead of reading fields individually -- used by
+## the 宇航服整备室 training-room's status panel, but generic enough for any
+## future suit UI.
 func get_suit_status_for_ui() -> Dictionary:
 	return {
 		"oxygen": suit_oxygen,
 		"oxygen_capacity": suit_oxygen_capacity,
 		"power": suit_power,
 		"power_capacity": suit_power_capacity,
-		"seal_status": suit_seal_status,
-		"comm_status": suit_comm_status,
 		"speed_multiplier": suit_speed_multiplier,
 	}
 
@@ -328,8 +324,8 @@ func panel_status_text() -> String:
 		"宇航服状态：%s · 氧气 %.0f/%.0f · 电力 %.0f/%.0f" % [
 			get_status_label(), suit_oxygen, suit_oxygen_capacity, suit_power, suit_power_capacity,
 		],
-		"密封：%s · 通信：%s · 行动速度倍率：%.2f（%s）" % [
-			_seal_label(), _comm_label(), suit_speed_multiplier, get_suit_level_name(),
+		"行动速度倍率：%.2f（%s）" % [
+			suit_speed_multiplier, get_suit_level_name(),
 		],
 	]
 	if suit_storage_state == "servicing":
@@ -432,8 +428,6 @@ func serialize() -> Dictionary:
 		"suit_power": suit_power,
 		"suit_power_capacity": suit_power_capacity,
 		"suit_speed_multiplier": suit_speed_multiplier,
-		"suit_seal_status": suit_seal_status,
-		"suit_comm_status": suit_comm_status,
 	}
 
 func deserialize(data: Dictionary) -> void:
@@ -445,8 +439,6 @@ func deserialize(data: Dictionary) -> void:
 	suit_power = float(data.get("suit_power", suit_power))
 	suit_power_capacity = float(data.get("suit_power_capacity", suit_power_capacity))
 	suit_speed_multiplier = float(data.get("suit_speed_multiplier", suit_speed_multiplier))
-	suit_seal_status = String(data.get("suit_seal_status", suit_seal_status))
-	suit_comm_status = String(data.get("suit_comm_status", suit_comm_status))
 	suit_changed.emit()
 
 func load_state() -> void:

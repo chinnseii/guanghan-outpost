@@ -2073,9 +2073,6 @@ suit_status_panel：
 
 ### `SuitManager.gd` 新增（跟正式宇航服系统共用同一个实例，见下"边界"）
 ```
-suit_seal_status: String = "normal"    # 新字段，纯展示，暂无任何机制读它
-suit_comm_status: String = "online"    # 新字段，纯展示，暂无任何机制读它
-
 wear_suit_training() -> bool
   跟 wear_suit() 一样的前置条件（suit_storage_state == "ready"），但推进
   的是 TrainingTimeManager.advance_training_time(15, "training_wear_spacesuit")，
@@ -2084,14 +2081,22 @@ wear_suit_training() -> bool
   +15。
 
 get_suit_status_for_ui() -> Dictionary
-  返回 oxygen/oxygen_capacity/power/power_capacity/seal_status/
-  comm_status/speed_multiplier 七个键，需求文档给的示例字段名。
-
-panel_status_text() 顺带扩展成两行，新增了密封/通信这两项（原来只有
-状态+氧气+电力一行 + 速度倍率一行）——这个改动影响的是正式游戏里已有的
-`scripts/ui/suit_panel.gd`（`U` 键那个面板），不是训练专属改动，因为这
-两个字段是同一个 SuitManager 实例上的，两边应该看到同样完整的信息。
+  返回 oxygen/oxygen_capacity/power/power_capacity/speed_multiplier
+  五个键。
 ```
+
+**后续更新（应用户要求移除）**：最初这一轮曾加过
+`suit_seal_status`/`suit_comm_status` 两个纯展示字段（密封状态/通信
+链路，需求文档给的示例字段名，没有任何机制读取它们做判断），以及
+`_seal_label()`/`_comm_label()`、`get_suit_status_for_ui()`/
+`panel_status_text()`/`serialize()`/`deserialize()`里对应的展示/存档
+分支，还有 `training_module_scene.gd` 状态面板文案里的"密封状态"/
+"通信链路"两行和 `_suit_seal_label()`/`_suit_comm_label()`。用户后来
+明确要求去掉这两个概念，已整体移除（`SuitManager.gd`/
+`training_module_scene.gd` 都改了，`scripts/ui/suit_panel.gd` 只读
+`panel_status_text()` 聚合文本，未受影响）。旧存档里如果残留
+`suit_seal_status`/`suit_comm_status` 键，`deserialize()`的
+`data.get(key, default)`模式会安全忽略，不会报错。
 **没有新增 `is_suit_worn() -> bool` 方法**——需求文档建议这个接口名，但
 `SuitManager` 已经有一个同名的公开字段 `is_suit_worn: bool`（正式宇航服
 系统那次加的），GDScript 不允许同一个类里字段和方法同名，调用方应该直接

@@ -16,8 +16,9 @@ const MODULE_02 := "res://scenes/training/Training_02_AirlockProcedure.tscn"
 ## Training_03_PowerRepair.tscn file is left in place, unused, rather than
 ## deleted.
 const MODULE_03 := "res://scenes/training/SolarArrayTrainingField.tscn"
-const MODULE_04 := "res://scenes/training/Training_04_LifeSupport.tscn"
-const MODULE_05 := "res://scenes/training/Training_05_PlantDiagnosis.tscn"
+const MODULE_04 := "res://scenes/training/Training_04_PowerDistribution.tscn"
+const MODULE_05 := "res://scenes/training/Training_05_AirSystemControl.tscn"
+const MODULE_06 := "res://scenes/training/Training_06_TrainingGreenhouse.tscn"
 const FINAL_ASSESSMENT := "res://scenes/training/FinalAssessmentScene.tscn"
 const MISSION_NOTICE := "res://scenes/training/MissionAssignmentNoticeScene.tscn"
 const BLACK_SCREEN := "res://scenes/training/AssignmentBlackScreenScene.tscn"
@@ -37,8 +38,9 @@ const MODULE_SCENES := {
 	"suit_control": MODULE_01,
 	"airlock_procedure": MODULE_02,
 	"power_repair": MODULE_03,
-	"life_support": MODULE_04,
-	"plant_diagnosis": MODULE_05,
+	"power_distribution": MODULE_04,
+	"life_support": MODULE_05,
+	"plant_diagnosis": MODULE_06,
 	"final_assessment": FINAL_ASSESSMENT,
 	"mission_assignment": MISSION_NOTICE,
 	"assignment_black_screen": BLACK_SCREEN,
@@ -51,6 +53,7 @@ static func default_data() -> Dictionary:
 		"SuitControlCompleted": false,
 		"AirlockProcedureCompleted": false,
 		"PowerRepairCompleted": false,
+		"PowerDistributionCompleted": false,
 		"LifeSupportCompleted": false,
 		"PlantDiagnosisCompleted": false,
 		"CompletedTrainingModules": [],
@@ -249,6 +252,8 @@ static func mark_module_completed(module_id: String, next_module_id: String) -> 
 			data["AirlockProcedureCompleted"] = true
 		"power_repair":
 			data["PowerRepairCompleted"] = true
+		"power_distribution":
+			data["PowerDistributionCompleted"] = true
 		"life_support":
 			data["LifeSupportCompleted"] = true
 		"plant_diagnosis":
@@ -265,16 +270,17 @@ static func mark_module_completed(module_id: String, next_module_id: String) -> 
 	if module_id == "final_assessment":
 		update_candidate_file_status("已通过最终考核")
 
-## Required modules are the five core training stations -- final_assessment
+## Required modules are the six core training stations -- final_assessment
 ## is the settlement step that happens once these are done, not one of the
 ## modules the training archive timer is racing against. Used by
 ## TrainingTimeManager.check_training_timeout() to decide pass vs. fail when
 ## the archive time limit runs out.
 static func are_required_modules_completed() -> bool:
-	var data := load_progress()
+	var data := _read_progress_data()
 	return bool(data.get("SuitControlCompleted", false)) \
 		and bool(data.get("AirlockProcedureCompleted", false)) \
 		and bool(data.get("PowerRepairCompleted", false)) \
+		and bool(data.get("PowerDistributionCompleted", false)) \
 		and bool(data.get("LifeSupportCompleted", false)) \
 		and bool(data.get("PlantDiagnosisCompleted", false))
 

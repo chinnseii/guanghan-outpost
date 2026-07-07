@@ -1055,10 +1055,8 @@ func _refresh_suit_status_panel() -> void:
 		suit_status_text_label.text = "宇航服数据不可用。"
 		return
 	var data: Dictionary = suit_manager.call("get_suit_status_for_ui")
-	var text := "宇航服状态\n\n氧气储备：%.0f%%\n电力储备：%.0f%%\n密封状态：%s\n通信链路：%s\n移动倍率：%.2f" % [
+	var text := "宇航服状态\n\n氧气储备：%.0f%%\n电力储备：%.0f%%\n移动倍率：%.2f" % [
 		float(data.get("oxygen", 0.0)), float(data.get("power", 0.0)),
-		_suit_seal_label(String(data.get("seal_status", "normal"))),
-		_suit_comm_label(String(data.get("comm_status", "online"))),
 		float(data.get("speed_multiplier", 0.8)),
 	]
 	# Extra narrative context lines specific to the solar array EVA training
@@ -1070,16 +1068,6 @@ func _refresh_suit_status_panel() -> void:
 	else:
 		text += "\n\n初代宇航服会降低行动速度。后续升级可将移动倍率提升至 1.00。"
 	suit_status_text_label.text = text
-
-func _suit_seal_label(status: String) -> String:
-	if status == "normal":
-		return "正常"
-	return status
-
-func _suit_comm_label(status: String) -> String:
-	if status == "online":
-		return "在线"
-	return status
 
 ## Only completes the step if the confirm button is pressed while this
 ## step is genuinely current -- guards against a stray click after the
@@ -1273,6 +1261,8 @@ func _build_training_area() -> void:
 		floor = AirlockRoomBlockout.new()
 	elif module_id == "power_repair":
 		floor = PowerRepairRoomBlockout.new()
+	elif module_id == "power_distribution":
+		floor = PowerRepairRoomBlockout.new()
 	elif module_id == "life_support":
 		floor = LifeSupportRoomBlockout.new()
 	elif module_id == "plant_diagnosis":
@@ -1294,6 +1284,8 @@ func _build_training_area() -> void:
 			target = _airlock_room_target(target)
 		elif module_id == "power_repair":
 			target = _power_room_target(target)
+		elif module_id == "power_distribution":
+			target = _power_distribution_room_target(target)
 		elif module_id == "life_support":
 			target = _life_support_room_target(target)
 		elif module_id == "plant_diagnosis":
@@ -1301,7 +1293,7 @@ func _build_training_area() -> void:
 		elif module_id == "final_assessment":
 			target = _assessment_room_target(target)
 		var node: Control
-		if module_id == "suit_control" or module_id == "airlock_procedure" or module_id == "power_repair" or module_id == "life_support" or module_id == "plant_diagnosis" or module_id == "final_assessment":
+		if module_id == "suit_control" or module_id == "airlock_procedure" or module_id == "power_repair" or module_id == "power_distribution" or module_id == "life_support" or module_id == "plant_diagnosis" or module_id == "final_assessment":
 			var visual := TrainingTargetVisual.new()
 			visual.kind = String(target.get("kind", target.get("id", "target")))
 			visual.label_text = String(target.get("label", ""))
@@ -1316,7 +1308,7 @@ func _build_training_area() -> void:
 		node.size = target.get("size", Vector2(108, 70))
 		training_area.add_child(node)
 		target_nodes[node.name] = node
-		if module_id != "suit_control" and module_id != "airlock_procedure" and module_id != "power_repair" and module_id != "life_support" and module_id != "plant_diagnosis" and module_id != "final_assessment":
+		if module_id != "suit_control" and module_id != "airlock_procedure" and module_id != "power_repair" and module_id != "power_distribution" and module_id != "life_support" and module_id != "plant_diagnosis" and module_id != "final_assessment":
 			var label := Label.new()
 			label.text = String(target.get("label", node.name))
 			label.position = Vector2(8, 8)
@@ -1334,7 +1326,7 @@ func _build_training_area() -> void:
 		training_area.add_child(exit_visual)
 		target_nodes["exit"] = exit_visual
 
-	if module_id == "suit_control" or module_id == "airlock_procedure" or module_id == "power_repair" or module_id == "life_support" or module_id == "plant_diagnosis" or module_id == "final_assessment":
+	if module_id == "suit_control" or module_id == "airlock_procedure" or module_id == "power_repair" or module_id == "power_distribution" or module_id == "life_support" or module_id == "plant_diagnosis" or module_id == "final_assessment":
 		player = TraineeVisual.new()
 	else:
 		var player_block := ColorRect.new()
@@ -1442,6 +1434,19 @@ func _power_room_target(target: Dictionary) -> Dictionary:
 			room_target["label"] = "训练出口"
 			room_target["position"] = Vector2(684, 388)
 			room_target["size"] = Vector2(74, 106)
+	return room_target
+
+func _power_distribution_room_target(target: Dictionary) -> Dictionary:
+	var room_target := _power_room_target(target)
+	match String(target.get("id", "")):
+		"panel":
+			room_target["label"] = "储能接入面板"
+		"console":
+			room_target["label"] = "配电控制台"
+		"light":
+			room_target["label"] = "供电测试灯"
+		"exit":
+			room_target["label"] = "空气系统控制室入口"
 	return room_target
 
 func _life_support_room_target(target: Dictionary) -> Dictionary:
@@ -1598,7 +1603,7 @@ func _assessment_room_target(target: Dictionary) -> Dictionary:
 	return room_target
 
 func _move_player(delta: float) -> void:
-	var use_wall_margin := module_id == "suit_control" or module_id == "power_repair" or module_id == "life_support" or module_id == "plant_diagnosis" or module_id == "final_assessment"
+	var use_wall_margin := module_id == "suit_control" or module_id == "power_repair" or module_id == "power_distribution" or module_id == "life_support" or module_id == "plant_diagnosis" or module_id == "final_assessment"
 	var margin := 36.0 if use_wall_margin else 8.0
 	var movement_bounds := Rect2(Vector2(margin, margin), training_area.size - Vector2(margin * 2.0, margin * 2.0))
 	_ensure_player_controller(movement_bounds)
@@ -1678,6 +1683,9 @@ func _try_interact() -> void:
 		return
 	if step_type == "wear_suit_confirm":
 		_show_wear_suit_confirm_dialog()
+		return
+	if step_type == "return_suit_confirm":
+		_show_return_suit_confirm_dialog()
 		return
 	if step_type == "inspect_solar_array_confirm":
 		_show_inspect_solar_array_confirm_dialog()
@@ -2142,10 +2150,10 @@ func _update_room_prompt() -> void:
 	var near := _is_near(target_id)
 	var prompt_step_type := String(step.get("type", ""))
 	if target is TrainingTargetVisual:
-		target.active = interaction_running and target.name == interaction_target_id or near and (completed or prompt_step_type == "interact" or prompt_step_type == "plant_control")
+		target.active = interaction_running and target.name == interaction_target_id or near and (completed or prompt_step_type == "interact" or prompt_step_type == "plant_control" or prompt_step_type == "return_suit_confirm" or prompt_step_type == "wear_suit_confirm")
 		target.queue_redraw()
 		target._sync_prop_node()
-	if near and (completed or prompt_step_type == "interact" or prompt_step_type == "plant_control"):
+	if near and (completed or prompt_step_type == "interact" or prompt_step_type == "plant_control" or prompt_step_type == "return_suit_confirm" or prompt_step_type == "wear_suit_confirm"):
 		prompt_label.text = _interaction_prompt(target_id)
 		prompt_label.position = target.position + Vector2(8, target.size.y + 20)
 		prompt_label.visible = true
@@ -2161,6 +2169,19 @@ func _target_locked(node_name: String, target_id: String) -> bool:
 	return false
 
 func _interaction_prompt(target_id: String) -> String:
+	if module_id == "power_distribution":
+		match target_id:
+			"panel":
+				var state: Dictionary = module_data.get("state", {})
+				if bool(state.get("PowerPanelInspected", false)):
+					return "E 接入储能模块"
+				return "E 查看供电异常"
+			"console":
+				return "E 重启配电系统"
+			"light":
+				return "E 确认供电状态"
+			"exit":
+				return "E 进入空气系统控制室"
 	if target_id == "exit":
 		if module_id == "final_assessment":
 			return "E / Enter 查看任务派遣通知"
@@ -2209,6 +2230,8 @@ func _interaction_prompt(target_id: String) -> String:
 				return "E 进入最终考核"
 	if module_id == "final_assessment":
 		match target_id:
+			"suit_rack":
+				return "E 脱下宇航服并归位"
 			"terminal":
 				var state: Dictionary = module_data.get("state", {})
 				if bool(state.get("PowerRestored", false)) and bool(state.get("LifeSupportStable", false)) and bool(state.get("PlantStable", false)):
@@ -2349,6 +2372,43 @@ func _show_wear_suit_confirm_dialog() -> void:
 
 ## -- Training module 03 (太阳能阵列训练场) -- see FA-TR-SOLAR-001 in
 ## FaultDatabase.gd for the actual fault/option data this reads.
+
+func _show_return_suit_confirm_dialog() -> void:
+	if diagnosis_panel != null:
+		diagnosis_panel.visible = false
+	if diagnosis_modal_scrim != null:
+		diagnosis_modal_scrim.visible = true
+	if diagnosis_modal != null:
+		diagnosis_modal.visible = true
+	if diagnosis_modal_image != null:
+		diagnosis_modal_image.texture = null
+	if diagnosis_modal_text != null:
+		diagnosis_modal_text.text = "宇航服归位\n\n脱下宇航服并放回维护位。\n维护系统将恢复宇航服氧气、电力与状态。\n\n训练模式下无需等待完整维护流程。\n是否确认？"
+	_clear_container(diagnosis_modal_actions)
+	var confirm := Button.new()
+	confirm.text = "确认归位"
+	confirm.custom_minimum_size = Vector2(0, 42)
+	confirm.pressed.connect(func():
+		var suit_manager := _suit_manager()
+		var success := false
+		if suit_manager != null and suit_manager.has_method("remove_suit_to_service_station_training"):
+			success = suit_manager.call("remove_suit_to_service_station_training")
+		_hide_training_diagnosis_modal()
+		if success:
+			_complete_step()
+		else:
+			hint_label.text = "宇航服当前无法归位。"
+	)
+	diagnosis_modal_actions.add_child(confirm)
+	var cancel := Button.new()
+	cancel.text = "取消"
+	cancel.custom_minimum_size = Vector2(0, 42)
+	cancel.pressed.connect(func():
+		hint_label.text = "已取消宇航服归位。"
+		_hide_training_diagnosis_modal()
+	)
+	diagnosis_modal_actions.add_child(cancel)
+	_sync_overlay_visibility()
 
 func _show_inspect_solar_array_confirm_dialog() -> void:
 	if diagnosis_panel != null:
@@ -2631,6 +2691,8 @@ func _update_hud() -> void:
 		hud_label.text = _airlock_hud_text()
 	elif module_id == "power_repair":
 		hud_label.text = _power_hud_text()
+	elif module_id == "power_distribution":
+		hud_label.text = _power_distribution_hud_text()
 	elif module_id == "life_support":
 		hud_label.text = _life_support_hud_text()
 	elif module_id == "plant_diagnosis":
@@ -2648,6 +2710,8 @@ func _update_hud() -> void:
 		hint_label.text = _airlock_hint(step)
 	elif module_id == "power_repair" and not completed:
 		hint_label.text = _power_hint(step)
+	elif module_id == "power_distribution" and not completed:
+		hint_label.text = _power_distribution_hint(step)
 	elif module_id == "life_support" and not completed:
 		hint_label.text = _life_support_hint(step)
 	elif module_id == "plant_diagnosis" and not completed:
@@ -2764,6 +2828,27 @@ func _power_hint(step: Dictionary) -> String:
 				return "月面太阳能板维修训练已完成。\n请前往训练出口，进入下一训练模块。"
 	return "请按太阳能阵列维修流程继续。"
 
+func _power_distribution_hud_text() -> String:
+	var state: Dictionary = module_data.get("state", {})
+	var input := "已恢复" if bool(state.get("SolarInputDetected", true)) else "待确认"
+	var storage := "已接入" if bool(state.get("StorageModuleConnected", false)) else "未接入"
+	var output := String(state.get("PowerStatus", "不稳定"))
+	return "太阳能输入：%s\n储能模块：%s\n配电主线：%s\n提示信息：%s" % [input, storage, output, _power_distribution_hint(_current_step())]
+
+func _power_distribution_hint(step: Dictionary) -> String:
+	match String(step.get("target", "")):
+		"panel":
+			if bool((module_data.get("state", {}) as Dictionary).get("PowerPanelInspected", false)):
+				return "请接入储能模块，让配电主线具备稳定缓冲。"
+			return "请查看配电房供电异常。"
+		"console":
+			return "请在配电控制台重启供电系统。"
+		"light":
+			return "请确认供电测试灯状态。"
+		"exit":
+			return "请前往空气系统控制室入口。"
+	return "请按配电恢复流程继续。"
+
 func _life_support_hud_text() -> String:
 	var status := _life_support_status()
 	var oxygen := "稳定" if status == "稳定" else "偏低"
@@ -2815,7 +2900,7 @@ func _life_support_hint(step: Dictionary) -> String:
 		"vent":
 			return "请确认四项状态均已稳定。"
 		"exit":
-			return "模块四记录已完成。\n请前往训练出口，进入下一训练模块。"
+			return "模块五记录已完成。\n请前往训练出口，进入训练温室。"
 	if String(step.get("type", "")) == "wait":
 		return "请等待生命支持系统完成稳定流程。"
 	return "请按生命支持训练流程继续。"
@@ -2858,7 +2943,7 @@ func _plant_hint(step: Dictionary) -> String:
 		"light_console":
 			return "请前往植物控制台并按 E。"
 		"exit":
-			return "模块五记录已完成。\n请前往训练出口，进入最终考核。"
+			return "模块六记录已完成。\n请返回宇航服整备室。"
 	if String(step.get("type", "")) == "diagnosis":
 		return "请根据植物舱状态选择异常原因。"
 	if String(step.get("type", "")) == "plant_control":
@@ -2868,6 +2953,17 @@ func _plant_hint(step: Dictionary) -> String:
 	return "请按植物诊断流程继续。"
 
 func _assessment_hud_text() -> String:
+	var state: Dictionary = module_data.get("state", {})
+	if bool(state.get("SuitReturnFlow", false)):
+		var suit_state := "returned" if bool(state.get("SuitReturned", false)) else "worn"
+		var maintenance_state := "servicing" if bool(state.get("SuitMaintenanceStarted", false)) else "pending"
+		var result_state := "complete" if bool(state.get("FinalAssessmentCompleted", false)) else "pending"
+		return "Suit Return: active\nSuit: %s\nService Slot: %s\nTraining Result: %s\nHint: %s" % [
+			suit_state,
+			maintenance_state,
+			result_state,
+			_assessment_hint(_current_step()),
+		]
 	return "供电状态：%s\n生命支持状态：%s\n植物舱状态：%s\n氧气模拟值：%s\n电力模拟值：%s\n提示信息：%s" % [
 		_assessment_power_status(),
 		_assessment_life_status(),
@@ -3030,12 +3126,14 @@ func _module_config(id: String) -> Dictionary:
 			return _airlock_config()
 		"power_repair":
 			return _power_config()
+		"power_distribution":
+			return _power_distribution_config()
 		"life_support":
 			return _life_support_config()
 		"plant_diagnosis":
 			return _plant_config()
 		"final_assessment":
-			return _assessment_config()
+			return _suit_return_config()
 	return _suit_control_config()
 
 func _base_config() -> Dictionary:
@@ -3112,7 +3210,7 @@ func _power_config() -> Dictionary:
 	data.merge({
 		"title": "训练模块三：月面太阳能板维修",
 		"subtitle": "SOLAR ARRAY TRAINING FIELD",
-		"next_module": "life_support",
+		"next_module": "power_distribution",
 		"next_scene": TrainingManagerScript.MODULE_04,
 		"player_start": Vector2(150, 380),
 		"player_size": Vector2(42, 54),
@@ -3131,13 +3229,39 @@ func _power_config() -> Dictionary:
 	}, true)
 	return data
 
+func _power_distribution_config() -> Dictionary:
+	var data := _base_config()
+	data.merge({
+		"title": "训练模块四：配电房供电恢复",
+		"subtitle": "POWER DISTRIBUTION ROOM",
+		"next_module": "life_support",
+		"next_scene": TrainingManagerScript.MODULE_05,
+		"player_start": Vector2(364, 396),
+		"player_size": Vector2(42, 54),
+		"hud": "太阳能输入：已恢复\n储能模块：未接入\n配电主线：不稳定\n提示信息：查看供电系统异常。",
+		"targets": [
+			{"id": "panel", "label": "储能接入面板"},
+			{"id": "console", "label": "配电控制台"},
+			{"id": "light", "label": "供电测试灯"},
+			{"id": "exit", "label": "空气系统控制室入口"},
+		],
+		"steps": [
+			{"type": "interact", "target": "panel", "objective": "查看供电系统异常", "line": "太阳能输入已恢复。\n配电主线电压不稳定。\n储能模块未接入主供电回路。", "state_updates": {"SolarInputDetected": true, "PowerPanelInspected": true, "PowerStatus": "不稳定"}},
+			{"type": "interact", "target": "panel", "objective": "接入储能模块", "line": "正在接入储能模块……\n储能模块已接入主供电回路。", "time_minutes": 30, "time_reason": "training_connect_storage_module", "state_updates": {"PowerPanelRepaired": true, "StorageModuleConnected": true, "PowerStatus": "待重启"}, "requires": {"PowerPanelInspected": true}, "blocked_hint": "请先查看供电系统异常。"},
+			{"type": "interact", "target": "console", "objective": "重启配电系统", "line": "配电系统正在重启。\n主线电压稳定。\n训练供电状态：Basic -> Stable。", "time_minutes": 30, "time_reason": "training_restart_power_distribution", "state_updates": {"PowerRestored": true, "PowerStatus": "稳定", "TestLightOn": true}, "requires": {"PowerPanelRepaired": true}, "blocked_hint": "储能模块尚未接入。无法重启配电系统。"},
+			{"type": "interact", "target": "light", "objective": "确认供电稳定", "line": "测试灯已点亮。\n配电房供电恢复训练完成。", "state_key": "PowerDistributionConfirmed", "requires": {"PowerRestored": true}, "blocked_hint": "供电尚未稳定。"},
+			{"type": "interact", "target": "exit", "objective": "进入空气系统控制室", "line": "训练模块四完成。\n空气系统恢复训练即将开始。", "state_key": "Module04Completed", "requires": {"PowerDistributionConfirmed": true}, "blocked_hint": "请先确认供电稳定。"},
+		],
+	}, true)
+	return data
+
 func _life_support_config() -> Dictionary:
 	var data := _base_config()
 	data.merge({
-		"title": "训练模块四：生命支持系统",
-		"subtitle": "LIFE SUPPORT",
+		"title": "训练模块五：训练舱空气恢复",
+		"subtitle": "AIR SYSTEM RESTORATION",
 		"next_module": "plant_diagnosis",
-		"next_scene": TrainingManagerScript.MODULE_05,
+		"next_scene": TrainingManagerScript.MODULE_06,
 		"player_start": Vector2(364, 396),
 		"player_size": Vector2(42, 54),
 		"hud": "氧气模拟值：偏低\n水循环状态：稳定\n电力模拟值：稳定\n温度模拟值：偏低\n生命支持状态：未稳定",
@@ -3165,7 +3289,7 @@ func _life_support_config() -> Dictionary:
 func _plant_config() -> Dictionary:
 	var data := _base_config()
 	data.merge({
-		"title": "训练模块五：植物状态诊断",
+		"title": "训练模块六：温室植物诊断",
 		"subtitle": "PLANT DIAGNOSIS",
 		"next_module": "final_assessment",
 		"next_scene": TrainingManagerScript.FINAL_ASSESSMENT,
@@ -3183,7 +3307,33 @@ func _plant_config() -> Dictionary:
 			{"type": "diagnosis", "objective": "选择诊断结果", "line": "诊断确认：光照不足。", "options": ["缺水", "光照不足", "根区温度异常"], "correct": "光照不足", "wrong_hint": "诊断结果不匹配。\n请重新查看植物舱状态。", "state_updates": {"DiagnosisSelected": true, "CorrectDiagnosis": "LightInsufficient"}, "requires": {"PlantObserved": true}, "blocked_hint": "诊断信息不足。请先查看训练植物。"},
 			{"type": "plant_control", "target": "light_console", "objective": "调整植物控制台", "line": "补光方案已调整。\n植物状态正在恢复。", "options": ["调节温度", "浇水", "补光"], "correct": "补光", "wrong_hint": "该操作无法解决当前异常。\n请根据植物舱诊断结果选择维护动作。", "state_updates": {"GrowLightAdjusted": true, "PlantStatus": "稳定中", "GrowLightStatus": "正常"}, "requires": {"DiagnosisSelected": true}, "blocked_hint": "请先确认植物异常原因。"},
 			{"type": "wait", "target": "plant", "objective": "确认植物状态稳定", "line": "植物状态趋于稳定。\n叶片反应：恢复中。\n补光输出：正常。", "duration": 1.5, "state_updates": {"PlantStable": true, "PlantStatus": "稳定"}},
-			{"type": "interact", "target": "exit", "objective": "进入最终考核", "line": "植物状态诊断训练完成。", "state_key": "Module05Completed", "requires": {"PlantStable": true}, "blocked_hint": "训练模块尚未完成。"},
+			{"type": "interact", "target": "exit", "objective": "返回宇航服整备室", "line": "训练模块六完成。\n请返回宇航服整备室，执行宇航服归位与维护。", "state_key": "Module06Completed", "requires": {"PlantStable": true}, "blocked_hint": "训练模块尚未完成。"},
+		],
+	}, true)
+	return data
+
+func _suit_return_config() -> Dictionary:
+	var data := _base_config()
+	data.merge({
+		"title": "Training Closeout: Suit Return",
+		"subtitle": "SUIT RETURN AND MAINTENANCE",
+		"state": {"SuitReturnFlow": true},
+		"next_module": "mission_assignment",
+		"next_scene": TrainingManagerScript.MISSION_NOTICE,
+		"next_button": "查看任务派遣通知",
+		"player_start": Vector2(420, 310),
+		"player_size": Vector2(42, 54),
+		"hud": "Suit Return: pending\nSuit: worn\nService Slot: pending",
+		"targets": [
+			{"id": "suit_rack", "kind": "tool_station", "label": "Suit Service Slot", "position": Vector2(440, 180), "color": Color("#31536f")},
+			{"id": "terminal", "kind": "assessment_terminal", "label": "Training Result Terminal", "position": Vector2(620, 360), "color": Color("#31536f")},
+			{"id": "exit", "label": "Mission Assignment Exit", "position": Vector2(690, 390), "color": Color("#274f43")},
+		],
+		"steps": [
+			{"type": "move", "target": "suit_rack", "objective": "返回宇航服整备室", "line": "已返回宇航服整备室。"},
+			{"type": "return_suit_confirm", "target": "suit_rack", "objective": "将宇航服脱下并放回维护位", "line": "宇航服已归位。\n维护位已接管宇航服状态恢复。", "state_updates": {"SuitReturned": true, "SuitMaintenanceStarted": true}},
+			{"type": "interact", "target": "terminal", "objective": "查看训练结果", "line": "候选人评估完成。\n\n结果：派遣资格已激活。\n\n你已完成基础生命支持、气闸流程、外勤维修、供电恢复、空气恢复与温室诊断训练。", "state_updates": {"FinalAssessmentCompleted": true}, "requires": {"SuitReturned": true}, "blocked_hint": "请先将宇航服脱下并放回维护位。"},
+			{"type": "interact", "target": "exit", "objective": "查看任务派遣通知", "line": "训练序列完成。", "requires": {"FinalAssessmentCompleted": true}, "blocked_hint": "请先查看训练结果。"},
 		],
 	}, true)
 	return data
