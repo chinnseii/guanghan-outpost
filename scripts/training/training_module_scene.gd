@@ -782,6 +782,8 @@ func _process(delta: float) -> void:
 	if not completed:
 		_check_wait_step(delta)
 		_check_auto_steps()
+	elif module_id == "power_repair":
+		_check_power_repair_exit_crossing()
 	_update_room_prompt()
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -1998,14 +2000,25 @@ func _try_exit_after_completion() -> void:
 		return
 	get_tree().change_scene_to_file(String(module_data.get("next_scene", TrainingManagerScript.START_SCENE)))
 
+func _check_power_repair_exit_crossing() -> void:
+	if not target_nodes.has("exit"):
+		return
+	if not _is_inside_target_area("exit"):
+		return
+	get_tree().change_scene_to_file(String(module_data.get("next_scene", TrainingManagerScript.START_SCENE)))
+
 func _completed_objective_text() -> String:
 	if module_id == "final_assessment":
 		return "前往考核出口"
+	if module_id == "power_repair":
+		return "返回气闸外舱门"
 	return "前往训练出口"
 
 func _completed_hint_text() -> String:
 	if module_id == "final_assessment":
 		return "最终考核记录已完成。请前往出口查看任务派遣通知。"
+	if module_id == "power_repair":
+		return "月面太阳能板维修训练已完成。请返回气闸外舱门。"
 	return "训练记录已完成。请前往训练出口，进入下一阶段。"
 
 func _show_completed_next_action() -> void:
@@ -2229,6 +2242,8 @@ func _interaction_prompt(target_id: String) -> String:
 	if target_id == "exit":
 		if module_id == "final_assessment":
 			return "E / Enter 查看任务派遣通知"
+		if module_id == "power_repair":
+			return "进入气闸外舱门"
 		return "E / Enter 进入下一阶段"
 	if module_id == "airlock_procedure":
 		match target_id:
