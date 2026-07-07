@@ -83,11 +83,7 @@ var pause_panel: PanelContainer
 var interaction_panel: PanelContainer
 var interaction_label: Label
 var interaction_bar: ProgressBar
-var diagnosis_modal_scrim: ColorRect
-var diagnosis_modal: PanelContainer
-var diagnosis_modal_image: TextureRect
-var diagnosis_modal_text: Label
-var diagnosis_modal_actions: VBoxContainer
+var _popup: GuanghanPopupModal
 var suit_status_scrim: ColorRect
 var suit_status_modal: PanelContainer
 var suit_status_text_label: Label
@@ -144,7 +140,7 @@ func _ready() -> void:
 ## (user-reported as the pressure dialog "closing" confusingly after a
 ## wrong choice).
 func _gameplay_modal_open() -> bool:
-	return (diagnosis_modal != null and diagnosis_modal.visible) or suit_status_panel_visible
+	return (_popup != null and _popup.is_open()) or suit_status_panel_visible
 
 func _process(delta: float) -> void:
 	_rebuild_room_if_resized()
@@ -1253,7 +1249,7 @@ func _show_wear_suit_confirm_dialog() -> void:
 			hint_label.text = "宇航服当前无法穿戴。"
 			_show_toast("宇航服当前无法穿戴。请检查宇航服是否已在维护位就绪。")
 	)
-	diagnosis_modal_actions.add_child(confirm)
+	_popup.add_action_control(confirm)
 	var cancel := Button.new()
 	cancel.text = "取消"
 	cancel.custom_minimum_size = Vector2(0, 42)
@@ -1262,7 +1258,7 @@ func _show_wear_suit_confirm_dialog() -> void:
 		hint_label.text = "已取消穿戴。"
 		_hide_training_diagnosis_modal()
 	)
-	diagnosis_modal_actions.add_child(cancel)
+	_popup.add_action_control(cancel)
 	_sync_overlay_visibility()
 
 func _show_return_suit_confirm_dialog() -> void:
@@ -1292,7 +1288,7 @@ func _show_return_suit_confirm_dialog() -> void:
 			hint_label.text = "宇航服当前无法归位。"
 			_show_toast("宇航服当前无法归位。")
 	)
-	diagnosis_modal_actions.add_child(confirm)
+	_popup.add_action_control(confirm)
 	var cancel := Button.new()
 	cancel.text = "取消"
 	cancel.custom_minimum_size = Vector2(0, 42)
@@ -1301,7 +1297,7 @@ func _show_return_suit_confirm_dialog() -> void:
 		hint_label.text = "已取消宇航服归位。"
 		_hide_training_diagnosis_modal()
 	)
-	diagnosis_modal_actions.add_child(cancel)
+	_popup.add_action_control(cancel)
 	_sync_overlay_visibility()
 
 func _complete_training_and_show_assignment_notice() -> void:
@@ -1322,7 +1318,7 @@ func _show_diagnosis_options(options: Array, correct: String) -> void:
 			else:
 				_handle_wrong_choice(_current_step())
 		)
-		diagnosis_modal_actions.add_child(button)
+		_popup.add_action_control(button)
 
 func _show_plant_control_options(options: Array, correct: String) -> void:
 	_open_diagnosis_modal("植物控制台\n\n根据植物舱诊断结果选择一项维护动作。\n\n可用操作\n调节温度：用于根区温度异常。\n浇水：用于水分不足。\n补光：用于光照不足。")
@@ -1338,7 +1334,7 @@ func _show_plant_control_options(options: Array, correct: String) -> void:
 			else:
 				_handle_wrong_choice(_current_step())
 		)
-		diagnosis_modal_actions.add_child(button)
+		_popup.add_action_control(button)
 
 func _show_life_control_options(options: Array, correct: String) -> void:
 	var step := _current_step()
@@ -1356,7 +1352,7 @@ func _show_life_control_options(options: Array, correct: String) -> void:
 			else:
 				_handle_wrong_choice(_current_step())
 		)
-		diagnosis_modal_actions.add_child(button)
+		_popup.add_action_control(button)
 
 func _show_power_battery_options(options: Array, correct: String) -> void:
 	var text := "电池组检查\n\n控制台记录：\n当前电力：42%\n消耗速度：2.8E/小时\n充电速度：1.1E/小时\n预计充满：无法达到满电\n\n现场观察：\n电池组外壳完整；接口附近有月尘附着；主线负载未见突增。\n\n请选择处理方向。"
@@ -1377,7 +1373,7 @@ func _show_power_battery_options(options: Array, correct: String) -> void:
 			else:
 				_handle_wrong_choice(_current_step())
 		)
-		diagnosis_modal_actions.add_child(button)
+		_popup.add_action_control(button)
 
 func _show_pressure_control_options(options: Array, correct: String) -> void:
 	var step := _current_step()
@@ -1397,7 +1393,7 @@ func _show_pressure_control_options(options: Array, correct: String) -> void:
 			else:
 				_handle_wrong_choice(_current_step())
 		)
-		diagnosis_modal_actions.add_child(button)
+		_popup.add_action_control(button)
 
 func _confirm_pressure_choice() -> void:
 	var step := _current_step()
@@ -1484,7 +1480,7 @@ func _show_info_confirm_modal(step: Dictionary) -> void:
 		_hide_training_diagnosis_modal()
 		_complete_step()
 	)
-	diagnosis_modal_actions.add_child(confirm)
+	_popup.add_action_control(confirm)
 	_sync_overlay_visibility()
 
 ## 生命支持控制台 read-out modal: shows the concrete O2 / temperature values,
@@ -1508,7 +1504,7 @@ func _show_life_support_read_modal(step: Dictionary) -> void:
 		_hide_training_diagnosis_modal()
 		_complete_step()
 	)
-	diagnosis_modal_actions.add_child(confirm)
+	_popup.add_action_control(confirm)
 	_sync_overlay_visibility()
 
 func _airlock_pressure_professional_hint() -> String:
@@ -1543,36 +1539,24 @@ func _step_line_with_professional_hint(step: Dictionary) -> String:
 		return line + "\n\n" + professional_hint
 	return line
 
-## Base text of the currently-open choice modal -- kept so wrong-choice
-## feedback can be appended INSIDE the modal (user-reported: writing it to
-## hint_label only was invisible during normal play, so a wrong 舱压 choice
-## looked like the game silently ignoring the click).
-var _modal_base_text := ""
-
+## Wrong-choice feedback: appended INSIDE the popup (user-reported: writing it
+## to hint_label only was invisible during normal play, so a wrong 舱压 choice
+## looked like the game silently ignoring the click). Delegates to the shared
+## popup component, which keeps its own base-text for the "［操作反馈］" append.
 func _show_modal_wrong_feedback(hint: String) -> void:
 	hint_label.text = hint
-	if diagnosis_modal_text != null and diagnosis_modal != null and diagnosis_modal.visible:
-		diagnosis_modal_text.text = "%s\n\n［操作反馈］\n%s" % [_modal_base_text, hint]
+	if _popup != null:
+		_popup.append_feedback(hint)
 
 func _open_diagnosis_modal(text: String) -> void:
 	if diagnosis_panel != null:
 		diagnosis_panel.visible = false
-	if diagnosis_modal_scrim != null:
-		diagnosis_modal_scrim.visible = true
-	if diagnosis_modal != null:
-		diagnosis_modal.visible = true
-	if diagnosis_modal_image != null:
-		diagnosis_modal_image.texture = null
-	if diagnosis_modal_text != null:
-		diagnosis_modal_text.text = text
-	_modal_base_text = text
-	_clear_container(diagnosis_modal_actions)
+	if _popup != null:
+		_popup.open({"text": text})
 
 func _hide_training_diagnosis_modal() -> void:
-	if diagnosis_modal_scrim != null:
-		diagnosis_modal_scrim.visible = false
-	if diagnosis_modal != null:
-		diagnosis_modal.visible = false
+	if _popup != null:
+		_popup.close()
 	_sync_overlay_visibility()
 
 ## -- Suit status panel (Tab, reused pattern from training_module_scene.gd)--
@@ -1652,7 +1636,7 @@ func _close_briefing() -> void:
 
 func _sync_overlay_visibility() -> void:
 	var diagnosis_panel_open := diagnosis_panel != null and diagnosis_panel.visible
-	var diagnosis_open := diagnosis_panel_open or (diagnosis_modal != null and diagnosis_modal.visible)
+	var diagnosis_open := diagnosis_panel_open or (_popup != null and _popup.is_open())
 	var suit_status_open := suit_status_modal != null and suit_status_modal.visible
 	if briefing_scrim != null:
 		briefing_scrim.visible = briefing_visible
@@ -1950,48 +1934,13 @@ func _build_interaction_panel() -> void:
 	interaction_bar.custom_minimum_size = Vector2(0, 12)
 	box.add_child(interaction_bar)
 
+## The choice/confirm/info modal is now the shared GuanghanPopupModal component
+## (scripts/ui/popup_modal.gd) instead of a hand-built scrim+panel duplicated
+## per scene. The scene still owns its own pause / overlay-visibility logic and
+## just drives open()/close()/is_open() + append_feedback().
 func _build_diagnosis_modal() -> void:
-	diagnosis_modal_scrim = ColorRect.new()
-	diagnosis_modal_scrim.color = Color("#02070d", 0.78)
-	diagnosis_modal_scrim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	diagnosis_modal_scrim.visible = false
-	add_child(diagnosis_modal_scrim)
-
-	diagnosis_modal = PanelContainer.new()
-	diagnosis_modal.set_anchors_preset(Control.PRESET_CENTER)
-	diagnosis_modal.offset_left = -360
-	diagnosis_modal.offset_top = -260
-	diagnosis_modal.offset_right = 360
-	diagnosis_modal.offset_bottom = 260
-	diagnosis_modal.visible = false
-	add_child(diagnosis_modal)
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color("#06111a", 0.98)
-	style.border_color = Color("#496c80", 0.95)
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(4)
-	style.content_margin_left = 22
-	style.content_margin_top = 20
-	style.content_margin_right = 22
-	style.content_margin_bottom = 20
-	diagnosis_modal.add_theme_stylebox_override("panel", style)
-
-	var box := VBoxContainer.new()
-	box.custom_minimum_size = Vector2(680, 460)
-	box.add_theme_constant_override("separation", 14)
-	diagnosis_modal.add_child(box)
-	diagnosis_modal_image = TextureRect.new()
-	diagnosis_modal_image.custom_minimum_size = Vector2(0, 0)
-	diagnosis_modal_image.visible = false
-	box.add_child(diagnosis_modal_image)
-	diagnosis_modal_text = Label.new()
-	diagnosis_modal_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	diagnosis_modal_text.modulate = Color("#cfe3f2")
-	diagnosis_modal_text.add_theme_font_size_override("font_size", 16)
-	box.add_child(diagnosis_modal_text)
-	diagnosis_modal_actions = VBoxContainer.new()
-	diagnosis_modal_actions.add_theme_constant_override("separation", 10)
-	box.add_child(diagnosis_modal_actions)
+	_popup = GuanghanPopupModal.new()
+	add_child(_popup)
 
 func _build_suit_status_panel() -> void:
 	suit_status_scrim = ColorRect.new()
