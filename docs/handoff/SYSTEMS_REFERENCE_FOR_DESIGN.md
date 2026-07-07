@@ -2534,3 +2534,143 @@ current_interaction_id/_type/_label # 当前交互目标（"按 E …" 指向的
 并入 `TrainingManager` 的存档包（`default_data()` 新增
 `PlayerStateManagerState`；`save_progress`/`load_progress`/`reset_progress`
 各加一段，跟其余 12 个 manager 同款模式）。没有单独的 json 文件。
+
+---
+
+## 舱门系统 DoorStateManager / DoorTypeDatabase / DoorAssetDatabase
+
+### 定位
+一套三层的舱门编号 / 类型 / 状态系统。**只管门本身：注册、状态、能不能过、
+气闸互锁、存档；不移动玩家、不切场景、不推进时间**（穿门后的房间切换、坐标
+放置、时间消耗仍由调用方——目前是 `training_base_map.gd`——自己负责）。
+这不是"数值系统"，是状态/数据系统，故不计入开头的八套核心，跟 RepairManager /
+SuitManager 一样是追加系统。
+
+代码位置：
+- `scripts/data/DoorTypeDatabase.gd`（纯数据，`extends RefCounted`，`preload()`
+  引用，无 autoload）——门**类型**规则库。
+- `scripts/data/DoorAssetDatabase.gd`（纯数据，同款写法，无 autoload）——门
+  **美术资源**编号库。
+- `scripts/managers/DoorStateManager.gd`（autoload `/root/DoorStateManager`，
+  `class_name GuanghanDoorStateManager`）——门**实例**注册表 + 状态 + 判定。
+
+三层关系：**门实例**（有开/锁/电/密封/对接状态）→ 引用**门类型**（定规则：
+需不需要宇航服/通电/对接、是不是气闸门）→ 引用**美术资源**（定贴图/动画/
+音效/占位尺寸）。
+
+### 第一层：门实例状态字段（`DoorStateManager.register_door()` 归一化后每扇门存的字段）
+
+| 字段 | 类型 | 含义 | 默认/回落 |
+|---|---|---|---|
+| `door_id` | String | 门唯一编号（必填，空则注册失败，写 `last_notice`） | — |
+| `door_name` | String | 显示名 | 回落为 `door_id` |
+| `door_type_id` | String | 门类型（指向第二层；非法类型回落默认） | `indoor_sliding_door` |
+| `door_asset_id` | String | 美术资源编号（指向第三层） | 空则取该类型 `default_asset_id` |
+| `area_a` / `area_b` | String | 门连接的两个区域 id | "" |
+| `spawn_from_a_to_b` / `spawn_from_b_to_a` | String | 两个方向穿过后落地的出生点编号 | "" |
+| `is_open` | bool | 是否开启 | false |
+| `is_locked` | bool | 是否锁定 | false |
+| `is_powered` | bool | 是否通电 | true |
+| `is_sealed` | bool | 密封是否良好 | 按类型 `has_seal` |
+| `is_docking_connected` | bool | 对接是否连通 | true |
+| `airlock_group_id` | String | 所属气闸组（互锁分组用） | "" |
+| `paired_door_id` | String | 气闸配对门 id（互锁用） | "" |
+
+**通过判定 `can_pass_door(door_id, from_area_id)`** 按顺序检查，任一不过就返回
+带中文 `message` 的失败结果（`{success,message,target_area_id,target_spawn_id}`）：
+1. 门存在，且 `from_area_id` 等于 `area_a` 或 `area_b`（否则"当前位置不连接该舱门"）；
+2. 未锁定（`is_locked`）；
+3. 类型 `requires_power` 时须 `is_powered`（否则"舱门未通电"）；
+4. 类型 `requires_docking_connected` 时须 `is_docking_connected`（否则"对接状态未确认"）；
+5. 类型 `requires_suit_to_pass` 时须 `SuitManager.is_suit_worn`（否则"外部为真空环境，请先穿戴宇航服"）；
+6. 类型 `is_airlock_door` 且配对门开着 → 气闸互锁拦截（"请先关闭另一侧舱门"）。
+
+`try_pass_door()` = `can_pass_door()` 通过后把门置 `is_open=true` 并返回目标区域/
+出生点；`close_door_after_pass()` 关门，避免运行态门常开。`set_door_open(true)`
+本身也带气闸互锁保护（配对门开着就拒绝）。
+
+### 第二层：门类型规则（`DoorTypeDatabase.DOOR_TYPES`，8 种）
+
+每种类型的字段：`display_name` / `default_asset_id` / `requires_suit_to_pass` /
+`requires_power` / `has_seal` / `can_lock` / `is_airlock_door` /
+`requires_docking_connected`（`DEFAULT_TYPE_ID = "indoor_sliding_door"`）。
+
+| type_id | 名称 | 需宇航服 | 需通电 | 密封 | 可锁 | 气闸门 | 需对接 | 默认资源 |
+|---|---|:--:|:--:|:--:|:--:|:--:|:--:|---|
+| `indoor_sliding_door` | 室内滑门 | — | ✓ | — | ✓ | — | — | DOOR-A01 |
+| `airtight_hatch` | 气密舱门 | — | ✓ | ✓ | ✓ | — | — | HATCH-B01 |
+| `greenhouse_hatch` | 温室气密舱门 | — | ✓ | ✓ | ✓ | — | — | HATCH-B02 |
+| `airlock_inner_door` | 气闸内门 | — | ✓ | ✓ | ✓ | ✓ | — | AIRLOCK-C01 |
+| `airlock_outer_door` | 气闸外门 | ✓ | ✓ | ✓ | ✓ | ✓ | — | AIRLOCK-C02 |
+| `docking_hatch` | 对接舱门 | — | ✓ | ✓ | ✓ | — | ✓ | DOCK-D01 |
+| `cargo_elevator_door` | 货运电梯门 | — | ✓ | — | ✓ | — | — | ELEV-E01 |
+| `bulkhead_door` | 大型舱段隔离门 | — | ✓ | ✓ | ✓ | — | — | BULK-F01 |
+
+（"✓/—" 即 true/false；只有气闸外门 `requires_suit_to_pass=true`，只有对接门
+`requires_docking_connected=true`。）
+
+### 第三层：门美术资源（`DoorAssetDatabase.DOOR_ASSETS`，8 个编号）
+
+每个资源编号的字段：`display_name` / `texture_path` / `open_animation` /
+`close_animation` / `sound_open` / `sound_close` / `size_tiles`（Vector2i 占位
+格数，`DEFAULT_ASSET_ID = "DOOR-A01"`）。编号与占位尺寸：
+
+| asset_id | 名称 | size_tiles |
+|---|---|---|
+| DOOR-A01 | 普通室内滑门 A01 | 2×3 |
+| HATCH-B01 | 气密舱门 B01 | 2×3 |
+| HATCH-B02 | 温室舱门 B02 | 2×3 |
+| AIRLOCK-C01 | 气闸内门 C01 | 3×4 |
+| AIRLOCK-C02 | 气闸外门 C02 | 3×4 |
+| DOCK-D01 | 飞船对接舱门 D01 | 3×4 |
+| ELEV-E01 | 货运电梯门 E01 | 3×3 |
+| BULK-F01 | 大型舱段隔离门 F01 | 4×4 |
+
+`texture_path` 指向 `res://assets/doors/*.png`、`*_animation`/`sound_*` 是字符串
+键名——**这些美术/动画/音效资源目前都还没做，只是预置的编号占位**，等美术管线
+接上时按编号补资源即可。
+
+### 正式旧基地预置门（`DoorStateManager.reset_to_arrival()` 注册的 10 扇）
+
+抵达时预置的正式基地导航拓扑（`door_id` → 连接）：
+- `door_ship_to_cargo`（对接门）：飞船生存舱 ↔ 对接物资舱
+- `door_cargo_to_control`（货运电梯门）：对接物资舱 ↔ 中控室
+- `door_control_to_power` / `_to_air` / `_to_water` / `_to_greenhouse` / `_to_rest`：
+  中控室 ↔ 配电房 / 空气系统室 / 水处理室 / 旧温室 / 休息室
+- `door_suitroom_to_airlock`（气闸内门）+ `door_airlock_outer`（气闸外门，初始
+  `is_locked=true`）：宇航服整备室 ↔ 气闸舱 ↔ 月面。这两扇同属
+  `airlock_group_id="main_airlock"` 且互为 `paired_door_id`，触发气闸互锁。
+
+> 注意：这 10 扇是**状态层预置**，`DoorStateManager` 目前**还没接入正式旧基地
+> 的实际房间切换**（旧基地场景还没改用它做导航入口）。它现在真正被"用起来"
+> 的地方只有下面的训练小地图。
+
+### 训练小地图接线（`training_base_map.gd`，运行时注册）
+
+`_ready()` 里 `_register_training_doors()` 把训练地图各区域 `targets` 里带
+`door_to` 的门**运行时**注册进 `DoorStateManager`（门 id/出生点/类型都能从
+target 字段推断，或用 `door_id`/`target_spawn_id`/`door_type_id` 显式覆盖）。
+穿门走 `_try_pass_training_door()` → `DoorStateManager.try_pass_door()`，成功后
+`_try_enter_area()` 做真正的房间切换 + 坐标放置，再 `close_door_after_pass()`。
+`_sync_training_door_locks()` 按区域解锁进度同步门锁。**训练门是运行时注册、
+不单独持久化为正式基地门状态**；训练自身的模块解锁规则仍归训练系统，
+DoorStateManager 只是统一门状态层，不替代训练任务系统。
+
+同批修的气闸返舱 bug：返舱流程完成后
+`_restore_airlock_inner_door_walkthrough()` 恢复气闸内门回中控室的通路并重新
+注册，修掉"返舱后再进气闸无法回中控室"。
+
+### 其它接口
+- 查询：`has_door` / `get_door`（深拷贝）/ `get_all_doors` / `get_doors_for_area` /
+  `is_door_open/locked/powered/sealed` / `is_docking_connected` /
+  `get_door_type_id` / `get_door_asset_id` / `get_door_display_name`
+- 改状态：`set_door_open/locked/powered/sealed` / `set_docking_connected`
+  （门不存在时返回 false + 写 `last_notice`）
+- 气闸：`is_paired_airlock_door_open`
+- 调试：`debug_values_text()` 逐门打印 open/locked/powered/sealed(/docking) 状态
+- 信号：`doors_changed`（注册/改状态时发出）
+
+### 存档
+`user://saves/door_state.json`：`{doors, last_notice}`，`doors` 是全部门实例的
+深拷贝。`load_state()` 找不到文件时回落 `reset_to_arrival()` 重建 10 扇预置门。
+`deserialize()` 逐门走 `register_door()` 重新归一化（老存档缺字段会补默认值）。
