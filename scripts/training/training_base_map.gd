@@ -124,12 +124,14 @@ var module_data: Dictionary = {}
 var step_index := 0
 var completed := false
 var last_training_area_size := Vector2.ZERO
+var training_door_spawn_points: Dictionary = {}
 
 func _ready() -> void:
 	_ensure_input_actions()
 	_release_stale_movement_input()
 	areas = _build_all_areas()
 	_route_initial_area()
+	_register_training_doors()
 	_build_screen()
 	_load_area(current_area_id, module_data.get("player_start", Vector2(350, 320)))
 	_update_hud()
@@ -281,6 +283,110 @@ func _compute_unlocked(area_id: String, progress: Dictionary) -> bool:
 			return bool(progress.get("LifeSupportCompleted", false)) or _module_order_at_or_after(current_module, "plant_diagnosis")
 	return false
 
+func _register_training_doors() -> void:
+	var door_manager: Node = _door_state_manager()
+	if door_manager == null or not door_manager.has_method("register_door"):
+		return
+	training_door_spawn_points.clear()
+	for area_key in areas.keys():
+		var source_area_id := String(area_key)
+		var area: Dictionary = areas.get(source_area_id, {})
+		var targets: Array = area.get("targets", [])
+		for target_value in targets:
+			if typeof(target_value) != TYPE_DICTIONARY:
+				continue
+			var target: Dictionary = target_value
+			if not target.has("door_to"):
+				continue
+			var target_area_id := String(target.get("door_to", ""))
+			if target_area_id.is_empty():
+				continue
+			var door_id := _training_door_id_for_target(source_area_id, target)
+			var spawn_id := _training_spawn_id_for_target(source_area_id, target)
+			training_door_spawn_points[spawn_id] = _training_spawn_from_target(target)
+			door_manager.call("register_door", {
+				"door_id": door_id,
+				"door_name": String(target.get("label", door_id)),
+				"door_type_id": _training_door_type_id_for_target(target),
+				"area_a": source_area_id,
+				"area_b": target_area_id,
+				"spawn_from_a_to_b": spawn_id,
+				"spawn_from_b_to_a": "",
+				"is_open": false,
+				"is_locked": _training_target_area_locked(target_area_id),
+				"is_powered": true,
+				"is_sealed": true,
+				"is_docking_connected": true,
+			})
+
+func _door_state_manager() -> Node:
+	var tree := get_tree()
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null("DoorStateManager")
+
+func _training_door_id_for_target(source_area_id: String, target: Dictionary) -> String:
+	var explicit_id := String(target.get("door_id", ""))
+	if not explicit_id.is_empty():
+		return explicit_id
+	return "door_training_%s_%s" % [source_area_id, String(target.get("id", "door"))]
+
+func _training_spawn_id_for_target(source_area_id: String, target: Dictionary) -> String:
+	var explicit_id := String(target.get("target_spawn_id", ""))
+	if not explicit_id.is_empty():
+		return explicit_id
+	return "spawn_training_%s_to_%s_%s" % [
+		source_area_id,
+		String(target.get("door_to", "unknown")),
+		String(target.get("id", "door")),
+	]
+
+func _training_spawn_from_target(target: Dictionary) -> Vector2:
+	var spawn_value: Variant = target.get("door_spawn", Vector2(350, 320))
+	var spawn_point: Vector2 = Vector2(350, 320)
+	if spawn_value is Vector2:
+		spawn_point = spawn_value as Vector2
+	return spawn_point
+
+func _training_door_type_id_for_target(target: Dictionary) -> String:
+	var explicit_type := String(target.get("door_type_id", ""))
+	if not explicit_type.is_empty():
+		return explicit_type
+	var target_id := String(target.get("id", ""))
+	var target_label := String(target.get("label", ""))
+	var target_area_id := String(target.get("door_to", ""))
+	if target_id.contains("outer"):
+		return "airlock_outer_door"
+	if target_id.contains("inner") or target_id.contains("airlock") or target_area_id == "airlock_simulation_room":
+		return "airlock_inner_door"
+	if target_area_id == "greenhouse_room" or target_label.contains("温室"):
+		return "greenhouse_hatch"
+	return "indoor_sliding_door"
+
+func _training_target_area_locked(target_area_id: String) -> bool:
+	var area: Dictionary = areas.get(target_area_id, {})
+	if area.is_empty():
+		return true
+	return not bool(area.get("unlocked", false))
+
+func _sync_training_door_locks() -> void:
+	var door_manager: Node = _door_state_manager()
+	if door_manager == null or not door_manager.has_method("set_door_locked"):
+		return
+	for area_key in areas.keys():
+		var source_area_id := String(area_key)
+		var area: Dictionary = areas.get(source_area_id, {})
+		var targets: Array = area.get("targets", [])
+		for target_value in targets:
+			if typeof(target_value) != TYPE_DICTIONARY:
+				continue
+			var target: Dictionary = target_value
+			if not target.has("door_to"):
+				continue
+			var door_id := _training_door_id_for_target(source_area_id, target)
+			var target_area_id := String(target.get("door_to", ""))
+			door_manager.call("set_door_locked", door_id, _training_target_area_locked(target_area_id))
+
 func _module_order_at_or_after(current_module: String, expected_module: String) -> bool:
 	var order := ["suit_control", "airlock_procedure", "power_repair", "power_distribution", "life_support", "plant_diagnosis", "final_assessment", "mission_assignment"]
 	var current_index := order.find(current_module)
@@ -346,6 +452,21 @@ func _apply_airlock_return_flow() -> void:
 	for target: Dictionary in area.get("targets", []):
 		if String(target.get("id", "")) == "inner_door":
 			target.erase("door_to")
+	areas["airlock_simulation_room"] = area
+
+func _restore_airlock_inner_door_walkthrough() -> void:
+	var area: Dictionary = areas.get("airlock_simulation_room", {})
+	var state: Dictionary = area.get("state", {})
+	state["InnerDoorClosed"] = false
+	state["InnerDoorUnlocked"] = true
+	state["InnerDoorOpenedAfterEva"] = true
+	area["state"] = state
+	for target: Dictionary in area.get("targets", []):
+		if String(target.get("id", "")) == "inner_door":
+			target["door_to"] = "hub"
+			target["door_spawn"] = Vector2(90, 300)
+			target["door_press"] = "ui_right"
+			target["door_blocked_by_state"] = "InnerDoorClosed"
 	areas["airlock_simulation_room"] = area
 
 func _airlock_return_steps() -> Array:
@@ -567,21 +688,71 @@ func _switch_room(target_area_id: String, spawn_point: Vector2) -> void:
 	areas[current_area_id]["state"] = module_data.get("state", {})
 	_load_area(target_area_id, spawn_point)
 
-func _try_enter_area(target_area_id: String, spawn_point: Vector2) -> void:
+func _try_enter_area(target_area_id: String, spawn_point: Vector2) -> bool:
 	var area: Dictionary = areas.get(target_area_id, {})
 	if area.is_empty():
-		return
+		return false
 	if not bool(area.get("unlocked", false)):
 		hint_label.text = LOCKED_HINT
 		_show_toast(LOCKED_HINT)
-		return
+		return false
 	if bool(area.get("requires_suit", false)):
 		var suit_manager := _suit_manager()
 		if suit_manager == null or not bool(suit_manager.get("is_suit_worn")):
 			hint_label.text = SUIT_REQUIRED_HINT
 			_show_toast(SUIT_REQUIRED_HINT)
-			return
+			return false
 	_switch_room(target_area_id, spawn_point)
+	return true
+
+func _try_pass_training_door(target: Dictionary) -> void:
+	var target_area_id := String(target.get("door_to", ""))
+	if target_area_id.is_empty():
+		return
+	if not _training_target_can_be_entered_now(target_area_id):
+		return
+	var door_manager: Node = _door_state_manager()
+	if door_manager == null or not door_manager.has_method("try_pass_door"):
+		_try_enter_area(target_area_id, _training_spawn_from_target(target))
+		return
+	var door_id := _training_door_id_for_target(current_area_id, target)
+	if door_manager.has_method("set_door_locked"):
+		door_manager.call("set_door_locked", door_id, _training_target_area_locked(target_area_id))
+	var result_value: Variant = door_manager.call("try_pass_door", door_id, current_area_id)
+	var result: Dictionary = {}
+	if typeof(result_value) == TYPE_DICTIONARY:
+		result = result_value as Dictionary
+	if not bool(result.get("success", false)):
+		var message := String(result.get("message", "舱门无法通过。"))
+		hint_label.text = message
+		_show_toast(message)
+		return
+	var resolved_area_id := String(result.get("target_area_id", target_area_id))
+	var spawn_id := String(result.get("target_spawn_id", ""))
+	var spawn_point := _training_spawn_from_target(target)
+	if not spawn_id.is_empty() and training_door_spawn_points.has(spawn_id):
+		var spawn_value: Variant = training_door_spawn_points[spawn_id]
+		if spawn_value is Vector2:
+			spawn_point = spawn_value as Vector2
+	_try_enter_area(resolved_area_id, spawn_point)
+	if door_manager.has_method("close_door_after_pass"):
+		door_manager.call("close_door_after_pass", door_id)
+
+func _training_target_can_be_entered_now(target_area_id: String) -> bool:
+	var area: Dictionary = areas.get(target_area_id, {})
+	if area.is_empty():
+		return false
+	if not bool(area.get("unlocked", false)):
+		hint_label.text = LOCKED_HINT
+		_show_toast(LOCKED_HINT)
+		return false
+	if bool(area.get("requires_suit", false)):
+		var suit_manager := _suit_manager()
+		if suit_manager == null or not bool(suit_manager.get("is_suit_worn")):
+			hint_label.text = SUIT_REQUIRED_HINT
+			_show_toast(SUIT_REQUIRED_HINT)
+			return false
+	return true
 
 func _check_door_crossing() -> void:
 	var state: Dictionary = module_data.get("state", {})
@@ -601,7 +772,7 @@ func _check_door_crossing() -> void:
 		if not press_action.is_empty() and not Input.is_action_pressed(press_action):
 			continue
 		if _is_inside_target_area(String(target["id"])):
-			_try_enter_area(String(target["door_to"]), target.get("door_spawn", Vector2(350, 320)))
+			_try_pass_training_door(target)
 			return
 
 ## -- Movement --
@@ -852,6 +1023,9 @@ func _on_area_task_complete(module_id: String) -> void:
 			progress["CurrentSceneAfterTraining"] = TrainingManagerScript.TRAINING_BASE_MAP
 			TrainingManagerScript.save_progress(progress)
 			areas["power_distribution_room"]["unlocked"] = true
+			_restore_airlock_inner_door_walkthrough()
+			_register_training_doors()
+			_sync_training_door_locks()
 			_notify("返舱增压完成。请前往配电房，恢复供电。")
 			_switch_room("hub", Vector2(350, 120))
 			return
@@ -866,6 +1040,7 @@ func _on_area_task_complete(module_id: String) -> void:
 		"plant_diagnosis":
 			TrainingManagerScript.mark_module_completed("plant_diagnosis", "final_assessment")
 			_notify("训练模块六完成。请返回宇航服整备室，执行宇航服归位与维护。")
+	_sync_training_door_locks()
 	_update_hud()
 
 func _begin_step_interaction_feedback(step: Dictionary) -> void:

@@ -1,181 +1,82 @@
 # 当前状态（滚动文档，每次覆盖重写）
 
 更新时间：2026-07-07
-更新人：Codex（任务派遣通知书按钮文案与返回行为调整）
+更新人：Codex（修复返舱后再次进气闸无法回中控）
 
-## 本轮完成：任务派遣通知书“暂缓派遣”改为“返回主菜单”
+## 本轮完成：Airlock Return Door Fix
 
 用户反馈：
-- 任务派遣通知书页面左侧按钮“暂缓派遣”不符合当前试玩流程。
-- 需要改成“返回主菜单”。
+- 完成返舱流程、进入一次训练中控室后，再回到气闸舱，内舱门不能再返回中控室。
+
+根因：
+- 返舱流程 `_apply_airlock_return_flow()` 会临时移除气闸舱 `inner_door` 的 `door_to`，避免增压完成前直接走回中控室。
+- 返舱最后一步“打开内舱门”完成后，场景会切回训练中控室，但此前移除的 `door_to` 没有恢复。
+- 玩家之后再次进入气闸舱时，内舱门看起来仍在，但底层已不是可穿越门。
 
 实现：
-- `scripts/training/mission_assignment_notice_scene.gd`
-  - 左侧按钮文案从 `暂缓派遣` 改为 `返回主菜单`。
-  - 按钮回调从 `_decline_assignment` 改为 `_return_to_main_menu`。
-  - 新增 `_return_to_main_menu()`，跳转到 `res://scenes/main.tscn`。
-  - 未改动“接受月面派遣”流程。
+- 修改 `scripts/training/training_base_map.gd`
+  - 新增 `_restore_airlock_inner_door_walkthrough()`。
+  - 返舱完成后恢复 `inner_door`：
+    - `door_to = "hub"`
+    - `door_spawn = Vector2(90, 300)`
+    - `door_press = "ui_right"`
+    - `door_blocked_by_state = "InnerDoorClosed"`
+  - 同步状态：
+    - `InnerDoorClosed = false`
+    - `InnerDoorUnlocked = true`
+    - `InnerDoorOpenedAfterEva = true`
+  - 返舱完成后重新 `_register_training_doors()`，确保恢复后的内舱门也注册到 DoorStateManager。
 
-## 相关上轮状态
-
-仍保留上一轮已完成内容：
-- 训练房间完成后也继续检测门触发，解决完成温室任务后无法回中控室的问题。
-- 空气系统控制室门位 / 出生点修正。
-- 水循环状态移到训练温室。
-- 电力显示移到配电房。
-- 空气系统房间移除通风单元。
-- 生命支持核心改为墙面状态栏，未稳定时偏黄色提示。
-- 氧气/温度改为两个可交互终端：`制氧终端`、`温控终端`。
-- 生命支持控制台显示氧气与温度异常；医学背景追加专业提示。
-- 新增 `life_control` 交互分支，不改变已有 `plant_control` / `pressure_choice` 默认行为。
+保留行为：
+- 返舱增压完成前，内舱门仍不能直接走穿。
+- 完成返舱后，从中控室再回气闸舱，玩家可以继续向右顶内舱门返回中控室。
+- DoorStateManager 仍只负责门注册、锁定状态、通过判定，不移动玩家、不切场景、不推进时间。
 
 ## 触碰的共用文件
 
-本轮修改的是独立任务派遣通知书脚本，不属于协作规则中第一档共用核心文件。
-
-实际修改：
-- `scripts/training/mission_assignment_notice_scene.gd`
-- `docs/handoff/CURRENT.md`
-
-未修改：
 - `scripts/training/training_base_map.gd`
+  - 开工前已执行：
+    - `git log --oneline -- scripts/training/training_base_map.gd`
+  - 本轮属于训练小地图气闸门状态修复，沿用已有可选门字段 `door_to` / `door_spawn` / `door_press` / `door_blocked_by_state`，没有重写训练模块引擎。
+
+本轮未修改：
 - `scripts/training/training_module_scene.gd`
 - `scripts/training/training_manager.gd`
 - `scripts/props/reference_prop.gd`
+- `scripts/base/sprint06_base_scene.gd`
+
+## 当前 Door System 状态
+
+已有底层文件：
+- `scripts/data/DoorTypeDatabase.gd`
+- `scripts/data/DoorAssetDatabase.gd`
+- `scripts/managers/DoorStateManager.gd`
+
+已注册 autoload：
+- `DoorStateManager="*res://scripts/managers/DoorStateManager.gd"`
+
+训练系统当前接入方式：
+- DoorStateManager 负责训练门注册、锁定状态、通过判定、返回目标区域与出生点编号。
+- TrainingBaseMap 负责实际房间切换、玩家坐标放置、训练进度与模块解锁。
+- TrainingBaseMap 在通过训练门后调用 `close_door_after_pass()`，避免运行态门保持打开。
+- 返舱流程完成后，TrainingBaseMap 会恢复并重新注册气闸内舱门的中控室通路。
 
 ## 验证
 
-已用 Godot 4.7 headless 验证：
-- `--headless --check-only --path .`
+已通过：
+- `C:\Users\csw83\Documents\Codex\tools\Godot_v4.7-stable_win64.exe --headless --check-only --path .`
+- `C:\Users\csw83\Documents\Codex\tools\Godot_v4.7-stable_win64.exe --headless --path . --quit`
 
-退出码 0。
+两条命令退出码均为 0。
 
 ## 用户偏好记录
 
-- 用户明确表示：以后不需要 Codex 主动截图，用户会自己试玩验收。
+- 用户明确表示以后不需要 Codex 主动截图，用户会自己试玩验收。
 - 后续除非用户明确要求截图，否则不要新增截图脚本或跑截图验收。
 
 ## 已知问题 / 后续建议
 
-- 训练小地图仍是“房间切换 + 门触发区”的结构，不是真正连续大地图。
-- 后续如果继续重排房间，应同步检查所有 `door_spawn` 是否落在门触发区外侧，避免刚切房间就被再次触发。
+- 训练门目前是运行时由 TrainingBaseMap 注册到 DoorStateManager；训练门状态不单独持久化为正式基地门状态。
+- 训练小地图仍保留自己的模块解锁规则；DoorStateManager 是统一门状态层，不替代训练任务系统。
+- DoorStateManager 尚未接入正式旧基地房间切换；当前正式门数据主要是状态层预置，还没有成为旧基地实际导航入口。
 - 工作区仍有大量历史 `.import` / `.uid` / 素材与截图相关未跟踪或修改文件，本轮未处理。
-
-## 追加（Claude Code，代 Codex）：气闸舱内舱门"开着时可走回"（用户实测反馈）
-
-用户反馈：气闸舱里内舱门还没关闭时，走上去应该能直接回到室内（靠近时
-出现"E 关闭内舱门"提示，继续往门里走则返回训练中控室），而不是撞墙。
-
-实现（`training_base_map.gd`）：
-- 内舱门目标新增三个通用门属性：`door_to: "hub"`（走穿回中控室，与
-  Codex 返舱流程完成后直接回中控室的既有行为一致）、
-  `door_blocked_by_state: "InnerDoorClosed"`（"关闭内舱门"步骤完成后
-  通道即封闭）、`door_press: "ui_right"`（必须主动向东顶着门走才触发，
-  防止出生点/任务目标与门触发区重叠时误穿——这是新增的通用防误触发
-  机制，其它门也可用）。
-- `_check_door_crossing()` 支持上述两个新字段。
-- 返舱流程 `_apply_airlock_return_flow()` 会摘掉内舱门的 `door_to`：
-  返舱时内舱门必须保持封闭直到增压完成（最后一步 E 交互自己会切回
-  中控室）。
-- 删掉了冗余的第一步"进入内舱门"（玩家本来就是刚走进气闸舱，该步在
-  出生点上会瞬间自动完成，毫无感知；且它的判定区与新的走穿通道冲突）。
-  没有任何逻辑依赖它的 PlayerInsideAirlock 状态键。
-- 出舱流程中内舱门关闭后显示"锁定"贴片（`_target_flow_locked()`），
-  让"通道已封闭"可见。
-- 整备室→气闸舱的 `door_spawn` 从 (650,300) 挪到 (580,300)，出生点
-  脚部判定不再落在内舱门触发区内。
-- 临时脚本（已删）验证：站在门里不按方向键不会误穿；开门状态顶着门走
-  确实回到中控室；InnerDoorClosed 后通道封闭；返舱流程无 door_to。
-
-本 commit 同时包含 Codex 本轮未提交的并行改动（房间相对布局重排、
-返舱增压流程、任务派遣通知书按钮改"返回主菜单"、太阳能场景出口右移并
-改名"返回气闸外舱门"）——与内舱门修复落在同一批文件里，无法干净拆分，
-已一起过全场景 headless 验证（0 错误）。
-
-## 追加（Claude Code，代 Codex）：舱压选错无反馈 + 太阳能出口位置（用户实测反馈）
-
-用户反馈两个问题：(1) 舱压控制台选错（充压）后"画面关闭、墙上舱压状态
-提示异常、外舱门无法打开"；(2) 太阳能阵列训练场的"训练出口"悬在场地
-中间，应该移到右侧居中、与气闸舱外舱门空间对应。
-
-排查与修复：
-
-1. **选错无任何可见反馈**（根因）：四个选择弹窗（舱压/制氧/温控/植物）
-   选错时只把提示写进隐藏的 Tab 面板 hint_label，玩家看到的是"点了没
-   反应"；之后去按外舱门，"请先移动至目标区域"等阻塞提示同样不可见，
-   整体体验就是"卡死"。修复：
-   - 新增 `_show_modal_wrong_feedback()`：选错提示直接追加显示在弹窗
-     内部（"［操作反馈］…"），弹窗保持打开可重选；
-   - `_try_interact()` 的阻塞/未靠近提示全部加 toast；
-   - 新增 `_wrong_order_toast()`：在气闸舱按 E 摸错目标时给出上下文
-     提示（"舱压尚未处理完成。外舱门保持锁定。请先操作舱压控制台。"等，
-     仿旧引擎 _wrong_order_hint 思路）。
-2. **弹窗打开时游戏输入未锁**（"画面关闭"的可能真相）：选择弹窗开着时
-   玩家仍可移动/交互，甚至可能顶着开着的内舱门走出房间，弹窗被留在
-   另一个房间上空。新增 `_gameplay_modal_open()`，弹窗或宇航服状态
-   面板打开时暂停移动/E 交互/门穿越。
-3. **太阳能出口位置**：power_repair 的目标点走 `_power_room_target()`
-   映射，它把出口硬覆盖回"训练出口"(684,388)——上一轮实际改的是
-   `_airlock_room_target()`（power_repair 根本不经过那里，属于改错
-   函数）。现已在正确的映射函数里设为"返回气闸外舱门"(1340,320)，右侧
-   居中，与气闸舱左墙的外舱门空间对应；把 _airlock_room_target 里那个
-   永远不生效的死条件清掉；交互提示改为"E 返回气闸舱"。
-
-临时脚本（已删）14 项断言全过：选错弹窗保持打开且反馈可见、步骤不被
-选错推进、选对后正常推进并置 PressureStable、弹窗打开时 gameplay 暂停、
-外舱门乱序提示、太阳能出口位置/文案。全场景 headless 扫描 0 错误。
-
-## 追加（Claude Code，代 Codex）：外观预览改为"未穿/穿宇航服"两图，不遮挡文字
-
-用户反馈：03 外观与标识页的"开拓者预览"希望是两张图——不穿宇航服 vs
-穿宇航服（而不是原来的正面/背面），且人物不要遮挡下方的编号文字。
-
-修改：
-- `scripts/application/suit_preview_control.gd`：`front` 属性改为
-  `suited`。`suited=false` 画"未穿宇航服"的普通身形（露出头部、无头盔
-  面罩，领口保留标识色小徽标）；`suited=true` 画宇航服（头盔+深色面罩+
-  胸前面板+标识点/条）。控件加高到 300、人物整体上移，图顶加小标题
-  （"未穿宇航服"/"任务宇航服"），编号文字移到最底部，不再被腿部压住。
-- `scripts/application/application_flow_scene.gd`：预览行两个控件从
-  front/back 改为 `suited=false`（左）/ `suited=true`（右）。
-- 非 headless 渲染验证（临时脚本已删）：两个图形 _draw() 正常执行、无
-  运行时错误；主菜单/申请场景 headless 加载 0 错误。
-
-## 追加（Claude Code，代 Codex）：04 提交申请页左右对调
-
-用户要求：候选人摘要放左边，提交确认放右边（原来相反）。
-`application_flow_scene.gd` 的 `_show_review()`：左列改为"候选人摘要"，
-右列改为"提交确认 + 确认事项"三个勾选项。列宽比例从 0.52 改为 0.48，
-让承载勾选项和正文的"提交确认"列保持较宽。勾选项通过 confirmation_checks
-数组跟踪，与所在列无关，提交按钮启用逻辑不受影响。
-
-## 追加（Claude Code，代 Codex）：确认弹窗左侧空白区域移除
-
-用户反馈：太阳能阵列检查等确认弹窗左边有一大块空白（原来放诊断图的
-位置，确认类弹窗没有图）。`training_module_scene.gd` 的共享诊断弹窗：
-新增 `_set_diagnosis_modal_image(texture)`，无图时隐藏整个图片列
-（隐藏的子节点在 HBox 中不占位）并把弹窗宽度从 ±540 收窄到 ±300，
-文字列 expand-fill 填满；有图时（植物诊断）恢复宽版。六处
-`diagnosis_modal_image.texture = …` 全部改走该 helper。临时脚本（已删）
-验证：检查/故障诊断弹窗图片隐藏、弹窗收窄到 offset_left=-300；相关场景
-headless 0 错误。
-
-## 追加（Claude Code，代 Codex）：新增 PlayerStateManager 玩家状态系统
-
-按用户指令新增 autoload `PlayerStateManager`（玩家当前状态总控/注册表）。
-详见 `SYSTEMS_REFERENCE_FOR_DESIGN.md`「玩家状态系统 PlayerStateManager」。
-要点：
-- 新文件 `scripts/managers/PlayerStateManager.gd`，`project.godot` 注册为
-  autoload（排在 SuitManager 之后）。
-- 只记录/查询状态（context、区域、加压/外部/气闸、移动/交互/busy 锁、
-  宇航服穿戴快照、手持物品、当前交互目标），不做任何玩法计算、不推时间、
-  不碰背包/健康/宇航服计算。边界严格按指令第三节。
-- 相对 GPT 原始指令做了两处优化：`set_busy` 改为独立轴（不再连带清空
-  can_move/can_interact，避免误放开面板锁）；setter 带"值未变短路"避免
-  每帧信号刷屏。
-- 接线：SuitManager 穿/脱（4 变体）+reset+deserialize 推 set_suit_worn；
-  训练地图 `_load_area` 推 context+area、`_update_room_prompt` 推交互；
-  太阳能场景 `_ready` 推 exterior 区域。并入 TrainingManager 存档包。
-- 验证：全场景 headless 0 错误；临时脚本（已删）39 项断言全过——核心
-  API、busy 独立轴、宇航服进入门规则、SuitManager 同步、serialize 往返、
-  TimeManager 零污染、训练地图接线。
