@@ -140,3 +140,11 @@
   front/back 改为 `suited=false`（左）/ `suited=true`（右）。
 - 非 headless 渲染验证（临时脚本已删）：两个图形 _draw() 正常执行、无
   运行时错误；主菜单/申请场景 headless 加载 0 错误。
+
+## 追加（Claude Code，代 Codex）：04 提交申请页左右对调
+
+用户要求：候选人摘要放左边，提交确认放右边（原来相反）。
+`application_flow_scene.gd` 的 `_show_review()`：左列改为"候选人摘要"，
+右列改为"提交确认 + 确认事项"三个勾选项。列宽比例从 0.52 改为 0.48，
+让承载勾选项和正文的"提交确认"列保持较宽。勾选项通过 confirmation_checks
+数组跟踪，与所在列无关，提交按钮启用逻辑不受影响。

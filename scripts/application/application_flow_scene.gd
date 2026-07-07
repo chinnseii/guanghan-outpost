@@ -322,17 +322,20 @@ func _show_review() -> void:
 	_add_page_title("04 提交申请", "SUBMIT APPLICATION")
 	confirmation_checks.clear()
 	submit_button = null
-	var columns := _add_columns(0.52)
+	# Candidate summary on the LEFT, submit confirmation on the RIGHT (user
+	# request). The confirmation side carries the body text + 确认事项
+	# checkboxes, so it stays the wider column -- hence left_ratio 0.48.
+	var columns := _add_columns(0.48)
 	var left: VBoxContainer = columns[0]
 	var right: VBoxContainer = columns[1]
-	_add_panel_title(left, "提交确认")
-	_add_body_to(left, "你即将提交广寒计划常驻开拓者申请。\n\n一旦通过审核，你将进入国家深空生命科学中心训练序列。\n\n训练完成并通过最终考核后，\n你可能被派往月球广寒前哨，\n执行长期驻留与生命支持建设任务。")
-	_add_panel_title(left, "确认事项")
-	_add_confirmation_check(left, "我理解这是一项长期任务。")
-	_add_confirmation_check(left, "我理解任务地点位于月球。")
-	_add_confirmation_check(left, "我理解广寒前哨仍处于早期建设阶段。")
-	_add_panel_title(right, "候选人摘要")
-	_add_body_to(right, _profile_summary())
+	_add_panel_title(left, "候选人摘要")
+	_add_body_to(left, _profile_summary())
+	_add_panel_title(right, "提交确认")
+	_add_body_to(right, "你即将提交广寒计划常驻开拓者申请。\n\n一旦通过审核，你将进入国家深空生命科学中心训练序列。\n\n训练完成并通过最终考核后，\n你可能被派往月球广寒前哨，\n执行长期驻留与生命支持建设任务。")
+	_add_panel_title(right, "确认事项")
+	_add_confirmation_check(right, "我理解这是一项长期任务。")
+	_add_confirmation_check(right, "我理解任务地点位于月球。")
+	_add_confirmation_check(right, "我理解广寒前哨仍处于早期建设阶段。")
 	_add_footer_button("返回修改", func(): _show_step("identity"))
 	submit_button = Button.new()
 	submit_button.text = "提交申请"
