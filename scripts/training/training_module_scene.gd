@@ -2269,7 +2269,9 @@ func _show_diagnosis_options(options: Array, correct: String) -> void:
 	if diagnosis_modal_image != null:
 		diagnosis_modal_image.texture = _load_diagnosis_texture("res://assets/art/greenhouse/plant_states/light_low.png")
 	if diagnosis_modal_text != null:
-		diagnosis_modal_text.text = "传感器读数\n补光输出：低于维持阈值\n水循环：最低运行\n根区温度：正常\n生命信号：弱\n\n植物状态\n叶片偏淡，植株向补光灯方向倾斜。\n新叶展开缓慢。\n\n原因分析\n补光输出不足，无法支撑最低光合维持。\n\n请选择诊断结论。"
+		var professional_hint := _professional_hint_block("training_06_greenhouse_light_low")
+		var base_text := "传感器读数\n补光输出：低于维持阈值\n水循环：最低运行\n根区温度：正常\n生命信号：弱\n\n植物状态\n叶片偏淡，植株向补光灯方向倾斜。\n新叶展开缓慢。\n\n原因分析\n补光输出不足，无法支撑最低光合维持。"
+		diagnosis_modal_text.text = "%s\n\n%s\n\n请选择诊断结论。" % [base_text, professional_hint] if not professional_hint.is_empty() else "%s\n\n请选择诊断结论。" % base_text
 	_clear_container(diagnosis_modal_actions)
 	for option in options:
 		var button := Button.new()
@@ -2576,7 +2578,7 @@ func _solar_fault_panel_text() -> String:
 		"- 主电缆接口有月尘堆积",
 		"- 控制器未报告核心损坏",
 	]
-	var hint := _solar_specialist_hint()
+	var hint := _professional_hint_block("training_03_solar_array_fault")
 	if not hint.is_empty():
 		lines.append("")
 		lines.append(hint)
@@ -2584,10 +2586,8 @@ func _solar_fault_panel_text() -> String:
 	lines.append("请选择排查方向：")
 	return "\n".join(lines)
 
-## Same background-reading convention as BaseStatusManager.get_specialist_hint()
-## (reads the same user://saves/application_profile.json "EducationBackground"
-## field) -- info only, per the spec: never reduces time/material cost, never
-## names the correct option outright.
+## Compatibility fallback for old saves/branches. New training hints go through
+## AcademicBackgroundManager and remain info-only: no time/material/stat changes.
 func _solar_specialist_hint() -> String:
 	match _academic_background():
 		"机械工程":
@@ -2612,6 +2612,25 @@ func _academic_background() -> String:
 		return ""
 	var data := parsed as Dictionary
 	return String(data.get("EducationBackground", data.get("education_background", "")))
+
+func _academic_background_manager() -> Node:
+	return get_tree().root.get_node_or_null("AcademicBackgroundManager")
+
+func _professional_hint(context_id: String) -> String:
+	var manager := _academic_background_manager()
+	if manager != null and manager.has_method("get_professional_hint"):
+		var hint := String(manager.call("get_professional_hint", context_id))
+		if not hint.is_empty():
+			return hint
+	if context_id == "training_03_solar_array_fault":
+		return _solar_specialist_hint()
+	return ""
+
+func _professional_hint_block(context_id: String) -> String:
+	var hint := _professional_hint(context_id)
+	if hint.is_empty():
+		return ""
+	return "专业提示：\n%s" % hint
 
 ## Entry gate (spec: player must already be wearing the suit to enter the
 ## lunar-surface vacuum simulation). Pins the existing briefing modal open
@@ -2833,7 +2852,17 @@ func _power_distribution_hud_text() -> String:
 	var input := "已恢复" if bool(state.get("SolarInputDetected", true)) else "待确认"
 	var storage := "已接入" if bool(state.get("StorageModuleConnected", false)) else "未接入"
 	var output := String(state.get("PowerStatus", "不稳定"))
-	return "太阳能输入：%s\n储能模块：%s\n配电主线：%s\n提示信息：%s" % [input, storage, output, _power_distribution_hint(_current_step())]
+	var lines: Array[String] = [
+		"太阳能输入：%s" % input,
+		"储能模块：%s" % storage,
+		"配电主线：%s" % output,
+		"提示信息：%s" % _power_distribution_hint(_current_step()),
+	]
+	var professional_hint := _professional_hint_block("training_04_power_storage_fault")
+	if not professional_hint.is_empty():
+		lines.append("")
+		lines.append(professional_hint)
+	return "\n".join(lines)
 
 func _power_distribution_hint(step: Dictionary) -> String:
 	match String(step.get("target", "")):
@@ -2853,7 +2882,19 @@ func _life_support_hud_text() -> String:
 	var status := _life_support_status()
 	var oxygen := "稳定" if status == "稳定" else "偏低"
 	var temperature := "稳定" if status == "稳定" else "偏低"
-	return "氧气模拟值：%s\n水循环状态：稳定\n电力模拟值：稳定\n温度模拟值：%s\n生命支持状态：%s\n提示信息：%s" % [oxygen, temperature, status, _life_support_hint(_current_step())]
+	var lines: Array[String] = [
+		"氧气模拟值：%s" % oxygen,
+		"水循环状态：稳定",
+		"电力模拟值：稳定",
+		"温度模拟值：%s" % temperature,
+		"生命支持状态：%s" % status,
+		"提示信息：%s" % _life_support_hint(_current_step()),
+	]
+	var professional_hint := _professional_hint_block("training_05_air_oxygen_low")
+	if not professional_hint.is_empty():
+		lines.append("")
+		lines.append(professional_hint)
+	return "\n".join(lines)
 
 func _life_support_status() -> String:
 	var state: Dictionary = module_data.get("state", {})

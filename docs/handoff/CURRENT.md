@@ -1,50 +1,49 @@
 # 当前状态（滚动文档，每次覆盖重写）
 
 更新时间：2026-07-07
-更新人：Codex（训练系统重构）+ Claude Code（代 Codex，宇航服密封/通信字段移除，
-以下追加一节，本文档其余内容为 Codex 原文未改动）
+更新人：Codex（候选人学术背景系统）
 
-## 本轮完成：训练系统重构骨架
+## 本轮完成：候选人学术背景系统
 
-按用户新的训练系统指令，把训练主链路从旧的 5 段流程改为：
+按用户最新指令，把申请流程中的旧“教育背景/职业背景”收敛为独立的
+“候选人学术背景”信息优势系统。
 
-1. Training 01：宇航服整备室（沿用 `suit_control`）
-2. Training 02：气闸流程（沿用 `airlock_procedure`）
-3. Training 03：月面太阳能阵列训练场（沿用 Claude Code 上轮的 `power_repair` / `SolarArrayTrainingField.tscn`）
-4. Training 04：配电房供电恢复（新增 `power_distribution`）
-5. Training 05：训练舱空气恢复（沿用 `life_support`，新场景入口）
-6. Training 06：温室植物诊断（沿用 `plant_diagnosis`，新场景入口）
-7. 收尾任务：返回宇航服整备室，脱下宇航服并放回维护位
-8. 查看训练结果后进入任务派遣通知
+第一版只保留 4 个学术背景：
+
+1. 植物科学
+2. 机械工程
+3. 材料科学
+4. 医学
+
+学术背景只影响专业提示，不提供任何数值 Buff。
 
 ## 主要改动
 
-- 新增场景：
-  - `res://scenes/training/Training_04_PowerDistribution.tscn`
-  - `res://scenes/training/Training_05_AirSystemControl.tscn`
-  - `res://scenes/training/Training_06_TrainingGreenhouse.tscn`
-- `scripts/training/training_manager.gd`
-  - 新增 `MODULE_06`
-  - `MODULE_04` 指向配电房
-  - `MODULE_05` 指向空气系统控制室
-  - `plant_diagnosis` 改为第 6 个模块
-  - 新增 `PowerDistributionCompleted`
-  - `are_required_modules_completed()` 现在要求 6 个核心训练站完成
-  - 读取完成状态改用 `_read_progress_data()`，避免 timeout 检查时反序列化覆盖 live manager 状态
+- 新增 `scripts/managers/AcademicBackgroundManager.gd`
+  - 独立管理学术背景数据、当前选择、标签和专业提示。
+  - 暴露 `get_all_backgrounds()`、`set_background()`、
+    `get_selected_background_id()`、`get_selected_background_name()`、
+    `has_background_selected()`、`has_background_tag()`、
+    `get_selected_background_data()`、`get_professional_hint(context_id)`。
+  - 当前支持训练 03/04/05/06 的专业提示 context。
+- `project.godot`
+  - 新增 `AcademicBackgroundManager` autoload。
+- `scripts/data/player_profile_data.gd`
+  - 新增存档字段 `selected_academic_background_id`。
+  - 同时继续保留旧 `EducationBackground` 字段作为中文名称兼容旧系统。
+- `scripts/application/application_flow_scene.gd`
+  - “02 教育背景”改为“选择候选人学术背景”。
+  - 页面只显示 4 个学术背景卡片。
+  - 删除申请页里的农业工程 / 生命支持工程旧选项。
+  - 选择后需要点击“确认选择”，并通过确认弹窗保存。
+  - 保存 `selected_academic_background_id`，同时写入旧 `EducationBackground`
+    名称用于兼容旧读法。
+  - 页面文案明确写出：学术背景不会提供数值加成，只提供专业提示。
 - `scripts/training/training_module_scene.gd`
-  - 新增 `power_distribution` 模块配置
-  - 03 太阳能阵列完成后跳到 04 配电房
-  - 05 空气系统完成后跳到 06 温室
-  - 06 温室完成后跳到收尾任务
-  - `final_assessment` 当前作为“宇航服归位与维护”收尾场景使用
-  - 新增 `return_suit_confirm` 步骤类型
-- `scripts/managers/SuitManager.gd`
-  - 新增 `remove_suit_to_service_station_training()`
-  - 该方法只推进 `TrainingTimeManager.advance_training_time(...)`
-  - 不调用正式 `TimeManager.advance_time(...)`
-  - 用于训练收尾归位宇航服
-- `scripts/main.gd`
-  - Dev Menu 的 Training Module 04/05/06 入口已按新编号更新
+  - 训练 03 太阳能阵列故障提示改为优先读取
+    `AcademicBackgroundManager.get_professional_hint("training_03_solar_array_fault")`。
+  - 训练 04 配电房、训练 05 空气系统、训练 06 温室诊断新增专业提示读取。
+  - 旧的 Training 03 直读 `EducationBackground` 逻辑保留为兼容 fallback。
 
 ## 触碰的共用文件
 
@@ -52,57 +51,48 @@
 
 - `scripts/training/training_module_scene.gd`
 - `scripts/training/training_manager.gd`
-- `scripts/managers/SuitManager.gd`
 
-本轮没有修改：
+实际只修改了：
 
+- `scripts/training/training_module_scene.gd`
+
+改动方式为新增 `AcademicBackgroundManager` 调用分支与兼容 fallback，没有修改
+训练时间、维修材料、宇航服、移动、健康、负重等默认行为。
+
+## 明确没有修改
+
+本轮没有修改以下用户指定禁止改动的系统：
+
+- `scripts/managers/HealthManager.gd`
+- `scripts/managers/MovementTimeManager.gd`
 - `scripts/managers/RepairManager.gd`
-- `scripts/data/FaultDatabase.gd`
-- `scripts/managers/InventoryManager.gd`
-- `scripts/data/ItemDatabase.gd`
+- `scripts/managers/SuitManager.gd`
+- `scripts/managers/BackpackManager.gd`
+- `scripts/managers/TimeManager.gd`
+- `scripts/managers/TrainingTimeManager.gd`
 
-Claude Code 上轮的 Training Module 03 / `FA-TR-SOLAR-001` 保持不覆盖。
+也没有把学术背景接入任何数值惩罚或收益。
 
 ## 验证
 
-已用 Godot 4.7 console headless 单独加载以下场景，均无脚本解析错误：
+已用 Godot 4.7 headless 验证：
 
+- `--headless --path . --quit`
+- `--headless --check-only --path .`
+- `res://scenes/application/ApplicationStartScene.tscn`
+- `res://scenes/training/TrainingStartScene.tscn`
+- `res://scenes/training/Training_03_PowerRepair.tscn`
 - `res://scenes/training/Training_04_PowerDistribution.tscn`
 - `res://scenes/training/Training_05_AirSystemControl.tscn`
 - `res://scenes/training/Training_06_TrainingGreenhouse.tscn`
-- `res://scenes/training/FinalAssessmentScene.tscn`
 
-完整 `--check-only` 曾因 Godot 写 `user://logs` 权限/超时问题未作为最终验证依据。
+以上均退出码 0。
 
 ## 已知问题 / 后续建议
 
-- Training 05 空气系统和 Training 06 温室目前复用旧生命支持/植物诊断内部逻辑，只修正了链路、编号和入口；后续可再细化成“制氧 16% -> 20%”和“光照不足”专门流程。
-- Training 收尾 HUD 目前部分状态使用 ASCII（`returned` / `servicing` / `pending`），避免本轮中文字符串在 PowerShell 输出中造成编码误判；后续 UI polish 可改回完整中文。
-- 旧的 `Training_04_LifeSupport.tscn` / `Training_05_PlantDiagnosis.tscn` 未删除，作为兼容/回退文件保留，但新链路不再引用它们。
-- 工作区还有大量 `.import` / `.uid` / 截图相关未跟踪或修改文件，是本轮之前已有的 Godot 自动生成/历史遗留状态；本轮未纳入处理。
-
-## 追加（Claude Code，代 Codex）：移除宇航服"密封状态"/"通信链路"
-
-应用户要求，把 `SuitManager.gd` 里纯展示、无任何机制读取的
-`suit_seal_status`/`suit_comm_status` 两个字段整体去掉：
-
-- `SuitManager.gd`：删掉字段声明、`reset_to_arrival()`/
-  `remove_suit_to_service_station_training()` 里的重置、
-  `_seal_label()`/`_comm_label()`、`get_suit_status_for_ui()`（现在只剩
-  oxygen/oxygen_capacity/power/power_capacity/speed_multiplier 五个键）、
-  `panel_status_text()`（密封/通信那行去掉，只留速度倍率）、
-  `serialize()`/`deserialize()` 里对应的两个键。
-- `scripts/training/training_module_scene.gd`：宇航服状态面板文案去掉
-  "密封状态"/"通信链路"两行，删掉不再用到的 `_suit_seal_label()`/
-  `_suit_comm_label()`。
-- `scripts/ui/suit_panel.gd`（正式游戏 `U` 键面板）只读
-  `panel_status_text()` 聚合文本，未受影响，无需改动。
-- 旧存档（`suit_state.json`）里如果残留这两个键，`deserialize()`的
-  `data.get(key, default)`模式会安全忽略，不会报错——已用 headless 扫了
-  一遍全部场景（含本轮新加的 04/05/06）确认无解析错误。
-- `docs/handoff/SYSTEMS_REFERENCE_FOR_DESIGN.md`「训练第一房间」一节已
-  补充说明这次移除。
-
-本次提交把这两部分改动（Codex 的训练系统重构 + Claude Code 的密封/通信
-移除）一起打进同一个 commit，因为改动落在同一批文件里，没法干净拆开；
-两边内容互不冲突，已一起过 headless 验证。
+- 旧的 BaseStatus / Power / Water / Air / PlantGrowth / Health 等系统里仍有
+  直接读取 `EducationBackground` 的兼容逻辑，本轮按用户要求没有修改它们。
+  因为申请页会继续写入旧中文名称，这些旧提示不会立刻断。
+- 当前专业提示主要进入训练 HUD / 诊断弹窗。后续 UI polish 可以把训练 04/05
+  的提示做成更正式的“专业提示”面板，避免左侧 HUD 过长。
+- 工作区仍有大量历史 `.import` / `.uid` / 截图相关未跟踪或修改文件，本轮未处理。

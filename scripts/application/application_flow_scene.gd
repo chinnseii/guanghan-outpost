@@ -7,25 +7,21 @@ const SuitPreviewControlScript := preload("res://scripts/application/suit_previe
 
 const EDUCATION_OPTIONS := [
 	"植物科学",
-	"农业工程",
 	"机械工程",
-	"生命支持工程",
 	"材料科学",
 	"医学",
 ]
 
 const EDUCATION_DESCRIPTIONS := {
-	"植物科学": "更容易发现植物叶片异常、营养缺乏与根系问题。",
-	"农业工程": "更容易理解温室设备、水循环与种植系统状态。",
-	"机械工程": "更容易判断设备损坏原因、维修风险与结构故障。",
-	"生命支持工程": "更容易理解氧气、水、电力、温度之间的关系。",
-	"材料科学": "更容易识别结构老化、密封材料损耗与辐射损伤。",
-	"医学": "更容易发现自身或未来居民的健康风险。",
+	"植物科学": "核心风险：生命会不会生长\n\n熟悉植物状态、水 / 光 / 温度对植物的影响、温室环境风险、植物恢复周期与作物生长问题。\n\n信息优势：在植物诊断、旧温室、作物生长、水循环与植物供水、补光与温度判断中获得额外专业提示。",
+	"机械工程": "核心风险：系统会不会运转\n\n熟悉电力系统、太阳能阵列、制氧模块、温控设备、水泵与设备故障链。\n\n信息优势：在太阳能板维修、供电恢复、制氧模块维修、温控系统维修、水循环设备维修中获得额外专业提示。",
+	"材料科学": "核心风险：基地会不会漏\n\n熟悉舱压、密封材料、结构老化、舱体接缝、气闸 / 对接口微漏、月尘磨蚀、辐射与温差损伤。\n\n信息优势：在气闸密封、飞船对接口检查、旧基地舱压异常、密封圈老化、结构裂纹判断中获得额外专业提示。",
+	"医学": "核心风险：人会不会撑不住\n\n熟悉精力、饱腹、营养、心理、氧气不足对人体的影响、低温 / 高温风险与长期单人驻留风险。\n\n信息优势：在健康状态判断、恢复顺序建议、低氧 / 低温环境风险、高强度维修前提醒、睡眠恢复效率判断中获得额外专业提示。",
 }
 
 const STEP_LABELS := {
 	"identity": ["01 基础信息", "BASIC INFORMATION"],
-	"education": ["02 教育背景", "EDUCATION BACKGROUND"],
+	"education": ["02 候选人学术背景", "ACADEMIC BACKGROUND"],
 	"appearance": ["03 外观与标识", "APPEARANCE & MARKING"],
 	"review": ["04 提交申请", "SUBMIT APPLICATION"],
 }
@@ -45,6 +41,7 @@ var status_label: Label
 var name_edit: LineEdit
 var birth_spin: SpinBox
 var gender_options: OptionButton
+var pending_academic_background_id := ""
 var education_buttons: Dictionary = {}
 var education_detail_title: Label
 var education_detail_body: Label
@@ -230,12 +227,12 @@ func _show_identity() -> void:
 	)
 
 func _show_education() -> void:
-	_add_page_title("02 教育背景", "EDUCATION BACKGROUND")
-	_add_body("教育背景不会提供数值加成。\n它将影响你未来看到的提示、诊断信息与可见信息。")
+	_add_page_title("选择候选人学术背景", "ACADEMIC BACKGROUND")
+	_add_body("学术背景不会提供数值加成，但会影响你能看懂哪些专业线索。\n\n不同学术背景会在训练、维修、温室、生命支持和基地结构判断中提供额外专业提示。\n这些提示不会减少耗时、材料消耗或风险，只会帮助你做出更准确的判断。")
 	var columns := _add_columns(0.38)
 	var left: VBoxContainer = columns[0]
 	var right: VBoxContainer = columns[1]
-	_add_panel_title(left, "选择教育背景")
+	_add_panel_title(left, "选择候选人学术背景")
 	education_buttons.clear()
 	for option in EDUCATION_OPTIONS:
 		var button := Button.new()
@@ -254,18 +251,17 @@ func _show_education() -> void:
 	education_detail_body.modulate = Color("#d8e7f2")
 	education_detail_body.add_theme_font_size_override("font_size", 18)
 	right.add_child(education_detail_body)
-	_add_body_to(right, "未来作用：影响提示、诊断信息与可见信息，不改变能力数值。")
+	_add_body_to(right, "第一版作用：只影响专业提示，不改变移动速度、维修耗时、材料消耗、负重上限、精力消耗、睡眠恢复或健康状态。")
 	var art := ApplicationArtPanelScript.new()
 	art.panel_kind = "education"
 	right.add_child(art)
-	if String(profile.get("education_background")).is_empty():
-		profile.set("education_background", EDUCATION_OPTIONS[0])
+	pending_academic_background_id = _selected_academic_background_id()
 	_update_education_detail()
 	_add_footer_button("返回", func():
 		_show_step("identity")
 	)
-	_add_footer_button("下一步", func():
-		_show_step("appearance")
+	_add_footer_button("确认选择", func():
+		_confirm_academic_background_selection()
 	)
 
 func _show_appearance() -> void:
@@ -368,11 +364,11 @@ func _start_review_sequence() -> void:
 	panel.add_child(review_status)
 	_add_note_to(review_status, "资料归档：完成")
 	_add_note_to(review_status, "身份校验：完成")
-	_add_note_to(review_status, "教育背景匹配：进行中")
+	_add_note_to(review_status, "学术背景匹配：进行中")
 	_add_note_to(review_status, "训练序列分配：等待")
 	review_lines = [
 		"正在进行资格审核",
-		"正在匹配教育背景",
+		"正在匹配学术背景",
 		"正在生成训练计划",
 		"正在建立候选人档案",
 		"审核完成",
@@ -449,35 +445,117 @@ func _capture_appearance() -> void:
 	_save_profile()
 
 func _update_education_detail() -> void:
-	var selected := String(profile.get("education_background"))
-	if selected.is_empty():
-		selected = EDUCATION_OPTIONS[0]
-		profile.set("education_background", selected)
+	var selected := _academic_background_name_from_id(pending_academic_background_id)
 	if education_detail_title != null:
-		education_detail_title.text = selected
+		education_detail_title.text = selected if not selected.is_empty() else "请选择一个候选人学术背景"
 	if education_detail_body != null:
-		education_detail_body.text = String(EDUCATION_DESCRIPTIONS.get(selected, ""))
+		if selected.is_empty():
+			education_detail_body.text = "未选择学术背景。\n\n请选择一个候选人学术背景后再确认。学术背景不会提供数值加成，只会影响专业提示。"
+		else:
+			education_detail_body.text = String(EDUCATION_DESCRIPTIONS.get(selected, ""))
 	for option in education_buttons.keys():
 		var button: Button = education_buttons[option]
 		button.modulate = Color("#9ac7e8") if String(option) == selected else Color.WHITE
 
 func _select_education(selected: String) -> void:
-	profile.set("education_background", selected)
+	pending_academic_background_id = _academic_background_id_from_name(selected)
 	_update_education_detail()
+
+func _confirm_academic_background_selection() -> void:
+	if pending_academic_background_id.is_empty():
+		_add_note_to(page_body, "请先选择一个候选人学术背景。")
+		return
+	var dialog := ConfirmationDialog.new()
+	dialog.title = "确认候选人学术背景"
+	dialog.dialog_text = "确认候选人学术背景？\n\n该背景将在训练和基地系统中提供专业提示。\n第一版不会提供数值加成。\n\n是否确认？"
+	add_child(dialog)
+	dialog.confirmed.connect(func():
+		_apply_academic_background_selection(pending_academic_background_id)
+		dialog.queue_free()
+		_show_step("appearance")
+	)
+	dialog.canceled.connect(func():
+		dialog.queue_free()
+	)
+	dialog.popup_centered(Vector2i(520, 300))
+
+func _apply_academic_background_selection(background_id: String) -> void:
+	var manager := _academic_background_manager()
+	var background_name := _academic_background_name_from_id(background_id)
+	if manager != null and manager.has_method("set_background"):
+		manager.call("set_background", background_id)
+	if background_name.is_empty():
+		return
+	profile.set("selected_academic_background_id", background_id)
+	profile.set("education_background", background_name)
 	_save_profile()
 
 func _profile_summary() -> String:
-	return "姓名：%s\n申请编号：%s\n候选人档案状态：%s\n任务身份：%s\n出生年份：%d\n性别：%s\n教育背景：%s\n宇航服标识：%s / %s" % [
+	return "姓名：%s\n申请编号：%s\n候选人档案状态：%s\n任务身份：%s\n出生年份：%d\n性别：%s\n候选人学术背景：%s\n宇航服标识：%s / %s" % [
 		_display_name(),
 		String(profile.get("application_id")),
 		String(profile.get("candidate_file_status")),
 		String(profile.get("mission_identity")),
 		int(profile.get("birth_year")),
 		String(profile.get("gender_display")),
-		String(profile.get("education_background")),
+		_academic_background_display_name(),
 		String(profile.get("suit_marking")),
 		String(profile.get("suit_marking_color")),
 	]
+
+func _academic_background_display_name() -> String:
+	var name := String(profile.get("education_background"))
+	if not name.is_empty():
+		return name
+	return _academic_background_name_from_id(_selected_academic_background_id())
+
+func _selected_academic_background_id() -> String:
+	var selected_id := String(profile.get("selected_academic_background_id"))
+	if not selected_id.is_empty():
+		return _normalize_academic_background_id(selected_id)
+	return _academic_background_id_from_name(String(profile.get("education_background")))
+
+func _academic_background_id_from_name(background_name: String) -> String:
+	var manager := _academic_background_manager()
+	if manager != null and manager.has_method("normalize_background_id"):
+		return String(manager.call("normalize_background_id", background_name))
+	match background_name:
+		"植物科学":
+			return "plant_science"
+		"机械工程":
+			return "mechanical_engineering"
+		"材料科学":
+			return "materials_science"
+		"医学":
+			return "medical"
+	return ""
+
+func _academic_background_name_from_id(background_id: String) -> String:
+	var normalized := _normalize_academic_background_id(background_id)
+	var manager := _academic_background_manager()
+	if manager != null and manager.has_method("get_all_backgrounds"):
+		for data in manager.call("get_all_backgrounds"):
+			if data is Dictionary and String((data as Dictionary).get("id", "")) == normalized:
+				return String((data as Dictionary).get("name", ""))
+	match normalized:
+		"plant_science":
+			return "植物科学"
+		"mechanical_engineering":
+			return "机械工程"
+		"materials_science":
+			return "材料科学"
+		"medical":
+			return "医学"
+	return ""
+
+func _normalize_academic_background_id(value: String) -> String:
+	var manager := _academic_background_manager()
+	if manager != null and manager.has_method("normalize_background_id"):
+		return String(manager.call("normalize_background_id", value))
+	return value
+
+func _academic_background_manager() -> Node:
+	return get_tree().root.get_node_or_null("AcademicBackgroundManager")
 
 func _display_name() -> String:
 	var value := String(profile.get("player_name")).strip_edges()
@@ -702,8 +780,14 @@ func _normalize_profile_defaults() -> void:
 			profile.set("candidate_file_status", "已通过资格初审")
 		else:
 			profile.set("candidate_file_status", "待提交")
-	if String(profile.get("education_background")).is_empty():
-		profile.set("education_background", EDUCATION_OPTIONS[0])
+	var selected_academic_id := _selected_academic_background_id()
+	if not selected_academic_id.is_empty():
+		var background_name := _academic_background_name_from_id(selected_academic_id)
+		profile.set("selected_academic_background_id", selected_academic_id)
+		profile.set("education_background", background_name)
+		var manager := _academic_background_manager()
+		if manager != null and manager.has_method("set_background"):
+			manager.call("set_background", selected_academic_id, false)
 
 func _save_profile() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("user://saves"))

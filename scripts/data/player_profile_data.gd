@@ -8,6 +8,7 @@ class_name PlayerProfileData
 @export var candidate_file_status := "待提交"
 @export var mission_identity := "常驻开拓者候选人"
 @export var education_background := ""
+@export var selected_academic_background_id := ""
 @export var appearance_preset := "Standard"
 @export var skin_preset := "Preset A"
 @export var hair_preset := "Short"
@@ -29,6 +30,8 @@ func to_dictionary() -> Dictionary:
 		"CandidateFileStatus": candidate_file_status,
 		"MissionIdentity": mission_identity,
 		"EducationBackground": education_background,
+		"SelectedAcademicBackgroundId": selected_academic_background_id,
+		"selected_academic_background_id": selected_academic_background_id,
 		"AppearancePreset": appearance_preset,
 		"SkinPreset": skin_preset,
 		"HairPreset": hair_preset,
@@ -52,6 +55,7 @@ func load_dictionary(data: Dictionary) -> void:
 	candidate_file_status = String(data.get("CandidateFileStatus", candidate_file_status))
 	mission_identity = String(data.get("MissionIdentity", mission_identity))
 	education_background = String(data.get("EducationBackground", education_background))
+	selected_academic_background_id = String(data.get("selected_academic_background_id", data.get("SelectedAcademicBackgroundId", selected_academic_background_id)))
 	appearance_preset = String(data.get("AppearancePreset", appearance_preset))
 	skin_preset = String(data.get("SkinPreset", skin_preset))
 	hair_preset = String(data.get("HairPreset", hair_preset))
