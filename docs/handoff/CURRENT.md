@@ -148,3 +148,14 @@
 右列改为"提交确认 + 确认事项"三个勾选项。列宽比例从 0.52 改为 0.48，
 让承载勾选项和正文的"提交确认"列保持较宽。勾选项通过 confirmation_checks
 数组跟踪，与所在列无关，提交按钮启用逻辑不受影响。
+
+## 追加（Claude Code，代 Codex）：确认弹窗左侧空白区域移除
+
+用户反馈：太阳能阵列检查等确认弹窗左边有一大块空白（原来放诊断图的
+位置，确认类弹窗没有图）。`training_module_scene.gd` 的共享诊断弹窗：
+新增 `_set_diagnosis_modal_image(texture)`，无图时隐藏整个图片列
+（隐藏的子节点在 HBox 中不占位）并把弹窗宽度从 ±540 收窄到 ±300，
+文字列 expand-fill 填满；有图时（植物诊断）恢复宽版。六处
+`diagnosis_modal_image.texture = …` 全部改走该 helper。临时脚本（已删）
+验证：检查/故障诊断弹窗图片隐藏、弹窗收窄到 offset_left=-300；相关场景
+headless 0 错误。

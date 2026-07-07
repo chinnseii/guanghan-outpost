@@ -973,7 +973,11 @@ func _build_diagnosis_modal() -> void:
 	diagnosis_modal_image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	row.add_child(diagnosis_modal_image)
 	var right := VBoxContainer.new()
-	right.custom_minimum_size = Vector2(500, 560)
+	right.custom_minimum_size = Vector2(500, 0)
+	# Fill any horizontal space the image column gives up when it's hidden
+	# (confirm dialogs set no texture) -- otherwise the text sat in a
+	# 500px band leaving a big empty left area (user-reported).
+	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	right.add_theme_constant_override("separation", 14)
 	row.add_child(right)
 	# Title is per-dialog now (was hardcoded to the plant-chamber text, which
@@ -2284,8 +2288,7 @@ func _show_diagnosis_options(options: Array, correct: String) -> void:
 		diagnosis_modal_scrim.visible = true
 	if diagnosis_modal != null:
 		diagnosis_modal.visible = true
-	if diagnosis_modal_image != null:
-		diagnosis_modal_image.texture = _load_diagnosis_texture("res://assets/art/greenhouse/plant_states/light_low.png")
+	_set_diagnosis_modal_image(_load_diagnosis_texture("res://assets/art/greenhouse/plant_states/light_low.png"))
 	_set_diagnosis_modal_title("植物舱诊断详情\nPLANT CHAMBER DIAGNOSTIC")
 	if diagnosis_modal_text != null:
 		var professional_hint := _professional_hint_block("training_06_greenhouse_light_low")
@@ -2321,8 +2324,7 @@ func _show_plant_control_options(options: Array, correct: String) -> void:
 		diagnosis_modal_scrim.visible = true
 	if diagnosis_modal != null:
 		diagnosis_modal.visible = true
-	if diagnosis_modal_image != null:
-		diagnosis_modal_image.texture = _load_diagnosis_texture("res://assets/art/greenhouse/plant_states/light_low.png")
+	_set_diagnosis_modal_image(_load_diagnosis_texture("res://assets/art/greenhouse/plant_states/light_low.png"))
 	_set_diagnosis_modal_title("植物控制台\nPLANT CONTROL")
 	if diagnosis_modal_text != null:
 		diagnosis_modal_text.text = "植物控制台\nPLANT CONTROL\n\n当前维护目标\n根据植物舱诊断结果选择一项维护动作。\n\n传感器摘要\n补光输出：低于维持阈值\n水循环：最低运行\n根区温度：正常\n生命信号：弱\n\n可用操作\n调节温度：用于根区温度异常。\n浇水：用于水分不足。\n补光：用于光照不足。\n\n请选择维护动作。"
@@ -2362,8 +2364,7 @@ func _show_wear_suit_confirm_dialog() -> void:
 		diagnosis_modal_scrim.visible = true
 	if diagnosis_modal != null:
 		diagnosis_modal.visible = true
-	if diagnosis_modal_image != null:
-		diagnosis_modal_image.texture = null
+	_set_diagnosis_modal_image(null)
 	_set_diagnosis_modal_title("宇航服整备\nSUIT PREPARATION")
 	if diagnosis_modal_text != null:
 		diagnosis_modal_text.text = "穿戴宇航服\n\n穿戴将消耗训练时间 15 分钟。\n是否确认？"
@@ -2403,8 +2404,7 @@ func _show_return_suit_confirm_dialog() -> void:
 		diagnosis_modal_scrim.visible = true
 	if diagnosis_modal != null:
 		diagnosis_modal.visible = true
-	if diagnosis_modal_image != null:
-		diagnosis_modal_image.texture = null
+	_set_diagnosis_modal_image(null)
 	_set_diagnosis_modal_title("宇航服归位\nSUIT RETURN")
 	if diagnosis_modal_text != null:
 		diagnosis_modal_text.text = "宇航服归位\n\n脱下宇航服并放回维护位。\n维护系统将恢复宇航服氧气、电力与状态。\n\n训练模式下无需等待完整维护流程。\n是否确认？"
@@ -2441,8 +2441,7 @@ func _show_inspect_solar_array_confirm_dialog() -> void:
 		diagnosis_modal_scrim.visible = true
 	if diagnosis_modal != null:
 		diagnosis_modal.visible = true
-	if diagnosis_modal_image != null:
-		diagnosis_modal_image.texture = null
+	_set_diagnosis_modal_image(null)
 	_set_diagnosis_modal_title("太阳能阵列检查\nSOLAR ARRAY INSPECTION")
 	if diagnosis_modal_text != null:
 		diagnosis_modal_text.text = "检查太阳能阵列\n\n预计耗时：15 分钟。\n训练时间将推进。\n宇航服氧气与电力将少量消耗。\n\n是否继续？"
@@ -2494,8 +2493,7 @@ func _show_solar_fault_diagnosis() -> void:
 		diagnosis_modal_scrim.visible = true
 	if diagnosis_modal != null:
 		diagnosis_modal.visible = true
-	if diagnosis_modal_image != null:
-		diagnosis_modal_image.texture = null
+	_set_diagnosis_modal_image(null)
 	_set_diagnosis_modal_title("太阳能阵列诊断\nSOLAR ARRAY DIAGNOSTIC")
 	var fault: Dictionary = FaultDatabaseScript.get_fault("FA-TR-SOLAR-001")
 	if diagnosis_modal_text != null:
@@ -2708,6 +2706,22 @@ func _setup_training_03_container() -> void:
 func _set_diagnosis_modal_title(text: String) -> void:
 	if diagnosis_modal_title != null:
 		diagnosis_modal_title.text = text
+
+## Sets the modal image AND hides the whole image column when there's no
+## texture, so confirm dialogs (which pass null) collapse the left half
+## instead of showing a big empty band (user-reported). A hidden child in
+## the HBoxContainer reserves no space, so the text column fills. The modal
+## also shrinks to a text-only width in that case, so the buttons don't
+## stretch across the full image+text width.
+func _set_diagnosis_modal_image(texture: Texture2D) -> void:
+	if diagnosis_modal_image == null:
+		return
+	diagnosis_modal_image.texture = texture
+	diagnosis_modal_image.visible = texture != null
+	if diagnosis_modal != null:
+		var half_width := 540.0 if texture != null else 300.0
+		diagnosis_modal.offset_left = -half_width
+		diagnosis_modal.offset_right = half_width
 
 func _hide_training_diagnosis_modal() -> void:
 	if diagnosis_modal_scrim != null:
