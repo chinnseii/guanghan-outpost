@@ -3167,6 +3167,10 @@ func _add_button(parent: HBoxContainer, text: String, callback: Callable) -> voi
 	var button := Button.new()
 	button.text = text
 	button.custom_minimum_size = Vector2(190, 42)
+	# Footer buttons must never hold keyboard focus: Tab doubles as Godot's
+	# ui_focus_next (stealing the suit-status-panel toggle) and Enter doubles
+	# as the "interact" action (which would trigger the focused button).
+	button.focus_mode = Control.FOCUS_NONE
 	button.pressed.connect(callback)
 	parent.add_child(button)
 

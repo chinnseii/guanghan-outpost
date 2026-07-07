@@ -132,9 +132,22 @@ func _update_toast(delta: float) -> void:
 	if toast_timer <= 0.0:
 		toast_label.visible = false
 
-func _unhandled_input(event: InputEvent) -> void:
+## Tab (mission_panel) is intercepted in _input(), NOT _unhandled_input():
+## Tab doubles as Godot's built-in ui_focus_next action, so if any visible
+## Button ever holds keyboard focus (e.g. the footer's 保存训练进度 after a
+## mouse click), the GUI layer consumes Tab for focus traversal before
+## _unhandled_input would see it -- user-reported as "Tab 无法呼出，焦点在
+## 保存训练进度和返回主菜单之间切换". _input() runs before GUI handling, so
+## marking the event handled here wins regardless of focus state. (All
+## buttons in this scene are also FOCUS_NONE now, belt and suspenders --
+## focus on a button would additionally make Enter, which doubles as the
+## "interact" action, trigger that button.)
+func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("mission_panel"):
 		_toggle_mission_panel()
+		get_viewport().set_input_as_handled()
+
+func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("interact") and not briefing_visible and not pause_visible and not interaction_running:
 		_try_interact()
 	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_F3:
@@ -840,6 +853,7 @@ func _show_wear_suit_confirm_dialog() -> void:
 	var confirm := Button.new()
 	confirm.text = "确认穿戴"
 	confirm.custom_minimum_size = Vector2(0, 42)
+	confirm.focus_mode = Control.FOCUS_NONE
 	confirm.pressed.connect(func():
 		var suit_manager := _suit_manager()
 		var success := false
@@ -857,6 +871,7 @@ func _show_wear_suit_confirm_dialog() -> void:
 	var cancel := Button.new()
 	cancel.text = "取消"
 	cancel.custom_minimum_size = Vector2(0, 42)
+	cancel.focus_mode = Control.FOCUS_NONE
 	cancel.pressed.connect(func():
 		hint_label.text = "已取消穿戴。"
 		_hide_training_diagnosis_modal()
@@ -869,6 +884,7 @@ func _show_return_suit_confirm_dialog() -> void:
 	var confirm := Button.new()
 	confirm.text = "确认归位"
 	confirm.custom_minimum_size = Vector2(0, 42)
+	confirm.focus_mode = Control.FOCUS_NONE
 	confirm.pressed.connect(func():
 		var suit_manager := _suit_manager()
 		var success := false
@@ -886,6 +902,7 @@ func _show_return_suit_confirm_dialog() -> void:
 	var cancel := Button.new()
 	cancel.text = "取消"
 	cancel.custom_minimum_size = Vector2(0, 42)
+	cancel.focus_mode = Control.FOCUS_NONE
 	cancel.pressed.connect(func():
 		hint_label.text = "已取消宇航服归位。"
 		_hide_training_diagnosis_modal()
@@ -899,6 +916,7 @@ func _show_diagnosis_options(options: Array, correct: String) -> void:
 		var button := Button.new()
 		button.text = String(option)
 		button.custom_minimum_size = Vector2(0, 42)
+		button.focus_mode = Control.FOCUS_NONE
 		button.pressed.connect(func():
 			if button.text == correct:
 				_hide_training_diagnosis_modal()
@@ -914,6 +932,7 @@ func _show_plant_control_options(options: Array, correct: String) -> void:
 		var button := Button.new()
 		button.text = String(option)
 		button.custom_minimum_size = Vector2(0, 42)
+		button.focus_mode = Control.FOCUS_NONE
 		button.pressed.connect(func():
 			if button.text == correct:
 				_hide_training_diagnosis_modal()
@@ -1242,6 +1261,7 @@ func _build_briefing_modal() -> void:
 	var button := Button.new()
 	button.text = "确认，开始训练"
 	button.custom_minimum_size = Vector2(0, 44)
+	button.focus_mode = Control.FOCUS_NONE
 	button.pressed.connect(func(): _close_briefing())
 	box.add_child(button)
 	briefing_visible = true
@@ -1267,11 +1287,13 @@ func _build_pause_panel() -> void:
 	var resume := Button.new()
 	resume.text = "继续训练"
 	resume.custom_minimum_size = Vector2(0, 42)
+	resume.focus_mode = Control.FOCUS_NONE
 	resume.pressed.connect(func(): _set_pause_visible(false))
 	box.add_child(resume)
 	var tasks := Button.new()
 	tasks.text = "查看任务"
 	tasks.custom_minimum_size = Vector2(0, 42)
+	tasks.focus_mode = Control.FOCUS_NONE
 	tasks.pressed.connect(func():
 		_set_pause_visible(false)
 		_set_mission_panel_visible(true)
@@ -1280,6 +1302,7 @@ func _build_pause_panel() -> void:
 	var main := Button.new()
 	main.text = "返回主菜单"
 	main.custom_minimum_size = Vector2(0, 42)
+	main.focus_mode = Control.FOCUS_NONE
 	main.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/main.tscn"))
 	box.add_child(main)
 
@@ -1390,6 +1413,7 @@ func _build_suit_status_panel() -> void:
 	var confirm := Button.new()
 	confirm.text = "确认状态"
 	confirm.custom_minimum_size = Vector2(0, 42)
+	confirm.focus_mode = Control.FOCUS_NONE
 	confirm.pressed.connect(_on_confirm_suit_status_pressed)
 	box.add_child(confirm)
 
@@ -1528,6 +1552,7 @@ func _add_button(parent: HBoxContainer, text: String, callback: Callable) -> voi
 	var button := Button.new()
 	button.text = text
 	button.custom_minimum_size = Vector2(190, 42)
+	button.focus_mode = Control.FOCUS_NONE
 	button.pressed.connect(callback)
 	parent.add_child(button)
 
