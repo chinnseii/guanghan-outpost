@@ -3,6 +3,29 @@
 更新时间：2026-07-07
 更新人：Claude Code（代 Codex，训练小型地图重构 + 用户实测反馈修复）
 
+## 追加：应用户要求删除旧训练场景
+
+用户确认旧场景"不要了"，已删除 8 个不再被引用的旧训练场景文件：
+`Training_01_SuitControl` / `Training_02_AirlockProcedure` /
+`Training_03_PowerRepair` / `Training_04_PowerDistribution` /
+`Training_04_LifeSupport` / `Training_05_AirSystemControl` /
+`Training_05_PlantDiagnosis` / `Training_06_TrainingGreenhouse`（.tscn）。
+同时删除了 7 个只为这些旧场景服务、删掉场景后就跑不起来的一次性截图采集
+工具（`tools/capture_airlock_prop_bridge_check.gd` 等——截图产物本身仍在
+`docs/screenshots/` 里，不受影响）。
+
+注意事项：
+- `training_manager.gd` 里的 `MODULE_01/02/04/05/06` 常量**保留为纯字符串**
+  ——`_remap_legacy_training_scene()` 靠它们识别旧存档里的旧场景路径并重定向
+  到新地图，注释已改为"legacy path strings only，禁止再传给
+  change_scene_to_file()"。
+- `training_module_scene.gd` 里旧模块的 `_suit_control_config()` 等配置
+  函数变成了不可达的死代码（没有场景再以这些 module_id 实例化该脚本），
+  本轮**没有删**——该脚本仍被太阳能阵列训练场/最终结算场景使用，而且新地图
+  还引用它的房间绘制内部类，动它风险大于收益，留给以后专门的清理轮次。
+- 删除后 headless 全场景扫描（主菜单/新地图/太阳能/结算/开始/通知/黑屏/
+  申请/旧基地）全部 0 错误。
+
 ## 追加：用户实测发现的三个问题（已修复）
 
 用户实际运行游戏后反馈：(1) 穿宇航服弹窗的标题错写成"植物舱诊断详情"；

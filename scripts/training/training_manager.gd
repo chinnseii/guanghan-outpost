@@ -5,16 +5,19 @@ const SAVE_PATH := "user://saves/training_progress.json"
 const APPLICATION_PROFILE_PATH := "user://saves/application_profile.json"
 
 const START_SCENE := "res://scenes/training/TrainingStartScene.tscn"
+## MODULE_01/02/04/05/06 are LEGACY PATH STRINGS ONLY -- the standalone
+## per-module scene files they name were deleted (at the user's request)
+## once the training small map (TRAINING_BASE_MAP below) replaced them.
+## They're kept solely so _remap_legacy_training_scene() can recognize and
+## redirect old save files that still store these paths in
+## CurrentSceneAfterTraining. Never pass them to change_scene_to_file().
 const MODULE_01 := "res://scenes/training/Training_01_SuitControl.tscn"
 const MODULE_02 := "res://scenes/training/Training_02_AirlockProcedure.tscn"
-## 训练模块 03："月面太阳能板维修" (太阳能阵列训练场) -- new content lives in a
-## new scene file per the design spec, but keeps the existing "power_repair"
-## module_id/PowerRepairCompleted flag (see the scene script's _power_config()
-## for why: renaming would touch are_required_modules_completed()/
-## default_data()/MODULE_SCENES for no functional benefit, same reasoning as
-## training room 1's "suit_control" module_id being kept). The old
-## Training_03_PowerRepair.tscn file is left in place, unused, rather than
-## deleted.
+## 训练模块 03："月面太阳能板维修" (太阳能阵列训练场) -- the one training module
+## that still lives in its own real scene (reached via the airlock's outer
+## door in the training small map). Keeps the existing "power_repair"
+## module_id/PowerRepairCompleted flag; see training_base_map.gd's file
+## header for why it wasn't folded into the hub scene.
 const MODULE_03 := "res://scenes/training/SolarArrayTrainingField.tscn"
 const MODULE_04 := "res://scenes/training/Training_04_PowerDistribution.tscn"
 const MODULE_05 := "res://scenes/training/Training_05_AirSystemControl.tscn"
@@ -26,8 +29,9 @@ const MODULE_06 := "res://scenes/training/Training_06_TrainingGreenhouse.tscn"
 ## training_base_map.gd's file header for why (its entry-gate/repair-
 ## container/fault-diagnosis logic is complex and already hardened; the
 ## user's own spec permits keeping it a separate scene reached via the
-## airlock's outer door). The old Training_01/02/04/05/06_*.tscn files are
-## left in place, unused, rather than deleted (same policy as MODULE_03).
+## airlock's outer door). The superseded standalone Training_0X_*.tscn
+## scene files were deleted at the user's request; their paths survive only
+## as the legacy-remap constants above.
 const TRAINING_BASE_MAP := "res://scenes/training/TrainingBaseMap.tscn"
 const FINAL_ASSESSMENT := "res://scenes/training/FinalAssessmentScene.tscn"
 const MISSION_NOTICE := "res://scenes/training/MissionAssignmentNoticeScene.tscn"
