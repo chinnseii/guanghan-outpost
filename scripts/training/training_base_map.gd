@@ -37,6 +37,34 @@ const TrainingModuleSceneScript := preload("res://scripts/training/training_modu
 
 const LOCKED_HINT := "该训练区尚未解锁。请先完成当前训练目标。"
 const SUIT_REQUIRED_HINT := "该区域需要穿戴宇航服。"
+const ROOM_DESIGN_SIZE := Vector2(760, 520)
+
+class AirlockChamberRoomBlockout:
+	extends Control
+
+	func _draw() -> void:
+		var rect := Rect2(Vector2.ZERO, size)
+		draw_rect(rect, Color("#07111b"), true)
+		var room := Rect2(Vector2(24, 24), size - Vector2(48, 48))
+		draw_rect(room, Color("#17212b"), true)
+		for x in range(int(room.position.x), int(room.end.x), 48):
+			draw_line(Vector2(x, room.position.y), Vector2(x, room.end.y), Color("#2f3f4c", 0.52), 1.0)
+		for y in range(int(room.position.y), int(room.end.y), 48):
+			draw_line(Vector2(room.position.x, y), Vector2(room.end.x, y), Color("#2f3f4c", 0.52), 1.0)
+		draw_rect(room, Color("#7f93a4"), false, 4.0)
+		draw_rect(room.grow(-16), Color("#3a4d5a"), false, 2.0)
+		draw_rect(Rect2(Vector2(room.position.x, room.position.y), Vector2(room.size.x, 30)), Color("#263543"), true)
+		draw_rect(Rect2(Vector2(room.position.x, room.end.y - 30), Vector2(room.size.x, 30)), Color("#263543"), true)
+		draw_rect(Rect2(Vector2(room.position.x, room.position.y), Vector2(30, room.size.y)), Color("#263543"), true)
+		draw_rect(Rect2(Vector2(room.end.x - 30, room.position.y), Vector2(30, room.size.y)), Color("#263543"), true)
+		draw_rect(Rect2(Vector2(room.position.x + 112, room.position.y + 124), Vector2(18, 150)), Color("#405261"), true)
+		draw_rect(Rect2(Vector2(room.end.x - 130, room.position.y + 124), Vector2(18, 150)), Color("#405261"), true)
+		draw_line(Vector2(room.position.x + 130, room.position.y + 270), Vector2(room.end.x - 130, room.position.y + 270), Color("#638195", 0.35), 2.0)
+		for light_x in [room.position.x + 170, room.size.x * 0.5, room.end.x - 230]:
+			var light_rect := Rect2(Vector2(light_x, room.position.y + 16), Vector2(86, 8))
+			draw_rect(light_rect, Color("#87d9ff", 0.36), true)
+			draw_rect(light_rect.grow(4), Color("#87d9ff", 0.09), true)
+		draw_string(ThemeDB.fallback_font, room.position + Vector2(18, 32), "气闸舱", HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color("#8fa3b2"))
 
 # -- Static UI chrome (mirrors training_module_scene.gd's layout) --
 var objective_label: Label
@@ -95,6 +123,7 @@ var current_area_id := "hub"
 var module_data: Dictionary = {}
 var step_index := 0
 var completed := false
+var last_training_area_size := Vector2.ZERO
 
 func _ready() -> void:
 	_ensure_input_actions()
@@ -107,6 +136,7 @@ func _ready() -> void:
 	_sync_overlay_visibility()
 
 func _process(delta: float) -> void:
+	_rebuild_room_if_resized()
 	_update_toast(delta)
 	if briefing_visible or pause_visible or interaction_running:
 		_update_room_prompt()
@@ -115,7 +145,7 @@ func _process(delta: float) -> void:
 	if not completed:
 		_check_wait_step(delta)
 		_check_auto_steps()
-		_check_door_crossing()
+	_check_door_crossing()
 	_update_room_prompt()
 
 func _show_toast(message: String, duration: float = 3.5) -> void:
@@ -187,7 +217,7 @@ func _build_all_areas() -> Dictionary:
 	var built := {
 		"hub": _hub_area_config(),
 		"suit_prep_room": _suit_prep_area_config(),
-		"airlock_simulation_room": _airlock_area_config(),
+		"airlock_simulation_room": _airlock_chamber_area_config(),
 		"power_distribution_room": _power_distribution_area_config(),
 		"air_system_control_room": _air_system_area_config(),
 		"greenhouse_room": _greenhouse_area_config(),
@@ -228,18 +258,25 @@ func _module_completed(module_id: String, progress: Dictionary) -> bool:
 ## single source of truth" pattern already used elsewhere in this project
 ## (e.g. sprint06_base_scene.gd's GreenhouseDoor reading a state flag).
 func _compute_unlocked(area_id: String, progress: Dictionary) -> bool:
+	var current_module := String(progress.get("CurrentTrainingModule", ""))
 	match area_id:
 		"hub", "suit_prep_room":
 			return true
 		"airlock_simulation_room":
 			return bool(progress.get("SuitControlCompleted", false))
 		"power_distribution_room":
-			return bool(progress.get("PowerRepairCompleted", false))
+			return bool(progress.get("PowerRepairCompleted", false)) or _module_order_at_or_after(current_module, "power_distribution")
 		"air_system_control_room":
-			return bool(progress.get("PowerDistributionCompleted", false))
+			return bool(progress.get("PowerDistributionCompleted", false)) or _module_order_at_or_after(current_module, "life_support")
 		"greenhouse_room":
-			return bool(progress.get("LifeSupportCompleted", false))
+			return bool(progress.get("LifeSupportCompleted", false)) or _module_order_at_or_after(current_module, "plant_diagnosis")
 	return false
+
+func _module_order_at_or_after(current_module: String, expected_module: String) -> bool:
+	var order := ["suit_control", "airlock_procedure", "power_repair", "power_distribution", "life_support", "plant_diagnosis", "final_assessment", "mission_assignment"]
+	var current_index := order.find(current_module)
+	var expected_index := order.find(expected_module)
+	return current_index >= 0 and expected_index >= 0 and current_index >= expected_index
 
 ## Decides which room to open the hub scene into. Two genuinely-external
 ## arrivals reach this scene: (1) fresh from TrainingStartScene at the very
@@ -255,10 +292,8 @@ func _route_initial_area() -> void:
 	var toast_shown := bool(progress.get("PowerRepairUnlockToastShown", false))
 	if power_repair_done and not toast_shown:
 		current_area_id = "airlock_simulation_room"
-		areas["airlock_simulation_room"]["player_start"] = Vector2(600, 340)
-		progress["PowerRepairUnlockToastShown"] = true
-		TrainingManagerScript.save_progress(progress)
-		call_deferred("_notify", "太阳能阵列基础输出已恢复。请返回基地，进入配电房。")
+		_apply_airlock_return_flow()
+		call_deferred("_notify", "太阳能阵列基础输出已恢复。请完成返舱增压流程。")
 		return
 	match String(progress.get("CurrentTrainingModule", "suit_control")):
 		"suit_control":
@@ -287,6 +322,30 @@ func _route_initial_area() -> void:
 		if suit_manager == null or not bool(suit_manager.get("is_suit_worn")):
 			current_area_id = "suit_prep_room"
 
+func _apply_airlock_return_flow() -> void:
+	var area: Dictionary = areas.get("airlock_simulation_room", {})
+	area["module_id"] = "airlock_return"
+	area["player_start"] = Vector2(170, 300)
+	area["hud"] = "气闸舱：关闭外舱门，执行增压后返回训练中控室。"
+	area["state"] = {}
+	area["step_index"] = 0
+	area["steps"] = _airlock_return_steps()
+	# In the return flow the inner door must stay sealed until the
+	# repressurization procedure completes (its final E-interact step does
+	# the room switch itself) -- strip the walk-through passage the outbound
+	# config puts on it.
+	for target: Dictionary in area.get("targets", []):
+		if String(target.get("id", "")) == "inner_door":
+			target.erase("door_to")
+	areas["airlock_simulation_room"] = area
+
+func _airlock_return_steps() -> Array:
+	return [
+		{"type": "interact", "target": "outer_door", "objective": "关闭外舱门", "line": "外舱门已关闭。", "state_key": "OuterDoorClosedAfterEva"},
+		{"type": "pressure_choice", "target": "console", "objective": "执行气闸舱增压", "line": "增压完成。\n舱压状态：稳定。", "options": ["充压", "降压"], "correct": "充压", "wrong_hint": "当前目标是返回舱内。\n需要先执行充压，使气闸舱恢复可开启内舱门状态。", "modal_text": "舱压控制台\n\n当前流程：返舱增压。\n请选择舱压操作。", "feedback_text": "增压中", "time_minutes": 15, "time_reason": "training_airlock_pressurize", "state_updates": {"PressureStable": true, "InnerDoorUnlocked": true, "PressureStatus": "稳定"}, "requires": {"OuterDoorClosedAfterEva": true}, "blocked_hint": "请先关闭外舱门。"},
+		{"type": "interact", "target": "inner_door", "objective": "打开内舱门", "line": "内舱门已解锁。\n返舱气闸流程完成。", "state_key": "InnerDoorOpenedAfterEva", "requires": {"PressureStable": true}, "blocked_hint": "气闸舱尚未完成增压。内舱门保持锁定。", "on_complete": "airlock_return"},
+	]
+
 ## -- Room content configs --
 ## Ported from training_module_scene.gd's per-module _*_config() functions
 ## (content only, not the engine) -- exact targets/steps/state_updates/
@@ -312,9 +371,9 @@ func _hub_area_config() -> Dictionary:
 		"targets": [
 			{"id": "terminal", "kind": "terminal", "label": "训练状态终端", "position": Vector2(330, 210), "size": Vector2(100, 80), "info": true},
 			{"id": "door_suit", "kind": "door", "label": "宇航服整备室", "position": Vector2(30, 210), "size": Vector2(64, 140), "door_to": "suit_prep_room", "door_spawn": Vector2(560, 300)},
-			{"id": "door_power", "kind": "door", "label": "配电房", "position": Vector2(330, 20), "size": Vector2(100, 54), "door_to": "power_distribution_room", "door_spawn": Vector2(350, 400)},
-			{"id": "door_air", "kind": "door", "label": "空气系统控制室", "position": Vector2(666, 210), "size": Vector2(64, 140), "door_to": "air_system_control_room", "door_spawn": Vector2(660, 300)},
-			{"id": "door_greenhouse", "kind": "door", "label": "训练温室", "position": Vector2(330, 446), "size": Vector2(100, 54), "door_to": "greenhouse_room", "door_spawn": Vector2(350, 320)},
+			{"id": "door_power", "kind": "door", "label": "配电房", "position": Vector2(326, 18), "size": Vector2(108, 96), "door_to": "power_distribution_room", "door_spawn": Vector2(350, 400)},
+			{"id": "door_air", "kind": "door", "label": "空气系统控制室", "position": Vector2(666, 210), "size": Vector2(64, 140), "door_to": "air_system_control_room", "door_spawn": Vector2(120, 300)},
+			{"id": "door_greenhouse", "kind": "door", "label": "训练温室", "position": Vector2(330, 446), "size": Vector2(100, 54), "door_to": "greenhouse_room", "door_spawn": Vector2(350, 116)},
 		],
 		"steps": [],
 	}
@@ -327,12 +386,15 @@ func _suit_prep_area_config() -> Dictionary:
 		"requires_suit": false,
 		"terrain_type": "indoor",
 		"blockout": "TrainingRoomBlockout",
-		"player_start": Vector2(350, 330),
+		"player_start": Vector2(560, 300),
 		"hud": "宇航服整备室：穿戴 / 归位。",
 		"targets": [
-			{"id": "suit_rack", "kind": "tool_station", "label": "宇航服整备架", "position": Vector2(320, 160), "size": Vector2(132, 92)},
-			{"id": "door_hub", "kind": "door", "label": "训练中控室", "position": Vector2(666, 210), "size": Vector2(64, 140), "door_to": "hub", "door_spawn": Vector2(90, 300)},
-			{"id": "door_airlock", "kind": "door", "label": "模拟气闸舱", "position": Vector2(30, 210), "size": Vector2(64, 140), "door_to": "airlock_simulation_room", "door_spawn": Vector2(150, 340)},
+			{"id": "door_airlock", "kind": "door", "label": "气闸舱", "position": Vector2(30, 210), "size": Vector2(64, 140), "door_to": "airlock_simulation_room", "door_spawn": Vector2(580, 300)},
+			{"id": "suit_rack", "kind": "tool_station", "label": "宇航服整备架", "position": Vector2(250, 132), "size": Vector2(150, 96)},
+			{"id": "suit_check_terminal", "kind": "terminal", "label": "整备状态终端", "position": Vector2(520, 126), "size": Vector2(124, 82), "info": true},
+			{"id": "locker_a", "kind": "locker", "label": "备用氧气柜", "position": Vector2(130, 392), "size": Vector2(118, 62)},
+			{"id": "locker_b", "kind": "locker", "label": "训练工具柜", "position": Vector2(560, 392), "size": Vector2(118, 62)},
+			{"id": "door_hub", "kind": "door", "label": "训练中控室", "position": Vector2(666, 236), "size": Vector2(64, 128), "door_to": "hub", "door_spawn": Vector2(90, 300)},
 		],
 		"steps": [
 			{"type": "move", "target": "suit_rack", "objective": "移动到宇航服整备架", "line": "已抵达宇航服整备架。"},
@@ -341,30 +403,35 @@ func _suit_prep_area_config() -> Dictionary:
 		],
 	}
 
-func _airlock_area_config() -> Dictionary:
+func _airlock_chamber_area_config() -> Dictionary:
 	return {
-		"title": "模拟气闸舱",
-		"subtitle": "AIRLOCK PROCEDURE",
+		"title": "气闸舱",
+		"subtitle": "AIRLOCK CHAMBER",
 		"module_id": "airlock_procedure",
 		"requires_suit": true,
 		"terrain_type": "indoor",
-		"blockout": "AirlockRoomBlockout",
-		"player_start": Vector2(150, 340),
-		"hud": "模拟气闸舱：室内与外部真空模拟的边界。",
+		"blockout": "AirlockChamberRoomBlockout",
+		"player_start": Vector2(650, 300),
+		"hud": "气闸舱：关闭内舱门，执行降压与气体回收后，从外舱门进入太阳能阵列训练场。",
 		"targets": [
-			{"id": "door_suit", "kind": "door", "label": "宇航服整备室", "position": Vector2(20, 250), "size": Vector2(50, 140), "door_to": "suit_prep_room", "door_spawn": Vector2(560, 300)},
-			{"id": "chamber", "label": "气闸室", "position": Vector2(210, 250), "size": Vector2(176, 214), "color": Color("#223d52")},
-			{"id": "inner_door", "kind": "door", "label": "内舱门", "position": Vector2(90, 260), "size": Vector2(54, 116), "color": Color("#3d4e62")},
-			{"id": "console", "kind": "pressure_console", "label": "舱压控制台", "position": Vector2(410, 150), "size": Vector2(126, 88), "color": Color("#31536f")},
-			{"id": "pressure_display", "kind": "status_display", "label": "舱压状态", "position": Vector2(500, 100), "size": Vector2(132, 72), "color": Color("#244563")},
-			{"id": "outer_door", "kind": "door", "label": "外舱门", "position": Vector2(610, 260), "size": Vector2(54, 116), "color": Color("#3d4e62")},
+			{"id": "outer_door", "kind": "door", "label": "外舱门", "position": Vector2(30, 236), "size": Vector2(64, 128), "color": Color("#3d4e62")},
+			{"id": "pressure_display", "kind": "status_display", "label": "舱压状态：未启动", "position": Vector2(312, 82), "size": Vector2(136, 72), "color": Color("#244563")},
+			{"id": "console", "kind": "pressure_console", "label": "舱压控制台", "position": Vector2(300, 214), "size": Vector2(160, 98), "color": Color("#31536f")},
+			# While the inner door hasn't been closed yet it doubles as a
+			# walk-through passage back inside (user-requested UX: approach ->
+			# "E 关闭内舱门" prompt appears; keep walking INTO the door ->
+			# return to 训练中控室). door_press requires the player to be
+			# actively pushing east into the door, so spawning next to it /
+			# brushing past it never teleports by accident; door_blocked_by_state
+			# seals the passage the moment the close-door step completes.
+			# _apply_airlock_return_flow() strips door_to in the return flow,
+			# where the inner door must stay shut until repressurization.
+			{"id": "inner_door", "kind": "door", "label": "内舱门", "position": Vector2(666, 236), "size": Vector2(64, 128), "color": Color("#3d4e62"), "door_to": "hub", "door_spawn": Vector2(90, 300), "door_blocked_by_state": "InnerDoorClosed", "door_press": "ui_right"},
 		],
 		"steps": [
-			{"type": "move", "target": "chamber", "objective": "进入气闸室", "line": "进入气闸室。", "state_key": "PlayerInsideAirlock"},
 			{"type": "interact", "target": "inner_door", "objective": "关闭内舱门", "line": "内舱门已关闭。", "state_key": "InnerDoorClosed"},
-			{"type": "interact", "target": "console", "objective": "启动舱压模拟", "line": "舱压模拟开始。", "state_key": "PressureSimulationStarted", "requires": {"InnerDoorClosed": true}, "blocked_hint": "请先关闭内舱门。"},
-			{"type": "wait", "target": "pressure_display", "objective": "等待舱压稳定", "line": "舱压稳定。\n外舱门已解锁。", "duration": 1.6, "state_updates": {"PressureStable": true, "OuterDoorUnlocked": true}},
-			{"type": "interact", "target": "outer_door", "objective": "打开外舱门，前往太阳能阵列训练场", "line": "外门已开启。\n模拟月面环境接入。", "state_key": "OuterDoorOpen", "requires": {"InnerDoorClosed": true, "PressureStable": true}, "blocked_hint": "舱压尚未稳定。外舱门保持锁定。", "on_complete": "airlock_procedure"},
+			{"type": "pressure_choice", "target": "console", "objective": "操作舱压控制台", "line": "气体回收完成。\n舱压状态：低压稳定。", "options": ["充压", "降压"], "correct": "降压", "wrong_hint": "当前目标是前往舱外环境。\n需要先执行降压与气体回收。", "time_minutes": 15, "time_reason": "training_airlock_depressurize", "state_updates": {"PressureStable": true, "OuterDoorUnlocked": true, "PressureStatus": "低压稳定"}, "requires": {"InnerDoorClosed": true}, "blocked_hint": "请先关闭内舱门。"},
+			{"type": "interact", "target": "outer_door", "objective": "打开外舱门", "line": "外舱门已开启。\n正在进入太阳能阵列训练场。", "state_key": "OuterDoorOpen", "requires": {"InnerDoorClosed": true, "PressureStable": true}, "blocked_hint": "舱压尚未降至安全外出状态。外舱门保持锁定。", "on_complete": "airlock_procedure"},
 		],
 	}
 
@@ -379,9 +446,10 @@ func _power_distribution_area_config() -> Dictionary:
 		"player_start": Vector2(350, 400),
 		"hud": "太阳能输入：已恢复\n储能模块：未接入\n配电主线：不稳定",
 		"targets": [
-			{"id": "door_hub", "kind": "door", "label": "训练中控室", "position": Vector2(30, 430), "size": Vector2(90, 60), "door_to": "hub", "door_spawn": Vector2(350, 120)},
+			{"id": "door_hub", "kind": "door", "label": "训练中控室", "position": Vector2(330, 446), "size": Vector2(100, 54), "door_to": "hub", "door_spawn": Vector2(350, 116)},
 			{"id": "panel", "kind": "power_panel", "label": "储能接入面板", "position": Vector2(150, 180), "size": Vector2(120, 90)},
 			{"id": "console", "kind": "power_console", "label": "配电控制台", "position": Vector2(420, 180), "size": Vector2(120, 90)},
+			{"id": "power_display", "kind": "life_status", "label": "电力显示", "position": Vector2(585, 120), "size": Vector2(112, 76), "color": Color("#244563")},
 			{"id": "light", "kind": "test_light", "label": "供电测试灯", "position": Vector2(420, 320), "size": Vector2(90, 60)},
 		],
 		"steps": [
@@ -401,24 +469,21 @@ func _air_system_area_config() -> Dictionary:
 		"requires_suit": false,
 		"terrain_type": "indoor",
 		"blockout": "LifeSupportRoomBlockout",
-		"player_start": Vector2(350, 400),
-		"hud": "氧气模拟值：偏低\n水循环状态：稳定\n电力模拟值：稳定\n温度模拟值：偏低\n生命支持状态：未稳定",
+		"player_start": Vector2(120, 300),
+		"hud": "氧气状态：偏低\n温度状态：偏低\n生命支持状态：未稳定",
 		"targets": [
-			{"id": "door_hub", "kind": "door", "label": "训练中控室", "position": Vector2(30, 430), "size": Vector2(90, 60), "door_to": "hub", "door_spawn": Vector2(660, 120)},
-			{"id": "console", "kind": "life_console", "label": "生命支持控制台", "position": Vector2(340, 180), "size": Vector2(126, 88), "color": Color("#31536f")},
-			{"id": "oxygen", "kind": "life_status", "label": "氧气状态", "position": Vector2(130, 130), "size": Vector2(96, 72), "color": Color("#244563")},
-			{"id": "water", "kind": "life_status", "label": "水循环状态", "position": Vector2(130, 260), "size": Vector2(96, 72), "color": Color("#244563")},
-			{"id": "power", "kind": "life_status", "label": "电力显示", "position": Vector2(560, 260), "size": Vector2(96, 72), "color": Color("#244563")},
-			{"id": "temperature", "kind": "life_status", "label": "温度状态", "position": Vector2(560, 130), "size": Vector2(96, 72), "color": Color("#244563")},
-			{"id": "core", "kind": "life_core", "label": "生命支持核心", "position": Vector2(620, 200), "size": Vector2(96, 88), "color": Color("#31536f")},
-			{"id": "vent", "kind": "ventilation", "label": "通风单元", "position": Vector2(360, 330), "size": Vector2(96, 72), "color": Color("#31536f")},
+			{"id": "door_hub", "kind": "door", "label": "训练中控室", "position": Vector2(30, 236), "size": Vector2(64, 128), "door_to": "hub", "door_spawn": Vector2(660, 300)},
+			{"id": "core", "kind": "status_display", "label": "生命支持状态", "position": Vector2(318, 96), "size": Vector2(164, 72), "color": Color("#66552a")},
+			{"id": "console", "kind": "life_console", "label": "生命支持控制台", "position": Vector2(340, 214), "size": Vector2(126, 88), "color": Color("#31536f")},
+			{"id": "oxygen_terminal", "kind": "life_console", "label": "制氧终端", "position": Vector2(130, 248), "size": Vector2(126, 88), "color": Color("#244563")},
+			{"id": "temperature_terminal", "kind": "life_console", "label": "温控终端", "position": Vector2(560, 248), "size": Vector2(126, 88), "color": Color("#244563")},
 		],
 		"steps": [
-			{"type": "interact", "target": "console", "objective": "打开生命支持控制台", "line": "生命支持控制台已打开。", "state_updates": {"LifeSupportConsoleOpened": true}},
-			{"type": "interact", "target": "oxygen", "objective": "读取生命支持状态", "line": "检测到氧气偏低。\n检测到温度偏低。\n电力与水循环状态稳定。", "state_updates": {"LifeSupportStatusRead": true, "OxygenStatus": "偏低", "WaterStatus": "稳定", "PowerStatus": "稳定", "TemperatureStatus": "偏低", "LifeSupportStatus": "未稳定"}, "requires": {"LifeSupportConsoleOpened": true}, "blocked_hint": "请先打开生命支持控制台。"},
-			{"type": "interact", "target": "console", "objective": "启动稳定程序", "line": "稳定程序启动。\n正在调整氧气输出与温控系统。", "state_updates": {"StabilizationStarted": true, "LifeSupportStatus": "稳定中"}, "requires": {"LifeSupportStatusRead": true}, "blocked_hint": "请先读取当前生命支持状态。"},
-			{"type": "wait", "target": "core", "objective": "等待系统稳定", "line": "生命支持状态：稳定。", "duration": 1.6, "state_updates": {"LifeSupportStable": true, "OxygenStatus": "稳定", "WaterStatus": "稳定", "PowerStatus": "稳定", "TemperatureStatus": "稳定", "LifeSupportStatus": "稳定"}},
-			{"type": "interact", "target": "vent", "objective": "确认生命支持稳定", "line": "氧气、水、电力与温度均已稳定。\n训练仓空气系统恢复训练完成。", "state_key": "LifeSupportConfirmed", "requires": {"LifeSupportStable": true}, "blocked_hint": "生命支持状态尚未稳定。", "on_complete": "life_support"},
+			{"type": "interact", "target": "console", "objective": "打开生命支持控制台", "line": "生命支持控制台已打开。\n检测到两项异常：\n氧气浓度：偏低\n温度状态：偏低", "professional_hint_tag": "medical", "professional_hint": "医学专业提示：\n氧气浓度过高或过低都会影响判断力与行动稳定性。\n温度过高或过低会增加失温、脱水或疲劳风险。", "state_updates": {"LifeSupportConsoleOpened": true, "LifeSupportStatusRead": true, "OxygenStatus": "偏低", "TemperatureStatus": "偏低", "LifeSupportStatus": "未稳定"}},
+			{"type": "life_control", "target": "oxygen_terminal", "objective": "调整制氧终端", "line": "制氧输出已上调。\n氧气状态：稳定。", "options": ["增加制氧", "减少制氧"], "correct": "增加制氧", "wrong_hint": "当前氧气浓度偏低。\n请提高制氧输出。", "state_updates": {"OxygenAdjusted": true, "OxygenStatus": "稳定"}, "requires": {"LifeSupportStatusRead": true}, "blocked_hint": "请先打开生命支持控制台。"},
+			{"type": "life_control", "target": "temperature_terminal", "objective": "调整温控终端", "line": "温控输出已上调。\n温度状态：可维持。", "options": ["升温", "降温"], "correct": "升温", "wrong_hint": "当前舱内温度偏低。\n请提高温控输出。", "state_updates": {"TemperatureAdjusted": true, "TemperatureStatus": "可维持"}, "requires": {"OxygenAdjusted": true}, "blocked_hint": "请先调整制氧终端。"},
+			{"type": "wait", "target": "core", "objective": "等待生命支持稳定", "line": "生命支持状态：稳定。", "duration": 1.6, "state_updates": {"LifeSupportStable": true, "LifeSupportStatus": "稳定"}},
+			{"type": "interact", "target": "core", "objective": "确认生命支持稳定", "line": "氧气与温度已回到可维持范围。\n训练仓空气系统恢复训练完成。", "state_key": "LifeSupportConfirmed", "requires": {"LifeSupportStable": true}, "blocked_hint": "生命支持状态尚未稳定。", "on_complete": "life_support"},
 		],
 	}
 
@@ -433,8 +498,9 @@ func _greenhouse_area_config() -> Dictionary:
 		"player_start": Vector2(350, 400),
 		"hud": "氧气模拟值：98%\n电力模拟值：稳定\n生命支持状态：稳定\n植物状态：异常",
 		"targets": [
-			{"id": "door_hub", "kind": "door", "label": "训练中控室", "position": Vector2(30, 430), "size": Vector2(90, 60), "door_to": "hub", "door_spawn": Vector2(350, 480)},
+			{"id": "door_hub", "kind": "door", "label": "训练中控室", "position": Vector2(330, 20), "size": Vector2(100, 54), "door_to": "hub", "door_spawn": Vector2(350, 396)},
 			{"id": "plant", "kind": "plant_chamber", "label": "训练植物", "position": Vector2(350, 260), "size": Vector2(96, 96), "color": Color("#2d5b3f")},
+			{"id": "water_status", "kind": "life_status", "label": "水循环状态", "position": Vector2(170, 260), "size": Vector2(112, 76), "color": Color("#244563")},
 			{"id": "light_console", "kind": "plant_console", "label": "植物控制台", "position": Vector2(600, 260), "size": Vector2(120, 88), "color": Color("#31536f")},
 			{"id": "grow_light", "kind": "grow_light", "label": "生长灯", "position": Vector2(560, 130), "size": Vector2(120, 40), "color": Color("#4b4f37")},
 		],
@@ -456,9 +522,9 @@ func _load_area(area_id: String, spawn_point: Vector2) -> void:
 	completed = false
 	_build_training_area()
 	if player != null:
-		player.position = spawn_point
+		player.position = _room_point(spawn_point)
 	if player_controller != null:
-		player_controller.sync_position(spawn_point)
+		player_controller.sync_position(player.position)
 	_update_hud()
 
 func _switch_room(target_area_id: String, spawn_point: Vector2) -> void:
@@ -483,8 +549,21 @@ func _try_enter_area(target_area_id: String, spawn_point: Vector2) -> void:
 	_switch_room(target_area_id, spawn_point)
 
 func _check_door_crossing() -> void:
+	var state: Dictionary = module_data.get("state", {})
 	for target: Dictionary in module_data.get("targets", []):
 		if not target.has("door_to"):
+			continue
+		# Optional per-door gates (both used by the airlock's inner door):
+		# door_blocked_by_state seals the passage while a state flag is true
+		# (the door has been physically closed); door_press requires the
+		# player to be actively pushing toward the door, so a spawn point or
+		# task target overlapping the door rect can't trigger an accidental
+		# crossing.
+		var blocked_key := String(target.get("door_blocked_by_state", ""))
+		if not blocked_key.is_empty() and bool(state.get(blocked_key, false)):
+			continue
+		var press_action := String(target.get("door_press", ""))
+		if not press_action.is_empty() and not Input.is_action_pressed(press_action):
 			continue
 		if _is_inside_target_area(String(target["id"])):
 			_try_enter_area(String(target["door_to"]), target.get("door_spawn", Vector2(350, 320)))
@@ -567,6 +646,12 @@ func _try_interact() -> void:
 		return
 	if step_type == "plant_control":
 		_show_plant_control_options(step.get("options", []), String(step.get("correct", "")))
+		return
+	if step_type == "pressure_choice":
+		_show_pressure_control_options(step.get("options", []), String(step.get("correct", "")))
+		return
+	if step_type == "life_control":
+		_show_life_control_options(step.get("options", []), String(step.get("correct", "")))
 		return
 	if step_type == "wear_suit_confirm":
 		_show_wear_suit_confirm_dialog()
@@ -668,11 +753,11 @@ func _complete_step() -> void:
 		for key in updates.keys():
 			module_data["state"][String(key)] = updates[key]
 	_advance_time_for_step(step)
-	_add_log(String(step.get("line", "")))
+	_add_log(_step_line_with_professional_hint(step))
 	step_index += 1
 	areas[current_area_id]["step_index"] = step_index
 	wait_timer = 0.0
-	if String(step.get("type", "")) in ["diagnosis", "plant_control"]:
+	if String(step.get("type", "")) in ["diagnosis", "plant_control", "pressure_choice", "life_control"]:
 		if diagnosis_panel != null:
 			diagnosis_panel.visible = false
 		_hide_training_diagnosis_modal()
@@ -692,11 +777,22 @@ func _on_area_task_complete(module_id: String) -> void:
 		"suit_control":
 			TrainingManagerScript.mark_module_completed("suit_control", "airlock_procedure")
 			areas["airlock_simulation_room"]["unlocked"] = true
-			_notify("模拟气闸舱已解锁。")
+			_notify("气闸舱已解锁。")
 		"airlock_procedure":
 			TrainingManagerScript.mark_module_completed("airlock_procedure", "power_repair")
 			TrainingManagerScript.set_current_module("power_repair")
 			get_tree().change_scene_to_file(TrainingManagerScript.MODULE_03)
+			return
+		"airlock_return":
+			var progress := TrainingManagerScript._read_progress_data()
+			progress["PowerRepairCompleted"] = true
+			progress["PowerRepairUnlockToastShown"] = true
+			progress["CurrentTrainingModule"] = "power_distribution"
+			progress["CurrentSceneAfterTraining"] = TrainingManagerScript.TRAINING_BASE_MAP
+			TrainingManagerScript.save_progress(progress)
+			areas["power_distribution_room"]["unlocked"] = true
+			_notify("返舱增压完成。请前往配电房，恢复供电。")
+			_switch_room("hub", Vector2(350, 120))
 			return
 		"power_distribution":
 			TrainingManagerScript.mark_module_completed("power_distribution", "life_support")
@@ -760,7 +856,7 @@ func _default_time_minutes_for_step(step: Dictionary) -> int:
 		return 0
 	if step_type == "diagnosis":
 		return 15
-	if step_type == "plant_control":
+	if step_type == "plant_control" or step_type == "pressure_choice" or step_type == "life_control":
 		return 30
 	if objective.contains("维修") or objective.contains("恢复") or objective.contains("重启") or objective.contains("启动"):
 		return 30
@@ -797,6 +893,12 @@ func _health_manager() -> Node:
 	if tree == null or tree.root == null:
 		return null
 	return tree.root.get_node_or_null("HealthManager")
+
+func _academic_background_manager() -> Node:
+	var tree := get_tree()
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null("AcademicBackgroundManager")
 
 func _time_hud_text() -> String:
 	var manager := _training_time_manager()
@@ -892,8 +994,7 @@ func _show_return_suit_confirm_dialog() -> void:
 			success = suit_manager.call("remove_suit_to_service_station_training")
 		_hide_training_diagnosis_modal()
 		if success:
-			TrainingManagerScript.set_current_module("final_assessment")
-			get_tree().change_scene_to_file(TrainingManagerScript.FINAL_ASSESSMENT)
+			_complete_training_and_show_assignment_notice()
 		else:
 			hint_label.text = "宇航服当前无法归位。"
 			_show_toast("宇航服当前无法归位。")
@@ -909,6 +1010,10 @@ func _show_return_suit_confirm_dialog() -> void:
 	)
 	diagnosis_modal_actions.add_child(cancel)
 	_sync_overlay_visibility()
+
+func _complete_training_and_show_assignment_notice() -> void:
+	TrainingManagerScript.mark_module_completed("final_assessment", "mission_assignment")
+	get_tree().change_scene_to_file(TrainingManagerScript.MISSION_NOTICE)
 
 func _show_diagnosis_options(options: Array, correct: String) -> void:
 	_open_diagnosis_modal("传感器读数\n补光输出：低于维持阈值\n水循环：最低运行\n根区温度：正常\n生命信号：弱\n\n请选择诊断结论。")
@@ -942,6 +1047,98 @@ func _show_plant_control_options(options: Array, correct: String) -> void:
 		)
 		diagnosis_modal_actions.add_child(button)
 
+func _show_life_control_options(options: Array, correct: String) -> void:
+	var step := _current_step()
+	var text := String(step.get("modal_text", "生命支持调节终端\n\n根据控制台读数选择一项调整动作。"))
+	_open_diagnosis_modal(text)
+	for option in options:
+		var button := Button.new()
+		button.text = String(option)
+		button.custom_minimum_size = Vector2(0, 42)
+		button.focus_mode = Control.FOCUS_NONE
+		button.pressed.connect(func():
+			if button.text == correct:
+				_hide_training_diagnosis_modal()
+				_complete_step()
+			else:
+				hint_label.text = String(_current_step().get("wrong_hint", "调节动作不匹配。请重新核对生命支持读数。"))
+		)
+		diagnosis_modal_actions.add_child(button)
+
+func _show_pressure_control_options(options: Array, correct: String) -> void:
+	var step := _current_step()
+	var text := String(step.get("modal_text", "舱压控制台\n\n当前流程：舱外训练准备。\n请选择舱压操作。"))
+	var professional_hint := _airlock_pressure_professional_hint()
+	if not professional_hint.is_empty():
+		text += "\n\n" + professional_hint
+	_open_diagnosis_modal(text)
+	for option in options:
+		var button := Button.new()
+		button.text = String(option)
+		button.custom_minimum_size = Vector2(0, 42)
+		button.focus_mode = Control.FOCUS_NONE
+		button.pressed.connect(func():
+			if button.text == correct:
+				_confirm_pressure_choice()
+			else:
+				hint_label.text = String(_current_step().get("wrong_hint", "舱压操作不匹配。请重新选择。"))
+		)
+		diagnosis_modal_actions.add_child(button)
+
+func _confirm_pressure_choice() -> void:
+	var step := _current_step()
+	var feedback_text := String(step.get("feedback_text", "气体回收中"))
+	_hide_training_diagnosis_modal()
+	await _show_fading_center_notice(feedback_text)
+	_complete_step()
+
+func _show_fading_center_notice(text: String) -> void:
+	var notice := Label.new()
+	notice.text = text
+	notice.modulate = Color("#9fd7ff", 1.0)
+	notice.add_theme_font_size_override("font_size", 24)
+	notice.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	notice.set_anchors_preset(Control.PRESET_CENTER)
+	notice.offset_left = -180
+	notice.offset_top = -30
+	notice.offset_right = 180
+	notice.offset_bottom = 30
+	add_child(notice)
+	var elapsed := 0.0
+	var duration := 1.8
+	while elapsed < duration:
+		await get_tree().process_frame
+		var delta := get_process_delta_time()
+		elapsed += delta
+		notice.modulate.a = clamp(1.0 - elapsed / duration, 0.0, 1.0)
+	notice.queue_free()
+
+func _airlock_pressure_professional_hint() -> String:
+	var manager := _academic_background_manager()
+	if manager == null:
+		return ""
+	if manager.has_method("has_background_tag") and bool(manager.call("has_background_tag", "mechanical")):
+		var step := _current_step()
+		if String(step.get("correct", "")) == "充压":
+			return "机械工程提示：\n返舱后应先关闭外舱门，再执行充压，使气闸舱恢复到可开启内舱门状态。"
+		return "机械工程提示：\n前往舱外前应先执行降压，并回收舱内气体。"
+	return ""
+
+func _step_line_with_professional_hint(step: Dictionary) -> String:
+	var line := String(step.get("line", ""))
+	var required_tag := String(step.get("professional_hint_tag", ""))
+	if required_tag.is_empty():
+		return line
+	var professional_hint := String(step.get("professional_hint", ""))
+	if professional_hint.is_empty():
+		return line
+	var manager := _academic_background_manager()
+	if manager == null:
+		return line
+	if manager.has_method("has_background_tag") and bool(manager.call("has_background_tag", required_tag)):
+		return line + "\n\n" + professional_hint
+	return line
+
 func _open_diagnosis_modal(text: String) -> void:
 	if diagnosis_panel != null:
 		diagnosis_panel.visible = false
@@ -973,6 +1170,9 @@ func _toggle_mission_panel() -> void:
 	_set_mission_panel_visible(not mission_panel_visible)
 
 func _toggle_suit_status_panel() -> void:
+	if suit_status_panel_visible:
+		_confirm_suit_status_review()
+		return
 	suit_status_panel_visible = not suit_status_panel_visible
 	if suit_status_panel_visible:
 		_refresh_suit_status_panel()
@@ -997,12 +1197,18 @@ func _refresh_suit_status_panel() -> void:
 func _on_confirm_suit_status_pressed() -> void:
 	if String(_current_step().get("type", "")) != "suit_status_panel":
 		return
+	_confirm_suit_status_review()
+
+func _confirm_suit_status_review() -> void:
 	suit_status_panel_visible = false
 	if suit_status_scrim != null:
 		suit_status_scrim.visible = false
 	if suit_status_modal != null:
 		suit_status_modal.visible = false
-	_complete_step()
+	if String(_current_step().get("type", "")) == "suit_status_panel":
+		_complete_step()
+	else:
+		_sync_overlay_visibility()
 
 func _set_mission_panel_visible(value: bool) -> void:
 	mission_panel_visible = value
@@ -1172,7 +1378,7 @@ func _build_screen() -> void:
 	footer.custom_minimum_size = Vector2(0, 48)
 	footer.add_theme_constant_override("separation", 12)
 	root.add_child(footer)
-	_add_button(footer, "保存训练进度", func(): TrainingManagerScript.set_current_module(String(module_data.get("module_id", "suit_control"))))
+	_add_button(footer, "保存训练进度", func(): TrainingManagerScript.set_current_module(_current_module_for_save()))
 	_add_button(footer, "返回主菜单", func(): get_tree().change_scene_to_file("res://scenes/main.tscn"))
 
 	_build_training_overlays()
@@ -1417,6 +1623,14 @@ func _build_suit_status_panel() -> void:
 	confirm.pressed.connect(_on_confirm_suit_status_pressed)
 	box.add_child(confirm)
 
+func _current_module_for_save() -> String:
+	var module_id := String(module_data.get("module_id", ""))
+	if module_id == "airlock_return":
+		return "power_distribution"
+	if not module_id.is_empty():
+		return module_id
+	return "suit_control"
+
 ## Rebuilds training_area's contents (floor blockout + targets + player) for
 ## whichever room is now current_area_id -- called both at _ready() and on
 ## every _switch_room(). Reuses training_module_scene.gd's nested visual
@@ -1431,8 +1645,8 @@ func _build_training_area() -> void:
 	var blockout_name := String(module_data.get("blockout", "TrainingRoomBlockout"))
 	var floor: Control
 	match blockout_name:
-		"AirlockRoomBlockout":
-			floor = TrainingModuleSceneScript.AirlockRoomBlockout.new()
+		"AirlockChamberRoomBlockout":
+			floor = AirlockChamberRoomBlockout.new()
 		"PowerRepairRoomBlockout":
 			floor = TrainingModuleSceneScript.PowerRepairRoomBlockout.new()
 		"LifeSupportRoomBlockout":
@@ -1451,14 +1665,14 @@ func _build_training_area() -> void:
 		visual.name = String(target["id"])
 		visual.kind = String(target.get("kind", "marker"))
 		visual.label_text = String(target.get("label", ""))
-		visual.position = target.get("position", Vector2.ZERO)
-		visual.size = target.get("size", Vector2(96, 72))
+		visual.position = _room_point(target.get("position", Vector2.ZERO))
+		visual.size = _room_size(target.get("size", Vector2(96, 72)))
 		training_area.add_child(visual)
 		target_nodes[String(target["id"])] = visual
 
 	player = TrainingModuleSceneScript.TraineeVisual.new()
-	player.size = Vector2(42, 54)
-	player.position = module_data.get("player_start", Vector2(350, 320))
+	player.size = _room_size(Vector2(42, 54))
+	player.position = _room_point(module_data.get("player_start", Vector2(350, 320)))
 	training_area.add_child(player)
 
 	prompt_label = Label.new()
@@ -1468,6 +1682,45 @@ func _build_training_area() -> void:
 	training_area.add_child(prompt_label)
 
 	player_controller = null
+	last_training_area_size = _room_pixel_size()
+
+func _room_pixel_size() -> Vector2:
+	var available := training_area.size
+	if available.x <= 1.0 or available.y <= 1.0:
+		available = training_area.custom_minimum_size
+	return Vector2(max(available.x, ROOM_DESIGN_SIZE.x), max(available.y, ROOM_DESIGN_SIZE.y))
+
+func _room_scale() -> Vector2:
+	var available: Vector2 = _room_pixel_size()
+	return Vector2(
+		available.x / ROOM_DESIGN_SIZE.x,
+		available.y / ROOM_DESIGN_SIZE.y
+	)
+
+func _room_point(point: Vector2) -> Vector2:
+	return point * _room_scale()
+
+func _room_size(value: Vector2) -> Vector2:
+	var scale: Vector2 = _room_scale()
+	var uniform: float = min(scale.x, scale.y)
+	return value * uniform
+
+func _design_point_from_room(point: Vector2) -> Vector2:
+	var scale: Vector2 = _room_scale()
+	return Vector2(point.x / max(scale.x, 0.001), point.y / max(scale.y, 0.001))
+
+func _rebuild_room_if_resized() -> void:
+	if training_area == null or player == null:
+		return
+	var current_size: Vector2 = _room_pixel_size()
+	if current_size.distance_to(last_training_area_size) < 1.0:
+		return
+	var design_player_position: Vector2 = _design_point_from_room(player.position)
+	_build_training_area()
+	if player != null:
+		player.position = _room_point(design_player_position)
+	if player_controller != null:
+		player_controller.sync_position(player.position)
 
 func _refresh_floor_state() -> void:
 	if floor_node == null:
@@ -1500,13 +1753,24 @@ func _update_room_prompt() -> void:
 	_refresh_floor_state()
 	var step := _current_step()
 	var target_id := String(step.get("target", "")) if not step.is_empty() else ""
+	var state: Dictionary = module_data.get("state", {})
 	for node in target_nodes.values():
 		if node is TrainingModuleSceneScript.TrainingTargetVisual:
 			var node_is_interacting: bool = interaction_running and node.name == interaction_target_id
 			node.highlighted = node.name == target_id or node_is_interacting
 			node.active = node_is_interacting
-			node.locked = _door_locked(node)
+			node.locked = _door_locked(node) or _target_flow_locked(String(node.name), state)
+			if String(node.name) == "pressure_display":
+				var pressure_status := String(state.get("PressureStatus", ""))
+				node.status_text = "舱压：" + pressure_status if not pressure_status.is_empty() else ("舱压：低压稳定" if bool(state.get("PressureStable", false)) else "舱压：未启动")
+				node.label_text = "舱压状态"
+			if current_area_id == "air_system_control_room" and String(node.name) == "core":
+				var life_status := String(state.get("LifeSupportStatus", "未稳定"))
+				node.status_text = "生命支持：" + life_status
+				node.label_text = "生命支持状态"
 			node.modulate = Color(1, 1, 1, 1) if node.highlighted else Color(0.64, 0.70, 0.76, 0.56)
+			if current_area_id == "air_system_control_room" and String(node.name) == "core" and not node.highlighted and not bool(state.get("LifeSupportStable", false)):
+				node.modulate = Color(1.0, 0.83, 0.36, 0.78)
 			node.queue_redraw()
 	if target_id.is_empty() or not target_nodes.has(target_id):
 		prompt_label.visible = false
@@ -1514,7 +1778,7 @@ func _update_room_prompt() -> void:
 	var target: Control = target_nodes[target_id]
 	var near := _is_near(target_id)
 	var prompt_step_type := String(step.get("type", ""))
-	if near and prompt_step_type in ["interact", "plant_control", "wear_suit_confirm"]:
+	if near and prompt_step_type in ["interact", "plant_control", "pressure_choice", "life_control", "wear_suit_confirm"]:
 		prompt_label.text = "E 交互"
 		prompt_label.position = target.position + Vector2(8, target.size.y + 20)
 		prompt_label.visible = true
@@ -1531,6 +1795,23 @@ func _door_locked(node: Control) -> bool:
 			return false
 		var area: Dictionary = areas.get(String(target["door_to"]), {})
 		return not bool(area.get("unlocked", false))
+	return false
+
+func _target_flow_locked(node_name: String, state: Dictionary) -> bool:
+	if current_area_id != "airlock_simulation_room":
+		return false
+	var module_id := String(module_data.get("module_id", ""))
+	if module_id == "airlock_return":
+		if node_name == "inner_door":
+			return not bool(state.get("InnerDoorUnlocked", false))
+		return false
+	if node_name == "outer_door":
+		return not bool(state.get("PressureStable", false))
+	if node_name == "inner_door":
+		# Outbound flow: once the close-door step has run, the inner door is
+		# physically shut -- show the 锁定 overlay so the now-disabled
+		# walk-back passage reads as sealed rather than silently inert.
+		return bool(state.get("InnerDoorClosed", false))
 	return false
 
 func _add_header_label(parent: HBoxContainer, text: String, min_size: Vector2, font_size: int, color: Color) -> void:

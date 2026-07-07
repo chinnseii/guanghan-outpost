@@ -1405,7 +1405,7 @@ func _airlock_room_target(target: Dictionary) -> Dictionary:
 		"exit":
 			room_target["kind"] = "exit"
 			room_target["label"] = "训练出口"
-			room_target["position"] = Vector2(684, 388)
+			room_target["position"] = Vector2(1340, 388) if module_id == "power_repair" else Vector2(684, 388)
 			room_target["size"] = Vector2(74, 106)
 	return room_target
 
@@ -3276,12 +3276,12 @@ func _power_config() -> Dictionary:
 		## see training_base_map.gd's file header) instead of the old
 		## standalone Training_04_PowerDistribution.tscn.
 		"next_scene": TrainingManagerScript.TRAINING_BASE_MAP,
-		"player_start": Vector2(150, 380),
+		"player_start": Vector2(1260, 380),
 		"player_size": Vector2(42, 54),
 		"hud": "当前环境：月面真空模拟\n宇航服生命支持已接管。",
 		"targets": [
 			{"id": "solar_array_fault", "kind": "power_console", "label": "太阳能阵列 A", "position": Vector2(420, 260), "color": Color("#4b3f2a")},
-			{"id": "exit", "label": "返回训练出口", "position": Vector2(700, 400), "color": Color("#274f43")},
+			{"id": "exit", "label": "返回气闸外舱门", "position": Vector2(1340, 388), "color": Color("#274f43")},
 		],
 		"steps": [
 			{"type": "suit_status_panel", "target": "solar_array_fault", "objective": "按 Tab 查看宇航服外勤状态", "line": "宇航服外勤状态已确认。", "state_updates": {"EvaSuitStatusConfirmed": true}},

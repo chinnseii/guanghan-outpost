@@ -74,7 +74,7 @@ func _build_notice() -> void:
 	footer.alignment = BoxContainer.ALIGNMENT_END
 	footer.add_theme_constant_override("separation", 18)
 	root.add_child(footer)
-	_add_button(footer, "暂缓派遣", _decline_assignment, false)
+	_add_button(footer, "返回主菜单", _return_to_main_menu, false)
 	_add_button(footer, "接受月面派遣", _accept_assignment, true)
 
 func _metadata_strip() -> PanelContainer:
@@ -223,6 +223,9 @@ func _accept_assignment() -> void:
 
 func _return_to_training_start() -> void:
 	get_tree().change_scene_to_file(TrainingManagerScript.START_SCENE)
+
+func _return_to_main_menu() -> void:
+	get_tree().change_scene_to_file("res://scenes/main.tscn")
 
 func _add_button(parent: HBoxContainer, text: String, callback: Callable, primary := false) -> void:
 	var button := Button.new()
