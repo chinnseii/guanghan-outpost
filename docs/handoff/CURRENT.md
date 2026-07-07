@@ -1,7 +1,44 @@
 # 当前状态（滚动文档，每次覆盖重写）
 
 更新时间：2026-07-07
-更新人：Claude Code（代 Codex，训练小型地图重构）
+更新人：Claude Code（代 Codex，训练小型地图重构 + 用户实测反馈修复）
+
+## 追加：用户实测发现的三个问题（已修复）
+
+用户实际运行游戏后反馈：(1) 穿宇航服弹窗的标题错写成"植物舱诊断详情"；
+(2) 点"确认穿戴"没反应。排查确认三个根因，全部修复并验证：
+
+1. **"开始训练"还在进旧场景**（最关键）：`training_start_scene.gd` 的
+   开始按钮和 `TrainingManager.start_training()` 仍指向旧的
+   `Training_01_SuitControl.tscn`，上一轮只改了 `MODULE_SCENES` 没改这两个
+   直接引用。已改为进 `TRAINING_BASE_MAP`；同时 `continue_scene_path()`
+   新增 `_remap_legacy_training_scene()`，旧存档里残留的旧训练场景路径
+   会自动重定向到新地图（太阳能阵列场景除外，它仍是正式场景）。
+2. **弹窗标题写死**：旧引擎 `training_module_scene.gd` 的共享弹窗标题
+   硬编码"植物舱诊断详情"——穿宇航服/太阳能检查/故障诊断/高风险确认/
+   宇航服归位全部显示这个错误标题。新增 `diagnosis_modal_title` 成员 +
+   `_set_diagnosis_modal_title()`，7 处 `_show_*` 弹窗各自设置正确标题。
+   （模块 03 和最终结算场景仍用这个引擎，所以这个修复不是白做。）
+3. **"确认穿戴"没反应**：残留的 `suit_state.json` 里宇航服还是"穿着"
+   状态（上一次游玩留下的），`wear_suit_training()` 前置检查
+   `suit_storage_state == "ready"` 不满足直接返回 false，而失败提示写进了
+   默认隐藏的左侧面板，玩家完全看不到。三层修复：
+   - `start_training()` 现在会先 `SuitManager.reset_to_arrival()`（训练
+     在地球上全新开始，重置是语义正确的），且顺序在 `save_progress()`
+     之前，保证存档里打包的是重置后的状态；
+   - 新地图新增常驻可见的 toast 提示条（底部居中，自动消失）——锁门提示/
+     需要宇航服提示/解锁通知/穿戴失败原因现在都看得见了（此前全部写在
+     隐藏面板里，是通用可见性问题）；
+   - 新增两个防卡死兜底：已完成穿戴任务但宇航服未穿时，整备架仍可重新
+     穿戴（`_try_interact_suit_wear_fallback()`）；房间任务完成状态现在
+     会在场景加载时从存档标记同步（`step_index` 置为已耗尽），避免重进
+     地图被要求重穿已穿着的宇航服。
+   另外已清空 AppData 里的旧存档（suit_state/training_progress/
+   training_time_state），用户下次启动是干净状态。
+
+验证：headless 全场景扫描 0 错误；临时脚本（已删）验证了 start_training
+重置宇航服并路由到新地图、旧场景路径重映射（太阳能场景不受影响）、已完成
+房间的 step 同步、穿戴兜底在"任务完成但未穿"时可用/已穿时不出现。
 
 ## 本轮完成：训练小型地图（`TrainingBaseMap.tscn`）
 

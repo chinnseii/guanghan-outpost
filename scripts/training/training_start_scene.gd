@@ -60,7 +60,7 @@ func _build_screen() -> void:
 	_add_button(footer, "返回主菜单", func(): get_tree().change_scene_to_file("res://scenes/main.tscn"))
 	_add_button(footer, "开始训练", func():
 		TrainingManagerScript.start_training()
-		get_tree().change_scene_to_file(TrainingManagerScript.MODULE_01)
+		get_tree().change_scene_to_file(TrainingManagerScript.TRAINING_BASE_MAP)
 	)
 
 func _add_button(parent: HBoxContainer, text: String, callback: Callable) -> void:

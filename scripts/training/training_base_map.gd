@@ -77,6 +77,14 @@ var pause_visible := false
 var interaction_running := false
 var interaction_target_id := ""
 var wait_timer := 0.0
+## Always-visible transient message strip (locked-door hints, unlock
+## notices, suit warnings). hint_label/log_label live inside left_panel,
+## which is hidden unless the Tab mission panel is open -- messages written
+## only there were invisible during normal play (user-reported: clicking
+## 确认穿戴 seemed to do nothing because the failure message went to the
+## hidden panel).
+var toast_label: Label
+var toast_timer := 0.0
 var player_speed := 280.0
 var player_controller: RefCounted
 var show_trigger_debug := false
@@ -99,6 +107,7 @@ func _ready() -> void:
 	_sync_overlay_visibility()
 
 func _process(delta: float) -> void:
+	_update_toast(delta)
 	if briefing_visible or pause_visible or interaction_running:
 		_update_room_prompt()
 		return
@@ -108,6 +117,20 @@ func _process(delta: float) -> void:
 		_check_auto_steps()
 		_check_door_crossing()
 	_update_room_prompt()
+
+func _show_toast(message: String, duration: float = 3.5) -> void:
+	if toast_label == null:
+		return
+	toast_label.text = message
+	toast_label.visible = true
+	toast_timer = duration
+
+func _update_toast(delta: float) -> void:
+	if toast_label == null or not toast_label.visible:
+		return
+	toast_timer -= delta
+	if toast_timer <= 0.0:
+		toast_label.visible = false
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("mission_panel"):
@@ -161,7 +184,30 @@ func _build_all_areas() -> Dictionary:
 		area["state"] = {}
 		area["step_index"] = 0
 		area["unlocked"] = _compute_unlocked(area_id, progress)
+		# Rooms whose module was already completed (this session or a prior
+		# save) start with their step list exhausted -- otherwise a returning
+		# player would be asked to redo the task, and steps with one-shot
+		# side effects (e.g. wear_suit_confirm when the suit is already worn)
+		# would just fail. Mid-room partial progress is deliberately NOT
+		# persisted; rooms are short enough that restarting an incomplete
+		# room's steps from zero is fine.
+		if _module_completed(String(area.get("module_id", "")), progress):
+			area["step_index"] = (area.get("steps", []) as Array).size()
 	return built
+
+func _module_completed(module_id: String, progress: Dictionary) -> bool:
+	match module_id:
+		"suit_control":
+			return bool(progress.get("SuitControlCompleted", false))
+		"airlock_procedure":
+			return bool(progress.get("AirlockProcedureCompleted", false))
+		"power_distribution":
+			return bool(progress.get("PowerDistributionCompleted", false))
+		"life_support":
+			return bool(progress.get("LifeSupportCompleted", false))
+		"plant_diagnosis":
+			return bool(progress.get("PlantDiagnosisCompleted", false))
+	return false
 
 ## Door lock state is derived every time this scene loads from
 ## TrainingManager's existing 6 completion flags -- no new persisted schema,
@@ -199,7 +245,7 @@ func _route_initial_area() -> void:
 		areas["airlock_simulation_room"]["player_start"] = Vector2(600, 340)
 		progress["PowerRepairUnlockToastShown"] = true
 		TrainingManagerScript.save_progress(progress)
-		call_deferred("_add_log", "太阳能阵列基础输出已恢复。请返回基地，进入配电房。")
+		call_deferred("_notify", "太阳能阵列基础输出已恢复。请返回基地，进入配电房。")
 		return
 	match String(progress.get("CurrentTrainingModule", "suit_control")):
 		"suit_control":
@@ -413,11 +459,13 @@ func _try_enter_area(target_area_id: String, spawn_point: Vector2) -> void:
 		return
 	if not bool(area.get("unlocked", false)):
 		hint_label.text = LOCKED_HINT
+		_show_toast(LOCKED_HINT)
 		return
 	if bool(area.get("requires_suit", false)):
 		var suit_manager := _suit_manager()
 		if suit_manager == null or not bool(suit_manager.get("is_suit_worn")):
 			hint_label.text = SUIT_REQUIRED_HINT
+			_show_toast(SUIT_REQUIRED_HINT)
 			return
 	_switch_room(target_area_id, spawn_point)
 
@@ -478,6 +526,8 @@ func _try_interact() -> void:
 	if _try_interact_info_target():
 		return
 	if _try_interact_suit_return():
+		return
+	if _try_interact_suit_wear_fallback():
 		return
 	var step := _current_step()
 	if step.is_empty():
@@ -540,6 +590,28 @@ func _try_interact_suit_return() -> bool:
 	if suit_manager == null or not bool(suit_manager.get("is_suit_worn")):
 		return false
 	_show_return_suit_confirm_dialog()
+	return true
+
+## Soft-lock guard: if suit_control's steps are already exhausted (module
+## completed, this session or restored from save) but the suit ISN'T worn --
+## e.g. an odd/edited save, or the player somehow took it off -- the normal
+## step flow would never offer the wear dialog again, and the airlock's
+## requires_suit gate would then block training 02/03 forever. Re-offer the
+## wear dialog at the rack in that state. _complete_step() no-ops safely on
+## an exhausted step list, so reusing the same dialog is fine.
+func _try_interact_suit_wear_fallback() -> bool:
+	if current_area_id != "suit_prep_room":
+		return false
+	if not _current_step().is_empty():
+		return false
+	if _all_required_modules_completed():
+		return false
+	if not _is_near("suit_rack"):
+		return false
+	var suit_manager := _suit_manager()
+	if suit_manager == null or bool(suit_manager.get("is_suit_worn")):
+		return false
+	_show_wear_suit_confirm_dialog()
 	return true
 
 func _blocked_by_order(step: Dictionary) -> bool:
@@ -607,7 +679,7 @@ func _on_area_task_complete(module_id: String) -> void:
 		"suit_control":
 			TrainingManagerScript.mark_module_completed("suit_control", "airlock_procedure")
 			areas["airlock_simulation_room"]["unlocked"] = true
-			_add_log("模拟气闸舱已解锁。")
+			_notify("模拟气闸舱已解锁。")
 		"airlock_procedure":
 			TrainingManagerScript.mark_module_completed("airlock_procedure", "power_repair")
 			TrainingManagerScript.set_current_module("power_repair")
@@ -616,14 +688,14 @@ func _on_area_task_complete(module_id: String) -> void:
 		"power_distribution":
 			TrainingManagerScript.mark_module_completed("power_distribution", "life_support")
 			areas["air_system_control_room"]["unlocked"] = true
-			_add_log("供电系统已恢复。空气系统控制室已解锁。")
+			_notify("供电系统已恢复。空气系统控制室已解锁。")
 		"life_support":
 			TrainingManagerScript.mark_module_completed("life_support", "plant_diagnosis")
 			areas["greenhouse_room"]["unlocked"] = true
-			_add_log("训练仓空气系统已恢复。训练温室已解锁。")
+			_notify("训练仓空气系统已恢复。训练温室已解锁。")
 		"plant_diagnosis":
 			TrainingManagerScript.mark_module_completed("plant_diagnosis", "final_assessment")
-			_add_log("训练模块六完成。请返回宇航服整备室，执行宇航服归位与维护。")
+			_notify("训练模块六完成。请返回宇航服整备室，执行宇航服归位与维护。")
 	_update_hud()
 
 func _begin_step_interaction_feedback(step: Dictionary) -> void:
@@ -775,9 +847,11 @@ func _show_wear_suit_confirm_dialog() -> void:
 			success = suit_manager.call("wear_suit_training")
 		_hide_training_diagnosis_modal()
 		if success:
+			_notify("宇航服已穿戴。")
 			_complete_step()
 		else:
 			hint_label.text = "宇航服当前无法穿戴。"
+			_show_toast("宇航服当前无法穿戴。请检查宇航服是否已在维护位就绪。")
 	)
 	diagnosis_modal_actions.add_child(confirm)
 	var cancel := Button.new()
@@ -806,6 +880,7 @@ func _show_return_suit_confirm_dialog() -> void:
 			get_tree().change_scene_to_file(TrainingManagerScript.FINAL_ASSESSMENT)
 		else:
 			hint_label.text = "宇航服当前无法归位。"
+			_show_toast("宇航服当前无法归位。")
 	)
 	diagnosis_modal_actions.add_child(confirm)
 	var cancel := Button.new()
@@ -979,6 +1054,12 @@ func _add_log(line: String) -> void:
 		return
 	log_label.text += line + "\n"
 
+## Player-facing notice: both the (Tab-panel) log and the always-visible
+## toast strip.
+func _notify(message: String) -> void:
+	_add_log(message)
+	_show_toast(message)
+
 ## -- Screen construction (mirrors training_module_scene.gd's _build_screen()
 ## layout so the hub doesn't look visually out of place next to the solar
 ## array scene it neighbors) --
@@ -1104,6 +1185,20 @@ func _build_training_overlays() -> void:
 	key_hint.modulate = Color("#7f93a3")
 	key_hint.add_theme_font_size_override("font_size", 12)
 	hud_box.add_child(key_hint)
+
+	toast_label = Label.new()
+	toast_label.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	toast_label.offset_left = -420
+	toast_label.offset_right = 420
+	toast_label.offset_top = -96
+	toast_label.offset_bottom = -48
+	toast_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	toast_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	toast_label.modulate = Color("#f0c766")
+	toast_label.add_theme_font_size_override("font_size", 18)
+	toast_label.visible = false
+	add_child(toast_label)
+
 	_build_briefing_modal()
 	_build_pause_panel()
 	_build_interaction_panel()

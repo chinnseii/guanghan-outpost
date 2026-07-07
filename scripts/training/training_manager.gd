@@ -241,9 +241,20 @@ static func reset_progress() -> void:
 
 static func start_training() -> void:
 	var data := load_progress()
+	# Training starts fresh on Earth -- reset the shared SuitManager so a
+	# suit left worn/servicing by a previous playthrough can't make the
+	# wear-suit step silently fail (wear_suit_training() requires
+	# suit_storage_state == "ready"). Found via user report: clicking
+	# 确认穿戴 appeared to do nothing because a stale suit_state.json had
+	# the suit still worn from an earlier run. Must happen BEFORE
+	# save_progress() below, so the SuitState bundle captures the reset
+	# state rather than re-pickling the stale one.
+	var suit_manager := _suit_manager()
+	if suit_manager != null and suit_manager.has_method("reset_to_arrival"):
+		suit_manager.call("reset_to_arrival")
 	data["TrainingStarted"] = true
 	data["CurrentTrainingModule"] = "suit_control"
-	data["CurrentSceneAfterTraining"] = MODULE_01
+	data["CurrentSceneAfterTraining"] = TRAINING_BASE_MAP
 	save_progress(data)
 	update_candidate_file_status("训练序列中")
 	var training_time_manager := _training_time_manager()
@@ -402,8 +413,19 @@ static func continue_scene_path() -> String:
 	if bool(data.get("FinalAssessmentCompleted", false)):
 		return MISSION_NOTICE
 	if bool(data.get("TrainingStarted", false)):
-		return String(data.get("CurrentSceneAfterTraining", START_SCENE))
+		return _remap_legacy_training_scene(String(data.get("CurrentSceneAfterTraining", START_SCENE)))
 	return "res://scenes/application/ApplicationStartScene.tscn"
+
+## Save files written before the training small map existed can still hold
+## a CurrentSceneAfterTraining pointing at one of the old standalone
+## per-module scenes -- redirect those into the hub so "继续" never drops the
+## player back into the superseded flow. MODULE_03 (solar array) is not in
+## this list: it's still the live scene for power_repair.
+static func _remap_legacy_training_scene(scene_path: String) -> String:
+	if scene_path in [MODULE_01, MODULE_02, MODULE_04, MODULE_05, MODULE_06,
+			"res://scenes/training/Training_03_PowerRepair.tscn"]:
+		return TRAINING_BASE_MAP
+	return scene_path
 
 static func _base_continue_scene_path() -> String:
 	if not FileAccess.file_exists(SPRINT06_SAVE_PATH):

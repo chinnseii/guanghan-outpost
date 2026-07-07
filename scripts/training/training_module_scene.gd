@@ -693,6 +693,7 @@ var diagnosis_panel: VBoxContainer
 var diagnosis_modal_scrim: ColorRect
 var diagnosis_modal: PanelContainer
 var diagnosis_modal_image: TextureRect
+var diagnosis_modal_title: Label
 var diagnosis_modal_text: Label
 var diagnosis_modal_actions: VBoxContainer
 var suit_status_scrim: ColorRect
@@ -975,11 +976,14 @@ func _build_diagnosis_modal() -> void:
 	right.custom_minimum_size = Vector2(500, 560)
 	right.add_theme_constant_override("separation", 14)
 	row.add_child(right)
-	var title := Label.new()
-	title.text = "植物舱诊断详情\nPLANT CHAMBER DIAGNOSTIC"
-	title.modulate = Color("#eaf4ff")
-	title.add_theme_font_size_override("font_size", 22)
-	right.add_child(title)
+	# Title is per-dialog now (was hardcoded to the plant-chamber text, which
+	# leaked into the wear-suit/solar-array dialogs that share this modal --
+	# user-reported). Each _show_* function sets it via _set_diagnosis_modal_title().
+	diagnosis_modal_title = Label.new()
+	diagnosis_modal_title.text = "植物舱诊断详情\nPLANT CHAMBER DIAGNOSTIC"
+	diagnosis_modal_title.modulate = Color("#eaf4ff")
+	diagnosis_modal_title.add_theme_font_size_override("font_size", 22)
+	right.add_child(diagnosis_modal_title)
 	diagnosis_modal_text = Label.new()
 	diagnosis_modal_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	diagnosis_modal_text.modulate = Color("#cfe3f2")
@@ -2268,6 +2272,7 @@ func _show_diagnosis_options(options: Array, correct: String) -> void:
 		diagnosis_modal.visible = true
 	if diagnosis_modal_image != null:
 		diagnosis_modal_image.texture = _load_diagnosis_texture("res://assets/art/greenhouse/plant_states/light_low.png")
+	_set_diagnosis_modal_title("植物舱诊断详情\nPLANT CHAMBER DIAGNOSTIC")
 	if diagnosis_modal_text != null:
 		var professional_hint := _professional_hint_block("training_06_greenhouse_light_low")
 		var base_text := "传感器读数\n补光输出：低于维持阈值\n水循环：最低运行\n根区温度：正常\n生命信号：弱\n\n植物状态\n叶片偏淡，植株向补光灯方向倾斜。\n新叶展开缓慢。\n\n原因分析\n补光输出不足，无法支撑最低光合维持。"
@@ -2304,6 +2309,7 @@ func _show_plant_control_options(options: Array, correct: String) -> void:
 		diagnosis_modal.visible = true
 	if diagnosis_modal_image != null:
 		diagnosis_modal_image.texture = _load_diagnosis_texture("res://assets/art/greenhouse/plant_states/light_low.png")
+	_set_diagnosis_modal_title("植物控制台\nPLANT CONTROL")
 	if diagnosis_modal_text != null:
 		diagnosis_modal_text.text = "植物控制台\nPLANT CONTROL\n\n当前维护目标\n根据植物舱诊断结果选择一项维护动作。\n\n传感器摘要\n补光输出：低于维持阈值\n水循环：最低运行\n根区温度：正常\n生命信号：弱\n\n可用操作\n调节温度：用于根区温度异常。\n浇水：用于水分不足。\n补光：用于光照不足。\n\n请选择维护动作。"
 	_clear_container(diagnosis_modal_actions)
@@ -2344,6 +2350,7 @@ func _show_wear_suit_confirm_dialog() -> void:
 		diagnosis_modal.visible = true
 	if diagnosis_modal_image != null:
 		diagnosis_modal_image.texture = null
+	_set_diagnosis_modal_title("宇航服整备\nSUIT PREPARATION")
 	if diagnosis_modal_text != null:
 		diagnosis_modal_text.text = "穿戴宇航服\n\n穿戴将消耗训练时间 15 分钟。\n是否确认？"
 	_clear_container(diagnosis_modal_actions)
@@ -2384,6 +2391,7 @@ func _show_return_suit_confirm_dialog() -> void:
 		diagnosis_modal.visible = true
 	if diagnosis_modal_image != null:
 		diagnosis_modal_image.texture = null
+	_set_diagnosis_modal_title("宇航服归位\nSUIT RETURN")
 	if diagnosis_modal_text != null:
 		diagnosis_modal_text.text = "宇航服归位\n\n脱下宇航服并放回维护位。\n维护系统将恢复宇航服氧气、电力与状态。\n\n训练模式下无需等待完整维护流程。\n是否确认？"
 	_clear_container(diagnosis_modal_actions)
@@ -2421,6 +2429,7 @@ func _show_inspect_solar_array_confirm_dialog() -> void:
 		diagnosis_modal.visible = true
 	if diagnosis_modal_image != null:
 		diagnosis_modal_image.texture = null
+	_set_diagnosis_modal_title("太阳能阵列检查\nSOLAR ARRAY INSPECTION")
 	if diagnosis_modal_text != null:
 		diagnosis_modal_text.text = "检查太阳能阵列\n\n预计耗时：15 分钟。\n训练时间将推进。\n宇航服氧气与电力将少量消耗。\n\n是否继续？"
 	_clear_container(diagnosis_modal_actions)
@@ -2473,6 +2482,7 @@ func _show_solar_fault_diagnosis() -> void:
 		diagnosis_modal.visible = true
 	if diagnosis_modal_image != null:
 		diagnosis_modal_image.texture = null
+	_set_diagnosis_modal_title("太阳能阵列诊断\nSOLAR ARRAY DIAGNOSTIC")
 	var fault: Dictionary = FaultDatabaseScript.get_fault("FA-TR-SOLAR-001")
 	if diagnosis_modal_text != null:
 		diagnosis_modal_text.text = _solar_fault_panel_text()
@@ -2502,6 +2512,7 @@ func _show_solar_fault_diagnosis() -> void:
 ## replacing its buttons with confirm/cancel; canceling rebuilds the
 ## normal option list via _show_solar_fault_diagnosis().
 func _show_high_risk_repair_confirm(option_id: String) -> void:
+	_set_diagnosis_modal_title("高风险操作确认\nHIGH RISK CONFIRM")
 	if diagnosis_modal_text != null:
 		diagnosis_modal_text.text = "高风险操作\n\n当前故障原因未确认。\n强行切换满功率输入可能导致接口过载，并消耗额外训练资源。\n\n是否继续？"
 	_clear_container(diagnosis_modal_actions)
@@ -2679,6 +2690,10 @@ func _setup_training_03_container() -> void:
 	if inventory_manager.has_method("add_item_to_container"):
 		inventory_manager.call("add_item_to_container", TRAINING_03_CONTAINER_ID, "TR-MT-001", 2)
 		inventory_manager.call("add_item_to_container", TRAINING_03_CONTAINER_ID, "TR-MT-002", 1)
+
+func _set_diagnosis_modal_title(text: String) -> void:
+	if diagnosis_modal_title != null:
+		diagnosis_modal_title.text = text
 
 func _hide_training_diagnosis_modal() -> void:
 	if diagnosis_modal_scrim != null:
