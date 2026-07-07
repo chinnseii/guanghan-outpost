@@ -159,3 +159,23 @@
 `diagnosis_modal_image.texture = …` 全部改走该 helper。临时脚本（已删）
 验证：检查/故障诊断弹窗图片隐藏、弹窗收窄到 offset_left=-300；相关场景
 headless 0 错误。
+
+## 追加（Claude Code，代 Codex）：新增 PlayerStateManager 玩家状态系统
+
+按用户指令新增 autoload `PlayerStateManager`（玩家当前状态总控/注册表）。
+详见 `SYSTEMS_REFERENCE_FOR_DESIGN.md`「玩家状态系统 PlayerStateManager」。
+要点：
+- 新文件 `scripts/managers/PlayerStateManager.gd`，`project.godot` 注册为
+  autoload（排在 SuitManager 之后）。
+- 只记录/查询状态（context、区域、加压/外部/气闸、移动/交互/busy 锁、
+  宇航服穿戴快照、手持物品、当前交互目标），不做任何玩法计算、不推时间、
+  不碰背包/健康/宇航服计算。边界严格按指令第三节。
+- 相对 GPT 原始指令做了两处优化：`set_busy` 改为独立轴（不再连带清空
+  can_move/can_interact，避免误放开面板锁）；setter 带"值未变短路"避免
+  每帧信号刷屏。
+- 接线：SuitManager 穿/脱（4 变体）+reset+deserialize 推 set_suit_worn；
+  训练地图 `_load_area` 推 context+area、`_update_room_prompt` 推交互；
+  太阳能场景 `_ready` 推 exterior 区域。并入 TrainingManager 存档包。
+- 验证：全场景 headless 0 错误；临时脚本（已删）39 项断言全过——核心
+  API、busy 独立轴、宇航服进入门规则、SuitManager 同步、serialize 往返、
+  TimeManager 零污染、训练地图接线。

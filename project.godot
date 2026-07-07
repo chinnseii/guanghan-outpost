@@ -36,6 +36,7 @@ RepairManager="*res://scripts/managers/RepairManager.gd"
 TrainingTimeManager="*res://scripts/managers/TrainingTimeManager.gd"
 SuitManager="*res://scripts/managers/SuitManager.gd"
 MovementTimeManager="*res://scripts/managers/MovementTimeManager.gd"
+PlayerStateManager="*res://scripts/managers/PlayerStateManager.gd"
 
 [display]
 

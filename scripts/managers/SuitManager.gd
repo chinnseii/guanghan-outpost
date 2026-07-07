@@ -81,6 +81,7 @@ func reset_to_arrival() -> void:
 	remove_to_station_time_minutes = 15
 	_save_state()
 	suit_changed.emit()
+	_sync_player_state_suit_worn()
 
 ## -- Wear / remove flow
 
@@ -92,6 +93,7 @@ func wear_suit() -> bool:
 	suit_storage_state = "worn"
 	_save_state()
 	suit_changed.emit()
+	_sync_player_state_suit_worn()
 	return true
 
 ## Training-only variant of wear_suit(): advances TrainingTimeManager
@@ -117,6 +119,7 @@ func wear_suit_training() -> bool:
 	suit_storage_state = "worn"
 	_save_state()
 	suit_changed.emit()
+	_sync_player_state_suit_worn()
 	return true
 
 func remove_suit_to_service_station() -> bool:
@@ -127,6 +130,7 @@ func remove_suit_to_service_station() -> bool:
 	suit_storage_state = "servicing"
 	_save_state()
 	suit_changed.emit()
+	_sync_player_state_suit_worn()
 	return true
 
 func remove_suit_to_service_station_training() -> bool:
@@ -142,6 +146,7 @@ func remove_suit_to_service_station_training() -> bool:
 	suit_power = max(suit_power, suit_power_capacity)
 	_save_state()
 	suit_changed.emit()
+	_sync_player_state_suit_worn()
 	return true
 
 ## -- EVA gating
@@ -367,6 +372,19 @@ func _training_time_manager() -> Node:
 		return null
 	return tree.root.get_node_or_null("TrainingTimeManager")
 
+## SuitManager stays the source of truth for suit state; this pushes the
+## worn snapshot to PlayerStateManager so other systems (UI, map suit
+## gates) can read it without reaching into SuitManager. Called wherever
+## is_suit_worn changes -- wear/remove (mission + training variants),
+## reset, and deserialize.
+func _sync_player_state_suit_worn() -> void:
+	var tree := get_tree()
+	if tree == null or tree.root == null:
+		return
+	var player_state_manager := tree.root.get_node_or_null("PlayerStateManager")
+	if player_state_manager != null and player_state_manager.has_method("set_suit_worn"):
+		player_state_manager.call("set_suit_worn", is_suit_worn)
+
 func _advance_time(minutes: int, reason: String) -> void:
 	if minutes <= 0:
 		return
@@ -440,6 +458,7 @@ func deserialize(data: Dictionary) -> void:
 	suit_power_capacity = float(data.get("suit_power_capacity", suit_power_capacity))
 	suit_speed_multiplier = float(data.get("suit_speed_multiplier", suit_speed_multiplier))
 	suit_changed.emit()
+	_sync_player_state_suit_worn()
 
 func load_state() -> void:
 	if not FileAccess.file_exists(SAVE_PATH):

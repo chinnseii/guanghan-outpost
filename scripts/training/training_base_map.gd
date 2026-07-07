@@ -534,7 +534,33 @@ func _load_area(area_id: String, spawn_point: Vector2) -> void:
 		player.position = _room_point(spawn_point)
 	if player_controller != null:
 		player_controller.sync_position(player.position)
+	_push_player_state_area()
 	_update_hud()
+
+## Reports the current room to PlayerStateManager (the state registry other
+## systems query). All hub rooms are indoor/pressurized/with-air; the
+## airlock is typed "airlock". The solar array field is a separate scene and
+## reports its own (exterior) area there. PlayerStateManager never advances
+## time or gates anything itself -- this is a state snapshot only.
+func _push_player_state_area() -> void:
+	var tree := get_tree()
+	if tree == null or tree.root == null:
+		return
+	var psm := tree.root.get_node_or_null("PlayerStateManager")
+	if psm == null:
+		return
+	if psm.has_method("set_context"):
+		psm.call("set_context", "training")
+	if psm.has_method("set_current_area_by_values"):
+		var area_type := "airlock" if current_area_id == "airlock_simulation_room" else \
+			"greenhouse" if current_area_id == "greenhouse_room" else \
+			"power_room" if current_area_id == "power_distribution_room" else "interior"
+		psm.call("set_current_area_by_values",
+			current_area_id,
+			String(module_data.get("title", "")),
+			area_type,
+			true,   # hub rooms all have air
+			true)   # and are pressurized
 
 func _switch_room(target_area_id: String, spawn_point: Vector2) -> void:
 	areas[current_area_id]["step_index"] = step_index
@@ -1821,6 +1847,7 @@ func _update_room_prompt() -> void:
 			node.queue_redraw()
 	if target_id.is_empty() or not target_nodes.has(target_id):
 		prompt_label.visible = false
+		_push_player_state_interaction("", "", "")
 		return
 	var target: Control = target_nodes[target_id]
 	var near := _is_near(target_id)
@@ -1829,8 +1856,27 @@ func _update_room_prompt() -> void:
 		prompt_label.text = "E 交互"
 		prompt_label.position = target.position + Vector2(8, target.size.y + 20)
 		prompt_label.visible = true
+		_push_player_state_interaction(target_id, prompt_step_type, "按 E %s" % String(step.get("objective", "交互")))
 	else:
 		prompt_label.visible = false
+		_push_player_state_interaction("", "", "")
+
+## Mirrors the active E-prompt into PlayerStateManager so HUD/UI can read
+## "what is the player about to interact with" without knowing this scene's
+## internals. Guarded setters make the per-frame call cheap (no-op unless
+## the target actually changed).
+func _push_player_state_interaction(interaction_id: String, interaction_type: String, label: String) -> void:
+	var tree := get_tree()
+	if tree == null or tree.root == null:
+		return
+	var psm := tree.root.get_node_or_null("PlayerStateManager")
+	if psm == null:
+		return
+	if interaction_id.is_empty():
+		if psm.has_method("clear_current_interaction"):
+			psm.call("clear_current_interaction")
+	elif psm.has_method("set_current_interaction"):
+		psm.call("set_current_interaction", interaction_id, interaction_type, label)
 
 ## Doors show a "locked" overlay (reusing TrainingTargetVisual's existing
 ## lock-icon drawing) when the room they lead to isn't unlocked yet.

@@ -740,6 +740,7 @@ func _ready() -> void:
 		entry_blocked = suit_manager == null or not bool(suit_manager.get("is_suit_worn"))
 	_build_screen()
 	_update_hud()
+	_push_player_state_area()
 	if completed:
 		briefing_visible = false
 		if briefing_modal != null:
@@ -749,6 +750,27 @@ func _ready() -> void:
 	elif module_id == "power_repair":
 		_setup_training_03_container()
 	_sync_overlay_visibility()
+
+## Reports this scene's area to PlayerStateManager (state registry). The
+## solar array field (power_repair) is the one exterior/vacuum training
+## area -- has_air=false, is_pressurized=false; everything else this script
+## still serves (final assessment / suit return) is interior. Snapshot only;
+## the real suit-worn entry gate above is unchanged.
+func _push_player_state_area() -> void:
+	var tree := get_tree()
+	if tree == null or tree.root == null:
+		return
+	var psm := tree.root.get_node_or_null("PlayerStateManager")
+	if psm == null:
+		return
+	if psm.has_method("set_context"):
+		psm.call("set_context", "training")
+	if not psm.has_method("set_current_area_by_values"):
+		return
+	if module_id == "power_repair":
+		psm.call("set_current_area_by_values", "solar_array_training_field", "太阳能阵列训练场", "exterior_training", false, false)
+	else:
+		psm.call("set_current_area_by_values", module_id, String(module_data.get("title", "")), "interior", true, true)
 
 func _process(delta: float) -> void:
 	if entry_blocked:
