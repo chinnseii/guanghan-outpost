@@ -290,18 +290,18 @@ func _show_appearance() -> void:
 	var preview_row := HBoxContainer.new()
 	preview_row.add_theme_constant_override("separation", 20)
 	right.add_child(preview_row)
-	var front := SuitPreviewControlScript.new()
-	front.front = true
-	front.marking_color = _marking_color()
-	front.patch_id = String(profile.get("suit_marking"))
-	front.suit_id = _suit_id()
-	preview_row.add_child(front)
-	var back := SuitPreviewControlScript.new()
-	back.front = false
-	back.marking_color = _marking_color()
-	back.patch_id = String(profile.get("suit_marking"))
-	back.suit_id = _suit_id()
-	preview_row.add_child(back)
+	var plain := SuitPreviewControlScript.new()
+	plain.suited = false
+	plain.marking_color = _marking_color()
+	plain.patch_id = String(profile.get("suit_marking"))
+	plain.suit_id = _suit_id()
+	preview_row.add_child(plain)
+	var suited := SuitPreviewControlScript.new()
+	suited.suited = true
+	suited.marking_color = _marking_color()
+	suited.patch_id = String(profile.get("suit_marking"))
+	suited.suit_id = _suit_id()
+	preview_row.add_child(suited)
 	_add_body_to(right, "宇航服编号：%s\n臂章编号：%s\n姓名缩写：%s\n标识色：%s" % [
 		_suit_id(),
 		String(profile.get("suit_marking")),

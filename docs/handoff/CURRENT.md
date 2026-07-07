@@ -124,3 +124,19 @@
 临时脚本（已删）14 项断言全过：选错弹窗保持打开且反馈可见、步骤不被
 选错推进、选对后正常推进并置 PressureStable、弹窗打开时 gameplay 暂停、
 外舱门乱序提示、太阳能出口位置/文案。全场景 headless 扫描 0 错误。
+
+## 追加（Claude Code，代 Codex）：外观预览改为"未穿/穿宇航服"两图，不遮挡文字
+
+用户反馈：03 外观与标识页的"开拓者预览"希望是两张图——不穿宇航服 vs
+穿宇航服（而不是原来的正面/背面），且人物不要遮挡下方的编号文字。
+
+修改：
+- `scripts/application/suit_preview_control.gd`：`front` 属性改为
+  `suited`。`suited=false` 画"未穿宇航服"的普通身形（露出头部、无头盔
+  面罩，领口保留标识色小徽标）；`suited=true` 画宇航服（头盔+深色面罩+
+  胸前面板+标识点/条）。控件加高到 300、人物整体上移，图顶加小标题
+  （"未穿宇航服"/"任务宇航服"），编号文字移到最底部，不再被腿部压住。
+- `scripts/application/application_flow_scene.gd`：预览行两个控件从
+  front/back 改为 `suited=false`（左）/ `suited=true`（右）。
+- 非 headless 渲染验证（临时脚本已删）：两个图形 _draw() 正常执行、无
+  运行时错误；主菜单/申请场景 headless 加载 0 错误。
