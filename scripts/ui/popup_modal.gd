@@ -1,17 +1,18 @@
 extends Control
 class_name GuanghanPopupModal
 
-## Reusable modal popup: a full-screen scrim + a centered panel holding an
-## optional image, title, subtitle, body text and a vertical list of action
-## buttons. Centralizes the styling + structure that used to be copy-pasted
-## into every scene's own _build_diagnosis_modal() (training_base_map,
-## training_module_scene, sprint06_base_scene all had identical copies).
+## Reusable modal popup: a full-screen scrim + a centered panel laid out as
+## [ optional image | right column { title, subtitle, body text, actions } ].
+## When no image is set the image column hides and the right column fills, so
+## the same component serves both text-only dialogs (training_base_map) and the
+## image-beside-text plant/solar diagnostics (training_module_scene,
+## sprint06_base_scene) that used to each hand-build an identical modal.
 ##
-## A scene adds ONE of these as a child and drives it with open()/close();
-## the scene keeps its own pause / input-block / overlay logic and just asks
-## is_open(). Buttons can be added either pre-built (add_action_control, so
-## callers that already build their own Button keep working) or via the
-## add_action(label, callback) convenience.
+## The panel auto-sizes to content via a CenterContainer, so callers no longer
+## resize offsets by hand -- they just set content_min_size / image_min_size.
+##
+## A scene adds ONE of these as a child and drives it with open()/close(); the
+## scene keeps its own pause / input-block / overlay logic and asks is_open().
 
 signal opened
 signal closed
@@ -22,13 +23,14 @@ const PANEL_BORDER := Color("#496c80", 0.95)
 const TEXT_COLOR := Color("#cfe3f2")
 const TITLE_COLOR := Color("#eaf4ff")
 const SUBTITLE_COLOR := Color("#9fb6c9")
-const DEFAULT_BOX_MIN := Vector2(680, 460)
+const DEFAULT_CONTENT_MIN := Vector2(680, 460)
+const DEFAULT_IMAGE_MIN := Vector2(500, 560)
 const FEEDBACK_HEADER := "［操作反馈］"
 
 var _scrim: ColorRect
 var _panel: PanelContainer
-var _box: VBoxContainer
 var _image: TextureRect
+var _right: VBoxContainer
 var _title: Label
 var _subtitle: Label
 var _text: Label
@@ -68,55 +70,56 @@ func _build() -> void:
 	_panel.add_theme_stylebox_override("panel", style)
 	center.add_child(_panel)
 
-	_box = VBoxContainer.new()
-	_box.custom_minimum_size = DEFAULT_BOX_MIN
-	_box.add_theme_constant_override("separation", 14)
-	_panel.add_child(_box)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 24)
+	_panel.add_child(row)
 
 	_image = TextureRect.new()
 	_image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_image.custom_minimum_size = DEFAULT_IMAGE_MIN
 	_image.visible = false
-	_box.add_child(_image)
+	row.add_child(_image)
+
+	_right = VBoxContainer.new()
+	_right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_right.custom_minimum_size = DEFAULT_CONTENT_MIN
+	_right.add_theme_constant_override("separation", 14)
+	row.add_child(_right)
 
 	_title = Label.new()
 	_title.modulate = TITLE_COLOR
 	_title.add_theme_font_size_override("font_size", 22)
 	_title.visible = false
-	_box.add_child(_title)
+	_right.add_child(_title)
 
 	_subtitle = Label.new()
 	_subtitle.modulate = SUBTITLE_COLOR
 	_subtitle.add_theme_font_size_override("font_size", 14)
 	_subtitle.visible = false
-	_box.add_child(_subtitle)
+	_right.add_child(_subtitle)
 
 	_text = Label.new()
 	_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_text.modulate = TEXT_COLOR
 	_text.add_theme_font_size_override("font_size", 16)
-	_box.add_child(_text)
+	_right.add_child(_text)
 
 	_actions = VBoxContainer.new()
 	_actions.add_theme_constant_override("separation", 10)
-	_box.add_child(_actions)
+	_right.add_child(_actions)
 
-## config keys (all optional): text, title, subtitle,
-## image (Texture2D/null), dismissable (bool), box_min_size (Vector2)
+## config keys (all optional): text, title, subtitle, image (Texture2D/null),
+## image_min_size (Vector2), content_min_size (Vector2), dismissable (bool)
 func open(config: Dictionary = {}) -> void:
 	_clear_actions()
 	var body := String(config.get("text", ""))
 	_base_text = body
 	_text.text = body
-	var title := String(config.get("title", ""))
-	_title.text = title
-	_title.visible = not title.is_empty()
-	var subtitle := String(config.get("subtitle", ""))
-	_subtitle.text = subtitle
-	_subtitle.visible = not subtitle.is_empty()
-	var image: Variant = config.get("image", null)
-	_image.texture = image if image is Texture2D else null
-	_image.visible = image is Texture2D
-	_box.custom_minimum_size = config.get("box_min_size", DEFAULT_BOX_MIN)
+	set_title(String(config.get("title", "")))
+	set_subtitle(String(config.get("subtitle", "")))
+	set_image(config.get("image", null))
+	_image.custom_minimum_size = config.get("image_min_size", DEFAULT_IMAGE_MIN)
+	_right.custom_minimum_size = config.get("content_min_size", DEFAULT_CONTENT_MIN)
 	_dismissable = bool(config.get("dismissable", false))
 	visible = true
 	opened.emit()
@@ -136,6 +139,24 @@ func add_action(label: String, callback: Callable) -> Button:
 		button.pressed.connect(callback)
 	add_action_control(button)
 	return button
+
+func set_title(text: String) -> void:
+	if _title == null:
+		return
+	_title.text = text
+	_title.visible = not text.is_empty()
+
+func set_subtitle(text: String) -> void:
+	if _subtitle == null:
+		return
+	_subtitle.text = text
+	_subtitle.visible = not text.is_empty()
+
+func set_image(texture: Variant) -> void:
+	if _image == null:
+		return
+	_image.texture = texture if texture is Texture2D else null
+	_image.visible = texture is Texture2D
 
 func set_body_text(text: String) -> void:
 	_base_text = text

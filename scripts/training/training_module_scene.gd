@@ -690,12 +690,7 @@ var hud_label: Label
 var hint_label: Label
 var log_label: Label
 var diagnosis_panel: VBoxContainer
-var diagnosis_modal_scrim: ColorRect
-var diagnosis_modal: PanelContainer
-var diagnosis_modal_image: TextureRect
-var diagnosis_modal_title: Label
-var diagnosis_modal_text: Label
-var diagnosis_modal_actions: VBoxContainer
+var _popup: GuanghanPopupModal
 var suit_status_scrim: ColorRect
 var suit_status_modal: PanelContainer
 var suit_status_text_label: Label
@@ -963,63 +958,14 @@ func _build_training_overlays() -> void:
 	_build_diagnosis_modal()
 	_build_suit_status_panel()
 
+## The choice/confirm/diagnosis modal is now the shared GuanghanPopupModal
+## component (scripts/ui/popup_modal.gd) instead of a hand-built scrim+panel
+## duplicated per scene. Each _show_* function drives it via _popup.open({...})
+## + add_action_control(); the image-left / text-right layout and per-dialog
+## title/image are handled by the component's config.
 func _build_diagnosis_modal() -> void:
-	diagnosis_modal_scrim = ColorRect.new()
-	diagnosis_modal_scrim.color = Color("#02070d", 0.78)
-	diagnosis_modal_scrim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	diagnosis_modal_scrim.visible = false
-	add_child(diagnosis_modal_scrim)
-
-	diagnosis_modal = PanelContainer.new()
-	diagnosis_modal.set_anchors_preset(Control.PRESET_CENTER)
-	diagnosis_modal.offset_left = -540
-	diagnosis_modal.offset_top = -310
-	diagnosis_modal.offset_right = 540
-	diagnosis_modal.offset_bottom = 310
-	diagnosis_modal.visible = false
-	add_child(diagnosis_modal)
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color("#06111a", 0.98)
-	style.border_color = Color("#496c80", 0.95)
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(4)
-	style.content_margin_left = 22
-	style.content_margin_top = 20
-	style.content_margin_right = 22
-	style.content_margin_bottom = 20
-	diagnosis_modal.add_theme_stylebox_override("panel", style)
-
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 24)
-	diagnosis_modal.add_child(row)
-	diagnosis_modal_image = TextureRect.new()
-	diagnosis_modal_image.custom_minimum_size = Vector2(500, 560)
-	diagnosis_modal_image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	row.add_child(diagnosis_modal_image)
-	var right := VBoxContainer.new()
-	right.custom_minimum_size = Vector2(500, 0)
-	# Fill any horizontal space the image column gives up when it's hidden
-	# (confirm dialogs set no texture) -- otherwise the text sat in a
-	# 500px band leaving a big empty left area (user-reported).
-	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	right.add_theme_constant_override("separation", 14)
-	row.add_child(right)
-	# Title is per-dialog now (was hardcoded to the plant-chamber text, which
-	# leaked into the wear-suit/solar-array dialogs that share this modal --
-	# user-reported). Each _show_* function sets it via _set_diagnosis_modal_title().
-	diagnosis_modal_title = Label.new()
-	diagnosis_modal_title.text = "植物舱诊断详情\nPLANT CHAMBER DIAGNOSTIC"
-	diagnosis_modal_title.modulate = Color("#eaf4ff")
-	diagnosis_modal_title.add_theme_font_size_override("font_size", 22)
-	right.add_child(diagnosis_modal_title)
-	diagnosis_modal_text = Label.new()
-	diagnosis_modal_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	diagnosis_modal_text.modulate = Color("#cfe3f2")
-	diagnosis_modal_text.add_theme_font_size_override("font_size", 16)
-	right.add_child(diagnosis_modal_text)
-	diagnosis_modal_actions = VBoxContainer.new()
-	diagnosis_modal_actions.add_theme_constant_override("separation", 10)
-	right.add_child(diagnosis_modal_actions)
+	_popup = GuanghanPopupModal.new()
+	add_child(_popup)
 
 ## Tab (the "mission_panel" action) opens this instead of the normal
 ## left_panel mission overview while the current step is
@@ -1271,7 +1217,7 @@ func _set_pause_visible(value: bool) -> void:
 
 func _sync_overlay_visibility() -> void:
 	var diagnosis_panel_open := diagnosis_panel != null and diagnosis_panel.visible
-	var diagnosis_open := diagnosis_panel_open or (diagnosis_modal != null and diagnosis_modal.visible)
+	var diagnosis_open := diagnosis_panel_open or (_popup != null and _popup.is_open())
 	var suit_status_open := suit_status_modal != null and suit_status_modal.visible
 	if briefing_scrim != null:
 		briefing_scrim.visible = briefing_visible
@@ -2321,17 +2267,15 @@ func _interaction_prompt(target_id: String) -> String:
 func _show_diagnosis_options(options: Array, correct: String) -> void:
 	if diagnosis_panel != null:
 		diagnosis_panel.visible = false
-	if diagnosis_modal_scrim != null:
-		diagnosis_modal_scrim.visible = true
-	if diagnosis_modal != null:
-		diagnosis_modal.visible = true
-	_set_diagnosis_modal_image(_load_diagnosis_texture("res://assets/art/greenhouse/plant_states/light_low.png"))
-	_set_diagnosis_modal_title("植物舱诊断详情\nPLANT CHAMBER DIAGNOSTIC")
-	if diagnosis_modal_text != null:
-		var professional_hint := _professional_hint_block("training_06_greenhouse_light_low")
-		var base_text := "传感器读数\n补光输出：低于维持阈值\n水循环：最低运行\n根区温度：正常\n生命信号：弱\n\n植物状态\n叶片偏淡，植株向补光灯方向倾斜。\n新叶展开缓慢。\n\n原因分析\n补光输出不足，无法支撑最低光合维持。"
-		diagnosis_modal_text.text = "%s\n\n%s\n\n请选择诊断结论。" % [base_text, professional_hint] if not professional_hint.is_empty() else "%s\n\n请选择诊断结论。" % base_text
-	_clear_container(diagnosis_modal_actions)
+	var professional_hint := _professional_hint_block("training_06_greenhouse_light_low")
+	var base_text := "传感器读数\n补光输出：低于维持阈值\n水循环：最低运行\n根区温度：正常\n生命信号：弱\n\n植物状态\n叶片偏淡，植株向补光灯方向倾斜。\n新叶展开缓慢。\n\n原因分析\n补光输出不足，无法支撑最低光合维持。"
+	var body := "%s\n\n%s\n\n请选择诊断结论。" % [base_text, professional_hint] if not professional_hint.is_empty() else "%s\n\n请选择诊断结论。" % base_text
+	_popup.open({
+		"image": _load_diagnosis_texture("res://assets/art/greenhouse/plant_states/light_low.png"),
+		"title": "植物舱诊断详情\nPLANT CHAMBER DIAGNOSTIC",
+		"text": body,
+		"content_min_size": Vector2(500, 0),
+	})
 	for option in options:
 		var button := Button.new()
 		button.text = String(option)
@@ -2343,7 +2287,7 @@ func _show_diagnosis_options(options: Array, correct: String) -> void:
 			else:
 				hint_label.text = String(_current_step().get("wrong_hint", "诊断结论不足。请重新核对观察信息。"))
 		)
-		diagnosis_modal_actions.add_child(button)
+		_popup.add_action_control(button)
 	var close := Button.new()
 	close.text = "关闭弹窗"
 	close.custom_minimum_size = Vector2(0, 42)
@@ -2351,21 +2295,18 @@ func _show_diagnosis_options(options: Array, correct: String) -> void:
 		hint_label.text = "诊断视图已关闭。"
 		_hide_training_diagnosis_modal()
 	)
-	diagnosis_modal_actions.add_child(close)
+	_popup.add_action_control(close)
 	_sync_overlay_visibility()
 
 func _show_plant_control_options(options: Array, correct: String) -> void:
 	if diagnosis_panel != null:
 		diagnosis_panel.visible = false
-	if diagnosis_modal_scrim != null:
-		diagnosis_modal_scrim.visible = true
-	if diagnosis_modal != null:
-		diagnosis_modal.visible = true
-	_set_diagnosis_modal_image(_load_diagnosis_texture("res://assets/art/greenhouse/plant_states/light_low.png"))
-	_set_diagnosis_modal_title("植物控制台\nPLANT CONTROL")
-	if diagnosis_modal_text != null:
-		diagnosis_modal_text.text = "植物控制台\nPLANT CONTROL\n\n当前维护目标\n根据植物舱诊断结果选择一项维护动作。\n\n传感器摘要\n补光输出：低于维持阈值\n水循环：最低运行\n根区温度：正常\n生命信号：弱\n\n可用操作\n调节温度：用于根区温度异常。\n浇水：用于水分不足。\n补光：用于光照不足。\n\n请选择维护动作。"
-	_clear_container(diagnosis_modal_actions)
+	_popup.open({
+		"image": _load_diagnosis_texture("res://assets/art/greenhouse/plant_states/light_low.png"),
+		"title": "植物控制台\nPLANT CONTROL",
+		"text": "植物控制台\nPLANT CONTROL\n\n当前维护目标\n根据植物舱诊断结果选择一项维护动作。\n\n传感器摘要\n补光输出：低于维持阈值\n水循环：最低运行\n根区温度：正常\n生命信号：弱\n\n可用操作\n调节温度：用于根区温度异常。\n浇水：用于水分不足。\n补光：用于光照不足。\n\n请选择维护动作。",
+		"content_min_size": Vector2(500, 0),
+	})
 	for option in options:
 		var button := Button.new()
 		button.text = String(option)
@@ -2377,7 +2318,7 @@ func _show_plant_control_options(options: Array, correct: String) -> void:
 			else:
 				hint_label.text = String(_current_step().get("wrong_hint", "维护动作不匹配。请重新核对植物舱诊断结果。"))
 		)
-		diagnosis_modal_actions.add_child(button)
+		_popup.add_action_control(button)
 	var close := Button.new()
 	close.text = "关闭弹窗"
 	close.custom_minimum_size = Vector2(0, 42)
@@ -2385,7 +2326,7 @@ func _show_plant_control_options(options: Array, correct: String) -> void:
 		hint_label.text = "植物控制台已关闭。"
 		_hide_training_diagnosis_modal()
 	)
-	diagnosis_modal_actions.add_child(close)
+	_popup.add_action_control(close)
 	_sync_overlay_visibility()
 
 ## Reuses the same diagnosis-modal infrastructure as _show_plant_control_options()
@@ -2397,15 +2338,11 @@ func _show_plant_control_options(options: Array, correct: String) -> void:
 func _show_wear_suit_confirm_dialog() -> void:
 	if diagnosis_panel != null:
 		diagnosis_panel.visible = false
-	if diagnosis_modal_scrim != null:
-		diagnosis_modal_scrim.visible = true
-	if diagnosis_modal != null:
-		diagnosis_modal.visible = true
-	_set_diagnosis_modal_image(null)
-	_set_diagnosis_modal_title("宇航服整备\nSUIT PREPARATION")
-	if diagnosis_modal_text != null:
-		diagnosis_modal_text.text = "穿戴宇航服\n\n穿戴将消耗训练时间 15 分钟。\n是否确认？"
-	_clear_container(diagnosis_modal_actions)
+	_popup.open({
+		"title": "宇航服整备\nSUIT PREPARATION",
+		"text": "穿戴宇航服\n\n穿戴将消耗训练时间 15 分钟。\n是否确认？",
+		"content_min_size": Vector2(520, 0),
+	})
 	var confirm := Button.new()
 	confirm.text = "确认穿戴"
 	confirm.custom_minimum_size = Vector2(0, 42)
@@ -2420,7 +2357,7 @@ func _show_wear_suit_confirm_dialog() -> void:
 		else:
 			hint_label.text = "宇航服当前无法穿戴。"
 	)
-	diagnosis_modal_actions.add_child(confirm)
+	_popup.add_action_control(confirm)
 	var cancel := Button.new()
 	cancel.text = "取消"
 	cancel.custom_minimum_size = Vector2(0, 42)
@@ -2428,7 +2365,7 @@ func _show_wear_suit_confirm_dialog() -> void:
 		hint_label.text = "已取消穿戴。"
 		_hide_training_diagnosis_modal()
 	)
-	diagnosis_modal_actions.add_child(cancel)
+	_popup.add_action_control(cancel)
 	_sync_overlay_visibility()
 
 ## -- Training module 03 (太阳能阵列训练场) -- see FA-TR-SOLAR-001 in
@@ -2437,15 +2374,11 @@ func _show_wear_suit_confirm_dialog() -> void:
 func _show_return_suit_confirm_dialog() -> void:
 	if diagnosis_panel != null:
 		diagnosis_panel.visible = false
-	if diagnosis_modal_scrim != null:
-		diagnosis_modal_scrim.visible = true
-	if diagnosis_modal != null:
-		diagnosis_modal.visible = true
-	_set_diagnosis_modal_image(null)
-	_set_diagnosis_modal_title("宇航服归位\nSUIT RETURN")
-	if diagnosis_modal_text != null:
-		diagnosis_modal_text.text = "宇航服归位\n\n脱下宇航服并放回维护位。\n维护系统将恢复宇航服氧气、电力与状态。\n\n训练模式下无需等待完整维护流程。\n是否确认？"
-	_clear_container(diagnosis_modal_actions)
+	_popup.open({
+		"title": "宇航服归位\nSUIT RETURN",
+		"text": "宇航服归位\n\n脱下宇航服并放回维护位。\n维护系统将恢复宇航服氧气、电力与状态。\n\n训练模式下无需等待完整维护流程。\n是否确认？",
+		"content_min_size": Vector2(520, 0),
+	})
 	var confirm := Button.new()
 	confirm.text = "确认归位"
 	confirm.custom_minimum_size = Vector2(0, 42)
@@ -2460,7 +2393,7 @@ func _show_return_suit_confirm_dialog() -> void:
 		else:
 			hint_label.text = "宇航服当前无法归位。"
 	)
-	diagnosis_modal_actions.add_child(confirm)
+	_popup.add_action_control(confirm)
 	var cancel := Button.new()
 	cancel.text = "取消"
 	cancel.custom_minimum_size = Vector2(0, 42)
@@ -2468,21 +2401,17 @@ func _show_return_suit_confirm_dialog() -> void:
 		hint_label.text = "已取消宇航服归位。"
 		_hide_training_diagnosis_modal()
 	)
-	diagnosis_modal_actions.add_child(cancel)
+	_popup.add_action_control(cancel)
 	_sync_overlay_visibility()
 
 func _show_inspect_solar_array_confirm_dialog() -> void:
 	if diagnosis_panel != null:
 		diagnosis_panel.visible = false
-	if diagnosis_modal_scrim != null:
-		diagnosis_modal_scrim.visible = true
-	if diagnosis_modal != null:
-		diagnosis_modal.visible = true
-	_set_diagnosis_modal_image(null)
-	_set_diagnosis_modal_title("太阳能阵列检查\nSOLAR ARRAY INSPECTION")
-	if diagnosis_modal_text != null:
-		diagnosis_modal_text.text = "检查太阳能阵列\n\n预计耗时：15 分钟。\n训练时间将推进。\n宇航服氧气与电力将少量消耗。\n\n是否继续？"
-	_clear_container(diagnosis_modal_actions)
+	_popup.open({
+		"title": "太阳能阵列检查\nSOLAR ARRAY INSPECTION",
+		"text": "检查太阳能阵列\n\n预计耗时：15 分钟。\n训练时间将推进。\n宇航服氧气与电力将少量消耗。\n\n是否继续？",
+		"content_min_size": Vector2(520, 0),
+	})
 	var confirm := Button.new()
 	confirm.text = "确认检查"
 	confirm.custom_minimum_size = Vector2(0, 42)
@@ -2490,7 +2419,7 @@ func _show_inspect_solar_array_confirm_dialog() -> void:
 		_hide_training_diagnosis_modal()
 		_confirm_inspect_solar_array()
 	)
-	diagnosis_modal_actions.add_child(confirm)
+	_popup.add_action_control(confirm)
 	var cancel := Button.new()
 	cancel.text = "取消"
 	cancel.custom_minimum_size = Vector2(0, 42)
@@ -2498,7 +2427,7 @@ func _show_inspect_solar_array_confirm_dialog() -> void:
 		hint_label.text = "已取消检查。"
 		_hide_training_diagnosis_modal()
 	)
-	diagnosis_modal_actions.add_child(cancel)
+	_popup.add_action_control(cancel)
 	_sync_overlay_visibility()
 
 ## Fixed costs per the design spec (15 min / -2 oxygen / -2 power / -2
@@ -2526,16 +2455,12 @@ func _confirm_inspect_solar_array() -> void:
 func _show_solar_fault_diagnosis() -> void:
 	if diagnosis_panel != null:
 		diagnosis_panel.visible = false
-	if diagnosis_modal_scrim != null:
-		diagnosis_modal_scrim.visible = true
-	if diagnosis_modal != null:
-		diagnosis_modal.visible = true
-	_set_diagnosis_modal_image(null)
-	_set_diagnosis_modal_title("太阳能阵列诊断\nSOLAR ARRAY DIAGNOSTIC")
 	var fault: Dictionary = FaultDatabaseScript.get_fault("FA-TR-SOLAR-001")
-	if diagnosis_modal_text != null:
-		diagnosis_modal_text.text = _solar_fault_panel_text()
-	_clear_container(diagnosis_modal_actions)
+	_popup.open({
+		"title": "太阳能阵列诊断\nSOLAR ARRAY DIAGNOSTIC",
+		"text": _solar_fault_panel_text(),
+		"content_min_size": Vector2(520, 0),
+	})
 	for option in fault.get("repair_options", []):
 		if not (option is Dictionary):
 			continue
@@ -2553,7 +2478,7 @@ func _show_solar_fault_diagnosis() -> void:
 			else:
 				_execute_solar_repair_option(option_id)
 		)
-		diagnosis_modal_actions.add_child(button)
+		_popup.add_action_control(button)
 	_sync_overlay_visibility()
 
 ## The "强行切换满功率输入" option requires its own second confirmation
@@ -2561,21 +2486,22 @@ func _show_solar_fault_diagnosis() -> void:
 ## replacing its buttons with confirm/cancel; canceling rebuilds the
 ## normal option list via _show_solar_fault_diagnosis().
 func _show_high_risk_repair_confirm(option_id: String) -> void:
-	_set_diagnosis_modal_title("高风险操作确认\nHIGH RISK CONFIRM")
-	if diagnosis_modal_text != null:
-		diagnosis_modal_text.text = "高风险操作\n\n当前故障原因未确认。\n强行切换满功率输入可能导致接口过载，并消耗额外训练资源。\n\n是否继续？"
-	_clear_container(diagnosis_modal_actions)
+	_popup.open({
+		"title": "高风险操作确认\nHIGH RISK CONFIRM",
+		"text": "高风险操作\n\n当前故障原因未确认。\n强行切换满功率输入可能导致接口过载，并消耗额外训练资源。\n\n是否继续？",
+		"content_min_size": Vector2(520, 0),
+	})
 	var confirm := Button.new()
 	confirm.text = "确认执行"
 	confirm.modulate = Color("#ff6b6b")
 	confirm.custom_minimum_size = Vector2(0, 42)
 	confirm.pressed.connect(func(): _execute_solar_repair_option(option_id))
-	diagnosis_modal_actions.add_child(confirm)
+	_popup.add_action_control(confirm)
 	var cancel := Button.new()
 	cancel.text = "取消"
 	cancel.custom_minimum_size = Vector2(0, 42)
 	cancel.pressed.connect(func(): _show_solar_fault_diagnosis())
-	diagnosis_modal_actions.add_child(cancel)
+	_popup.add_action_control(cancel)
 	_sync_overlay_visibility()
 
 ## The one place that actually calls RepairManager.apply_repair_option()
@@ -2607,8 +2533,8 @@ func _execute_solar_repair_option(option_id: String) -> void:
 		hint_label.text = message
 		return
 	var new_hint := String(result.get("new_hint", ""))
-	if diagnosis_modal_text != null:
-		diagnosis_modal_text.text = "%s\n\n%s" % [message, _solar_fault_panel_text()] if new_hint.is_empty() else "%s\n\n%s\n\n%s" % [message, new_hint, _solar_fault_panel_text()]
+	if _popup != null:
+		_popup.set_body_text("%s\n\n%s" % [message, _solar_fault_panel_text()] if new_hint.is_empty() else "%s\n\n%s\n\n%s" % [message, new_hint, _solar_fault_panel_text()])
 	_add_log(message)
 	_check_solar_parts_depleted()
 
@@ -2740,31 +2666,9 @@ func _setup_training_03_container() -> void:
 		inventory_manager.call("add_item_to_container", TRAINING_03_CONTAINER_ID, "TR-MT-001", 2)
 		inventory_manager.call("add_item_to_container", TRAINING_03_CONTAINER_ID, "TR-MT-002", 1)
 
-func _set_diagnosis_modal_title(text: String) -> void:
-	if diagnosis_modal_title != null:
-		diagnosis_modal_title.text = text
-
-## Sets the modal image AND hides the whole image column when there's no
-## texture, so confirm dialogs (which pass null) collapse the left half
-## instead of showing a big empty band (user-reported). A hidden child in
-## the HBoxContainer reserves no space, so the text column fills. The modal
-## also shrinks to a text-only width in that case, so the buttons don't
-## stretch across the full image+text width.
-func _set_diagnosis_modal_image(texture: Texture2D) -> void:
-	if diagnosis_modal_image == null:
-		return
-	diagnosis_modal_image.texture = texture
-	diagnosis_modal_image.visible = texture != null
-	if diagnosis_modal != null:
-		var half_width := 540.0 if texture != null else 300.0
-		diagnosis_modal.offset_left = -half_width
-		diagnosis_modal.offset_right = half_width
-
 func _hide_training_diagnosis_modal() -> void:
-	if diagnosis_modal_scrim != null:
-		diagnosis_modal_scrim.visible = false
-	if diagnosis_modal != null:
-		diagnosis_modal.visible = false
+	if _popup != null:
+		_popup.close()
 	_sync_overlay_visibility()
 
 func _load_diagnosis_texture(path: String) -> Texture2D:
