@@ -1175,6 +1175,12 @@ func _penalty_manager() -> Node:
 		return null
 	return tree.root.get_node_or_null("PenaltyManager")
 
+func _task_manager() -> Node:
+	var tree := get_tree()
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null("TaskManager")
+
 func _time_hud_text() -> String:
 	var manager := _training_time_manager()
 	if manager == null or not manager.has_method("get_remaining_time_text"):
@@ -1201,17 +1207,25 @@ func _resident_status_hud_text() -> String:
 
 func _global_objective_text() -> String:
 	var progress := TrainingManagerScript._read_progress_data()
+	# Post-EVA suit-return interstitial depends on the runtime suit-worn state
+	# (not a persisted module flag), so it stays a scene-specific step rather
+	# than a catalogued task. It slots in right after the power_repair EVA.
+	if bool(progress.get("PowerRepairCompleted", false)):
+		var suit_manager := _suit_manager()
+		if suit_manager != null and bool(suit_manager.get("is_suit_worn")):
+			return "返回宇航服整备室，将宇航服脱下并放回宇航服整备架。"
+	# The module objectives come from the unified TaskManager -- a single query
+	# point, derived from these same TrainingManager flags (no second truth).
+	var task_manager := _task_manager()
+	if task_manager != null and task_manager.has_method("get_current_objective"):
+		return String(task_manager.call("get_current_objective", "training"))
+	# Fallback (TaskManager absent): original per-flag derivation.
 	if not bool(progress.get("SuitControlCompleted", false)):
 		return "前往宇航服整备室，穿戴宇航服。"
 	if not bool(progress.get("AirlockProcedureCompleted", false)):
 		return "前往模拟气闸舱，执行气闸流程。"
 	if not bool(progress.get("PowerRepairCompleted", false)):
 		return "通过气闸前往太阳能阵列训练场，完成维修。"
-	# After the EVA the suit must be racked before anything else -- surface that
-	# as the active objective while it's still worn.
-	var suit_manager := _suit_manager()
-	if suit_manager != null and bool(suit_manager.get("is_suit_worn")):
-		return "返回宇航服整备室，将宇航服脱下并放回宇航服整备架。"
 	if not bool(progress.get("PowerDistributionCompleted", false)):
 		return "前往配电房，恢复供电。"
 	if not bool(progress.get("LifeSupportCompleted", false)):

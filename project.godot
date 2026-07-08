@@ -39,6 +39,7 @@ SuitManager="*res://scripts/managers/SuitManager.gd"
 MovementTimeManager="*res://scripts/managers/MovementTimeManager.gd"
 PlayerStateManager="*res://scripts/managers/PlayerStateManager.gd"
 PenaltyManager="*res://scripts/managers/PenaltyManager.gd"
+TaskManager="*res://scripts/managers/TaskManager.gd"
 
 [display]
 
