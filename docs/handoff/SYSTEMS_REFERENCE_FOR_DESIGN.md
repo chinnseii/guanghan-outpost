@@ -2754,3 +2754,59 @@ training 上下文）、`ambient_environment_morale`（环境每小时 morale，
 - `severity` 目前只进记录/信号，UI 分级展示（颜色/音效）还没做。
 - `apply_penalty` 尚未做"部分失败"语义（某一路系统缺失只是跳过，仍算 applied）；
   若将来需要"必须全部生效否则回滚"，要另加事务式包装。
+
+---
+
+## 任务系统 TaskManager / TaskDatabase
+
+### 定位
+统一的"**当前目标 / 进度**"查询层 autoload `/root/TaskManager`
+（`scripts/managers/TaskManager.gd`，`class_name GuanghanTaskManager`）。
+**不持有第二份真相**：各类任务的完成状态**从各自的权威源派生**（查询时读），
+所以不会和权威源漂移。和 PlayerStateManager 一样是读/查询层，不驱动 step 引擎、
+不推进流程。
+
+代码：
+- `scripts/data/TaskDatabase.gd`（纯数据 RefCounted，preload，无 autoload）——任务目录。
+- `scripts/managers/TaskManager.gd`（autoload）——查询层 + 信号。
+
+### 任务粒度
+**粗粒度**。训练按"模块"、正式任务按"天/周弧"各作一个任务；每个任务内部的
+细步骤/清单仍归各自场景引擎（训练 step、sprint06 每日清单），**不下沉到任务系统**。
+
+### 目录 `TaskDatabase.TASKS` + 派生源
+| category | 任务 | 完成派生源 |
+|---|---|---|
+| training | 6 个：`training_suit_control` / `_airlock_procedure` / `_power_repair` / `_power_distribution` / `_life_support` / `_plant_diagnosis` | `TrainingManager._read_progress_data()` 的 flag（如 `SuitControlCompleted`） |
+| mission | 3 个：`mission_day_01` / `mission_day_02` / `mission_week_one` | sprint06 存档（`TrainingManager.SPRINT06_SAVE_PATH`）的 flag（`Day01Completed` / `Day02Completed`\|`Day02ReportSent` / `WeekOneCompleted`） |
+| supply | **动态单任务** `supply_current`（不在静态目录里，随补给周期复用） | `SupplyManager.get_current_supply()` 的 status（draft/confirmed/locked/delivered/missed） |
+
+任务字段：`title / category / order / prerequisites:[task_id] / completion_flag`
+（单 flag）或 `completion_flags_any:[flag]`（任一为真即完成，如 Day02）。
+
+### 状态派生
+`get_task_state()` → 完成（flag 命中）/ active（前置都完成、自身未完成）/ locked
+（前置未完成）。supply 的 status 映射：delivered→completed、missed→failed、其余→active。
+
+### API
+`get_current_objective(category)`（第一个未完成任务的标题，或该类"全完成"文案；
+supply 走动态）/ `get_active_task_id(category)` / `get_task_state(task_id)` /
+`is_completed(task_id)` / `get_progress(category)`（{completed,total,remaining}）/
+`get_all_tasks(category)`（[{task_id,title,state,order}]，供任务面板）/
+`notify_progress_changed()`（流程改完权威源后可调，发 `tasks_changed` 信号）。
+
+### 已接线
+- `training_base_map.gd` 的 `_global_objective_text()`：模块目标改读
+  `get_current_objective("training")`；气闸后归位过场（依赖运行时穿服状态、非模块
+  flag）仍留场景；旧链保留作回退。
+- 正式任务/补给目前是**派生可查询**，但 sprint06 的 HUD 目标仍由 sprint06 自己的
+  `_update_objective()` 细算（TaskManager 提供的是粗粒度弧层视图，不替代它）。
+
+### 存档
+本身不落盘（全部派生自各权威源的存档）。
+
+### 待办 / 设计可扩展点
+- 尚无任务面板 UI；`get_all_tasks()` 已为它备好（含 supply）。月面地图那版
+  任务/探索目标可加 `exploration` 分类接进来。
+- mission 目前只覆盖第一周弧（Day01/Day02/Week One）；后续阶段/章节再加。
+- `tasks_changed` 信号暂无订阅者；HUD 目前是查询式（在 `_update_hud` 里取）。

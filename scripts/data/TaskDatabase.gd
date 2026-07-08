@@ -16,7 +16,7 @@ extends RefCounted
 
 const ALL_COMPLETE_TEXT := {
 	"training": "训练科目已全部完成。",
-	"mission": "",
+	"mission": "第一周驻留已完成。",
 	"supply": "",
 }
 
@@ -62,6 +62,31 @@ const TASKS := {
 		"order": 60,
 		"prerequisites": ["training_life_support"],
 		"completion_flag": "PlantDiagnosisCompleted",
+	},
+
+	# -- Mission (正式任务): coarse day/arc tasks. Completion is derived from
+	# sprint06 progress flags; the fine per-day checklist stays in
+	# sprint06_base_scene, the same way training steps stay in the scene.
+	"mission_day_01": {
+		"title": "Day 01：进入旧基地，恢复供电与生命支持，诊断最后一株植物。",
+		"category": "mission",
+		"order": 110,
+		"prerequisites": [],
+		"completion_flag": "Day01Completed",
+	},
+	"mission_day_02": {
+		"title": "Day 02：完成今日巡检并发送对地报告。",
+		"category": "mission",
+		"order": 120,
+		"prerequisites": ["mission_day_01"],
+		"completion_flags_any": ["Day02Completed", "Day02ReportSent"],
+	},
+	"mission_week_one": {
+		"title": "第一周日常驻留：完成 Day 03–07 的巡检与周报。",
+		"category": "mission",
+		"order": 130,
+		"prerequisites": ["mission_day_02"],
+		"completion_flag": "WeekOneCompleted",
 	},
 }
 
