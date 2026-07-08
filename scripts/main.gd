@@ -3639,25 +3639,38 @@ func _setup_dev_menu() -> void:
 	panel.name = "DevMenu"
 	panel.visible = false
 	panel.position = Vector2(1010, 96)
-	panel.size = Vector2(430, 620)
 	$UI/Root.add_child(panel)
-	var box := VBoxContainer.new()
-	box.name = "Box"
-	box.add_theme_constant_override("separation", 8)
-	panel.add_child(box)
+	var outer := VBoxContainer.new()
+	outer.name = "Outer"
+	outer.add_theme_constant_override("separation", 8)
+	panel.add_child(outer)
 	var title := Label.new()
 	title.text = "开发菜单 / DEV MENU"
 	title.add_theme_font_size_override("font_size", 24)
 	title.modulate = Color("#eaf4ff")
-	box.add_child(title)
+	outer.add_child(title)
 	var note := Label.new()
-	note.text = "仅用于本地测试。F12 显示/隐藏。"
+	note.text = "仅用于本地测试。F12 显示/隐藏。列表可滚动。"
 	note.modulate = Color("#9fb4c4")
-	box.add_child(note)
+	outer.add_child(note)
+	# The dev entries outgrew a fixed panel and the bottom items fell off the
+	# screen (unselectable). Put the button list in a height-capped, vertically
+	# scrollable container so any number of entries stays reachable.
+	var scroll := ScrollContainer.new()
+	scroll.name = "Scroll"
+	scroll.custom_minimum_size = Vector2(410, 700)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	outer.add_child(scroll)
+	var box := VBoxContainer.new()
+	box.name = "Box"
+	box.add_theme_constant_override("separation", 8)
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(box)
 	box.add_child(_make_dev_button("Dev Only: Reset Demo Progress", _reset_demo_progress_from_dev))
 	box.add_child(_make_dev_button("Dev Only: Start Survival Sandbox", _start_new_game))
 	box.add_child(_make_dev_button("Dev Only: Arrival Cinematic", func(): get_tree().change_scene_to_file("res://scenes/arrival/ArrivalCinematicScene.tscn")))
 	box.add_child(_make_dev_button("Dev Only: Arrival Landing", func(): get_tree().change_scene_to_file("res://scenes/arrival/ArrivalLandingScene.tscn")))
+	box.add_child(_make_dev_button("Dev Only: Lunar Surface (EVA seed)", func(): get_tree().change_scene_to_file("res://scenes/surface/LunarSurfaceScene.tscn")))
 	box.add_child(_make_dev_button("Dev Only: Base Airlock Entry", func(): get_tree().change_scene_to_file("res://scenes/base/BaseAirlockEntryScene.tscn")))
 	box.add_child(_make_dev_button("Dev Only: Old Base Interior", func(): get_tree().change_scene_to_file("res://scenes/base/OldBaseInteriorScene.tscn")))
 	box.add_child(_make_dev_button("Dev Only: Old Base Art Slice", func(): get_tree().change_scene_to_file("res://scenes/base/OldBaseCore_ArtSlice.tscn")))
