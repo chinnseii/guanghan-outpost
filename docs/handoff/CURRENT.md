@@ -6,7 +6,7 @@
 
 ## 当前阶段
 
-**Phase 3 · 系统边界清洗：已启动**（P3-01 只读审计完成）。
+**Phase 3 · 系统边界清洗：进行中**（P3-01 审计、P3-02 存档 owner 定稿、P3-02R 独立复核对账均完成；P3-03 待用户确认后启动）。
 
 - Phase 0（工程治理基线）/ Phase 1（仓库卫生）/ Phase 2（文档治理）：**均已完成**。
 - Phase 3（系统边界清洗）：**进行中**——P3-01 系统边界只读审计已完成（见 [`../governance/PHASE_3_SYSTEM_BOUNDARY_AUDIT.md`](../governance/PHASE_3_SYSTEM_BOUNDARY_AUDIT.md)）；Phase 3 尚未完成。
@@ -29,8 +29,8 @@ Phase 2 文档治理（本阶段成果）：
 
 ## 当前工作
 
-- **本轮（P3-02）**：存档真相源与数据 owner 设计定稿（[`../governance/PHASE_3_SAVE_OWNERSHIP_DECISION.md`](../governance/PHASE_3_SAVE_OWNERSHIP_DECISION.md)）——每核心域 owner 定稿、三 save 层职责、恢复顺序与权限、架构方案对比。**零代码/存档格式修改。**
-- 关键结论：owner UNRESOLVED=0；推荐存档架构 = 方案 C（分层，单一 Full Save 为 restore 真相）；P0=0，P1（真相源不唯一）待 P3-03 修复。
+- **最近完成（P3-02R 独立复核对账）**：基于 Codex 独立只读复核，逐项核验 6 项发现并修订基线（[`../governance/PHASE_3_SYSTEM_BOUNDARY_AUDIT.md`](../governance/PHASE_3_SYSTEM_BOUNDARY_AUDIT.md) §16、[`../governance/PHASE_3_SAVE_OWNERSHIP_DECISION.md`](../governance/PHASE_3_SAVE_OWNERSHIP_DECISION.md) §16）。**零代码/存档格式修改。**
+- 关键修订：owner 细化为 OWNER_FINAL / OWNER_FINAL_BUT_SYNC_RISK（电力、宇航服镜像）/ DECISION_PENDING / UNRESOLVED（Door 正式基地接入）——"UNRESOLVED=0"作废；方案 C 仍推荐并补入 mirror-recompute/restore-complete 约束；P3-03 拆为 a/b/c/d。P0=0，P1=1（真相源不唯一）待 P3-03。
 
 ## 当前风险与已知待办
 
@@ -43,7 +43,7 @@ Phase 2 文档治理（本阶段成果）：
 
 ## 下一步
 
-**唯一优先事项：P3-03 —— P1 存档冗余写与恢复顺序修复**（正式化 Save/Restore Orchestrator、Full Save 为唯一 restore 真相、加 schema_version）。**前置：用户需先确认**（详见 [`../governance/PHASE_3_SAVE_OWNERSHIP_DECISION.md`](../governance/PHASE_3_SAVE_OWNERSHIP_DECISION.md) §13）：① 采纳推荐存档架构方案 C；② 旧本地档兼容策略（推荐 NO_COMPATIBILITY_REQUIRED）。
+**唯一优先事项：P3-03a —— 恢复一致性缺口修复**（Power/Suit 兼容镜像 restore 同步、restore-complete 阶段、read vs restore API 边界），随后 P3-03b Full Save Orchestrator 正式化（+schema_version）→ P3-03c 自存降级 → P3-03d checkpoint 越域裁剪。**前置：用户需先确认**（详见 [`../governance/PHASE_3_SAVE_OWNERSHIP_DECISION.md`](../governance/PHASE_3_SAVE_OWNERSHIP_DECISION.md) §16.6）：① 采纳推荐存档架构方案 C；② 旧本地档兼容策略（推荐 NO_COMPATIBILITY_REQUIRED）。其余（Power mirror 同步、TrainingManager API、legacy 同名节点、Door 正式基地接入）由代码证据处理，不需用户拍板。
 （Phase 编号以 `CLEANUP_PLAN.md` 为准：Phase 3=系统边界、4=大脚本拆分、5=Skill、6=双 Agent。）
 
 ## 权威文档导航

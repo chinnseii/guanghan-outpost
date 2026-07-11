@@ -166,6 +166,77 @@ Suit/Repair(从代码)→ TrainingTimeManager / TimeManager（推进时间）
 - **P1 仍存在**（存档真相源不唯一），修复归 P3-03；本轮未改代码。
 - 1 个 P2 待字段级追踪：Inventory `stack_items` 与 Backpack `slots` 是否双记账（§10 未决 #1，P3-04 前核实）。
 
+## 16. Independent review reconciliation（P3-02R · 2026-07-11 · 基线 `ceafe6c`）
+
+> Codex 独立只读复核提出 6 项问题；本节由 Claude 逐项按 `文件:行号`/方法独立核验，给 `CONFIRMED / PARTIAL / NOT_CONFIRMED` + 证据 + 最终结论。原审计 §1–§15b 证据保留不删。
+
+### 16.1 Codex 六项发现逐项核验
+
+**① PowerSystemManager 恢复后未同步 BaseStatusManager.power — CONFIRMED（P2，非 P1）**
+- 证据：`PowerSystemManager.gd:458-469` `deserialize()` 是**唯一**不调用 `_sync_base_status_power()` 的状态变更路径；对照 `reset_to_arrival`(:60)、`advance_power_time`(:93)、`apply_action_cost`(:104)、`consume_energy`(:357)、`debug_*`(:346/377/408) 全部在改值后 `_sync_base_status_power()`。`deserialize()` 仅以 `power_system_changed.emit()`(:469) 收尾。
+- canonical 恢复值：`PowerSystemManager.current_energy` → `get_power_percent()`（:150）。compatibility mirror：`BaseStatusManager.power`（`BaseStatusManager.gd:22` 自有字段 + `set_power_percent()` :81 写入）。
+- `BaseStatusManager.power` 的 reader：`_apply_temperature_change`(:99-106，power 阈值决定温度乘子)、`_apply_health_environment_effects`(:151-154，morale 扣减)、`get_specialist_hint`/label（显示）。**两个玩法 reader 都只在 `advance_base_time()`(:66) 内运行**，而 TimeManager 每 tick 先调 `PowerSystemManager.advance_power_time()`（已 sync）再调 `BaseStatusManager.advance_base_time()` → **下一次时间推进必然重新同步**。
+- 为何 P2 非 P1：正常恢复时 `base_status_state.json` 与 `power_system_state.json` 是**同刻一致快照**（每次改值都先 sync 再各自 `_save_state()`），故 mirror 恢复即一致；仅在"部分档缺失/一方 fallback `reset_to_arrival`"的边缘才短期偏离，且首个 time tick 自愈。**无 reader 在恢复与首 tick 之间做玩法判断**。→ 现状 **P2 显示/短窗风险**；但在方案 C（bundle restore + mirror 重算）下必须显式补"canonical→重算 mirror"阶段，列为 **P3-03a 设计约束**。
+
+**② BaseStatusManager 职责摘要仍把氧气写成其汇总状态 — CONFIRMED（IMPLEMENTATION_DOC_MISMATCH）**
+- 代码事实：`BaseStatusManager.serialize()`(:396-405) 字段 = power/pressure/temperature/power_system_status/thermal_control_status/seal_status/last_plant_recovered_bonus_active — **无任何 oxygen 字段**；注释 `:187` 明确"Oxygen/CO2 no longer factor in here — see AirSystemManager"。
+- 氧气 canonical owner = **AirSystemManager**（`AirSystemManager.gd:47` `oxygen_generator_status`、制氧/CO2 系统 + `serialize` :512）。电力 canonical owner = **PowerSystemManager**；`BaseStatusManager.power` = 兼容镜像。
+- 文档缺陷：`SYSTEM_REGISTRY.md:24` 摘要写"电力/氧气/舱压/温度四档汇总状态"——会误导 Agent 认为 BaseStatus 拥有氧气与电力。→ 已在 §16.4 / SYSTEM_REGISTRY 最小修订。
+
+**③ SuitManager 与 PlayerStateManager 同持 is_suit_worn — CONFIRMED（owner 明确，SYNC_COMPLETE 运行时，restore-recompute 建议）**
+- `CANONICAL_OWNER = SuitManager`（**代码事实，非推荐**）：`SuitManager.gd:375-386` 注释"SuitManager stays the source of truth"；`_sync_player_state_suit_worn()` 在**每条** `is_suit_worn` 变更后调用——`reset_to_arrival`(:84)、`wear_suit`(:96)、`wear_suit_training`(:122)、`remove_suit_to_service_station`(:133)、`remove..._training`(:149)、`deserialize`(:461)。
+- `COMPATIBILITY_MIRROR = PlayerStateManager.is_suit_worn`（`PlayerStateManager.gd:39-42` 注释"cached mirror"；`set_suit_worn`(:155) 仅被 SuitManager 推送与 boot 拉取 `sync_suit_state_from_suit_manager()`(:164) 调用；PlayerState **从不独立决定** suit-worn）。
+- 写入路径：SuitManager→PlayerState = **SYNC_COMPLETE**（全路径覆盖）。反向不存在（PlayerState 不写回）。boot 顺序问题由 `PlayerStateManager._ready()`(:58-59) 拉取自愈。
+- 唯一缺口：PlayerState **冗余持久化** `is_suit_worn`（`serialize` :261 / `deserialize` :269），restore 时不回读 SuitManager → 与 Power 同类"restore 后 mirror 应重算"问题。→ 结论 **`FINAL_OWNER(SuitManager) / SYNC_COMPLETE(runtime) / RESTORE_RECOMPUTE(建议)`**，P2，**不产生新用户决策**（owner 由系统职责已定）。**未见正在发生的确定性数据损坏**。
+
+**④ DoorStateManager 正式旧基地接入 — CONFIRMED = `FORMAL_BASE_NOT_CONNECTED`**
+- Autoload 已注册（`project.godot:36`）。`reset_to_arrival`(:16-159) 注册的门**数据**覆盖正式旧基地（control_room↔power_room/air_system_room/water/greenhouse/rest 等）。
+- 唯一**消费者** = `scripts/training/training_base_map.gd:322/720/726`（`try_pass_door`）→ **TRAINING_CONNECTED**。全仓 `scripts/base/**` 及正式旧基地场景 = **零** DoorStateManager 引用（导航静态零命中）。
+- 门状态**不进正式 full save**：`sprint06_base_scene.gd` 零 `DoorState` 引用 → 仅经 `door_state.json` 自存。
+- 结论：`TRAINING_CONNECTED` + `FORMAL_BASE_NOT_CONNECTED`；full-save 归属 = 当前"自存/scene-local，未纳入 Full Save"。→ 接入属**功能**，排 **P3-04**（若涉正式场景替换则 P3-05）；本轮不接入。与 `SYSTEM_REGISTRY.md:34/56-57` 既有"未全接"判断一致。
+
+**⑤ legacy 局部 TimeManager / GameStateManager 同名 — CONFIRMED = `LEGACY_LOCAL_NAME_COLLISION`（P2/P3，不升 P1）**
+- `main.gd:909-914` 与 `arrival_landing_scene.gd:81-85` 用 `preload("res://scripts/game_state_manager.gd")`/`preload("res://scripts/time_manager.gd")`（**小写遗留脚本**）`.new()` 并 `.name = "TimeManager"/"GameStateManager"`，`add_child` 到各自 legacy 场景根。
+- autoload `TimeManager` 指向 `scripts/managers/TimeManager.gd`（`project.godot:24`），**脚本不同**；GameStateManager 无 autoload 条目。
+- 无运行冲突证据：两处均经**成员变量**（`time_manager`/`game_state_manager`）调用，`main.gd`/`arrival` **零** `get_node("TimeManager")`/`get_node("GameStateManager")` 字符串查找（静态零命中）→ 不会误绑 `/root` autoload。仅 legacy 场景运行。
+- 结论：`LEGACY_LOCAL_NAME_COLLISION` + 潜在 `DEBUGGING_AMBIGUITY`（编辑器节点树同名）；**非 `RUNTIME_CONFLICT`**。→ P2/P3 隔离风险，归 **P3-05 Legacy 隔离**，不升 P1。
+
+**⑥ TrainingManager load_progress / _read_progress_data 边界 — CONFIRMED**
+- `_read_progress_data()`（`training_manager.gd:113`，`static`）= **只读 JSON**、无 live-manager 副作用（:113-126）。
+- `load_progress()`（:128，`static`）= 先 `_read_progress_data()` 再对 **12 个 live Manager** `.call("deserialize", …)`（:130-165）→ **有恢复副作用**。注释 :99-112 已记录踩坑（mid-session 调用会用旧快照覆盖 live，宇航服被重置，`mark_module_completed` 已改用 `_read_progress_data`）。
+- 残留 query-语义误用 load_progress()：`training_status()`(:372)、`training_failure_reason()`(:375)——但二者**全仓零调用**（dead API，已核 `grep` 无 caller）→ 当前**不造成**活损坏。其余 `load_progress()` caller（`main.gd:4507/4520` has-progress 检查、`accept_assignment`/`set_opening_flow_stage`/`continue_scene_path`/`start_training`、三处场景 boot）均在 **boot/转场（restore-ish）** 上下文。
+- 结论：边界正式化写入决策——`_read_progress_data = read-only query`、`load_progress = state-restoring operation（应仅由 Restore Orchestrator 调用）`；P3-03a 应把 `training_status()/training_failure_reason()` 改指 `_read_progress_data` 或删除。当前 **P2/hygiene**，非活损坏。
+
+### 16.2 修订后数据 owner 状态（不再用单一 FINAL 抹平同步风险）
+
+| 数据域 | Owner | 状态分类 | 依据 |
+|---|---|---|---|
+| 电力 | PowerSystemManager | **OWNER_FINAL_BUT_SYNC_RISK** | deserialize 不同步 BaseStatus.power 镜像（§16.1①），P2 |
+| 宇航服 worn | SuitManager | **OWNER_FINAL_BUT_SYNC_RISK** | PlayerState 镜像冗余持久化、restore 不回读（§16.1③），P2 |
+| 门状态 | DoorStateManager | **OWNER_FINAL；正式基地接入 = UNRESOLVED** | 训练已接、正式基地零消费、未入 full save（§16.1④） |
+| 氧气 | AirSystemManager | OWNER_FINAL | BaseStatus 无氧气字段（§16.1②） |
+| 舱压/温度 | BaseStatusManager | OWNER_FINAL | 直接状态 |
+| Inventory ↔ Backpack 记账 | Inventory / Backpack | **DECISION_PENDING（P2 字段级追踪）** | §5 未决 #1，P3-04 前核实 |
+| 游戏时间/训练时间 | TimeManager / TrainingTimeManager | OWNER_FINAL（真相源模型 DECISION_PENDING） | SEPARATE_CLOCKS+NO_SYNC |
+| 惩罚历史 | 无持久化 owner | OWNER_FINAL（不持久化） | PenaltyManager 分发器 |
+| 玩家位置(地表) | 场景局部 | USER_DECISION（是否持久化） | 未持久化 |
+
+统计：**OWNER_FINAL = 12**（时间×2/健康/氧/水/压/温/补给/仓储/植物/维修/任务 + 申请档案，另计）；**OWNER_FINAL_BUT_SYNC_RISK = 2**（电力、宇航服）；**DECISION_PENDING = 2**（Inventory↔Backpack 记账、Full Save 真相源模型）；**UNRESOLVED = 1**（Door 正式基地接入）；**USER_DECISION = 2**（玩家位置持久化、旧档兼容）。**"UNRESOLVED=0"的原表述作废**——owner 已知不等于同步/接入已定稿。
+
+### 16.3 修订风险统计
+
+- **P0：0**（无正在发生的存档/核心状态损坏；Suit/Power 均无活损坏）。
+- **P1：1** — 存档真相源不唯一（原 P1 保留，归 P3-03）。
+- **P2：6** — ① 电力 restore mirror 不同步；② 宇航服镜像 restore-recompute 缺口；③ Inventory↔Backpack 双记账待核；④ Time/TrainingTime 结束同步（按现有设计=NO_SYNC，待确认）；⑤ legacy 同名节点隔离；⑥ TrainingManager load/read API 边界（含 2 个 dead query 函数）。
+- **P3：3** — ① PlayerState 自引用 helper 冗余；② 遗留 save 管线（沙盒 slot/arrival_prototype）并存断开；③ Door 正式基地接入（功能待排期，作为 UNRESOLVED 亦列此）。
+- **IMPLEMENTATION_DOC_MISMATCH：1** — `SYSTEM_REGISTRY.md:24` BaseStatus 摘要含氧气/电力（§16.1②，已最小修订）。
+
+### 16.4 SYSTEM_REGISTRY 最小修正项（证据充分）
+- BaseStatusManager 摘要收紧：舱压/温度为直接状态；电力为 PowerSystemManager 同步的兼容镜像；氧气由 AirSystemManager 管理（BaseStatus 无氧气字段）。
+- 标注 canonical owner / compatibility mirror：Power（Power↔BaseStatus.power）、Suit（Suit↔PlayerState.is_suit_worn）。
+- Door 正式基地接入状态标注 `FORMAL_BASE_NOT_CONNECTED`（训练已接）。
+- 未大规模重写 Registry。
+
 ## 附：本轮零改动核验
-- 本轮仅新增/修改治理 `.md`（本文件 + ACTIVE_TASKS + CLEANUP_PLAN + CURRENT）；未改 `project.godot`、`scripts/**`、`scenes/**`、`assets/**`、任何 `.gd/.tscn/.tres/.uid`。
+- 本轮仅新增/修改治理 `.md`（本文件 + ACTIVE_TASKS + CLEANUP_PLAN + CURRENT + SAVE_OWNERSHIP_DECISION + SYSTEM_REGISTRY）；未改 `project.godot`、`scripts/**`、`scenes/**`、`assets/**`、任何 `.gd/.tscn/.tres/.uid/.json`。
 - Godot `--headless --editor --quit` 与 `--headless --path . --quit` EXIT=0；docs `.import`=0、assets `.import`=70、tracked `.gd.uid`=94、无生成噪声。

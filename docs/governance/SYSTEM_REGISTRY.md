@@ -21,7 +21,7 @@
 | 1 | AcademicBackgroundManager | `scripts/managers/AcademicBackgroundManager.gd` | 3 | 申请阶段教育背景（机械/材料/医学/植物），只给提示文字不给数值加成 | `application_profile.json` | ACTIVE |
 | 2 | TimeManager / GuanghanTimeManager | `scripts/managers/TimeManager.gd` | **22（最高）** | 行动推进制时间（`advance_time(min,reason)`）、月夜/月昼阶段 | `time_state.json` + 训练/sprint06 快照 | ACTIVE |
 | 3 | HealthManager / GuanghanHealthManager | `scripts/managers/HealthManager.gd` | 19 | 精力/饱腹/营养，影响行动倍率 | `health_state.json` + 快照 | ACTIVE |
-| 4 | BaseStatusManager / GuanghanBaseStatusManager | `scripts/managers/BaseStatusManager.gd` | 12 | 电力/氧气/舱压/温度四档汇总状态 | 有 serialize | ACTIVE |
+| 4 | BaseStatusManager / GuanghanBaseStatusManager | `scripts/managers/BaseStatusManager.gd` | 12 | 舱压/温度为其直接状态（+供电/温控/密封三档系统状态）；**电力为 PowerSystemManager 同步的兼容镜像**（`set_power_percent`）；**氧气由 AirSystemManager 管理，BaseStatus 无氧气字段** | `base_status_state.json` | ACTIVE |
 | 5 | PowerSystemManager / GuanghanPowerSystemManager | `scripts/managers/PowerSystemManager.gd` | 14 | 电力系统（从 BaseStatus 拆出） | 有 | ACTIVE |
 | 6 | WaterSystemManager / GuanghanWaterSystemManager | `scripts/managers/WaterSystemManager.gd` | 14 | 水资源系统（拆出） | 有 | ACTIVE |
 | 7 | AirSystemManager / GuanghanAirSystemManager | `scripts/managers/AirSystemManager.gd` | 13 | 空气/制氧系统（拆出） | `air_system_state.json` | ACTIVE |
@@ -55,6 +55,13 @@
 
 ### B3. DoorStateManager 引用数=1
 - 仅 1 文件引用，但 `CURRENT.md:8,54` 明确它是 Codex 并行新增、"尚未接入正式旧基地导航"（训练门仍运行时注册）。→ **ACTIVE 但未全接**，非 DEPRECATED（有 autoload 注册 + 文档说明其为在建系统）。
+- **P3-02R 核实**：唯一消费者 = `training_base_map.gd`（`try_pass_door`）→ `TRAINING_CONNECTED`；`scripts/base/**` 及正式旧基地场景零引用 → **`FORMAL_BASE_NOT_CONNECTED`**；门状态**未纳入正式 full save**（`sprint06_base_scene` 零 Door 引用），仅经 `door_state.json` 自存。接入属功能，排 P3-04。
+
+### B4. 兼容镜像与 canonical owner（P3-02R 登记）
+- **电力**：canonical owner = `PowerSystemManager`（`current_energy`/`get_power_percent()`）；`BaseStatusManager.power` = 兼容镜像。注意 `PowerSystemManager.deserialize()` 不同步该镜像（P2 恢复一致性缺口，归 P3-03a）。
+- **宇航服 worn**：canonical owner = `SuitManager.is_suit_worn`（代码注释明示 source of truth，全变更路径同步）；`PlayerStateManager.is_suit_worn` = 兼容镜像（cached mirror）。owner 已定，无需用户决策。
+- **氧气**：canonical owner = `AirSystemManager`（BaseStatus 不再持有）。
+- 详见 `PHASE_3_SAVE_OWNERSHIP_DECISION.md` §16 与 `PHASE_3_SYSTEM_BOUNDARY_AUDIT.md` §16。
 
 ## C. 有 class_name 但非 autoload 的系统/数据脚本（现役支撑）
 

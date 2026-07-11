@@ -49,7 +49,7 @@
 | 玩家位置(地表) | 场景局部 | lunar_surface_scene | **无**（当前不存位置） | — | ✗ | scene | 无 | HIGH | USER_DECISION(是否持久化，见 §13) |
 | 申请档案/教育背景 | AcademicBackgroundManager | 申请流程 | 同 | 同 | 独立(B 类) | — | application_profile | HIGH | FINAL |
 
-- **UNRESOLVED：0**（每域有 owner）；MEDIUM 项在 §5/§11 说明；FINAL 指"owner 已定"，真相源模型待 §13 用户确认。
+- **owner 状态分类（P3-02R 修订，取代原"UNRESOLVED=0"单一口径）**：owner 已知 ≠ 同步/接入已定稿。见 §16.2——**OWNER_FINAL_BUT_SYNC_RISK**（电力、宇航服）、**DECISION_PENDING**（Inventory↔Backpack 记账、Full Save 真相源模型）、**UNRESOLVED**（Door 正式基地接入）不得被本表"FINAL"抹平。本表 Decision 列的 "FINAL(owner)" 仅指运行时 canonical owner 已确定。
 
 ## 5. Inventory / Backpack / Storage
 - **Backpack**（`slots`/`backpack_level`/`backpack_capacity_slots`）= 玩家随身、槽位制。
@@ -155,6 +155,67 @@
 - **分批**：P3-03a 正式化 Orchestrator + 恢复顺序（不删自存，仅"bundle 为 restore 真相"）→ P3-03b 逐 Manager 停止"自存作 restore 真相"+ 加 schema_version → P3-03c 越域 checkpoint 裁剪。
 - **回滚点**：每子批独立 PR、可 revert；改 serialize/deserialize 保留旧字段读兼容。
 - **验收**：存/关/续档回归无覆盖丢失；训练→任务过渡状态正确；`lunar-base-verify` 全流程；无旧档静默损坏。
+
+## 16. 独立复核修订（P3-02R · 2026-07-11 · 基线 `ceafe6c`）
+
+> 基于 Codex 独立复核 + Claude 逐项代码核验（证据全在 `PHASE_3_SYSTEM_BOUNDARY_AUDIT.md` §16）。方案 C 仍为推荐，但补入以下约束；owner 分类细化；P3-03 重新拆分。**推荐 ≠ 已实现事实**——以下"要做"均属 P3-03，本轮零代码。
+
+### 16.1 兼容镜像（compatibility mirror）事实登记
+- **电力**：canonical = `PowerSystemManager.current_energy`/`get_power_percent()`；mirror = `BaseStatusManager.power`（`set_power_percent()` 写）。`PowerSystemManager.deserialize()`(:458-469) **不**调用 `_sync_base_status_power()`——唯一漏同步的变更路径。现状 P2（同刻一致快照 + 首 tick 自愈），但方案 C 的 bundle restore 必须显式重算此镜像。
+- **宇航服**：canonical = `SuitManager.is_suit_worn`（代码注释明示 source of truth，全变更路径 sync PlayerState）；mirror = `PlayerStateManager.is_suit_worn`（"cached mirror"，冗余持久化于自身 serialize，restore 不回读 SuitManager）。运行时 SYNC_COMPLETE，restore 需重算。
+- 二者**均 owner 明确、无活损坏**，归类 `OWNER_FINAL_BUT_SYNC_RISK`，不产生新用户决策。
+
+### 16.2 修订 owner 状态分类
+- **OWNER_FINAL**：时间/训练时间（真相源模型另议）、健康、氧、水、舱压、温度、补给、仓储、植物、维修、任务、申请档案。
+- **OWNER_FINAL_BUT_SYNC_RISK**：电力（BaseStatus.power 镜像）、宇航服（PlayerState.is_suit_worn 镜像）。
+- **DECISION_PENDING**：Inventory `stack_items` ↔ Backpack `slots` 是否双记账（P3-04 前字段追踪）；Full Save 真相源模型（§13#1，推荐方案 C）。
+- **UNRESOLVED**：DoorStateManager 正式旧基地接入（训练已接、正式基地零消费、未入 full save）。
+- **USER_DECISION**：地表玩家位置是否持久化；旧本地档兼容策略。
+
+### 16.3 TrainingManager 读取/恢复 API 边界（正式定义）
+- `_read_progress_data()`（`training_manager.gd:113`，static）= **read-only query**，无 live-manager 副作用。任何"只想读 flag/状态"的路径必须用它。
+- `load_progress()`（:128，static）= **state-restoring operation**：读盘 + 对 12 个 live Manager `deserialize` → **应仅由 Restore Orchestrator 调用**。
+- 残留 `training_status()`(:372)/`training_failure_reason()`(:375) 以 query 语义误调 load_progress()，但**全仓零 caller（dead API）** → 当前无活损坏；P3-03a 改指 `_read_progress_data` 或删除。
+- 二者不得都被描述为"普通读取入口"。
+
+### 16.4 方案 C 补充约束
+1. **Compatibility mirror consistency**：Full Save restore 完成阶段必须统一重算/同步所有派生镜像，至少含 `BaseStatusManager.power`、`PlayerStateManager.is_suit_worn`（及未来新增兼容字段）。
+2. **恢复阶段（修订，取代 §11 步骤 7 的笼统"重算派生值"）**：
+   ```
+   恢复 canonical owners（Full Save bundle 唯一权威）
+   → 重算兼容镜像 / 派生值（power→BaseStatus.power、suit→PlayerState.is_suit_worn…）
+   → 发出 restore-complete 信号
+   → UI 刷新
+   ```
+   兼容镜像**不得**从各自旧文件恢复后反向覆盖 canonical owner。
+3. **Checkpoint API discipline**：`read checkpoint metadata` ≠ `restore checkpoint state`；只读查询走无副作用 API（`_read_progress_data` 一类）。
+4. **Scene-local state（门状态）**：正式基地门状态明确归类为 **scene-local / 自存（door_state.json），当前未纳入 Full Save**；是否纳入随"正式基地接入"（P3-04）一并决定，**不因 DoorStateManager 存在就自动进 full save**。
+5. **Legacy isolation**：legacy `main.gd`/`arrival` 管线（含同名局部 `TimeManager`/`GameStateManager` 节点、沙盒 slot、arrival_prototype）明确：不参与正式 Full Save、不共享正式文件、不调用正式 Restore Orchestrator；P3-05 隔离。
+
+### 16.5 P3-03 重新拆分（取代 §14 的 a/b/c）
+- **P3-03a — 恢复一致性缺口修复（最小、可独立验证的安全修复，优先）**：
+  - `PowerSystemManager` restore 后同步 `BaseStatusManager.power` 兼容镜像；
+  - `PlayerStateManager.is_suit_worn` restore-recompute 缺口（从 SuitManager 回读）；
+  - 引入 `restore-complete` 阶段；
+  - 落实 read（`_read_progress_data`）vs restore（`load_progress`）API 边界，处理 `training_status`/`training_failure_reason` 两个 dead 函数。
+- **P3-03b — Full Save Orchestrator 正式化**：统一 full save 入口、恢复顺序、`schema_version`、canonical owner restore、derived/mirror recompute。
+- **P3-03c — Manager 自存降级**：不再作为正式任务恢复真相；保留过渡期 best-effort 读兼容；**不一次性删除**旧文件。
+- **P3-03d — Checkpoint 作用域裁剪**：training checkpoint / mission checkpoint / scene-local 各守作用域；禁止越域覆盖全局 Manager。
+- 每子批：独立任务 + 独立 commit + 可回滚 + 专项回归。
+
+### 16.6 用户决策项修订（取代 §13 的口径）
+**必须用户拍板**：
+1. **Full Save 架构** — 推荐 **方案 C（分层存档）**。
+2. **旧本地存档兼容** — 推荐 **NO_COMPATIBILITY_REQUIRED**；代码实施前备份 `user://saves/`，允许 best-effort 一次性读取。
+
+**可按现有设计确认**：
+3. TrainingTime 与正式 Time — `NO_SYNC`。
+4. Checkpoint 不得无授权恢复全局 — 仅 Full Save Restore Orchestrator 恢复全局 Manager。
+5. Penalty 历史 — `NO_PERSISTENCE`。
+
+**暂不需用户拍板、由代码证据处理**：Power mirror 同步（实现一致性缺口，P3-03a）；TrainingManager read/restore API（接口边界，P3-03a）；legacy 同名节点（P3-05 隔离）；Door 正式基地未接入（P3-04 范围确认）。
+
+**可能新增用户决策（仅当无法从系统职责判断时）**：Suit canonical owner。**本轮结论：无需新增**——`SuitManager` 由代码职责（源真相注释 + 全同步路径）已确定为 canonical owner，`PlayerStateManager.is_suit_worn` 为镜像，不制造不必要选择。
 
 ## 15. 验收标准（本轮 P3-02）
 - 每核心域有 owner 或明确 decision（UNRESOLVED=0）✓；writer/restore 权明确 ✓；三 save 层职责不重叠定义 ✓；≥3 方案对比 + 1 推荐（C）✓；用户决策项 ≤8（本轮 5，其中 2 需拍板）✓；**零代码/JSON 修改** ✓。

@@ -11,7 +11,7 @@
 - **Locked files**: `0`
 - **Pending handoffs**: `0`
 - **Branch**: `main`
-- **Board baseline**: `6be3192`（创建/上次收工基线，随提交变化，非长期事实）
+- **Board baseline**: `ceafe6c`（创建/上次收工基线，随提交变化，非长期事实）
 - **Last updated**: `2026-07-11`
 
 ## Active Tasks
@@ -34,6 +34,15 @@
 > 交替（模式 B）交接时在此填交接单摘要 + 正式报告路径（完整交接单格式见模板）。
 
 ## Recently Closed
+
+### P3-02R — Independent review reconciliation
+
+- Status: `DONE`
+- Owner: `Claude Code` ／ Reviewer: `User`
+- Result: Codex 六项独立复核发现全部核验并对账进 P3-01/P3-02——Power deserialize 不同步 BaseStatus.power(P2)、BaseStatus 氧气摘要修正、Suit 双持有(SuitManager 明确 canonical)、Door `FORMAL_BASE_NOT_CONNECTED`、legacy 同名节点无运行冲突、TrainingManager read/restore API 边界。owner 细化（"UNRESOLVED=0"作废）；P3-03 拆为 a/b/c/d。
+- Verification: 文档-only；Godot editor+smoke EXIT=0；变更全为 `.md`。
+- Commit: 见本任务收尾提交（`docs: reconcile save ownership review`）。
+- Closed: `2026-07-11`
 
 ### P3-02 — Save-source and data-owner finalization
 
@@ -69,15 +78,6 @@
 - Result: `DOCUMENT_REGISTRY.md` 重写（57→102 行）：六类真相源、当前入口/治理文档、审计记录、支持文档、4 类 archive、5 类任务阅读顺序、更新规则。
 - Verification: 27 链接全有效；NEEDS_REGISTRATION=0；无旧名称/路径残留。
 - Commit: 见本任务收尾提交（`docs: rebuild document registry`）。
-- Closed: `2026-07-11`
-
-### P2-08 — Documentation link and path repair
-
-- Status: `DONE`
-- Owner: `Claude Code` ／ Reviewer: `User`
-- Result: 修复 P2-07 归档后的当前导航——3 处 Markdown 断链（README、CURRENT×2）+ 4 处裸路径导航（archived SPRINT_04→SPRINT_03、PROJECT_MAP→pre09、COLLABORATION_RULES×2）。
-- Verification: 全仓 Markdown 链接扫描通过；当前权威文档断链 = 0。DOCUMENT_REGISTRY 的旧路径随 P2-09 重写处理。
-- Commit: 见本任务收尾提交（`docs: repair documentation links after archiving`）。
 - Closed: `2026-07-11`
 
 > 最多保留最近 3–5 条已关闭任务摘要；超出即清空，长期记录进 `../archive/` 或 Git 历史。本板不保存长期历史。
