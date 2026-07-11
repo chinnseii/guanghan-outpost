@@ -1,24 +1,33 @@
 extends Node2D
 
-## 月面地表种子场景（阶段1）。见 docs/design/LUNAR_SURFACE_MAP.md。
-## 核心闭环：气闸出舱 → 月面行走消耗宇航服氧/电 → 实时"可达半径 / 安全返航"
-## 提示 → 走回气闸补给（重置预算）→ 若在外面氧气耗尽则触发救援
-## （救援无人车：掉物[本版占位]/基地醒来/健康四项设 30/扣基地电量，走 PenaltyManager）。
+## 月面地表世界容器 LunarSurfaceWorld（分块世界的容器层）。见 docs/design/LUNAR_SURFACE_MAP.md。
 ##
-## 全程程序化搭建（月面 TileSet 在代码里生成，无需美术资源），复用
-## arrival_landing_scene 的 TileMapLayer + Camera 范式、训练地图的 PlayerController 用法。
-## 数值都抽成常量便于阶段1 试玩标定。原型阶段的占位/简化处都标了 [SEED]。
+## 玩家体验上，月面外部是一张【视觉连续】的空间；工程上按 Chunk 分块组织。本轮世界
+## 里只挂载并激活一个 Chunk：NearBaseChunk（近基地区）。未来在相邻坐标接入
+## SolarFieldChunk / CraterChunk / RuinsExteriorChunk / IceFieldChunk 等，本轮不实现。
+##
+## 职责分层：
+## - 世界容器（本文件）：玩家、相机、HUD、世界级输入（右键点击移动）、氧气/电力预算、
+##   气闸补给、遇险救援、世界级场景切换，以及"挂载当前激活 Chunk"。
+## - Chunk（near_base_chunk.gd）：只负责该块地表的地面、锚点、地标、边界、出口占位。
+## - 时间/氧气/电力/存档：仍由现有 autoload Manager 负责，本容器只调用不接管。
+##
+## 核心闭环（不变）：气闸出舱 → 月面行走消耗宇航服氧/电 → 实时"可达半径 / 安全返航"
+## 提示 → 走回气闸补给（重置预算）→ 若在外面氧气耗尽则触发救援
+## （救援无人车：健康四项设 30 / 扣基地电量，走 PenaltyManager）。
+## 数值都抽成常量便于阶段1 试玩标定；原型阶段的占位/简化处标了 [SEED]。
 
 const PLAYER_SCENE := preload("res://scenes/player.tscn")
 const PlayerControllerScript := preload("res://scripts/controllers/player_controller_2d.gd")
+## 本轮唯一激活的 Chunk。未来多 Chunk 时，这里换成"当前激活 Chunk 列表/查表"，
+## 世界容器负责按玩家位置决定挂载哪几块（本轮不实现加载/卸载）。
+const ACTIVE_CHUNK_SCENE := preload("res://scenes/surface/chunks/NearBaseChunk.tscn")
 
 const TILE := 64
 const PLAYER_SIZE := Vector2(44, 60)
 const PLAYER_SPEED := 200.0
 
-# 近区世界范围（[SEED] 起步小尺寸，靠氧电预算标定；后期往外扩不改这里的结构）。
-const REGION_TILES := Vector2i(48, 36)             # 48x36 tile ≈ 3072x2304 px
-const AIRLOCK_SPAWN := Vector2(200, 200)           # 气闸/返航锚点世界坐标
+const CLICK_ARRIVE_DIST := 6.0                     # 右键点击移动到达判定距离
 
 # 氧电预算（[SEED] 占位速率，待试玩标定）。
 const SECONDS_PER_SURFACE_MINUTE := 1.2            # 现实秒 → 一"月面分钟"
@@ -26,7 +35,11 @@ const RESCUE_OXYGEN_THRESHOLD := 0.5               # 氧气降到此值触发救
 const RETURN_SAFETY_MARGIN := 1.35                 # 返航所需氧气的安全系数
 const ANCHOR_RESUPPLY_RADIUS := 90.0               # 距锚点多近算"在气闸，可补给"
 
-var tile_map: TileMapLayer
+## 当前激活 Chunk，以及从它读到的世界参数（世界坐标）。
+var _active_chunk: Node2D
+var _anchor_point: Vector2                          # 气闸/返航锚点（补给 + 救援判定基准）
+var _spawn_point: Vector2                           # 玩家出生点（气闸外侧）
+
 var player_node: Node2D
 var player_controller
 var camera: Camera2D
@@ -41,12 +54,12 @@ var toast_label: Label
 var _surface_minute_accum := 0.0
 var _rescued := false
 var _last_o2 := 100.0
+var _move_target := Vector2.ZERO
+var _has_move_target := false
 
 func _ready() -> void:
-	world_bounds = Rect2(Vector2.ZERO, Vector2(REGION_TILES.x * TILE, REGION_TILES.y * TILE))
 	_ensure_input_actions()
-	_setup_tile_map()
-	_setup_anchor()
+	_mount_active_chunk()
 	_setup_player()
 	_setup_camera()
 	_setup_hud()
@@ -62,62 +75,25 @@ func _process(delta: float) -> void:
 	_check_rescue()
 	_update_hud()
 
-## -- Build --
+## -- Chunk mount --
 
-func _setup_tile_map() -> void:
-	tile_map = TileMapLayer.new()
-	tile_map.name = "MoonSurface"
-	tile_map.tile_set = _create_moon_tile_set()
-	tile_map.z_index = -5
-	add_child(tile_map)
-	for x in range(REGION_TILES.x):
-		for y in range(REGION_TILES.y):
-			tile_map.set_cell(Vector2i(x, y), 0, Vector2i(abs(x * 3 + y) % 6, 0))
+## 实例化并挂载当前激活 Chunk，从它读取世界边界 / 锚点 / 出生点。本轮只挂一块、
+## 常驻，不做加载卸载。未来多 Chunk：这里改为挂载相邻若干块并按坐标拼接。
+func _mount_active_chunk() -> void:
+	_active_chunk = ACTIVE_CHUNK_SCENE.instantiate()
+	_active_chunk.name = "ActiveChunk"
+	add_child(_active_chunk)
+	world_bounds = _active_chunk.get_bounds()
+	_anchor_point = _active_chunk.get_anchor_point()
+	_spawn_point = _active_chunk.get_spawn_point()
 
-func _create_moon_tile_set() -> TileSet:
-	# Procedural greyscale regolith tiles (6 variants) -- no art asset needed.
-	var image := Image.create(TILE * 6, TILE, false, Image.FORMAT_RGBA8)
-	for tile_x in range(6):
-		for px in range(TILE):
-			for py in range(TILE):
-				var base: float = 0.10 + float(tile_x) * 0.010
-				var grain: float = float((px * 17 + py * 9 + tile_x * 23) % 19) * 0.0030
-				var crater: float = 0.0
-				var local := Vector2(float(px - 32), float(py - 30))
-				if local.length() < 11.0 + float(tile_x % 3) * 3.0:
-					crater = -0.020
-				var shade: float = clamp(base + grain + crater, 0.06, 0.22)
-				image.set_pixel(tile_x * TILE + px, py, Color(shade * 0.9, shade * 0.92, shade + 0.03, 1.0))
-	var texture := ImageTexture.create_from_image(image)
-	var source := TileSetAtlasSource.new()
-	source.texture = texture
-	source.texture_region_size = Vector2i(TILE, TILE)
-	for tile_x in range(6):
-		source.create_tile(Vector2i(tile_x, 0))
-	var tile_set := TileSet.new()
-	tile_set.add_source(source, 0)
-	return tile_set
-
-func _setup_anchor() -> void:
-	# Airlock / return anchor: a simple marked pad at the spawn point.
-	var pad := ColorRect.new()
-	pad.color = Color("#3d5a74")
-	pad.size = Vector2(120, 90)
-	pad.position = AIRLOCK_SPAWN - pad.size * 0.5
-	pad.z_index = -2
-	add_child(pad)
-	var label := Label.new()
-	label.text = "气闸 / 返航补给"
-	label.modulate = Color("#cfe3f2")
-	label.position = AIRLOCK_SPAWN + Vector2(-60, -70)
-	label.z_index = 40
-	add_child(label)
+## -- Build (player / camera / HUD) --
 
 func _setup_player() -> void:
 	player_node = PLAYER_SCENE.instantiate()
 	player_node.name = "Player"
 	player_node.z_index = 30
-	player_node.position = AIRLOCK_SPAWN
+	player_node.position = _spawn_point
 	add_child(player_node)
 	player_controller = PlayerControllerScript.new()
 	player_controller.configure(player_node.position, PLAYER_SIZE, PLAYER_SPEED, world_bounds, true, _movement_time_manager())
@@ -128,11 +104,19 @@ func _setup_camera() -> void:
 	camera = Camera2D.new()
 	camera.name = "SurfaceCamera"
 	camera.enabled = true
+	camera.zoom = Vector2(1.0, 1.0)  # 视野开阔（越小看得越远）
+	# Parent the camera to the player and give it a drag box: the player sprite
+	# visibly moves within the centre of the screen before the camera pans. A
+	# hard-locked follow cam on featureless regolith read as "can't move".
+	camera.drag_horizontal_enabled = true
+	camera.drag_vertical_enabled = true
+	camera.drag_left_margin = 0.28
+	camera.drag_right_margin = 0.28
+	camera.drag_top_margin = 0.28
+	camera.drag_bottom_margin = 0.28
 	camera.position_smoothing_enabled = true
-	camera.position_smoothing_speed = 5.0
-	camera.zoom = Vector2(1.4, 1.4)
-	add_child(camera)
-	camera.position = player_node.position
+	camera.position_smoothing_speed = 6.0
+	player_node.add_child(camera)
 
 func _setup_hud() -> void:
 	hud_layer = CanvasLayer.new()
@@ -166,11 +150,40 @@ func _move_player(delta: float) -> bool:
 	player_controller.speed = PLAYER_SPEED
 	player_controller.sync_position(player_node.position)
 	var before := player_node.position
-	var result: Dictionary = player_controller.move_with_actions(delta, "ui_left", "ui_right", "ui_up", "ui_down")
-	player_node.position = result.get("position", player_node.position)
-	if camera != null:
-		camera.position = player_node.position
+	# Keyboard (WASD / arrows) takes priority and cancels any click-to-move.
+	var keyboard_dir := Vector2(
+		Input.get_axis("ui_left", "ui_right"),
+		Input.get_axis("ui_up", "ui_down"))
+	if keyboard_dir != Vector2.ZERO:
+		_has_move_target = false
+		player_controller.move_in_direction(keyboard_dir, delta)
+	elif _has_move_target:
+		var to_target := _move_target - player_node.position
+		if to_target.length() <= CLICK_ARRIVE_DIST:
+			_has_move_target = false
+		else:
+			player_controller.move_in_direction(to_target.normalized(), delta)
+	player_node.position = player_controller.position
+	# Camera follows automatically (parented to the player, with a drag box).
 	return player_node.position.distance_to(before) > 0.01
+
+## Right-click to walk toward the clicked world position (cancelled by keyboard).
+## Target is clamped to the active chunk bounds, so a click never sends the
+## player past the current chunk edge. [SEED] Straight-line move: there are no
+## obstacles yet; once terrain/props gain collision this must be replaced by a
+## real pathfinding/steering step (see KNOWN LIMITS in the change report).
+func _input(event: InputEvent) -> void:
+	if _rescued:
+		return
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
+		_move_target = _clamp_to_region(get_global_mouse_position())
+		_has_move_target = true
+
+func _clamp_to_region(world_point: Vector2) -> Vector2:
+	var margin := 24.0
+	return Vector2(
+		clamp(world_point.x, world_bounds.position.x + margin, world_bounds.end.x - margin),
+		clamp(world_point.y, world_bounds.position.y + margin, world_bounds.end.y - margin))
 
 ## -- Oxygen / power budget --
 
@@ -186,9 +199,10 @@ func _update_budget(delta: float, moved: bool) -> void:
 
 ## 距锚点距离 → 返航所需氧气估算（[SEED] 线性近似，用消耗速率反推）。
 func _oxygen_needed_to_return() -> float:
-	var dist := player_node.position.distance_to(AIRLOCK_SPAWN)
-	# 单位距离耗氧 ≈ (每分钟耗氧) / (每分钟走的距离)。用一个占位常量，待标定。
-	var oxygen_per_px := 0.006
+	var dist := player_node.position.distance_to(_anchor_point)
+	# 单位距离返航耗氧（[SEED] 占位，待标定）。调大 → "该返航"警告更早触发。
+	# 满氧安全半径 ≈ 100/(此值×安全系数)≈6173px≈96 格，与近基地 Chunk 尺度匹配。
+	var oxygen_per_px := 0.012
 	return dist * oxygen_per_px
 
 func _is_safe_to_continue() -> bool:
@@ -201,7 +215,7 @@ func _is_safe_to_continue() -> bool:
 ## -- Resupply at anchor --
 
 func _check_resupply() -> void:
-	if player_node.position.distance_to(AIRLOCK_SPAWN) > ANCHOR_RESUPPLY_RADIUS:
+	if player_node.position.distance_to(_anchor_point) > ANCHOR_RESUPPLY_RADIUS:
 		return
 	var suit := _suit_manager()
 	if suit == null:
@@ -221,7 +235,7 @@ func _check_rescue() -> void:
 	var o2: float = float(suit.get("suit_oxygen"))
 	if o2 > RESCUE_OXYGEN_THRESHOLD:
 		return
-	if player_node.position.distance_to(AIRLOCK_SPAWN) <= ANCHOR_RESUPPLY_RADIUS:
+	if player_node.position.distance_to(_anchor_point) <= ANCHOR_RESUPPLY_RADIUS:
 		return  # 在气闸边就地补给，不触发救援
 	_trigger_rescue()
 
@@ -285,11 +299,11 @@ func _update_hud() -> void:
 	var o2_cap: float = float(suit.get("suit_oxygen_capacity"))
 	var power: float = float(suit.get("suit_power"))
 	var power_cap: float = float(suit.get("suit_power_capacity"))
-	status_label.text = "月面 EVA · 近基地区\n氧气：%d / %d\n电力：%d / %d\n距气闸：%d m" % [
+	status_label.text = "月面 EVA · 近基地区（WASD/方向键移动 · 右键点击移动）\n氧气：%d / %d\n电力：%d / %d\n距气闸：%d m" % [
 		int(o2), int(o2_cap), int(power), int(power_cap),
-		int(player_node.position.distance_to(AIRLOCK_SPAWN) / TILE),
+		int(player_node.position.distance_to(_anchor_point) / TILE),
 	]
-	if player_node.position.distance_to(AIRLOCK_SPAWN) <= ANCHOR_RESUPPLY_RADIUS:
+	if player_node.position.distance_to(_anchor_point) <= ANCHOR_RESUPPLY_RADIUS:
 		return_label.text = "● 在气闸补给区"
 		return_label.modulate = Color("#9fd7ff")
 	elif _is_safe_to_continue():
