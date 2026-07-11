@@ -115,7 +115,7 @@
 | P2-06 | ACTIVE_TASKS 正式落地（IDLE） | ✅ 完成 | 新建 `docs/handoff/ACTIVE_TASKS.md` + 模板加指针 | 独立 |
 | P2-07 | 历史文档分类归档 | ✅ 完成 | `git mv` 17 文档 → `docs/archive/{plans,sprints,reviews,demos}/` | **先于 P2-08** |
 | P2-08 | 全仓文档链接与导航修复 | ✅ 完成 | README/CURRENT/PROJECT_MAP/COLLABORATION_RULES/archived SPRINT_04 | 在 P2-07 之后 |
-| P2-09 | DOCUMENT_REGISTRY 重写 | 待 | DOCUMENT_REGISTRY.md | **在归档+引用修复之后**（否则注册表立即过期） |
+| P2-09 | DOCUMENT_REGISTRY 重写 | ✅ 完成 | DOCUMENT_REGISTRY.md（57→102 行） | 在归档+引用修复之后 |
 | P2-10 | 文档治理验收、push 与 tag | 待 | 收口提交 + tag | 最后统一验收 |
 
 **并行/依赖小结**：P2-03 ∥ P2-06（文件不重叠）；P2-04 在 P2-05 之后定稿；P2-07 → P2-08 → P2-09（严格串行，路径先稳定再修引用再更新注册表）；P2-10 最后。每批独立提交，不为减批次混入大量文件。
@@ -249,6 +249,22 @@
 **最终链接状态**：当前权威文档 Markdown 断链 **0**；历史归档内部 Markdown 断链 **0**；无法验证项 0；外部链接（http）未改。
 
 **P2-09 前置**：满足（路径稳定、当前导航零断链；DOCUMENT_REGISTRY 可基于真实现状重写）。
+
+## 18. P2-09 执行记录 · DOCUMENT_REGISTRY 重写
+
+**ACTIVE_TASKS 生命周期**：登记 P2-09（`ACTIVE`, 1 task, 锁 3 文件）→ 重写 → 恢复 `IDLE`；入 Recently Closed（保留 P2-08/P2-09 共 2 条）。第三个正式任务。
+
+**规模**：`DOCUMENT_REGISTRY.md` `57 → 102` 行；8 节（状态定义 / 六类真相源 / 当前入口与治理 / 审计记录 / 支持性设计 / 历史归档 / 任务阅读顺序 / 更新规则 + 已知待治理）。
+
+**状态统计（登记项）**：AUTHORITATIVE **8**（README + 6 真相源文档 + 本注册表；F=archive 归 HISTORICAL）、ACTIVE_SUPPORTING **10**（PROJECT_MAP/LEGACY_REGISTRY/SHARED_FILE_REGISTRY/AGENT_WORKFLOW/COLLABORATION_RULES/SKILL_ARCHITECTURE/CLEANUP_PLAN + LEGACY_SANDBOX/SPRITE_GUIDE/PROLOGUE_TEXT_STYLE + LUNAR_SURFACE_MAP，含 DOCUMENT_GOVERNANCE_AUDIT 当前态）、TEMPLATE **1**（ACTIVE_TASKS_TEMPLATE）、HISTORICAL **4 目录**（plans/sprints/reviews/demos）、AUDIT_RECORD **1**（REPOSITORY_HYGIENE_AUDIT；DOCUMENT_GOVERNANCE_AUDIT 待 P2-10 后转）、DEPRECATED_CANDIDATE **0**。
+
+**任务导向阅读顺序**：已建立 5 类（新功能/设计、Bug 修复、场景/地图、Agent 交替/并行、工程治理）最小阅读集 + Token 减负原则。
+
+**完整性检查**：tracked `.md` 共 **48**；个别登记 **22**（全部当前/治理/handoff/支持/root，NEEDS_REGISTRATION=**0**）；`docs/art/**` **7** = LOCAL_README（目录说明覆盖）；`docs/archive/**` **19** = HISTORICAL_MEMBER（4 个 archive 目录条目覆盖）；NEEDS_REVIEW **0**。
+
+**路径与链接**：注册表 27 个链接全部有效（含 4 archive 目录、README `../../`）；失效 **0**；旧名称残留 **0**（`SYSTEMS_REFERENCE` 简称/`docs/sprints` 等仅在"禁止使用"纪律行出现）。
+
+**P2-10 前置**：满足。**注意**：本轮**未**把 Phase 2 标记完成；`DOCUMENT_GOVERNANCE_AUDIT.md` 仍为 ACTIVE_SUPPORTING，将在 P2-10 收口后转 AUDIT_RECORD。
 
 ## 附：本轮基线核验
 - HEAD=`3a69f90`；main 与 origin/main 同步；tag `repository-hygiene-complete-2026-07-11` 指向 HEAD。

@@ -11,7 +11,7 @@
 - **Locked files**: `0`
 - **Pending handoffs**: `0`
 - **Branch**: `main`
-- **Board baseline**: `b2e886d`（创建/上次收工基线，随提交变化，非长期事实）
+- **Board baseline**: `6fed3c7`（创建/上次收工基线，随提交变化，非长期事实）
 - **Last updated**: `2026-07-11`
 
 ## Active Tasks
@@ -34,6 +34,15 @@
 > 交替（模式 B）交接时在此填交接单摘要 + 正式报告路径（完整交接单格式见模板）。
 
 ## Recently Closed
+
+### P2-09 — Document registry rewrite
+
+- Status: `DONE`
+- Owner: `Claude Code` ／ Reviewer: `User`
+- Result: `DOCUMENT_REGISTRY.md` 重写（57→102 行）：六类真相源、当前入口/治理文档、审计记录、支持文档、4 类 archive、5 类任务阅读顺序、更新规则。
+- Verification: 27 链接全有效；NEEDS_REGISTRATION=0；无旧名称/路径残留。
+- Commit: 见本任务收尾提交（`docs: rebuild document registry`）。
+- Closed: `2026-07-11`
 
 ### P2-08 — Documentation link and path repair
 
