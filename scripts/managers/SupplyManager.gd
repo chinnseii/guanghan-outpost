@@ -1,6 +1,8 @@
 extends Node
 class_name GuanghanSupplyManager
 
+const FullSaveOrchestratorScript := preload("res://scripts/systems/full_save_orchestrator.gd")
+
 signal supply_changed
 signal supply_deadline_passed(supply_id: String, status: String)
 signal supply_delivered(supply_id: String)
@@ -411,6 +413,8 @@ func deserialize(data: Dictionary) -> void:
 	supply_changed.emit()
 
 func load_state() -> void:
+	if FullSaveOrchestratorScript.should_skip_manager_local_restore():
+		return
 	if not FileAccess.file_exists(SAVE_PATH):
 		reset_to_arrival()
 		return

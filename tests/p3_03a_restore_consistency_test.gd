@@ -150,7 +150,7 @@ func _test_static_call_points() -> void:
 				elif path != "res://scripts/training/training_manager.gd":
 					load_progress_calls.append("UNEXPECTED %s:%d" % [path, i + 1])
 	_ok("no external script calls TrainingManager._read_progress_data()", external_private_calls.is_empty())
-	_ok("only main.gd keeps an external real restore load_progress call", load_progress_calls.size() == 1 and not String(load_progress_calls[0]).begins_with("UNEXPECTED"))
+	_ok("no external script calls TrainingManager.load_progress()", load_progress_calls.is_empty())
 
 func _test_restore_operation() -> void:
 	var power := _node("PowerSystemManager")

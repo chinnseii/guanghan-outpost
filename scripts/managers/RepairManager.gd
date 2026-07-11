@@ -1,5 +1,7 @@
 extends Node
 
+const FullSaveOrchestratorScript := preload("res://scripts/systems/full_save_orchestrator.gd")
+
 signal repair_state_changed
 signal repair_notice(text: String)
 
@@ -412,6 +414,8 @@ func deserialize(data: Dictionary) -> void:
 	repair_state_changed.emit()
 
 func load_state() -> void:
+	if FullSaveOrchestratorScript.should_skip_manager_local_restore():
+		return
 	if not FileAccess.file_exists(SAVE_PATH):
 		reset_to_arrival()
 		return

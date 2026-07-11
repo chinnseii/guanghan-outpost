@@ -1,6 +1,8 @@
 extends Node
 class_name GuanghanHealthManager
 
+const FullSaveOrchestratorScript := preload("res://scripts/systems/full_save_orchestrator.gd")
+
 signal health_changed(energy: float, fullness: float, nutrition: float, morale: float)
 
 const SAVE_PATH := "user://saves/health_state.json"
@@ -356,6 +358,8 @@ func deserialize(data: Dictionary) -> void:
 	_emit_changed()
 
 func load_state() -> void:
+	if FullSaveOrchestratorScript.should_skip_manager_local_restore():
+		return
 	if not FileAccess.file_exists(SAVE_PATH):
 		reset_to_arrival()
 		return

@@ -1,6 +1,8 @@
 extends Node
 class_name GuanghanBackpackManager
 
+const FullSaveOrchestratorScript := preload("res://scripts/systems/full_save_orchestrator.gd")
+
 signal backpack_changed
 
 const SAVE_PATH := "user://saves/backpack_state.json"
@@ -210,6 +212,8 @@ func deserialize(data: Dictionary) -> void:
 	backpack_changed.emit()
 
 func load_state() -> void:
+	if FullSaveOrchestratorScript.should_skip_manager_local_restore():
+		return
 	if not FileAccess.file_exists(SAVE_PATH):
 		reset_to_arrival()
 		return

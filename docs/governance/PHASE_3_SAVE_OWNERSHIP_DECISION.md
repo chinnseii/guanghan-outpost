@@ -247,3 +247,13 @@
 - Training isolation: Full Restore does not read `training_progress.json` and does not call `TrainingManager.load_progress()`.
 - Manager self-save remains untouched; P3-03c owns downgrade.
 - Verification: P3-03b 50/50; P3-03a 39/39; tests wrote only temporary `p3_03b_test_*` files and cleaned them; real `user://saves` still matches the P3-03a backup by SHA-256.
+
+# P3-03c Implementation Record (2026-07-12 / baseline `1cb6e78`)
+
+- Decision applied: `full_save.json` is the formal continue/restore authority. Manager-local `*_state.json` files remain as transition fallback/debug mirrors and are not deleted or reshaped.
+- Restore priority: boot defaults or Manager-local fallback may run before formal restore; if a Full Save is restored, `FullSaveOrchestrator` records restore in-progress/completed state and downgraded Managers skip later local `load_state()` calls.
+- Downgraded formal core Managers: `TimeManager`, `HealthManager`, `BaseStatusManager`, `PowerSystemManager`, `WaterSystemManager`, `AirSystemManager`, `InventoryManager`, `BackpackManager`, `StorageManager`, `SuitManager`, `SupplyManager`, `RepairManager`, `PlantGrowthManager`.
+- Not downgraded this round: `DoorStateManager` (training/local door state, formal base not connected), `TrainingTimeManager` (training-local), `AcademicBackgroundManager` (application profile/settings), `PlayerStateManager`/`MovementTimeManager`/`PenaltyManager` (no Manager-local self-save authority path).
+- Formal continue entry: `scripts/main.gd::_continue_mission()` now calls `FullSaveOrchestrator.restore_full_save()` for Full Save progress and no longer calls `TrainingManager.load_progress()`.
+- Legacy/dev compatibility: `TrainingManager.load_progress()` and Manager `save_state/load_state` APIs remain present. Training Checkpoint schema and Full Save schema are unchanged.
+- Verification note: static checks passed, but Godot editor/headless/P3-03a/P3-03b/P3-03c runtime verification was blocked by environment usage-limit rejection for escalated Godot execution. Do not treat P3-03c as fully verified for P3-03d entry until those runs pass.

@@ -1,57 +1,100 @@
-# 当前项目状态 / Current Project Status
+# Current Project Status
 
-> 本文件是项目当前状态的滚动权威摘要。更新日期：2026-07-12。
+Updated: 2026-07-12
 
-## 当前阶段
+## Phase
 
-**Phase 3 · 系统边界清洗：进行中。**
+Phase 3 system-boundary cleanup is in progress.
 
-- Phase 0 / Phase 1 / Phase 2 已完成。
-- Phase 3 已完成：P3-01 系统边界审计、P3-02 存档 owner 定稿、P3-02R 独立复核对账、P3-03a 恢复一致性修复、P3-03b Full Save Orchestrator 正式化。
-- Phase 3 未完成：P3-03c Manager 自存降级、P3-03d checkpoint 作用域裁剪、后续 P3-04/P3-05/P3-06。
+Completed:
+- P3-01 system boundary audit.
+- P3-02 save ownership decision.
+- P3-02R independent review reconciliation.
+- P3-03a restore consistency fixes.
+- P3-03b Full Save Orchestrator formalization.
+- P3-03c Manager self-save authority downgrade code/docs are implemented in this working copy.
 
-## 最近完成
+Not started:
+- P3-03d checkpoint scope trimming.
+- P3-04/P3-05/P3-06 follow-up cleanup.
 
-P3-03b Full Save Orchestrator formalization：
+## P3-03c Summary
 
-- 新增非 Autoload `scripts/systems/full_save_orchestrator.gd`。
-- 正式完整进度 authoritative 文件为 `user://saves/full_save.json`。
-- Full Save bundle schema v1 已建立：`schema_version`、`save_kind`、`metadata`、`canonical_state`、`scene_state`、`player_context`、`target_scene`。
-- `sprint06_base_scene.gd` 改为 scene adapter：触发 `_save_state()` / `_load_state()`，但 Manager 收集、写入、读取、校验、恢复顺序都交给 Orchestrator。
-- 旧 `sprint06_progress.json` 降为 legacy/unversioned best-effort 读取来源，不再是 authoritative Full Save。
-- `training_progress.json` 仍是训练 checkpoint；Full Restore 不读取 training progress，也不调用 `TrainingManager.load_progress()`。
-- restore order 显式化，并在末尾执行 Power/Suit compatibility mirror finalize。
-- Manager 自存 `*_state.json` 未删除、未停用、未改格式，留给 P3-03c。
+Goal: make `user://saves/full_save.json` the formal continue/restore authority while keeping Manager-local `*_state.json` files and `save_state/load_state` APIs as transition fallback/debug mirrors.
 
-## 当前风险
+Implemented:
+- `FullSaveOrchestrator.restore_full_save()` now validates required providers before mutation, marks formal restore in progress, and records restore completion.
+- Formal core progress Managers now skip their local `load_state()` after Full Restore has started/completed:
+  - `TimeManager`
+  - `HealthManager`
+  - `BaseStatusManager`
+  - `PowerSystemManager`
+  - `WaterSystemManager`
+  - `AirSystemManager`
+  - `InventoryManager`
+  - `BackpackManager`
+  - `StorageManager`
+  - `SuitManager`
+  - `SupplyManager`
+  - `RepairManager`
+  - `PlantGrowthManager`
+- Formal main-menu continue now restores through `FullSaveOrchestrator.restore_full_save()` for existing Full Save progress instead of calling `TrainingManager.load_progress()`.
+- `TrainingManager.load_progress()` remains as legacy/restoring API for training/dev compatibility, but it is no longer the formal continue entry.
+- Added focused P3-03c test coverage for:
+  - guarded Manager-local restore,
+  - Full Save wins over live/local-like state,
+  - no late overwrite after `load_state()` helpers, a deferred frame, and checkpoint/scene read queries,
+  - no fallback guard activation when the temp Full Save is missing.
+- Updated P3-03a regression expectation: external callers should no longer call `TrainingManager.load_progress()`.
 
-- P1 多真相源风险已被 P3-03b 部分缓解，但尚未彻底消除：完整进度已有唯一 Full Save bundle/入口；Manager 自存仍会存在并写盘，P3-03c 前不能宣称完全解决。
-- Training Checkpoint 仍保留较宽字段，P3-03d 前不裁剪。
-- DoorStateManager 训练门已接入，但正式旧基地仍未接入；Door 未纳入核心 Full Save。
-- Inventory / Backpack / Storage 字段级边界仍需后续核实。
-- 月面 EVA deferred 风险仍见 `docs/governance/CLEANUP_PLAN.md` 附录 A。
+## Manager Auto-Load Classification
 
-## 下一步
+REQUIRED_BOOTSTRAP / formal core fallback before Full Restore:
+- `TimeManager`, `HealthManager`, `BaseStatusManager`, `PowerSystemManager`, `WaterSystemManager`, `AirSystemManager`, `InventoryManager`, `BackpackManager`, `StorageManager`, `SuitManager`, `SupplyManager`, `RepairManager`, `PlantGrowthManager`.
 
-唯一优先事项：**P3-03c — Manager 自存降级**。
+LEGACY_FALLBACK / local or training scope:
+- `DoorStateManager`: training/base-door local state, still excluded from core Full Save because formal base Door integration is not connected.
+- `TrainingTimeManager`: training-local clock fallback.
+- `TrainingManager.load_progress()`: legacy/training restoring API, not formal continue.
 
-目标是在不破坏现有运行时 owner 和 `serialize/deserialize` 的前提下，把 `*_state.json` 从“正式完整进度 restore 真相源”降级为过渡层 / session cache / dev fallback。不要在 P3-03c 里提前做 P3-03d checkpoint 裁剪。
+Settings/profile:
+- `AcademicBackgroundManager` / `application_profile.json`.
 
-## 验证基线
+No Manager-local persistence:
+- `PlayerStateManager`, `MovementTimeManager`, `PenaltyManager`, `TaskManager` local-manager self-save path not changed in P3-03c.
 
-- P3-03b 专项：`tests/p3_03b_full_save_orchestrator_test.gd`，50/50 pass。
-- P3-03a 回归：`tests/p3_03a_restore_consistency_test.gd`，39/39 pass。
-- P3-03b 测试只写临时 `p3_03b_test_*` 文件并清理；正式 `full_save.json` 未由测试生成。
-- 本地 `user://saves` 与 P3-03a 备份 `saves_backup_before_p3_03a_2026-07-11` SHA-256 仍一致。
-- 除非用户明确要求，不主动截图。
+## Restore Rule
 
-## 权威文档导航
+Formal rule after P3-03c:
 
-| 内容 | 文档 |
-|---|---|
-| 产品方向 | `docs/PROJECT_BRIEF.md` |
-| 系统身份与边界 | `docs/governance/SYSTEM_REGISTRY.md` |
-| Phase 3 系统边界审计 | `docs/governance/PHASE_3_SYSTEM_BOUNDARY_AUDIT.md` |
-| Full Save / owner 决策 | `docs/governance/PHASE_3_SAVE_OWNERSHIP_DECISION.md` |
-| 清理路线图 | `docs/governance/CLEANUP_PLAN.md` |
-| 协作任务板 | `docs/handoff/ACTIVE_TASKS.md` |
+1. Boot may use default Manager state or existing Manager-local fallback.
+2. If Full Save exists, `FullSaveOrchestrator.restore_full_save()` is the final authority.
+3. After Full Restore starts/completes, downgraded Managers return early from local `load_state()` and cannot reload `*_state.json` over formal progress.
+4. Manager self-save writes may continue as debug/write-through mirrors after normal gameplay actions; they do not change Full Save authority.
+
+## Known Issues / Risks
+
+- Godot editor/headless verification could not be executed in this run because escalation approval was rejected by the environment usage limit. Do not start P3-03d until P3-03c, P3-03a, P3-03b, editor parse, and headless smoke are run successfully.
+- `DoorStateManager` remains outside core Full Save until formal base Door integration is implemented.
+- Training Checkpoint scope is intentionally unchanged; P3-03d owns trimming.
+- Full Save schema and Manager JSON field shapes were not changed.
+- No `*_state.json` files were deleted.
+
+## Verification Status
+
+Completed without Godot:
+- `git diff --check`: PASS, only existing line-ending warnings for touched CRLF files.
+- Static scan confirms `scripts/main.gd` no longer contains `TrainingManagerScript.load_progress()`.
+- Static scan confirms all downgraded Managers contain `FullSaveOrchestratorScript.should_skip_manager_local_restore()`.
+- Static scan confirms `FullSaveOrchestrator` still does not read `training_progress.json`.
+
+Blocked:
+- P3-03c focused Godot test.
+- P3-03a 39/39 regression.
+- P3-03b 50/50 regression.
+- Godot editor parse.
+- Godot headless smoke.
+
+## Next Step
+
+Run the blocked Godot verification set. If all pass, P3-03d can be scheduled. Until then, treat P3-03d as not ready.

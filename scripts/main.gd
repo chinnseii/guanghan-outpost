@@ -4508,10 +4508,14 @@ func _start_clean_new_stay() -> void:
 func _continue_mission() -> void:
 	var progress := TrainingManagerScript.read_progress()
 	if _sprint06_has_progress():
-		get_tree().change_scene_to_file(TrainingManagerScript.continue_scene_path())
+		var restore_result := FullSaveOrchestratorScript.restore_full_save()
+		if not bool(restore_result.get("success", false)):
+			add_log("Full Save restore failed: %s" % String(restore_result.get("message", "")))
+			_refresh_main_menu()
+			return
+		get_tree().change_scene_to_file(FullSaveOrchestratorScript.continue_scene_path())
 		return
 	if _training_has_progress(progress) or _application_has_progress():
-		TrainingManagerScript.load_progress()
 		get_tree().change_scene_to_file(TrainingManagerScript.continue_scene_path())
 		return
 	var latest_slot := _latest_save_slot()

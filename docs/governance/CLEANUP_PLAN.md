@@ -131,3 +131,10 @@ Phase 0 →（1 与 2 可并行，均低风险）→ 3（逐系统）→ 4（逐
 - P3-03b is complete: non-Autoload `FullSaveOrchestrator`, authoritative `user://saves/full_save.json`, schema v1, provider manifest, explicit restore order, atomic write, legacy sprint06 best-effort, and compatibility mirror finalize are implemented.
 - Verification: P3-03b 50/50 and P3-03a regression 39/39.
 - Remaining Phase 3 order: P3-03c Manager self-save downgrade next, then P3-03d checkpoint scope trimming. Manager self-save still exists and the P1 multi-source risk is only partially mitigated, not fully gone.
+
+# P3-03c Status Note (2026-07-12)
+
+- P3-03c code/docs are implemented: formal core Manager self-saves are downgraded from restore authority by making local `load_state()` skip after Full Restore in-progress/completed state.
+- `full_save.json` remains the formal continue/restore truth source. Manager-local files remain for fallback/debug/write-through compatibility.
+- `main.gd` formal continue no longer calls `TrainingManager.load_progress()`; training/dev legacy APIs remain.
+- P3-03d must not start until runtime verification is completed. In this run, Godot editor/headless and P3-03a/P3-03b/P3-03c tests were blocked by environment usage-limit rejection for escalated Godot execution.

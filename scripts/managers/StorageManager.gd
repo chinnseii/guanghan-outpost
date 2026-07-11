@@ -1,6 +1,8 @@
 extends Node
 class_name GuanghanStorageManager
 
+const FullSaveOrchestratorScript := preload("res://scripts/systems/full_save_orchestrator.gd")
+
 signal storage_changed
 
 const SAVE_PATH := "user://saves/storage_state.json"
@@ -155,6 +157,8 @@ func deserialize(data: Dictionary) -> void:
 	storage_changed.emit()
 
 func load_state() -> void:
+	if FullSaveOrchestratorScript.should_skip_manager_local_restore():
+		return
 	if not FileAccess.file_exists(SAVE_PATH):
 		reset_to_arrival()
 		return

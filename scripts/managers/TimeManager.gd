@@ -1,6 +1,8 @@
 extends Node
 class_name GuanghanTimeManager
 
+const FullSaveOrchestratorScript := preload("res://scripts/systems/full_save_orchestrator.gd")
+
 signal time_advanced(minutes: int, reason: String)
 signal time_changed(day: int, hour: int, minute: int)
 signal lunar_phase_changed(phase: String)
@@ -173,6 +175,8 @@ func deserialize(data: Dictionary) -> void:
 	time_changed.emit(current_day, hour, minute)
 
 func load_state() -> void:
+	if FullSaveOrchestratorScript.should_skip_manager_local_restore():
+		return
 	if not FileAccess.file_exists(SAVE_PATH):
 		reset_to_arrival()
 		return

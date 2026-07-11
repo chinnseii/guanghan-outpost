@@ -1,5 +1,7 @@
 extends Node
 
+const FullSaveOrchestratorScript := preload("res://scripts/systems/full_save_orchestrator.gd")
+
 ## EVA suit system v1: wear/remove flow, the suit's own independent
 ## oxygen/power reserves, a speed penalty that eases with upgrades, and a
 ## maintenance-slot refill/recharge loop that draws on the base's real
@@ -465,6 +467,8 @@ func deserialize(data: Dictionary) -> void:
 	suit_changed.emit()
 
 func load_state() -> void:
+	if FullSaveOrchestratorScript.should_skip_manager_local_restore():
+		return
 	if not FileAccess.file_exists(SAVE_PATH):
 		return
 	var file := FileAccess.open(SAVE_PATH, FileAccess.READ)

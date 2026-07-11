@@ -44,6 +44,9 @@ const OLD_BASE_INTERIOR := "res://scenes/base/OldBaseInteriorScene.tscn"
 const OLD_GREENHOUSE := "res://scenes/base/OldGreenhouseScene.tscn"
 const PHASE02_PLACEHOLDER := "res://scenes/base/Phase02PlaceholderScene.tscn"
 
+static var _formal_restore_in_progress := false
+static var _formal_restore_completed := false
+
 static func provider_specs() -> Array[Dictionary]:
 	return [
 		{"id": "player_state", "node": "PlayerStateManager", "required": true, "order": 10, "finalize": true},
@@ -61,6 +64,16 @@ static func provider_specs() -> Array[Dictionary]:
 		{"id": "supply", "node": "SupplyManager", "required": false, "order": 130, "finalize": false},
 		{"id": "repair", "node": "RepairManager", "required": false, "order": 140, "finalize": false},
 	]
+
+static func should_skip_manager_local_restore() -> bool:
+	return _formal_restore_in_progress or _formal_restore_completed
+
+static func is_formal_restore_completed() -> bool:
+	return _formal_restore_completed
+
+static func reset_formal_restore_guard_for_tests() -> void:
+	_formal_restore_in_progress = false
+	_formal_restore_completed = false
 
 static func save_full_save(scene_state: Dictionary = {}, player_context: Dictionary = {}, target_scene: String = "", save_path: String = FULL_SAVE_PATH) -> Dictionary:
 	var bundle := build_bundle(scene_state, player_context, target_scene)
@@ -113,8 +126,18 @@ static func restore_full_save(scene_node: Node = null, save_path: String = FULL_
 			if bool(spec.get("required", false)):
 				return _result(false, RESULT_RESTORE_FAILED, "Missing provider node or deserialize: %s" % provider_id)
 			continue
+	_formal_restore_in_progress = true
+	for spec in provider_specs():
+		var provider_id := String(spec.get("id", ""))
+		if not canonical.has(provider_id):
+			continue
+		var manager := _manager(String(spec.get("node", "")))
+		if manager == null or not manager.has_method("deserialize"):
+			continue
 		manager.call("deserialize", canonical.get(provider_id, {}))
 	finalize_restore()
+	_formal_restore_in_progress = false
+	_formal_restore_completed = true
 	var result := _result(true, RESULT_OK, "")
 	result["bundle"] = bundle
 	result["scene_state"] = (bundle.get("scene_state", {}) as Dictionary).duplicate(true)
