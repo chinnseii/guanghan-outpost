@@ -1,0 +1,65 @@
+# Active Tasks · 当前任务登记板
+
+> 本文件是**当前任务、负责人、分支/worktree、文件锁、阻塞与交接状态的唯一权威来源**。
+> 项目级当前状态见 [`CURRENT.md`](CURRENT.md)；新任务条目结构见 [`ACTIVE_TASKS_TEMPLATE.md`](ACTIVE_TASKS_TEMPLATE.md)；
+> 协作模式与共用文件规则见 [`../governance/AGENT_WORKFLOW.md`](../governance/AGENT_WORKFLOW.md)、[`../governance/SHARED_FILE_REGISTRY.md`](../governance/SHARED_FILE_REGISTRY.md)、[`COLLABORATION_RULES.md`](COLLABORATION_RULES.md)。
+
+## Board Status
+
+- **Status**: `IDLE`
+- **Active tasks**: `0`
+- **Locked files**: `0`
+- **Pending handoffs**: `0`
+- **Branch**: `main`
+- **Board created baseline**: `fdd7422`（创建时基线，随提交变化，非长期事实）
+- **Last updated**: `2026-07-11`
+
+## Active Tasks
+
+当前没有活动任务。
+
+> 开始一个真实任务时，从 `ACTIVE_TASKS_TEMPLATE.md` 复制一条条目填入此处，并把 Board Status 改为 `ACTIVE`。
+
+## File Locks
+
+当前没有文件锁。
+
+> 修改**高风险共用内容**前必须在此登记锁（精确文件/目录 · lock owner · 原因 · 范围 · 释放条件）。高风险类别：
+> Autoload / Manager、存档 schema（`training_progress` / `sprint06_progress` / `*_state.json` 字段）、主场景 `scenes/main.tscn`、共用 UI、Registry 文档、`CURRENT.md`、本文件 `ACTIVE_TASKS.md`、共享配置（`project.godot` / `.gitattributes` / `.gitignore`）。一级共用文件清单见 `SHARED_FILE_REGISTRY.md`。
+
+## Pending Handoffs
+
+当前没有待交接事项。
+
+> 交替（模式 B）交接时在此填交接单摘要 + 正式报告路径（完整交接单格式见模板）。
+
+## Recently Closed
+
+（空）
+
+> 最多保留最近 3–5 条已关闭任务摘要；超出即清空，长期记录进 `../archive/` 或 Git 历史。本板不保存长期历史。
+
+## 状态枚举（统一，勿另造重叠词）
+
+- **任务状态**：`PLANNED` / `READY` / `IN_PROGRESS` / `BLOCKED` / `REVIEW` / `DONE` / `CANCELLED`。
+- **板级状态**：`IDLE`（无活动任务）/ `ACTIVE`（有活动任务）/ `BLOCKED`（存在阻塞任务）。
+
+## Owner / Reviewer 规则
+
+- 每个任务只有一个 **primary owner**（可为 `Claude Code`、`Codex` 或用户），可选一个 **reviewer**。
+- **reviewer 不自动拥有文件修改权**；同一文件不得同时被两个 Agent 修改。
+- 产品/体验验收与代码正确性验收**分开**。
+- **owner/reviewer 不是固定角色**——不默认 Claude 永远主开发、Codex 永远复核；每个任务按当时安排指定。
+- **用户负责最终任务分配与合并决策。**
+
+## 每条任务应记录的字段（结构见模板）
+
+owner · reviewer · 模式(A/B/C) · status · branch · worktree · base/expected commit · 任务描述(objective) · allowed files · locked/shared files · 会动的 autoload/存档/公共场景 · acceptance/验收标准 · verification（Godot parse / headless smoke / 专项测试 / 人工玩测 / Git leak-guard）· blockers · handoff 摘要 + 正式报告路径 · updated。
+
+## Operating Rules
+
+- 开工前必须在本文件登记任务；同一任务只设一个 primary owner。
+- 修改共享文件前必须先登记锁；reviewer 不与 owner 同改相同文件。
+- 完成后记录 commit、验证结果与交接状态；任务关闭后移入 Recently Closed 或清空为 `IDLE`。
+- 本文件只存当前状态与简短摘要，**不保存长期历史**（长期记录进 archive / Git 历史）。
+- **本板不虚构 owner / deadline / 文件锁**；无任务时保持 `IDLE`。

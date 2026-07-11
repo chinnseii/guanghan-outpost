@@ -112,7 +112,7 @@
 | P2-03B | README 收敛 | ✅ 完成 | README.md（555→89 行） | — |
 | P2-04 | CURRENT 校正 | ✅ 完成 | CURRENT.md（55→68 行，内容重构） | 在 P2-05 系统事实确认后定稿 |
 | P2-05 | 系统文档职责声明 + 命名/引用修复 | ✅ 完成 | SYSTEM_REGISTRY + SYSTEMS_REFERENCE_FOR_DESIGN + CLEANUP_PLAN/SKILL_ARCHITECTURE 命名修复 | 先于 P2-04 定稿 |
-| P2-06 | ACTIVE_TASKS 正式落地（EMPTY/IDLE） | 待 | 新建 `docs/handoff/ACTIVE_TASKS.md` | 独立，可与 P2-03 并行 |
+| P2-06 | ACTIVE_TASKS 正式落地（IDLE） | ✅ 完成 | 新建 `docs/handoff/ACTIVE_TASKS.md` + 模板加指针 | 独立 |
 | P2-07 | 历史文档分类归档 | 待 | `git mv` → `docs/archive/{plans,sprints,reviews,demos}/` | **先于 P2-08** |
 | P2-08 | 全仓文档链接与导航修复 | 待 | 各文档引用 | **必须在 P2-07 之后** |
 | P2-09 | DOCUMENT_REGISTRY 重写 | 待 | DOCUMENT_REGISTRY.md | **在归档+引用修复之后**（否则注册表立即过期） |
@@ -193,6 +193,14 @@
 - **链接**：8 个相对链接全部有效；无 `ACTIVE_TASKS.md` 失效链接（文字标注 P2-06 创建）；用真实名 `SYSTEMS_REFERENCE_FOR_DESIGN.md`。
 - **权威文档冲突**：核对 PROJECT_BRIEF / SYSTEM_REGISTRY / SYSTEMS_REFERENCE_FOR_DESIGN / SCENE_REGISTRY / CLEANUP_PLAN，无事实冲突；未修改任何权威系统文档。
 - **P2-06 准入**：满足（可开始 ACTIVE_TASKS 落地）。
+
+## 15. P2-06 执行记录 · ACTIVE_TASKS 正式落地
+
+- **模板审计**：`ACTIVE_TASKS_TEMPLATE.md` 字段覆盖 owner/模式/branch/worktree/base-commit/objective/locked/allowed 文件/高风险共用类型/status/blockers/handoff/merge —— **SUFFICIENT**；仅补一行"本文件只是模板，当前状态见 ACTIVE_TASKS.md"指针（MINOR_UPDATE，§XIV 允许），未重写。与 `COLLABORATION_RULES.md` / `AGENT_WORKFLOW.md` 的单人/交替/并行/锁/合并结构一致，无冲突。
+- **新建 `docs/handoff/ACTIVE_TASKS.md`（IDLE）**：Board Status `IDLE`、active `0`、locks `0`、handoffs `0`、branch `main`、创建基线 `fdd7422`。无虚构任务/owner/deadline/锁；未把 Phase 2 治理伪装成 Agent 执行任务。含状态枚举、owner/reviewer 规则（非固定角色）、文件锁高风险类别、字段清单、Operating Rules、Recently Closed（空）。
+- **三份文档职责**：`CURRENT.md` = 项目级状态；`ACTIVE_TASKS.md` = 执行级状态（任务/锁/交接）；`ACTIVE_TASKS_TEMPLATE.md` = 条目结构模板。板 → 模板 + CURRENT 均建立链接；模板 → 板已补指针。
+- **本轮未改** README / CURRENT / 系统文档（CURRENT 里"下一步 = P2-06"暂时落后一轮，按计划在后续状态批次/Phase 2 收口时更新，不在本轮扩范围）。
+- **P2-07 准入**：满足。**从下一项真实任务起，必须在 `ACTIVE_TASKS.md` 登记**（含 owner / 锁 / 验证 / 交接）。
 
 ## 附：本轮基线核验
 - HEAD=`3a69f90`；main 与 origin/main 同步；tag `repository-hygiene-complete-2026-07-11` 指向 HEAD。
