@@ -4,6 +4,8 @@
 > 状态取值：`ACTIVE`（正式流程现役）/ `COMPATIBILITY`（仅为存档/旧路径兼容保留）/ `LEGACY_PLAYABLE`（仅遗留可玩流程用）/ `DEPRECATED_CANDIDATE`（疑似废弃，须列引用证据）/ `UNKNOWN`。
 > 引用数 = `grep -rl` 命中的不同文件数（已排除自身定义文件）；用于佐证现役性，非精确调用数。
 
+> **存档真相源（Phase 3）**：各 Manager 的"参与存档"仅表示它有 `serialize/deserialize`（Persistence Provider），**不等于拥有全局存档真相**。核心数据 owner、writer/restore 权与存档真相源模型见 [`PHASE_3_SAVE_OWNERSHIP_DECISION.md`](PHASE_3_SAVE_OWNERSHIP_DECISION.md)（真相源模型 = `DECISION_PENDING`，推荐方案 C 分层，待用户确认后由 P3-03 落地）。
+
 ## 文档职责
 
 本文件是**系统身份、状态与职责边界**的权威来源，回答：系统是否现役（`ACTIVE` / `COMPATIBILITY` / `LEGACY_PLAYABLE` / `DEPRECATED_CANDIDATE` / `UNKNOWN`）、对应 Manager / 脚本 / Autoload、数据所有权与职责边界、系统依赖、迁移状态与治理风险。

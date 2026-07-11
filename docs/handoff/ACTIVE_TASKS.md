@@ -11,7 +11,7 @@
 - **Locked files**: `0`
 - **Pending handoffs**: `0`
 - **Branch**: `main`
-- **Board baseline**: `bdfdfe1`（创建/上次收工基线，随提交变化，非长期事实）
+- **Board baseline**: `6be3192`（创建/上次收工基线，随提交变化，非长期事实）
 - **Last updated**: `2026-07-11`
 
 ## Active Tasks
@@ -34,6 +34,15 @@
 > 交替（模式 B）交接时在此填交接单摘要 + 正式报告路径（完整交接单格式见模板）。
 
 ## Recently Closed
+
+### P3-02 — Save-source and data-owner finalization
+
+- Status: `DONE`
+- Owner: `Claude Code` ／ Reviewer: `User`
+- Result: canonical owner / 写入-恢复权 / 三 save 层职责 / 架构方案对比与推荐（方案 C 分层）定稿 → `PHASE_3_SAVE_OWNERSHIP_DECISION.md`。owner UNRESOLVED=0；用户待决 2 项。
+- Verification: 文档-only；Godot editor+smoke EXIT=0；变更全为 `.md`。
+- Commit: 见本任务收尾提交（`docs: finalize save ownership decisions`）。
+- Closed: `2026-07-11`
 
 ### P3-01 — System boundaries and save-source audit
 
@@ -69,15 +78,6 @@
 - Result: 修复 P2-07 归档后的当前导航——3 处 Markdown 断链（README、CURRENT×2）+ 4 处裸路径导航（archived SPRINT_04→SPRINT_03、PROJECT_MAP→pre09、COLLABORATION_RULES×2）。
 - Verification: 全仓 Markdown 链接扫描通过；当前权威文档断链 = 0。DOCUMENT_REGISTRY 的旧路径随 P2-09 重写处理。
 - Commit: 见本任务收尾提交（`docs: repair documentation links after archiving`）。
-- Closed: `2026-07-11`
-
-### P2-07 — Historical document archiving
-
-- Status: `DONE`
-- Owner: `Claude Code` ／ Reviewer: `User`
-- Result: 17 个历史文档 `git mv` 到 `docs/archive/{plans(1),sprints(12),reviews(2),demos(2)}/`；均为 Git R100 纯 rename，移动前后 SHA-256 一致。
-- Verification: 17/17 内容 hash 保持；`git diff --check` 干净；链接修复延后 P2-08（3 处当前入口断链 + 1 处历史内部断链，见 `DOCUMENT_GOVERNANCE_AUDIT.md`）。
-- Commit: 见本任务收尾提交（`docs: archive historical project records`）。
 - Closed: `2026-07-11`
 
 > 最多保留最近 3–5 条已关闭任务摘要；超出即清空，长期记录进 `../archive/` 或 Git 历史。本板不保存长期历史。

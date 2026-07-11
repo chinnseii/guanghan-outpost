@@ -29,8 +29,8 @@ Phase 2 文档治理（本阶段成果）：
 
 ## 当前工作
 
-- **本轮（P3-01）**：系统边界只读审计——盘点 20 autoload/Manager、数据所有权、存档真相源、依赖与遗留边界，形成 Phase 3 基线。**零玩法代码修改。**
-- 关键结论：跨系统写入全部经公开方法（0 直接外部字段写）、无 P0；核心 P1 = 存档真相源不唯一（详见审计文档 §7/§12）。
+- **本轮（P3-02）**：存档真相源与数据 owner 设计定稿（[`../governance/PHASE_3_SAVE_OWNERSHIP_DECISION.md`](../governance/PHASE_3_SAVE_OWNERSHIP_DECISION.md)）——每核心域 owner 定稿、三 save 层职责、恢复顺序与权限、架构方案对比。**零代码/存档格式修改。**
+- 关键结论：owner UNRESOLVED=0；推荐存档架构 = 方案 C（分层，单一 Full Save 为 restore 真相）；P0=0，P1（真相源不唯一）待 P3-03 修复。
 
 ## 当前风险与已知待办
 
@@ -43,7 +43,7 @@ Phase 2 文档治理（本阶段成果）：
 
 ## 下一步
 
-**唯一优先事项：P3-02 —— 存档真相源与数据 owner 定稿**（为每个状态定唯一真相源，核实 Inventory/Backpack/Storage 双记账与双时钟同步；见 [`../governance/PHASE_3_SYSTEM_BOUNDARY_AUDIT.md`](../governance/PHASE_3_SYSTEM_BOUNDARY_AUDIT.md) §13）。P3-03（P1 冗余写修复）需用户先就"真相源以 bundle 还是自存为准"拍板。
+**唯一优先事项：P3-03 —— P1 存档冗余写与恢复顺序修复**（正式化 Save/Restore Orchestrator、Full Save 为唯一 restore 真相、加 schema_version）。**前置：用户需先确认**（详见 [`../governance/PHASE_3_SAVE_OWNERSHIP_DECISION.md`](../governance/PHASE_3_SAVE_OWNERSHIP_DECISION.md) §13）：① 采纳推荐存档架构方案 C；② 旧本地档兼容策略（推荐 NO_COMPATIBILITY_REQUIRED）。
 （Phase 编号以 `CLEANUP_PLAN.md` 为准：Phase 3=系统边界、4=大脚本拆分、5=Skill、6=双 Agent。）
 
 ## 权威文档导航

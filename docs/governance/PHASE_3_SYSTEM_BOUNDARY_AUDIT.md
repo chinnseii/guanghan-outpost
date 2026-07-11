@@ -160,6 +160,12 @@ Suit/Repair(从代码)→ TrainingTimeManager / TimeManager（推进时间）
 5. `BaseInterior_Test` / `ArrivalLandingScene` 是否仍在任何可达路径（SCENE_REGISTRY UNKNOWN 沿用）。
 6. signal 边未穷尽（本轮以 `/root/` 直调为主）；完整 signal 依赖图待 P3-02/03 需要时补。
 
+## 15b. P3-02 决策状态（2026-07-11）
+- 已收敛（见 [`PHASE_3_SAVE_OWNERSHIP_DECISION.md`](PHASE_3_SAVE_OWNERSHIP_DECISION.md)）：每核心域 owner 定稿（UNRESOLVED=0）；Backpack↔Storage = CLEAR_SEPARATION+TRANSFER_PROTOCOL（非双记账）；Time/TrainingTime = SEPARATE_CLOCKS+NO_SYNC；PenaltyManager = 分发器/不持久化。
+- 仍需用户拍板（2 项）：Full Save 权威模型（推荐**方案 C 分层**）、旧本地档兼容（推荐 NO_COMPATIBILITY_REQUIRED）。
+- **P1 仍存在**（存档真相源不唯一），修复归 P3-03；本轮未改代码。
+- 1 个 P2 待字段级追踪：Inventory `stack_items` 与 Backpack `slots` 是否双记账（§10 未决 #1，P3-04 前核实）。
+
 ## 附：本轮零改动核验
 - 本轮仅新增/修改治理 `.md`（本文件 + ACTIVE_TASKS + CLEANUP_PLAN + CURRENT）；未改 `project.godot`、`scripts/**`、`scenes/**`、`assets/**`、任何 `.gd/.tscn/.tres/.uid`。
 - Godot `--headless --editor --quit` 与 `--headless --path . --quit` EXIT=0；docs `.import`=0、assets `.import`=70、tracked `.gd.uid`=94、无生成噪声。
