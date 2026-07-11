@@ -237,6 +237,19 @@ Suit/Repair(从代码)→ TrainingTimeManager / TimeManager（推进时间）
 - Door 正式基地接入状态标注 `FORMAL_BASE_NOT_CONNECTED`（训练已接）。
 - 未大规模重写 Registry。
 
-## 附：本轮零改动核验
-- 本轮仅新增/修改治理 `.md`（本文件 + ACTIVE_TASKS + CLEANUP_PLAN + CURRENT + SAVE_OWNERSHIP_DECISION + SYSTEM_REGISTRY）；未改 `project.godot`、`scripts/**`、`scenes/**`、`assets/**`、任何 `.gd/.tscn/.tres/.uid/.json`。
-- Godot `--headless --editor --quit` 与 `--headless --path . --quit` EXIT=0；docs `.import`=0、assets `.import`=70、tracked `.gd.uid`=94、无生成噪声。
+## 17. P3-03a 恢复一致性修复状态（2026-07-12 · 基线 `6354ef7`）
+
+> 本节记录 §16 所列缺口在 P3-03a 的处置。**这是 Phase 3 首个改代码的批次**（前序均为文档）。
+
+- **Power 兼容镜像缺口（§16.1① P2）= 已修**：`PowerSystemManager.deserialize()` 现在在 emit 前调 `_sync_base_status_power()`（canonical→mirror 单向）。专项测试 A 验证：deserialize 能量后 `BaseStatusManager.power` 立即等于 `get_power_percent()`。
+- **Suit restore 镜像（§16.1③ P2）= 已修/已验**：`SuitManager.deserialize()` 改为先同步 `PlayerStateManager.is_suit_worn` 再 emit；专项测试 B 验证双向值一致。owner 仍 `SuitManager`（canonical），mirror 不回写。
+- **read/restore API 边界（§16.1⑥ P2）= 已落实**：新增公开 `TrainingManager.read_progress()`（无副作用）；`training_status()`/`training_failure_reason()`（dead）与 `fail_training()`（mid-session timeout，契约禁触 mission managers）改用只读路径。外部纯查询调用（`main.gd`、3 个训练场景、`training_base_map.gd`、`TaskManager.gd`）已全部改为 `read_progress()`；外部 `_read_progress_data()` 调用为 0。测试 C/静态扫描验证只读查询零 live-manager 变更。
+- **restore-complete = 已建**：`TrainingManager.finalize_restore()`（幂等、无副作用）在 `load_progress()` 收尾统一重算 Power/Suit 镜像；测试 D/E 验证恢复仍生效且 finalize 不动 time/health/supply/energy。
+- **P1 多真相源 = 仍未解决**：Manager 自存 `*_state.json` + `training_progress` + `sprint06_progress` 冗余仍在；**P3-03b（Full Save Orchestrator 正式化 + schema_version）/ P3-03c（自存降级）负责**。本轮**未**加 schema_version、**未**停用/删除任何自存文件、**未**改 JSON 结构。
+- **P3-03b 未开始**：Full Save Orchestrator 正式化、schema_version、Manager 自存降级仍是下一任务范围。
+- **文档/实现差异（§16.1② `SYSTEM_REGISTRY:24`）**：P3-02R 已修订，本轮无新增 mismatch。
+
+## 附：P3-03a 改动核验
+- 实现变更：`scripts/managers/PowerSystemManager.gd`、`scripts/managers/SuitManager.gd`、`scripts/training/training_manager.gd`、纯查询调用点（`scripts/main.gd`、`scripts/training/assignment_black_screen_scene.gd`、`mission_assignment_notice_scene.gd`、`training_base_map.gd`、`training_module_scene.gd`、`scripts/managers/TaskManager.gd`）+ 新增 `tests/p3_03a_restore_consistency_test.gd`(+`.uid`)；未改 `project.godot`、`scenes/**`、`assets/**`、任何 `.tscn/.tres/.res/.json`；无 autoload 增删。
+- Godot `--headless --editor --quit` 与 `--headless --path . --quit` EXIT=0；专项测试 39/39 通过；实测本地存档在测试后与备份 SHA-256 全一致（零污染）。
+- （P3-01/P3-02/P3-02R 的零改动核验历史见各自节，此处不复述。）

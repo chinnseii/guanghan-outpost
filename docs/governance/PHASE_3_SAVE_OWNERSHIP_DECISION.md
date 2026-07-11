@@ -204,9 +204,9 @@
 - 每子批：独立任务 + 独立 commit + 可回滚 + 专项回归。
 
 ### 16.6 用户决策项修订（取代 §13 的口径）
-**必须用户拍板**：
-1. **Full Save 架构** — 推荐 **方案 C（分层存档）**。
-2. **旧本地存档兼容** — 推荐 **NO_COMPATIBILITY_REQUIRED**；代码实施前备份 `user://saves/`，允许 best-effort 一次性读取。
+**必须用户拍板（P3-03a：用户已确认 ✅）**：
+1. **Full Save 架构** — **方案 C（分层存档）= APPROVED**（用户 2026-07-11 确认）。
+2. **旧本地存档兼容** — **NO_COMPATIBILITY_REQUIRED = APPROVED**；**backup + best-effort 一次性读取 = APPROVED**（实施前备份 `user://saves/`；不长期维护旧开发档兼容）。
 
 **可按现有设计确认**：
 3. TrainingTime 与正式 Time — `NO_SYNC`。
@@ -217,8 +217,21 @@
 
 **可能新增用户决策（仅当无法从系统职责判断时）**：Suit canonical owner。**本轮结论：无需新增**——`SuitManager` 由代码职责（源真相注释 + 全同步路径）已确定为 canonical owner，`PlayerStateManager.is_suit_worn` 为镜像，不制造不必要选择。
 
+## 17. P3-03a 实施记录（2026-07-12 · 基线 `6354ef7`）
+
+> 本节记录 P3-03a **已实施**内容（恢复一致性缺口 + read/restore API 边界）。本任务由 Claude Code 开始，因使用限额中断后由 Codex 接管收口。**未做**：Full Save Orchestrator（P3-03b）、schema_version、停用 Manager 自存（P3-03c）、checkpoint 裁剪（P3-03d）。P1（多真相源）**仍未解决**，归 P3-03b/c。
+
+- **用户决策落地**：方案 C = APPROVED；旧档 NO_COMPATIBILITY_REQUIRED = APPROVED；实施前已备份 `user://saves/` 全 16 文件到仓库外 `saves_backup_before_p3_03a_2026-07-11/`（SHA-256 全一致），best-effort 读取沿用现有 `default_data()` 兜底、不新增旧字段长期分支。
+- **Power 兼容镜像**：`PowerSystemManager.deserialize()` 末尾（emit 前）加 `_sync_base_status_power()`——canonical→mirror 单向，mirror 不回写。顺序：应用字段 → clamp → 同步 `BaseStatusManager.power` → emit。
+- **Suit 兼容镜像**：`SuitManager.deserialize()` 改为**先** `_sync_player_state_suit_worn()` **后** `suit_changed.emit()`，使 restore 期 suit_changed 监听者读到已同步镜像。其余写路径本已全同步，未改。
+- **restore-complete 收尾**：新增 `TrainingManager.finalize_restore()`（静态、幂等、无副作用），在 `load_progress()` 全部 deserialize 之后调用一次；从 canonical 重算 Power/Suit 镜像，保证即使 PlayerState 在 Suit 之后被 deserialize、canonical 仍胜出。sprint06 `_load_state()` 因 BaseStatus 先于 Power、且不 deserialize PlayerState，经上面两项修复即一致，**未改** sprint06。
+- **read/restore API 边界**：新增公开 `TrainingManager.read_progress()`（= 无副作用 `_read_progress_data()` 的公共包装）。内部 `training_status()`/`training_failure_reason()`（dead API）与 `fail_training()`（mid-session timeout 调用，契约禁止触碰 mission managers）由 `load_progress()` 改为只读路径，消除误恢复副作用。
+- **外部纯查询调用已迁移**：`main.gd` 的 continue 可用性检查、`assignment_black_screen_scene.gd`、`mission_assignment_notice_scene.gd`、`training_module_scene.gd`、`training_base_map.gd`、`TaskManager.gd` 均改用 `read_progress()`。外部脚本不再直接调用 `_read_progress_data()`；`load_progress()` 仅保留为真实恢复入口（主菜单继续流程）和专项测试验证。
+- **存档格式**：JSON key / `serialize()` / `deserialize()` 结构 / 文件名 / save path **全部不变**；无 `schema_version`、无 migration。
+- **专项测试**：`tests/p3_03a_restore_consistency_test.gd`（headless SceneTree，39/39 检查全过）：Power mirror、Suit mirror（含 signal 监听者读一致）、公共只读 API 零 live-manager 变更、静态调用点约束、`load_progress()` 真实恢复、`finalize_restore()` 幂等且不动 time/health/supply/canonical energy。
+
 ## 15. 验收标准（本轮 P3-02）
 - 每核心域有 owner 或明确 decision（UNRESOLVED=0）✓；writer/restore 权明确 ✓；三 save 层职责不重叠定义 ✓；≥3 方案对比 + 1 推荐（C）✓；用户决策项 ≤8（本轮 5，其中 2 需拍板）✓；**零代码/JSON 修改** ✓。
 
-## 附：本轮零改动核验
-- 仅新增/改治理 `.md`；未改 `project.godot`/`scripts`/`scenes`/`resources`/`assets`/任何 `.gd/.tscn/.tres/.json/.uid`。Godot editor+smoke EXIT=0。
+## 附：P3-03a 改动核验
+- 本轮改动为 P3-03a scoped 代码/测试/文档；未改 `project.godot`、`scenes/**`、`assets/**`、任何 `.tscn/.tres/.json`；无 autoload 增删。Godot editor+smoke EXIT=0；专项测试 39/39 通过；本地存档在测试后与备份 SHA-256 全一致。实际备份路径：`C:\Users\csw83\AppData\Roaming\Godot\app_userdata\Guanghan Outpost\saves_backup_before_p3_03a_2026-07-11`。

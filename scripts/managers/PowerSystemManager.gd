@@ -466,6 +466,13 @@ func deserialize(data: Dictionary) -> void:
 	charging_efficiency = float(data.get("charging_efficiency", charging_efficiency))
 	current_power_mode = String(data.get("current_power_mode", current_power_mode))
 	current_energy = clamp(current_energy, 0.0, battery_capacity)
+	# Restore-consistency (P3-03a): every other mutator syncs the BaseStatusManager.power
+	# compatibility mirror before emitting; deserialize() must too, so a bundle restore
+	# leaves the mirror consistent with the freshly restored canonical energy BEFORE any
+	# listener reads it -- rather than staying stale until the next time tick. Direction is
+	# strictly canonical -> mirror (set_power_percent(get_power_percent())); the mirror never
+	# writes back into PowerSystemManager, so this cannot overwrite the restored canonical state.
+	_sync_base_status_power()
 	power_system_changed.emit()
 
 func load_state() -> void:

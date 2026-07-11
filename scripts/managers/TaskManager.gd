@@ -130,7 +130,7 @@ func _progress_for_category(category: String) -> Dictionary:
 	return {}
 
 func _training_progress() -> Dictionary:
-	return TrainingManagerScript._read_progress_data()
+	return TrainingManagerScript.read_progress()
 
 func _mission_progress() -> Dictionary:
 	var path := String(TrainingManagerScript.SPRINT06_SAVE_PATH)

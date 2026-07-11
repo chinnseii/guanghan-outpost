@@ -457,8 +457,12 @@ func deserialize(data: Dictionary) -> void:
 	suit_power = float(data.get("suit_power", suit_power))
 	suit_power_capacity = float(data.get("suit_power_capacity", suit_power_capacity))
 	suit_speed_multiplier = float(data.get("suit_speed_multiplier", suit_speed_multiplier))
-	suit_changed.emit()
+	# Restore-consistency (P3-03a): sync the PlayerStateManager.is_suit_worn mirror BEFORE
+	# emitting, so any suit_changed listener that reads the mirror during a restore already
+	# sees the canonical worn state (previously the mirror was synced one line too late).
+	# SuitManager stays canonical -- this only pushes worn->mirror, never reads it back.
 	_sync_player_state_suit_worn()
+	suit_changed.emit()
 
 func load_state() -> void:
 	if not FileAccess.file_exists(SAVE_PATH):

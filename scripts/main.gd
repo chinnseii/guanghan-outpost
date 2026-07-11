@@ -4504,8 +4504,9 @@ func _start_clean_new_stay() -> void:
 	get_tree().change_scene_to_file("res://scenes/application/ApplicationStartScene.tscn")
 
 func _continue_mission() -> void:
-	var progress := TrainingManagerScript.load_progress()
+	var progress := TrainingManagerScript.read_progress()
 	if _training_has_progress(progress) or _sprint06_has_progress() or _application_has_progress():
+		TrainingManagerScript.load_progress()
 		get_tree().change_scene_to_file(TrainingManagerScript.continue_scene_path())
 		return
 	var latest_slot := _latest_save_slot()
@@ -4517,7 +4518,7 @@ func _continue_mission() -> void:
 	_refresh_main_menu()
 
 func _has_continue_mission() -> bool:
-	return _training_has_progress(TrainingManagerScript.load_progress()) or _sprint06_has_progress() or _application_has_progress() or _latest_save_slot() > 0
+	return _training_has_progress(TrainingManagerScript.read_progress()) or _sprint06_has_progress() or _application_has_progress() or _latest_save_slot() > 0
 
 func _has_demo_progress() -> bool:
 	if _has_continue_mission():

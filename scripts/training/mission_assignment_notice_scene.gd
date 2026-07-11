@@ -6,7 +6,7 @@ const OpeningFlowManagerScript := preload("res://scripts/training/opening_flow_m
 var notice_panel: VBoxContainer
 
 func _ready() -> void:
-	var progress := TrainingManagerScript.load_progress()
+	var progress := TrainingManagerScript.read_progress()
 	if not bool(progress.get("FinalAssessmentCompleted", false)):
 		call_deferred("_return_to_training_start")
 		return

@@ -11,8 +11,8 @@
 - **Locked files**: `0`
 - **Pending handoffs**: `0`
 - **Branch**: `main`
-- **Board baseline**: `ceafe6c`（创建/上次收工基线，随提交变化，非长期事实）
-- **Last updated**: `2026-07-11`
+- **Board baseline**: `6354ef7`（创建/上次收工基线，随提交变化，非长期事实）
+- **Last updated**: `2026-07-12`
 
 ## Active Tasks
 
@@ -22,6 +22,8 @@
 
 ## File Locks
 
+| 文件 | Lock owner | 原因 | 范围 | 释放条件 |
+|---|---|---|---|---|
 当前没有文件锁。
 
 > 修改**高风险共用内容**前必须在此登记锁（精确文件/目录 · lock owner · 原因 · 范围 · 释放条件）。高风险类别：
@@ -34,6 +36,15 @@
 > 交替（模式 B）交接时在此填交接单摘要 + 正式报告路径（完整交接单格式见模板）。
 
 ## Recently Closed
+
+### P3-03a — Restore consistency fixes
+
+- Status: `DONE`
+- Owner: `Codex` ／ Previous owner: `Claude Code` ／ Reviewer: `User`
+- Result: Power restore 后同步 `BaseStatusManager.power`；Suit restore 在 `suit_changed` 前同步 `PlayerStateManager.is_suit_worn`；新增 `TrainingManager.read_progress()` 与 `finalize_restore()`；外部纯查询调用全部改为无副作用 API，`load_progress()` 仅保留真实恢复入口。
+- Verification: 存档备份 16 文件 SHA-256 一致；专项测试 39/39；Godot editor parse EXIT=0；headless smoke EXIT=0；Git leak guard 无 JSON/场景/资源噪声。
+- Commit: 见本任务收尾提交（`fix: enforce restore consistency boundaries`）。
+- Closed: `2026-07-12`
 
 ### P3-02R — Independent review reconciliation
 
@@ -69,15 +80,6 @@
 - Result: Phase 2 文档治理在本收口提交定稿（CURRENT 更新为 Phase 2 完成、审计转 AUDIT_RECORD、DOCUMENT_REGISTRY 生命周期更新）。
 - Verification: 全部本地 Phase 2 验收检查通过（当前权威断链=0、注册表完整、Godot smoke 通过）；push 与 tag 在提交后验证。
 - Commit: 见本任务收尾提交（`docs: complete Phase 2 document governance`）。
-- Closed: `2026-07-11`
-
-### P2-09 — Document registry rewrite
-
-- Status: `DONE`
-- Owner: `Claude Code` ／ Reviewer: `User`
-- Result: `DOCUMENT_REGISTRY.md` 重写（57→102 行）：六类真相源、当前入口/治理文档、审计记录、支持文档、4 类 archive、5 类任务阅读顺序、更新规则。
-- Verification: 27 链接全有效；NEEDS_REGISTRATION=0；无旧名称/路径残留。
-- Commit: 见本任务收尾提交（`docs: rebuild document registry`）。
 - Closed: `2026-07-11`
 
 > 最多保留最近 3–5 条已关闭任务摘要；超出即清空，长期记录进 `../archive/` 或 Git 历史。本板不保存长期历史。

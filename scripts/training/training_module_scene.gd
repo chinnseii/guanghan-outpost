@@ -1991,7 +1991,7 @@ func _show_completed_next_action() -> void:
 func _sync_completed_state_from_progress() -> void:
 	if module_id != "final_assessment":
 		return
-	var progress := TrainingManagerScript.load_progress()
+	var progress := TrainingManagerScript.read_progress()
 	if not bool(progress.get("FinalAssessmentCompleted", false)):
 		return
 	completed = true

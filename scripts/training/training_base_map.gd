@@ -220,7 +220,7 @@ func _release_stale_movement_input() -> void:
 ## -- Area data / routing --
 
 func _build_all_areas() -> Dictionary:
-	var progress := TrainingManagerScript._read_progress_data()
+	var progress := TrainingManagerScript.read_progress()
 	var built := {
 		"hub": _hub_area_config(),
 		"suit_prep_room": _suit_prep_area_config(),
@@ -398,7 +398,7 @@ func _module_order_at_or_after(current_module: String, expected_module: String) 
 ## one-time "太阳能阵列基础输出已恢复" toast. Dev-menu jumps reuse the same
 ## CurrentTrainingModule-based routing for tester convenience.
 func _route_initial_area() -> void:
-	var progress := TrainingManagerScript._read_progress_data()
+	var progress := TrainingManagerScript.read_progress()
 	var power_repair_done := bool(progress.get("PowerRepairCompleted", false))
 	var toast_shown := bool(progress.get("PowerRepairUnlockToastShown", false))
 	if power_repair_done and not toast_shown:
@@ -930,7 +930,7 @@ func _try_interact_suit_return() -> bool:
 	# is done and the player is back at the rack still wearing the suit. This
 	# replaces the old "all six modules done" gate -- the suit now comes off
 	# right after coming back inside, not at the very end of training.
-	if not bool(TrainingManagerScript._read_progress_data().get("PowerRepairCompleted", false)):
+	if not bool(TrainingManagerScript.read_progress().get("PowerRepairCompleted", false)):
 		return false
 	if not _is_near("suit_rack"):
 		return false
@@ -956,7 +956,7 @@ func _try_interact_suit_wear_fallback() -> bool:
 	# pass the airlock out to the solar array). Once power_repair is done the
 	# suit's job is over, so a stray "not worn" state here must not re-arm it
 	# (otherwise the post-EVA return would immediately offer to put it back on).
-	if bool(TrainingManagerScript._read_progress_data().get("PowerRepairCompleted", false)):
+	if bool(TrainingManagerScript.read_progress().get("PowerRepairCompleted", false)):
 		return false
 	if not _is_near("suit_rack"):
 		return false
@@ -1038,7 +1038,7 @@ func _on_area_task_complete(module_id: String) -> void:
 			get_tree().change_scene_to_file(TrainingManagerScript.MODULE_03)
 			return
 		"airlock_return":
-			var progress := TrainingManagerScript._read_progress_data()
+			var progress := TrainingManagerScript.read_progress()
 			progress["PowerRepairCompleted"] = true
 			progress["PowerRepairUnlockToastShown"] = true
 			progress["CurrentTrainingModule"] = "power_distribution"
@@ -1206,7 +1206,7 @@ func _resident_status_hud_text() -> String:
 ## -- Global (hub-visible) objective text, derived from training flags --
 
 func _global_objective_text() -> String:
-	var progress := TrainingManagerScript._read_progress_data()
+	var progress := TrainingManagerScript.read_progress()
 	# Post-EVA suit-return interstitial depends on the runtime suit-worn state
 	# (not a persisted module flag), so it stays a scene-specific step rather
 	# than a catalogued task. It slots in right after the power_repair EVA.
@@ -1680,7 +1680,7 @@ func _update_hud() -> void:
 	if not time_text.is_empty():
 		hud_label.text = "%s\n\n%s" % [time_text, hud_label.text]
 	hint_label.text = String(step.get("hint", "移动至目标区域，按 E 交互。")) if not step.is_empty() else "按 Tab 查看任务面板。"
-	if current_area_id == "suit_prep_room" and step.is_empty() and bool(TrainingManagerScript._read_progress_data().get("PowerRepairCompleted", false)):
+	if current_area_id == "suit_prep_room" and step.is_empty() and bool(TrainingManagerScript.read_progress().get("PowerRepairCompleted", false)):
 		var suit_manager := _suit_manager()
 		if suit_manager != null and bool(suit_manager.get("is_suit_worn")):
 			hint_label.text = "舱外维修已完成。\n请靠近宇航服整备架，按 E 归还宇航服。"

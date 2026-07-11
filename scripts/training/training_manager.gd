@@ -163,7 +163,38 @@ static func load_progress() -> Dictionary:
 	var player_state_manager := _player_state_manager()
 	if player_state_manager != null and player_state_manager.has_method("deserialize") and data.get("PlayerStateManagerState", {}) is Dictionary:
 		player_state_manager.call("deserialize", data.get("PlayerStateManagerState", {}))
+	finalize_restore()
 	return data
+
+## Read-only inspection of saved progress (P3-03a). Same merged dict as the internal
+## reader, but WITHOUT the live-manager deserialize side effects of load_progress().
+## External callers that only need to inspect flags (has-progress, current stage,
+## completion checks, menu "continue" gating) must use THIS, never load_progress().
+## load_progress() is the state-restoring path, reserved for genuine continue/resume.
+## (Naming discipline: read_*/inspect_*/has_* = no side effects; load_*/restore_*/apply_*
+## = mutate live state.)
+static func read_progress() -> Dictionary:
+	return _read_progress_data()
+
+## Restore finalization endpoint (P3-03a). Called once at the end of load_progress()
+## AFTER every manager has been deserialized, so that -- regardless of deserialize order
+## (e.g. PlayerStateManager is restored AFTER SuitManager above) -- each compatibility
+## mirror is re-synchronised FROM its canonical owner and the canonical owner always wins.
+## Strictly idempotent and side-effect-free beyond mirror sync: it reloads no files, calls
+## no deserialize, advances no clock, consumes no resources, triggers no penalty, and
+## writes no save. Uses only existing public sync methods (canonical -> mirror direction),
+## so a mirror can never overwrite its canonical owner. Safe to call twice.
+static func finalize_restore() -> void:
+	# Power canonical (PowerSystemManager) -> BaseStatusManager.power mirror.
+	var power_manager := _power_system_manager()
+	var base_status_manager := _base_status_manager()
+	if power_manager != null and base_status_manager != null \
+			and power_manager.has_method("get_power_percent") and base_status_manager.has_method("set_power_percent"):
+		base_status_manager.call("set_power_percent", power_manager.call("get_power_percent"))
+	# Suit canonical (SuitManager.is_suit_worn) -> PlayerStateManager.is_suit_worn mirror.
+	var player_state_manager := _player_state_manager()
+	if player_state_manager != null and player_state_manager.has_method("sync_suit_state_from_suit_manager"):
+		player_state_manager.call("sync_suit_state_from_suit_manager")
 
 static func save_progress(data: Dictionary) -> void:
 	var manager := _time_manager()
@@ -254,7 +285,7 @@ static func reset_progress() -> void:
 	save_progress(default_data())
 
 static func start_training() -> void:
-	var data := load_progress()
+	var data := _read_progress_data()
 	# Training starts fresh on Earth -- reset the shared SuitManager so a
 	# suit left worn/servicing by a previous playthrough can't make the
 	# wear-suit step silently fail (wear_suit_training() requires
@@ -357,7 +388,13 @@ static func are_required_modules_completed() -> bool:
 ## clearance not activated") -- not a death/Game Over, and it must never
 ## touch the official mission TimeManager/HealthManager/base state.
 static func fail_training(reason: String) -> void:
-	var data := load_progress()
+	# P3-03a: use the read-only path, not load_progress(). fail_training() is invoked
+	# mid-session by TrainingTimeManager.check_training_timeout() and its own contract
+	# (see comment above) says it must NEVER touch live mission managers -- load_progress()
+	# would deserialize all 12 of them from the last snapshot, clobbering live state. We
+	# only need the progress flags to check/set TrainingStatus; save_progress() below then
+	# re-serialises the CURRENT live managers unchanged.
+	var data := _read_progress_data()
 	if String(data.get("TrainingStatus", "")) == "failed":
 		return
 	data["TrainingStatus"] = "failed"
@@ -368,14 +405,17 @@ static func fail_training(reason: String) -> void:
 	if time_manager != null and time_manager.has_method("stop_training_time"):
 		time_manager.call("stop_training_time")
 
+# P3-03a: these are pure flag reads -- use the no-side-effect reader, not load_progress()
+# (which would deserialize all live managers). Currently unreferenced anywhere in the repo;
+# kept (not deleted) but made side-effect-free so any future caller is safe.
 static func training_status() -> String:
-	return String(load_progress().get("TrainingStatus", ""))
+	return String(_read_progress_data().get("TrainingStatus", ""))
 
 static func training_failure_reason() -> String:
-	return String(load_progress().get("TrainingFailureReason", ""))
+	return String(_read_progress_data().get("TrainingFailureReason", ""))
 
 static func accept_assignment(opening_stage := "AssignmentBlackScreen") -> void:
-	var data := load_progress()
+	var data := _read_progress_data()
 	var manager := _time_manager()
 	if manager != null and manager.has_method("reset_to_arrival"):
 		manager.call("reset_to_arrival")
@@ -409,7 +449,7 @@ static func update_candidate_file_status(status: String) -> void:
 		write_file.store_string(JSON.stringify(data, "\t"))
 
 static func set_opening_flow_stage(opening_stage: String, scene_path: String) -> void:
-	var data := load_progress()
+	var data := _read_progress_data()
 	data["MissionAssignmentAccepted"] = true
 	data["OpeningFlowStage"] = opening_stage
 	data["CurrentSceneAfterTraining"] = scene_path
@@ -419,7 +459,7 @@ static func continue_scene_path() -> String:
 	var base_scene := _base_continue_scene_path()
 	if not base_scene.is_empty():
 		return base_scene
-	var data := load_progress()
+	var data := _read_progress_data()
 	if bool(data.get("MissionAssignmentAccepted", false)):
 		if String(data.get("OpeningFlowStage", "")) == "AwaitingArrivalCinematic":
 			return ARRIVAL_CINEMATIC

@@ -17,7 +17,7 @@ var label: Label
 var transitioning := false
 
 func _ready() -> void:
-	var progress := TrainingManagerScript.load_progress()
+	var progress := TrainingManagerScript.read_progress()
 	if not bool(progress.get("MissionAssignmentAccepted", false)):
 		call_deferred("_return_to_assignment_notice")
 		return

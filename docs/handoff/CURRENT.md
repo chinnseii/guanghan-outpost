@@ -2,48 +2,48 @@
 
 > 本文件是**项目当前状态的唯一权威来源**（滚动文档，完成一个主要批次后覆盖更新）。
 > 完整历史见 [`../archive/`](../archive/)（`plans/` `sprints/` `reviews/` `demos/`）；系统事实见 Registry / Reference（下方导航）。
-> 更新时间：2026-07-11。
+> 更新时间：2026-07-12。
 
 ## 当前阶段
 
-**Phase 3 · 系统边界清洗：进行中**（P3-01 审计、P3-02 存档 owner 定稿、P3-02R 独立复核对账均完成；P3-03 待用户确认后启动）。
+**Phase 3 · 系统边界清洗：进行中**（P3-01 审计、P3-02 存档 owner 定稿、P3-02R 独立复核对账、P3-03a 恢复一致性缺口修复均完成；P3-03b 待启动）。
 
 - Phase 0（工程治理基线）/ Phase 1（仓库卫生）/ Phase 2（文档治理）：**均已完成**。
-- Phase 3（系统边界清洗）：**进行中**——P3-01 系统边界只读审计已完成（见 [`../governance/PHASE_3_SYSTEM_BOUNDARY_AUDIT.md`](../governance/PHASE_3_SYSTEM_BOUNDARY_AUDIT.md)）；Phase 3 尚未完成。
+- Phase 3（系统边界清洗）：**进行中**——P3-03a 已完成；Phase 3 尚未完成。
 - Phase 4+（大脚本拆分、Skill、双 Agent）：尚未开始（编号以 [`../governance/CLEANUP_PLAN.md`](../governance/CLEANUP_PLAN.md) 为准）。
 
 ## 最近稳定基线
 
 - **Phase 1 已推送基线**：commit `3a69f90`，tag `repository-hygiene-complete-2026-07-11`（仓库卫生完成点）。
 - **Phase 2 完成基线**：本收口提交，tag `document-governance-complete-2026-07-11`（Phase 2 完成 commit 与 tag 在本轮提交与推送后形成；此处不写未知 hash）。
-- 工作区干净（无未提交源码/噪声）。
+- 工作区将在 P3-03a 收口提交后恢复干净。
 
 ## 最近完成
 
-Phase 2 文档治理（本阶段成果）：
-- README 收敛（555 → 89 行，改为开发协作者入口/导航页）；本 `CURRENT.md` 校正为当前状态唯一权威。
-- 系统文档职责分层：`SYSTEM_REGISTRY.md`（状态/边界）与 `SYSTEMS_REFERENCE_FOR_DESIGN.md`（玩法/数值）声明并互链。
-- `ACTIVE_TASKS.md` 落地（任务/锁/交接唯一真相）。
-- 17 份历史文档归档到 `../archive/{plans,sprints,reviews,demos}/`，全仓文档链接修复。
-- `DOCUMENT_REGISTRY.md` 重写为长期文档职责/权威/生命周期注册表。
+P3-03a 恢复一致性缺口修复：
+- `PowerSystemManager.deserialize()` 恢复后立即同步 `BaseStatusManager.power` 兼容镜像。
+- `SuitManager.deserialize()` 在 `suit_changed` 前同步 `PlayerStateManager.is_suit_worn` 镜像。
+- `TrainingManager.read_progress()` 成为公共无副作用查询入口；外部纯查询调用已迁移，`load_progress()` 保留为真实恢复入口。
+- `TrainingManager.finalize_restore()` 建立恢复收尾点，重算 Power/Suit 兼容镜像，幂等且不推进时间/不消耗资源/不触发惩罚/不自动保存。
+- 专项测试 39/39 通过；Godot editor parse + headless smoke 通过；本地存档与备份 SHA-256 一致。
 
 ## 当前工作
 
-- **最近完成（P3-02R 独立复核对账）**：基于 Codex 独立只读复核，逐项核验 6 项发现并修订基线（[`../governance/PHASE_3_SYSTEM_BOUNDARY_AUDIT.md`](../governance/PHASE_3_SYSTEM_BOUNDARY_AUDIT.md) §16、[`../governance/PHASE_3_SAVE_OWNERSHIP_DECISION.md`](../governance/PHASE_3_SAVE_OWNERSHIP_DECISION.md) §16）。**零代码/存档格式修改。**
-- 关键修订：owner 细化为 OWNER_FINAL / OWNER_FINAL_BUT_SYNC_RISK（电力、宇航服镜像）/ DECISION_PENDING / UNRESOLVED（Door 正式基地接入）——"UNRESOLVED=0"作废；方案 C 仍推荐并补入 mirror-recompute/restore-complete 约束；P3-03 拆为 a/b/c/d。P0=0，P1=1（真相源不唯一）待 P3-03。
+- **最近完成：P3-03a**（owner transfer：Claude Code → Codex）。详见 [`../governance/PHASE_3_SYSTEM_BOUNDARY_AUDIT.md`](../governance/PHASE_3_SYSTEM_BOUNDARY_AUDIT.md) §17、[`../governance/PHASE_3_SAVE_OWNERSHIP_DECISION.md`](../governance/PHASE_3_SAVE_OWNERSHIP_DECISION.md) §17。
+- **当前阶段：Phase 3**。P3-03b Full Save Orchestrator 正式化尚未开始。
 
 ## 当前风险与已知待办
 
 > 详细批次与依赖以 [`../governance/DOCUMENT_GOVERNANCE_AUDIT.md`](../governance/DOCUMENT_GOVERNANCE_AUDIT.md) 与 [`../governance/CLEANUP_PLAN.md`](../governance/CLEANUP_PLAN.md) 为准，此处只列项目级风险。
 
 - `SYSTEMS_REFERENCE_FOR_DESIGN.md`（2800+ 行）偏长，未来需渐进精简（非阻塞）。
-- Phase 3 的系统边界与存档真相、Phase 4 的大型脚本拆分尚未开始。
+- 当前主要风险：Manager 自存 `*_state.json` 与 bundle（`training_progress.json` / `sprint06_progress.json`）多真相源仍存在；P3-03b/c 继续处理。
 - 月面 EVA 的已知 deferred 风险（EVA activity 名称、返航估算模型、地表玩家位置未持久化）见 `CLEANUP_PLAN.md` 附录 A。
 - 系统侧 deferred：训练门运行时注册、`DoorStateManager` 未接入正式旧基地导航（见 `SYSTEM_REGISTRY.md`）；`PenaltyDatabase` 预设小、`severity` 未接 UI、`apply_penalty` 无回滚事务语义。
 
 ## 下一步
 
-**唯一优先事项：P3-03a —— 恢复一致性缺口修复**（Power/Suit 兼容镜像 restore 同步、restore-complete 阶段、read vs restore API 边界），随后 P3-03b Full Save Orchestrator 正式化（+schema_version）→ P3-03c 自存降级 → P3-03d checkpoint 越域裁剪。**前置：用户需先确认**（详见 [`../governance/PHASE_3_SAVE_OWNERSHIP_DECISION.md`](../governance/PHASE_3_SAVE_OWNERSHIP_DECISION.md) §16.6）：① 采纳推荐存档架构方案 C；② 旧本地档兼容策略（推荐 NO_COMPATIBILITY_REQUIRED）。其余（Power mirror 同步、TrainingManager API、legacy 同名节点、Door 正式基地接入）由代码证据处理，不需用户拍板。
+**唯一优先事项：P3-03b —— Full Save Orchestrator 正式化**（明确正式 Full Save 入口、恢复顺序、`schema_version`、canonical owner restore、derived/mirror recompute）。随后 P3-03c 自存降级 → P3-03d checkpoint 越域裁剪。P3-03a 已完成；不要声称 P3-03b 已完成。
 （Phase 编号以 `CLEANUP_PLAN.md` 为准：Phase 3=系统边界、4=大脚本拆分、5=Skill、6=双 Agent。）
 
 ## 权威文档导航
