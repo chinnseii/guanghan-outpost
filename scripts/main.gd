@@ -82,6 +82,11 @@ var supply_travel_days := 3
 var current_save_slot := 1
 var pending_main_menu := true
 var dev_menu_visible := false
+# Dev menu is grouped into collapsible sections keyed by the button label's
+# category prefix (see _dev_add / _dev_group_content). _dev_box is the scroll's
+# button container; _dev_groups caches each category's content VBox.
+var _dev_box: VBoxContainer = null
+var _dev_groups: Dictionary = {}
 
 var player_pos := Vector2(300, 420)
 var player_radius := 14.0
@@ -3634,6 +3639,63 @@ func _make_title_button(text: String, callback: Callable, enabled: bool) -> Butt
 		button.pressed.connect(callback)
 	return button
 
+## Route a dev button into a collapsible section chosen by its label prefix,
+## so the (100+) dev entries are grouped and foldable instead of one long list
+## that runs off-screen. Sections are created in first-appearance order.
+func _dev_add(button: Button) -> void:
+	if _dev_box == null:
+		return
+	_dev_group_content(_dev_group_name_for(button.text)).add_child(button)
+
+func _dev_group_name_for(label: String) -> String:
+	var prefix := label
+	var colon := label.find(":")
+	if colon >= 0:
+		prefix = label.substr(0, colon).strip_edges()
+	match prefix:
+		"Dev Only":
+			return "场景跳转 / Scenes"
+		"Time Debug":
+			return "时间 / Time"
+		"Health Debug", "Health Action":
+			return "健康 / Health"
+		"Base Debug":
+			return "基地状态 / Base"
+		"Air Debug":
+			return "空气 / Air"
+		"Power Debug":
+			return "电力 / Power"
+		"Water Debug":
+			return "水 / Water"
+		"Plant Debug":
+			return "植物 / Plant"
+		"Inventory Debug":
+			return "物品 / Inventory"
+		"Backpack Debug", "Storage Debug", "Backpack/Storage Debug":
+			return "背包·仓库 / Backpack & Storage"
+		"Supply Debug":
+			return "补给 / Supply"
+	return prefix
+
+func _dev_group_content(group_name: String) -> VBoxContainer:
+	if _dev_groups.has(group_name):
+		return _dev_groups[group_name]
+	var header := Button.new()
+	header.text = "▶ " + group_name
+	header.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	header.add_theme_font_size_override("font_size", 15)
+	_dev_box.add_child(header)
+	var content := VBoxContainer.new()
+	content.add_theme_constant_override("separation", 6)
+	content.visible = false
+	_dev_box.add_child(content)
+	header.pressed.connect(func():
+		content.visible = not content.visible
+		header.text = ("▼ " if content.visible else "▶ ") + group_name
+	)
+	_dev_groups[group_name] = content
+	return content
+
 func _setup_dev_menu() -> void:
 	var panel := PanelContainer.new()
 	panel.name = "DevMenu"
@@ -3666,198 +3728,200 @@ func _setup_dev_menu() -> void:
 	box.add_theme_constant_override("separation", 8)
 	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(box)
-	box.add_child(_make_dev_button("Dev Only: Reset Demo Progress", _reset_demo_progress_from_dev))
-	box.add_child(_make_dev_button("Dev Only: Start Survival Sandbox", _start_new_game))
-	box.add_child(_make_dev_button("Dev Only: Arrival Cinematic", func(): get_tree().change_scene_to_file("res://scenes/arrival/ArrivalCinematicScene.tscn")))
-	box.add_child(_make_dev_button("Dev Only: Arrival Landing", func(): get_tree().change_scene_to_file("res://scenes/arrival/ArrivalLandingScene.tscn")))
-	box.add_child(_make_dev_button("Dev Only: Lunar Surface (EVA seed)", func(): get_tree().change_scene_to_file("res://scenes/surface/LunarSurfaceScene.tscn")))
-	box.add_child(_make_dev_button("Dev Only: Base Airlock Entry", func(): get_tree().change_scene_to_file("res://scenes/base/BaseAirlockEntryScene.tscn")))
-	box.add_child(_make_dev_button("Dev Only: Old Base Interior", func(): get_tree().change_scene_to_file("res://scenes/base/OldBaseInteriorScene.tscn")))
-	box.add_child(_make_dev_button("Dev Only: Old Base Art Slice", func(): get_tree().change_scene_to_file("res://scenes/base/OldBaseCore_ArtSlice.tscn")))
-	box.add_child(_make_dev_button("Dev Only: Old Greenhouse", func(): get_tree().change_scene_to_file("res://scenes/base/OldGreenhouseScene.tscn")))
-	box.add_child(_make_dev_button("Dev Only: Day 01 End", func(): get_tree().change_scene_to_file("res://scenes/base/Day01EndScene.tscn")))
-	box.add_child(_make_dev_button("Dev Only: Day 02 Start", func(): get_tree().change_scene_to_file("res://scenes/base/Day02StartScene.tscn")))
-	box.add_child(_make_dev_button("Dev Only: Day 02 End", func(): get_tree().change_scene_to_file("res://scenes/base/Day02EndScene.tscn")))
-	box.add_child(_make_dev_button("Dev Only: Week Routine Start", func(): get_tree().change_scene_to_file("res://scenes/base/WeekRoutineStartScene.tscn")))
-	box.add_child(_make_dev_button("Dev Only: Week Routine End", func(): get_tree().change_scene_to_file("res://scenes/base/WeekRoutineEndScene.tscn")))
-	box.add_child(_make_dev_button("Dev Only: Day 07 Report Test", _start_day07_report_test))
-	box.add_child(_make_dev_button("Dev Only: Solar Array Exterior", func(): get_tree().change_scene_to_file("res://scenes/base/SolarArrayExteriorScene.tscn")))
-	box.add_child(_make_dev_button("Time Debug: +15 分钟", func(): _debug_advance_time(15, "debug_plus_15")))
-	box.add_child(_make_dev_button("Time Debug: +1 小时", func(): _debug_advance_time(60, "debug_plus_1h")))
-	box.add_child(_make_dev_button("Time Debug: +6 小时", func(): _debug_advance_time(360, "debug_plus_6h")))
-	box.add_child(_make_dev_button("Time Debug: 跳到月昼", _debug_jump_to_daylight))
-	box.add_child(_make_dev_button("Time Debug: 跳到月夜", _debug_jump_to_night))
-	box.add_child(_make_dev_button("Time Debug: 重置 Day 01", _debug_reset_time))
-	box.add_child(_make_dev_button("Health Debug: Energy -20", func(): _debug_adjust_health("energy", -20.0)))
-	box.add_child(_make_dev_button("Health Debug: Energy +20", func(): _debug_adjust_health("energy", 20.0)))
-	box.add_child(_make_dev_button("Health Debug: Fullness -20", func(): _debug_adjust_health("fullness", -20.0)))
-	box.add_child(_make_dev_button("Health Debug: Fullness +20", func(): _debug_adjust_health("fullness", 20.0)))
-	box.add_child(_make_dev_button("Health Debug: Nutrition -20", func(): _debug_adjust_health("nutrition", -20.0)))
-	box.add_child(_make_dev_button("Health Debug: Nutrition +20", func(): _debug_adjust_health("nutrition", 20.0)))
-	box.add_child(_make_dev_button("Health Debug: Morale -20", func(): _debug_adjust_health("morale", -20.0)))
-	box.add_child(_make_dev_button("Health Debug: Morale +20", func(): _debug_adjust_health("morale", 20.0)))
-	box.add_child(_make_dev_button("Health Debug: Reset Healthy", _debug_reset_health))
-	box.add_child(_make_dev_button("Health Debug: Set Danger", _debug_set_health_danger))
-	box.add_child(_make_dev_button("Health Action: Sleep", func(): _debug_health_action("sleep_standard")))
-	box.add_child(_make_dev_button("Health Action: Eat", func(): _debug_health_action("eat")))
-	box.add_child(_make_dev_button("Health Action: Nutrition Drink", func(): _debug_health_action("nutrition_drink")))
-	box.add_child(_make_dev_button("Health Action: Short Entertainment", func(): _debug_health_action("entertainment_short")))
-	box.add_child(_make_dev_button("Health Action: Light Repair", func(): _debug_health_action("repair_light")))
-	box.add_child(_make_dev_button("Health Action: Short Explore", func(): _debug_health_action("explore_short")))
-	box.add_child(_make_dev_button("Base Debug: Pressure -10", func(): _debug_adjust_base_status("pressure", -10.0)))
-	box.add_child(_make_dev_button("Base Debug: Pressure +10", func(): _debug_adjust_base_status("pressure", 10.0)))
-	box.add_child(_make_dev_button("Base Debug: Temperature -2", func(): _debug_adjust_base_status("temperature", -2.0)))
-	box.add_child(_make_dev_button("Base Debug: Temperature +2", func(): _debug_adjust_base_status("temperature", 2.0)))
-	box.add_child(_make_dev_button("Base Debug: Power System Critical/Basic/Stable", func(): _debug_cycle_base_system("power_system_status")))
-	box.add_child(_make_dev_button("Base Debug: Thermal Control Critical/Basic/Stable", func(): _debug_cycle_base_system("thermal_control_status")))
-	box.add_child(_make_dev_button("Base Debug: Seal Critical/Basic/Stable", func(): _debug_cycle_base_system("seal_status")))
-	box.add_child(_make_dev_button("Base Debug: Reset to Day 01", _debug_reset_base_status))
-	box.add_child(_make_dev_button("Base Debug: Set Minimum Stable", _debug_set_base_status_minimum_stable))
-	box.add_child(_make_dev_button("Air Debug: O2 -2", func(): _debug_adjust_air("o2_percent", -2.0)))
-	box.add_child(_make_dev_button("Air Debug: O2 +2", func(): _debug_adjust_air("o2_percent", 2.0)))
-	box.add_child(_make_dev_button("Air Debug: CO2 -0.2", func(): _debug_adjust_air("co2_percent", -0.2)))
-	box.add_child(_make_dev_button("Air Debug: CO2 +0.2", func(): _debug_adjust_air("co2_percent", 0.2)))
-	box.add_child(_make_dev_button("Air Debug: Inert Reserve -10", func(): _debug_adjust_air("inert_gas_reserve", -10.0)))
-	box.add_child(_make_dev_button("Air Debug: Inert Reserve +10", func(): _debug_adjust_air("inert_gas_reserve", 10.0)))
-	box.add_child(_make_dev_button("Air Debug: Oxygen Generator Critical/Basic/Stable", func(): _debug_cycle_air_system("oxygen_generator_status")))
-	box.add_child(_make_dev_button("Air Debug: CO2 Filter Critical/Basic/Stable", func(): _debug_cycle_air_system("co2_filter_status")))
-	box.add_child(_make_dev_button("Air Debug: Air Circulation Critical/Basic/Stable", func(): _debug_cycle_air_system("air_circulation_status")))
-	box.add_child(_make_dev_button("Air Debug: Cycle Supply Target", _debug_cycle_air_supply_target))
-	box.add_child(_make_dev_button("Air Debug: Reset to Day 01", _debug_reset_air_system))
-	box.add_child(_make_dev_button("Air Debug: Set Minimum Stable", _debug_set_air_minimum_stable))
-	box.add_child(_make_dev_button("Power Debug: Energy -20", func(): _debug_adjust_power_energy(-20.0)))
-	box.add_child(_make_dev_button("Power Debug: Energy +20", func(): _debug_adjust_power_energy(20.0)))
-	box.add_child(_make_dev_button("Power Debug: Add Solar Panel", _debug_add_solar_panel))
-	box.add_child(_make_dev_button("Power Debug: Add Battery Module", _debug_add_battery_module))
-	box.add_child(_make_dev_button("Power Debug: Cycle Solar Array Critical/Basic/Stable", _debug_cycle_solar_array_status))
-	box.add_child(_make_dev_button("Power Debug: Cycle Storage Efficiency Tech", _debug_cycle_storage_efficiency))
-	box.add_child(_make_dev_button("Power Debug: Cycle Charging Efficiency Tech", _debug_cycle_charging_efficiency))
-	box.add_child(_make_dev_button("Power Debug: Mode - Extreme Saving", func(): _debug_set_power_mode("extreme_saving")))
-	box.add_child(_make_dev_button("Power Debug: Mode - Standard", func(): _debug_set_power_mode("standard")))
-	box.add_child(_make_dev_button("Power Debug: Mode - Standard + Night Light 2", func(): _debug_set_power_mode("standard_night_light")))
-	box.add_child(_make_dev_button("Power Debug: Mode - High Load Greenhouse", func(): _debug_set_power_mode("high_load_greenhouse")))
-	box.add_child(_make_dev_button("Power Debug: Reset to Day 01", _debug_reset_power_system))
-	box.add_child(_make_dev_button("Power Debug: Set Minimum Stable", _debug_set_power_minimum_stable))
-	box.add_child(_make_dev_button("Water Debug: Water -10", func(): _debug_adjust_water(-10.0)))
-	box.add_child(_make_dev_button("Water Debug: Water +10", func(): _debug_adjust_water(10.0)))
-	box.add_child(_make_dev_button("Water Debug: Ice -10", func(): _debug_adjust_ice(-10.0)))
-	box.add_child(_make_dev_button("Water Debug: Ice +10", func(): _debug_adjust_ice(10.0)))
-	box.add_child(_make_dev_button("Water Debug: Add Water Tank Module", _debug_add_water_tank_module))
-	box.add_child(_make_dev_button("Water Debug: Add Ice Storage Module", _debug_add_ice_storage_module))
-	box.add_child(_make_dev_button("Water Debug: Cycle Recycling Level 0-4", _debug_cycle_water_recycling_level))
-	box.add_child(_make_dev_button("Water Debug: Process 20 Ice", _debug_process_ice_batch))
-	box.add_child(_make_dev_button("Water Debug: Process All Ice", _debug_process_all_ice))
-	box.add_child(_make_dev_button("Water Debug: Reset to Day 01", _debug_reset_water_system))
-	box.add_child(_make_dev_button("Water Debug: Set Minimum Stable", _debug_set_water_minimum_stable))
-	box.add_child(_make_dev_button("Plant Debug: Sow Lettuce", func(): _debug_sow_plant("lettuce")))
-	box.add_child(_make_dev_button("Plant Debug: Sow Potato", func(): _debug_sow_plant("potato")))
-	box.add_child(_make_dev_button("Plant Debug: Sow Wheat", func(): _debug_sow_plant("wheat")))
-	box.add_child(_make_dev_button("Plant Debug: Sow Tomato", func(): _debug_sow_plant("tomato")))
-	box.add_child(_make_dev_button("Plant Debug: Sow Soybean", func(): _debug_sow_plant("soybean")))
-	box.add_child(_make_dev_button("Plant Debug: Advance Growth +1 Day", func(): _debug_advance_time(1440, "debug_plant_plus_1d")))
-	box.add_child(_make_dev_button("Plant Debug: Advance Growth +3 Days", func(): _debug_advance_time(4320, "debug_plant_plus_3d")))
-	box.add_child(_make_dev_button("Plant Debug: Cycle Water Level 0-4", _debug_cycle_plant_water_level))
-	box.add_child(_make_dev_button("Plant Debug: Cycle Greenhouse Light Level 0-4", _debug_cycle_plant_light_level))
-	box.add_child(_make_dev_button("Plant Debug: Force Mature Current Crop", _debug_force_mature_plant))
-	box.add_child(_make_dev_button("Plant Debug: Harvest Current Crop", _debug_harvest_plant))
-	box.add_child(_make_dev_button("Plant Debug: Clear Greenhouse Crops", _debug_clear_plants))
-	box.add_child(_make_dev_button("Inventory Debug: Add Sample Foods", _debug_add_sample_foods))
-	box.add_child(_make_dev_button("Inventory Debug: Add Sample Seeds", _debug_add_sample_seeds))
-	box.add_child(_make_dev_button("Inventory Debug: Add Sample Consumables", _debug_add_sample_consumables))
-	box.add_child(_make_dev_button("Inventory Debug: Add Sample Materials", _debug_add_sample_materials))
-	box.add_child(_make_dev_button("Inventory Debug: Add Durable Drill", _debug_add_durable_drill))
-	box.add_child(_make_dev_button("Inventory Debug: Eat Lettuce", _debug_eat_lettuce))
-	box.add_child(_make_dev_button("Inventory Debug: Eat Nutrition Pack", _debug_eat_nutrition_pack))
-	box.add_child(_make_dev_button("Inventory Debug: Use Last Durable Item", _debug_use_last_durable_item))
-	box.add_child(_make_dev_button("Inventory Debug: Reset to Day 01", _debug_reset_inventory))
-	box.add_child(_make_dev_button("Backpack Debug: Add Materials + Food", _debug_backpack_add_samples))
-	box.add_child(_make_dev_button("Backpack Debug: Deposit All to Storage", _debug_backpack_deposit_all))
-	box.add_child(_make_dev_button("Backpack Debug: Add Ice + Deposit to Water", _debug_backpack_ice_to_water))
-	box.add_child(_make_dev_button("Storage Debug: Add Foods + Materials", _debug_storage_add_samples))
-	box.add_child(_make_dev_button("Storage Debug: Eat First Food", _debug_storage_eat_first_food))
-	box.add_child(_make_dev_button("Backpack/Storage Debug: Reset", _debug_reset_backpack_storage))
-	box.add_child(_make_dev_button("Supply Debug: Show Status", _debug_supply_status))
-	box.add_child(_make_dev_button("Supply Debug: Draft Starter Order", _debug_supply_draft_starter))
-	box.add_child(_make_dev_button("Supply Debug: Confirm Order", _debug_supply_confirm))
-	box.add_child(_make_dev_button("Supply Debug: Jump Deadline", _debug_supply_jump_deadline))
-	box.add_child(_make_dev_button("Supply Debug: Jump Arrival", _debug_supply_jump_arrival))
-	box.add_child(_make_dev_button("Supply Debug: Reset", _debug_supply_reset))
-	box.add_child(_make_dev_button("Repair Debug: Show Status", _debug_repair_status))
-	box.add_child(_make_dev_button("Repair Debug: Seed Materials", _debug_repair_seed_materials))
-	box.add_child(_make_dev_button("Repair Debug: Add Sample Faults", _debug_repair_add_sample_faults))
-	box.add_child(_make_dev_button("Repair Debug: Diagnose First", _debug_repair_diagnose_first))
-	box.add_child(_make_dev_button("Repair Debug: Attempt First Correct", _debug_repair_attempt_first_correct))
-	box.add_child(_make_dev_button("Repair Debug: Attempt First Wrong", _debug_repair_attempt_first_wrong))
-	box.add_child(_make_dev_button("Repair Debug: Reset", _debug_repair_reset))
-	box.add_child(_make_dev_button("Dev Only: Training Start", func(): get_tree().change_scene_to_file("res://scenes/training/TrainingStartScene.tscn")))
-	box.add_child(_make_dev_button("Dev Only: Training Module 01", func():
+	_dev_box = box
+	_dev_groups = {}
+	_dev_add(_make_dev_button("Dev Only: Reset Demo Progress", _reset_demo_progress_from_dev))
+	_dev_add(_make_dev_button("Dev Only: Start Survival Sandbox", _start_new_game))
+	_dev_add(_make_dev_button("Dev Only: Arrival Cinematic", func(): get_tree().change_scene_to_file("res://scenes/arrival/ArrivalCinematicScene.tscn")))
+	_dev_add(_make_dev_button("Dev Only: Arrival Landing", func(): get_tree().change_scene_to_file("res://scenes/arrival/ArrivalLandingScene.tscn")))
+	_dev_add(_make_dev_button("Dev Only: Lunar Surface (EVA seed)", func(): get_tree().change_scene_to_file("res://scenes/surface/LunarSurfaceScene.tscn")))
+	_dev_add(_make_dev_button("Dev Only: Base Airlock Entry", func(): get_tree().change_scene_to_file("res://scenes/base/BaseAirlockEntryScene.tscn")))
+	_dev_add(_make_dev_button("Dev Only: Old Base Interior", func(): get_tree().change_scene_to_file("res://scenes/base/OldBaseInteriorScene.tscn")))
+	_dev_add(_make_dev_button("Dev Only: Old Base Art Slice", func(): get_tree().change_scene_to_file("res://scenes/base/OldBaseCore_ArtSlice.tscn")))
+	_dev_add(_make_dev_button("Dev Only: Old Greenhouse", func(): get_tree().change_scene_to_file("res://scenes/base/OldGreenhouseScene.tscn")))
+	_dev_add(_make_dev_button("Dev Only: Day 01 End", func(): get_tree().change_scene_to_file("res://scenes/base/Day01EndScene.tscn")))
+	_dev_add(_make_dev_button("Dev Only: Day 02 Start", func(): get_tree().change_scene_to_file("res://scenes/base/Day02StartScene.tscn")))
+	_dev_add(_make_dev_button("Dev Only: Day 02 End", func(): get_tree().change_scene_to_file("res://scenes/base/Day02EndScene.tscn")))
+	_dev_add(_make_dev_button("Dev Only: Week Routine Start", func(): get_tree().change_scene_to_file("res://scenes/base/WeekRoutineStartScene.tscn")))
+	_dev_add(_make_dev_button("Dev Only: Week Routine End", func(): get_tree().change_scene_to_file("res://scenes/base/WeekRoutineEndScene.tscn")))
+	_dev_add(_make_dev_button("Dev Only: Day 07 Report Test", _start_day07_report_test))
+	_dev_add(_make_dev_button("Dev Only: Solar Array Exterior", func(): get_tree().change_scene_to_file("res://scenes/base/SolarArrayExteriorScene.tscn")))
+	_dev_add(_make_dev_button("Time Debug: +15 分钟", func(): _debug_advance_time(15, "debug_plus_15")))
+	_dev_add(_make_dev_button("Time Debug: +1 小时", func(): _debug_advance_time(60, "debug_plus_1h")))
+	_dev_add(_make_dev_button("Time Debug: +6 小时", func(): _debug_advance_time(360, "debug_plus_6h")))
+	_dev_add(_make_dev_button("Time Debug: 跳到月昼", _debug_jump_to_daylight))
+	_dev_add(_make_dev_button("Time Debug: 跳到月夜", _debug_jump_to_night))
+	_dev_add(_make_dev_button("Time Debug: 重置 Day 01", _debug_reset_time))
+	_dev_add(_make_dev_button("Health Debug: Energy -20", func(): _debug_adjust_health("energy", -20.0)))
+	_dev_add(_make_dev_button("Health Debug: Energy +20", func(): _debug_adjust_health("energy", 20.0)))
+	_dev_add(_make_dev_button("Health Debug: Fullness -20", func(): _debug_adjust_health("fullness", -20.0)))
+	_dev_add(_make_dev_button("Health Debug: Fullness +20", func(): _debug_adjust_health("fullness", 20.0)))
+	_dev_add(_make_dev_button("Health Debug: Nutrition -20", func(): _debug_adjust_health("nutrition", -20.0)))
+	_dev_add(_make_dev_button("Health Debug: Nutrition +20", func(): _debug_adjust_health("nutrition", 20.0)))
+	_dev_add(_make_dev_button("Health Debug: Morale -20", func(): _debug_adjust_health("morale", -20.0)))
+	_dev_add(_make_dev_button("Health Debug: Morale +20", func(): _debug_adjust_health("morale", 20.0)))
+	_dev_add(_make_dev_button("Health Debug: Reset Healthy", _debug_reset_health))
+	_dev_add(_make_dev_button("Health Debug: Set Danger", _debug_set_health_danger))
+	_dev_add(_make_dev_button("Health Action: Sleep", func(): _debug_health_action("sleep_standard")))
+	_dev_add(_make_dev_button("Health Action: Eat", func(): _debug_health_action("eat")))
+	_dev_add(_make_dev_button("Health Action: Nutrition Drink", func(): _debug_health_action("nutrition_drink")))
+	_dev_add(_make_dev_button("Health Action: Short Entertainment", func(): _debug_health_action("entertainment_short")))
+	_dev_add(_make_dev_button("Health Action: Light Repair", func(): _debug_health_action("repair_light")))
+	_dev_add(_make_dev_button("Health Action: Short Explore", func(): _debug_health_action("explore_short")))
+	_dev_add(_make_dev_button("Base Debug: Pressure -10", func(): _debug_adjust_base_status("pressure", -10.0)))
+	_dev_add(_make_dev_button("Base Debug: Pressure +10", func(): _debug_adjust_base_status("pressure", 10.0)))
+	_dev_add(_make_dev_button("Base Debug: Temperature -2", func(): _debug_adjust_base_status("temperature", -2.0)))
+	_dev_add(_make_dev_button("Base Debug: Temperature +2", func(): _debug_adjust_base_status("temperature", 2.0)))
+	_dev_add(_make_dev_button("Base Debug: Power System Critical/Basic/Stable", func(): _debug_cycle_base_system("power_system_status")))
+	_dev_add(_make_dev_button("Base Debug: Thermal Control Critical/Basic/Stable", func(): _debug_cycle_base_system("thermal_control_status")))
+	_dev_add(_make_dev_button("Base Debug: Seal Critical/Basic/Stable", func(): _debug_cycle_base_system("seal_status")))
+	_dev_add(_make_dev_button("Base Debug: Reset to Day 01", _debug_reset_base_status))
+	_dev_add(_make_dev_button("Base Debug: Set Minimum Stable", _debug_set_base_status_minimum_stable))
+	_dev_add(_make_dev_button("Air Debug: O2 -2", func(): _debug_adjust_air("o2_percent", -2.0)))
+	_dev_add(_make_dev_button("Air Debug: O2 +2", func(): _debug_adjust_air("o2_percent", 2.0)))
+	_dev_add(_make_dev_button("Air Debug: CO2 -0.2", func(): _debug_adjust_air("co2_percent", -0.2)))
+	_dev_add(_make_dev_button("Air Debug: CO2 +0.2", func(): _debug_adjust_air("co2_percent", 0.2)))
+	_dev_add(_make_dev_button("Air Debug: Inert Reserve -10", func(): _debug_adjust_air("inert_gas_reserve", -10.0)))
+	_dev_add(_make_dev_button("Air Debug: Inert Reserve +10", func(): _debug_adjust_air("inert_gas_reserve", 10.0)))
+	_dev_add(_make_dev_button("Air Debug: Oxygen Generator Critical/Basic/Stable", func(): _debug_cycle_air_system("oxygen_generator_status")))
+	_dev_add(_make_dev_button("Air Debug: CO2 Filter Critical/Basic/Stable", func(): _debug_cycle_air_system("co2_filter_status")))
+	_dev_add(_make_dev_button("Air Debug: Air Circulation Critical/Basic/Stable", func(): _debug_cycle_air_system("air_circulation_status")))
+	_dev_add(_make_dev_button("Air Debug: Cycle Supply Target", _debug_cycle_air_supply_target))
+	_dev_add(_make_dev_button("Air Debug: Reset to Day 01", _debug_reset_air_system))
+	_dev_add(_make_dev_button("Air Debug: Set Minimum Stable", _debug_set_air_minimum_stable))
+	_dev_add(_make_dev_button("Power Debug: Energy -20", func(): _debug_adjust_power_energy(-20.0)))
+	_dev_add(_make_dev_button("Power Debug: Energy +20", func(): _debug_adjust_power_energy(20.0)))
+	_dev_add(_make_dev_button("Power Debug: Add Solar Panel", _debug_add_solar_panel))
+	_dev_add(_make_dev_button("Power Debug: Add Battery Module", _debug_add_battery_module))
+	_dev_add(_make_dev_button("Power Debug: Cycle Solar Array Critical/Basic/Stable", _debug_cycle_solar_array_status))
+	_dev_add(_make_dev_button("Power Debug: Cycle Storage Efficiency Tech", _debug_cycle_storage_efficiency))
+	_dev_add(_make_dev_button("Power Debug: Cycle Charging Efficiency Tech", _debug_cycle_charging_efficiency))
+	_dev_add(_make_dev_button("Power Debug: Mode - Extreme Saving", func(): _debug_set_power_mode("extreme_saving")))
+	_dev_add(_make_dev_button("Power Debug: Mode - Standard", func(): _debug_set_power_mode("standard")))
+	_dev_add(_make_dev_button("Power Debug: Mode - Standard + Night Light 2", func(): _debug_set_power_mode("standard_night_light")))
+	_dev_add(_make_dev_button("Power Debug: Mode - High Load Greenhouse", func(): _debug_set_power_mode("high_load_greenhouse")))
+	_dev_add(_make_dev_button("Power Debug: Reset to Day 01", _debug_reset_power_system))
+	_dev_add(_make_dev_button("Power Debug: Set Minimum Stable", _debug_set_power_minimum_stable))
+	_dev_add(_make_dev_button("Water Debug: Water -10", func(): _debug_adjust_water(-10.0)))
+	_dev_add(_make_dev_button("Water Debug: Water +10", func(): _debug_adjust_water(10.0)))
+	_dev_add(_make_dev_button("Water Debug: Ice -10", func(): _debug_adjust_ice(-10.0)))
+	_dev_add(_make_dev_button("Water Debug: Ice +10", func(): _debug_adjust_ice(10.0)))
+	_dev_add(_make_dev_button("Water Debug: Add Water Tank Module", _debug_add_water_tank_module))
+	_dev_add(_make_dev_button("Water Debug: Add Ice Storage Module", _debug_add_ice_storage_module))
+	_dev_add(_make_dev_button("Water Debug: Cycle Recycling Level 0-4", _debug_cycle_water_recycling_level))
+	_dev_add(_make_dev_button("Water Debug: Process 20 Ice", _debug_process_ice_batch))
+	_dev_add(_make_dev_button("Water Debug: Process All Ice", _debug_process_all_ice))
+	_dev_add(_make_dev_button("Water Debug: Reset to Day 01", _debug_reset_water_system))
+	_dev_add(_make_dev_button("Water Debug: Set Minimum Stable", _debug_set_water_minimum_stable))
+	_dev_add(_make_dev_button("Plant Debug: Sow Lettuce", func(): _debug_sow_plant("lettuce")))
+	_dev_add(_make_dev_button("Plant Debug: Sow Potato", func(): _debug_sow_plant("potato")))
+	_dev_add(_make_dev_button("Plant Debug: Sow Wheat", func(): _debug_sow_plant("wheat")))
+	_dev_add(_make_dev_button("Plant Debug: Sow Tomato", func(): _debug_sow_plant("tomato")))
+	_dev_add(_make_dev_button("Plant Debug: Sow Soybean", func(): _debug_sow_plant("soybean")))
+	_dev_add(_make_dev_button("Plant Debug: Advance Growth +1 Day", func(): _debug_advance_time(1440, "debug_plant_plus_1d")))
+	_dev_add(_make_dev_button("Plant Debug: Advance Growth +3 Days", func(): _debug_advance_time(4320, "debug_plant_plus_3d")))
+	_dev_add(_make_dev_button("Plant Debug: Cycle Water Level 0-4", _debug_cycle_plant_water_level))
+	_dev_add(_make_dev_button("Plant Debug: Cycle Greenhouse Light Level 0-4", _debug_cycle_plant_light_level))
+	_dev_add(_make_dev_button("Plant Debug: Force Mature Current Crop", _debug_force_mature_plant))
+	_dev_add(_make_dev_button("Plant Debug: Harvest Current Crop", _debug_harvest_plant))
+	_dev_add(_make_dev_button("Plant Debug: Clear Greenhouse Crops", _debug_clear_plants))
+	_dev_add(_make_dev_button("Inventory Debug: Add Sample Foods", _debug_add_sample_foods))
+	_dev_add(_make_dev_button("Inventory Debug: Add Sample Seeds", _debug_add_sample_seeds))
+	_dev_add(_make_dev_button("Inventory Debug: Add Sample Consumables", _debug_add_sample_consumables))
+	_dev_add(_make_dev_button("Inventory Debug: Add Sample Materials", _debug_add_sample_materials))
+	_dev_add(_make_dev_button("Inventory Debug: Add Durable Drill", _debug_add_durable_drill))
+	_dev_add(_make_dev_button("Inventory Debug: Eat Lettuce", _debug_eat_lettuce))
+	_dev_add(_make_dev_button("Inventory Debug: Eat Nutrition Pack", _debug_eat_nutrition_pack))
+	_dev_add(_make_dev_button("Inventory Debug: Use Last Durable Item", _debug_use_last_durable_item))
+	_dev_add(_make_dev_button("Inventory Debug: Reset to Day 01", _debug_reset_inventory))
+	_dev_add(_make_dev_button("Backpack Debug: Add Materials + Food", _debug_backpack_add_samples))
+	_dev_add(_make_dev_button("Backpack Debug: Deposit All to Storage", _debug_backpack_deposit_all))
+	_dev_add(_make_dev_button("Backpack Debug: Add Ice + Deposit to Water", _debug_backpack_ice_to_water))
+	_dev_add(_make_dev_button("Storage Debug: Add Foods + Materials", _debug_storage_add_samples))
+	_dev_add(_make_dev_button("Storage Debug: Eat First Food", _debug_storage_eat_first_food))
+	_dev_add(_make_dev_button("Backpack/Storage Debug: Reset", _debug_reset_backpack_storage))
+	_dev_add(_make_dev_button("Supply Debug: Show Status", _debug_supply_status))
+	_dev_add(_make_dev_button("Supply Debug: Draft Starter Order", _debug_supply_draft_starter))
+	_dev_add(_make_dev_button("Supply Debug: Confirm Order", _debug_supply_confirm))
+	_dev_add(_make_dev_button("Supply Debug: Jump Deadline", _debug_supply_jump_deadline))
+	_dev_add(_make_dev_button("Supply Debug: Jump Arrival", _debug_supply_jump_arrival))
+	_dev_add(_make_dev_button("Supply Debug: Reset", _debug_supply_reset))
+	_dev_add(_make_dev_button("Repair Debug: Show Status", _debug_repair_status))
+	_dev_add(_make_dev_button("Repair Debug: Seed Materials", _debug_repair_seed_materials))
+	_dev_add(_make_dev_button("Repair Debug: Add Sample Faults", _debug_repair_add_sample_faults))
+	_dev_add(_make_dev_button("Repair Debug: Diagnose First", _debug_repair_diagnose_first))
+	_dev_add(_make_dev_button("Repair Debug: Attempt First Correct", _debug_repair_attempt_first_correct))
+	_dev_add(_make_dev_button("Repair Debug: Attempt First Wrong", _debug_repair_attempt_first_wrong))
+	_dev_add(_make_dev_button("Repair Debug: Reset", _debug_repair_reset))
+	_dev_add(_make_dev_button("Dev Only: Training Start", func(): get_tree().change_scene_to_file("res://scenes/training/TrainingStartScene.tscn")))
+	_dev_add(_make_dev_button("Dev Only: Training Module 01", func():
 		TrainingManagerScript.dev_force_unlock_up_to("suit_control")
 		TrainingManagerScript.set_current_module("suit_control")
 		get_tree().change_scene_to_file(TrainingManagerScript.TRAINING_BASE_MAP)
 	))
-	box.add_child(_make_dev_button("Dev Only: Training Module 02", func():
+	_dev_add(_make_dev_button("Dev Only: Training Module 02", func():
 		TrainingManagerScript.dev_force_unlock_up_to("airlock_procedure")
 		TrainingManagerScript.set_current_module("airlock_procedure")
 		get_tree().change_scene_to_file(TrainingManagerScript.TRAINING_BASE_MAP)
 	))
-	box.add_child(_make_dev_button("Dev Only: Training Module 03", func():
+	_dev_add(_make_dev_button("Dev Only: Training Module 03", func():
 		TrainingManagerScript.set_current_module("power_repair")
 		get_tree().change_scene_to_file(TrainingManagerScript.MODULE_03)
 	))
-	box.add_child(_make_dev_button("Dev Only: Training Module 04", func():
+	_dev_add(_make_dev_button("Dev Only: Training Module 04", func():
 		TrainingManagerScript.dev_force_unlock_up_to("power_distribution")
 		TrainingManagerScript.set_current_module("power_distribution")
 		get_tree().change_scene_to_file(TrainingManagerScript.TRAINING_BASE_MAP)
 	))
-	box.add_child(_make_dev_button("Dev Only: Training Module 05", func():
+	_dev_add(_make_dev_button("Dev Only: Training Module 05", func():
 		TrainingManagerScript.dev_force_unlock_up_to("life_support")
 		TrainingManagerScript.set_current_module("life_support")
 		get_tree().change_scene_to_file(TrainingManagerScript.TRAINING_BASE_MAP)
 	))
-	box.add_child(_make_dev_button("Dev Only: Training Module 06", func():
+	_dev_add(_make_dev_button("Dev Only: Training Module 06", func():
 		TrainingManagerScript.dev_force_unlock_up_to("plant_diagnosis")
 		TrainingManagerScript.set_current_module("plant_diagnosis")
 		get_tree().change_scene_to_file(TrainingManagerScript.TRAINING_BASE_MAP)
 	))
-	box.add_child(_make_dev_button("Dev Only: Training Base Map (Hub)", func():
+	_dev_add(_make_dev_button("Dev Only: Training Base Map (Hub)", func():
 		TrainingManagerScript.set_current_module("suit_control")
 		get_tree().change_scene_to_file(TrainingManagerScript.TRAINING_BASE_MAP)
 	))
-	box.add_child(_make_dev_button("Dev Only: Final Assessment", func():
+	_dev_add(_make_dev_button("Dev Only: Final Assessment", func():
 		TrainingManagerScript.set_current_module("final_assessment")
 		get_tree().change_scene_to_file("res://scenes/training/FinalAssessmentScene.tscn")
 	))
-	box.add_child(_make_dev_button("Dev Only: Mission Assignment Notice", func():
+	_dev_add(_make_dev_button("Dev Only: Mission Assignment Notice", func():
 		TrainingManagerScript.mark_module_completed("final_assessment", "mission_assignment")
 		get_tree().change_scene_to_file("res://scenes/training/MissionAssignmentNoticeScene.tscn")
 	))
-	box.add_child(_make_dev_button("Dev Only: Reset Training Progress", func():
+	_dev_add(_make_dev_button("Dev Only: Reset Training Progress", func():
 		TrainingManagerScript.reset_progress()
 		add_log("Training progress reset.")
 		_refresh_main_menu()
 	))
-	box.add_child(_make_dev_button("Training Time Debug: Show Status", _debug_training_time_status))
-	box.add_child(_make_dev_button("Training Time Debug: Start (480 min)", _debug_training_time_start))
-	box.add_child(_make_dev_button("Training Time Debug: Advance +30", func(): _debug_training_time_advance(30)))
-	box.add_child(_make_dev_button("Training Time Debug: Advance +360 (Sleep)", func(): _debug_training_time_advance(360)))
-	box.add_child(_make_dev_button("Training Time Debug: Pause", _debug_training_time_pause))
-	box.add_child(_make_dev_button("Training Time Debug: Resume", _debug_training_time_resume))
-	box.add_child(_make_dev_button("Training Time Debug: Force Timeout", _debug_training_time_force_timeout))
-	box.add_child(_make_dev_button("Suit Debug: Wear Suit", _debug_suit_wear))
-	box.add_child(_make_dev_button("Suit Debug: Remove to Service Station", _debug_suit_remove))
-	box.add_child(_make_dev_button("Suit Debug: Simulate EVA Action (60 min)", func(): _debug_suit_simulate_eva(60, "eva_normal")))
-	box.add_child(_make_dev_button("Suit Debug: Simulate Heavy EVA (60 min)", func(): _debug_suit_simulate_eva(60, "eva_heavy")))
-	box.add_child(_make_dev_button("Suit Debug: Empty Oxygen/Power", _debug_suit_empty_reserves))
-	box.add_child(_make_dev_button("Suit Debug: Service Suit (Full)", _debug_suit_service_full))
-	box.add_child(_make_dev_button("Suit Debug: Upgrade Speed", _debug_suit_upgrade))
-	box.add_child(_make_dev_button("Suit Debug: Show Status", _debug_suit_status))
-	box.add_child(_make_dev_button("Suit Debug: Reset", _debug_suit_reset))
-	box.add_child(_make_dev_button("Movement Debug: Show Status", _debug_movement_status))
-	box.add_child(_make_dev_button("Movement Debug: Simulate 10 Tiles (indoor)", func(): _debug_movement_simulate(10, "indoor", "mission")))
-	box.add_child(_make_dev_button("Movement Debug: Simulate 30 Tiles (lunar_flat)", func(): _debug_movement_simulate(30, "lunar_flat", "mission")))
-	box.add_child(_make_dev_button("Movement Debug: Simulate 30 Tiles (lunar_rough)", func(): _debug_movement_simulate(30, "lunar_rough", "mission")))
-	box.add_child(_make_dev_button("Movement Debug: Reset", _debug_movement_reset))
-	box.add_child(_make_dev_button("Dev Only: Clear Save", _clear_current_save))
+	_dev_add(_make_dev_button("Training Time Debug: Show Status", _debug_training_time_status))
+	_dev_add(_make_dev_button("Training Time Debug: Start (480 min)", _debug_training_time_start))
+	_dev_add(_make_dev_button("Training Time Debug: Advance +30", func(): _debug_training_time_advance(30)))
+	_dev_add(_make_dev_button("Training Time Debug: Advance +360 (Sleep)", func(): _debug_training_time_advance(360)))
+	_dev_add(_make_dev_button("Training Time Debug: Pause", _debug_training_time_pause))
+	_dev_add(_make_dev_button("Training Time Debug: Resume", _debug_training_time_resume))
+	_dev_add(_make_dev_button("Training Time Debug: Force Timeout", _debug_training_time_force_timeout))
+	_dev_add(_make_dev_button("Suit Debug: Wear Suit", _debug_suit_wear))
+	_dev_add(_make_dev_button("Suit Debug: Remove to Service Station", _debug_suit_remove))
+	_dev_add(_make_dev_button("Suit Debug: Simulate EVA Action (60 min)", func(): _debug_suit_simulate_eva(60, "eva_normal")))
+	_dev_add(_make_dev_button("Suit Debug: Simulate Heavy EVA (60 min)", func(): _debug_suit_simulate_eva(60, "eva_heavy")))
+	_dev_add(_make_dev_button("Suit Debug: Empty Oxygen/Power", _debug_suit_empty_reserves))
+	_dev_add(_make_dev_button("Suit Debug: Service Suit (Full)", _debug_suit_service_full))
+	_dev_add(_make_dev_button("Suit Debug: Upgrade Speed", _debug_suit_upgrade))
+	_dev_add(_make_dev_button("Suit Debug: Show Status", _debug_suit_status))
+	_dev_add(_make_dev_button("Suit Debug: Reset", _debug_suit_reset))
+	_dev_add(_make_dev_button("Movement Debug: Show Status", _debug_movement_status))
+	_dev_add(_make_dev_button("Movement Debug: Simulate 10 Tiles (indoor)", func(): _debug_movement_simulate(10, "indoor", "mission")))
+	_dev_add(_make_dev_button("Movement Debug: Simulate 30 Tiles (lunar_flat)", func(): _debug_movement_simulate(30, "lunar_flat", "mission")))
+	_dev_add(_make_dev_button("Movement Debug: Simulate 30 Tiles (lunar_rough)", func(): _debug_movement_simulate(30, "lunar_rough", "mission")))
+	_dev_add(_make_dev_button("Movement Debug: Reset", _debug_movement_reset))
+	_dev_add(_make_dev_button("Dev Only: Clear Save", _clear_current_save))
 
 func _make_dev_button(text: String, callback: Callable) -> Button:
 	var button := Button.new()
