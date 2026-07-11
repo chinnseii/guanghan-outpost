@@ -108,7 +108,8 @@
 |---|---|---|---|---|
 | P2-01 | 文档全量只读审计 | ✅ 完成 | 仅新增本审计 | — |
 | P2-02 | 真相源确认与审计基线提交 | 🔄 本轮 | 仅本审计 | — |
-| P2-03 | README 收敛 | 待 | README.md | 可与 P2-06 并行（文件不重叠） |
+| P2-03A | 保全 README-only Sprint 历史 | ✅ 完成 | 新增 `docs/archive/sprints/*` + 本审计 | 先于 P2-03B |
+| P2-03B | README 收敛 | 待 | README.md | 可与 P2-06 并行（文件不重叠） |
 | P2-04 | CURRENT 校正 | 待 | CURRENT.md | **在 P2-05 系统事实确认后定稿** |
 | P2-05 | 系统文档职责声明 + 命名/引用修复 | 待 | SYSTEM_REGISTRY + SYSTEMS_REFERENCE_FOR_DESIGN | 先于 P2-04 定稿 |
 | P2-06 | ACTIVE_TASKS 正式落地（EMPTY/IDLE） | 待 | 新建 `docs/handoff/ACTIVE_TASKS.md` | 独立，可与 P2-03 并行 |
@@ -122,6 +123,35 @@
 ## 10. 待用户决策（剩余）
 五项主决策已在 §2 固化。**剩余仅一项**需在 P2-04 时确认：
 - CURRENT 的"最近稳定基线区"具体保留哪几条（当前 tag `repository-hygiene-complete-2026-07-11` + 最近完成 Phase 1 是默认候选）——可在 P2-04 顺带确认，非阻塞。
+
+## 11. P2-03A 执行记录 · README-only Sprint 历史保全
+
+**目标**：在 README 收敛（P2-03B）前，确保 README 中无独立文档承载的 Sprint 历史不丢失。
+
+**关键发现**：`ITERATION_PLAN.md` 内含一份**近乎完整的平行 Sprint 变更日志**（Sprint 02/03/04/05A + 06/07/08），与 README 的 Sprint 段**互补**（README 偏 UI/文案措辞，ITERATION_PLAN 偏文件路径/存档字段）。由于 ITERATION_PLAN 后续只归档、不删除，README 的 Sprint 历史**substantively 已被 ITERATION_PLAN 承载**。
+
+**README Sprint 段来源映射**：
+
+| README 段 | 对应 Sprint | 独立 sprint 文档? | ITERATION_PLAN 覆盖 | 分类 | 处理 |
+|---|---|---|---|---|---|
+| L335-389 Arrival Prototype/Rev01/Split/Polish | Sprint 02 | 无 | **完整**（L851-930，含同样的构图/氛围/文件细节） | FULLY_DUPLICATED | 不新建（由 ITERATION_PLAN 归档承载）；README 可安全裁剪 |
+| L390-447 Prologue&Application/Rev02/APP-002A/Patch/Bugfix | Sprint 03 | 无 | 大部分（L931-1023，偏实现细节；README 偏 UI 文案） | PARTIALLY_DUPLICATED | **已提取** `docs/archive/sprints/SPRINT_03_PROLOGUE_APPLICATION.md`（合并两源；兼作 SPRINT_04 失效引用的目标名） |
+| L285-321 Sprint 05A 竖切打磨 | Sprint 05A | 无 | 高度一致（L1293-1322） | PARTIALLY_DUPLICATED | **已提取** `docs/archive/sprints/SPRINT_05A_VERTICAL_SLICE_POLISH.md`（合并两源） |
+| Sprint 04/06/07/08 段 | 04/06/07/08 | **有**（`docs/sprints/*`） | 有 | FULLY_DUPLICATED | 不处理（已有独立文档） |
+| 顶部"当前状态"/运行方式/协作 | — | — | — | CURRENT_INFO / GENERAL_PROJECT_INFO | README 收敛时归位到 CURRENT/门面 |
+
+**分类统计**：FULLY_DUPLICATED（Sprint 02 + 04/06/07/08）、PARTIALLY_DUPLICATED（Sprint 03、05A）、README_ONLY（0，无任何 Sprint 事实只在 README 而不在 ITERATION_PLAN）、NEEDS_REVIEW（0）。
+
+**新增文件（仅 2，无凭空补写）**：
+- `docs/archive/sprints/SPRINT_03_PROLOGUE_APPLICATION.md`（源：README + ITERATION_PLAN Sprint 03）
+- `docs/archive/sprints/SPRINT_05A_VERTICAL_SLICE_POLISH.md`（源：README + ITERATION_PLAN Sprint 05A）
+- 新建目录 `docs/archive/`、`docs/archive/sprints/`（plans/reviews/demos 留待后续实际归档时创建，避免空目录）。
+
+**未提取项及理由**：Sprint 02 = FULLY_DUPLICATED（ITERATION_PLAN L851-930 已含相同构图/氛围/文件细节，且 ITERATION_PLAN 后续归档保留）→ 不建冗余文件；无独立"Sprint 05"（仅 05A），不臆造。
+
+**README 收敛无信息丢失前提**：**已满足**。README 待裁剪的 Sprint 历史，或已有独立 sprint 文档（04/06/07/08）、或由 ITERATION_PLAN 承载（02，随后归档）、或已提取为专门归档（03/05A）。P2-03B 可安全进行。
+
+**本轮不修改 README、不修 SPRINT_04 失效引用**（引用修复归 P2-08）。
 
 ## 附：本轮基线核验
 - HEAD=`3a69f90`；main 与 origin/main 同步；tag `repository-hygiene-complete-2026-07-11` 指向 HEAD。
