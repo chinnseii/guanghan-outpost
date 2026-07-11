@@ -31,7 +31,7 @@
 
 ## 2. 正式主线流程（主菜单可直达，无需 Dev）
 
-顺序与"pre-09 flow audit"一致（`docs/reviews/pre09_flow_audit.md`）。
+顺序与"pre-09 flow audit"一致（`docs/archive/reviews/pre09_flow_audit.md`）。
 
 | # | 流程段 | 起始场景 | 关键脚本 | 主要 Manager | 存档入口 | 切到下一段 | 当前可进入 |
 |---|---|---|---|---|---|---|---|

@@ -1,7 +1,7 @@
 # 当前项目状态 / Current Project Status
 
 > 本文件是**项目当前状态的唯一权威来源**（滚动文档，完成一个主要批次后覆盖更新）。
-> 完整历史见 [`../sprints/`](../sprints/) 与 [`../archive/`](../archive/)；系统事实见 Registry / Reference（下方导航）。
+> 完整历史见 [`../archive/`](../archive/)（`plans/` `sprints/` `reviews/` `demos/`）；系统事实见 Registry / Reference（下方导航）。
 > 更新时间：2026-07-11。
 
 ## 当前阶段
@@ -54,7 +54,7 @@
 | 系统行为与数值 | [`SYSTEMS_REFERENCE_FOR_DESIGN.md`](SYSTEMS_REFERENCE_FOR_DESIGN.md) |
 | 场景结构 | [`../governance/SCENE_REGISTRY.md`](../governance/SCENE_REGISTRY.md) |
 | 文档治理计划 | [`../governance/DOCUMENT_GOVERNANCE_AUDIT.md`](../governance/DOCUMENT_GOVERNANCE_AUDIT.md) |
-| 历史记录 | [`../archive/`](../archive/) · [`../sprints/`](../sprints/) |
+| 历史记录 | [`../archive/`](../archive/)（sprints / plans / reviews / demos） |
 
 ## 沿用的工作约定（CURRENT-unique，待未来迁入规范文档）
 

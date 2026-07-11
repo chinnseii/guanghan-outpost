@@ -10,7 +10,7 @@ Recommended Branch: `feature/sprint-04-national-training`
 Related Docs:
 
 * `/docs/PROJECT_BRIEF.md`
-* `/docs/sprints/SPRINT_03_PROLOGUE_APPLICATION.md`
+* `docs/archive/sprints/SPRINT_03_PROLOGUE_APPLICATION.md`
 * `/docs/art/APP-002A/`
 * `/docs/art/TS-001/`
 * `/docs/art/TS-002/`

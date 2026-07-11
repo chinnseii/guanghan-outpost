@@ -11,7 +11,7 @@
 - **Locked files**: `0`
 - **Pending handoffs**: `0`
 - **Branch**: `main`
-- **Board baseline**: `3d50a24`（创建/上次收工基线，随提交变化，非长期事实）
+- **Board baseline**: `b2e886d`（创建/上次收工基线，随提交变化，非长期事实）
 - **Last updated**: `2026-07-11`
 
 ## Active Tasks
@@ -34,6 +34,15 @@
 > 交替（模式 B）交接时在此填交接单摘要 + 正式报告路径（完整交接单格式见模板）。
 
 ## Recently Closed
+
+### P2-08 — Documentation link and path repair
+
+- Status: `DONE`
+- Owner: `Claude Code` ／ Reviewer: `User`
+- Result: 修复 P2-07 归档后的当前导航——3 处 Markdown 断链（README、CURRENT×2）+ 4 处裸路径导航（archived SPRINT_04→SPRINT_03、PROJECT_MAP→pre09、COLLABORATION_RULES×2）。
+- Verification: 全仓 Markdown 链接扫描通过；当前权威文档断链 = 0。DOCUMENT_REGISTRY 的旧路径随 P2-09 重写处理。
+- Commit: 见本任务收尾提交（`docs: repair documentation links after archiving`）。
+- Closed: `2026-07-11`
 
 ### P2-07 — Historical document archiving
 

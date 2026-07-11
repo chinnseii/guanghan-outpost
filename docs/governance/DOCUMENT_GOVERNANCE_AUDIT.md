@@ -114,7 +114,7 @@
 | P2-05 | 系统文档职责声明 + 命名/引用修复 | ✅ 完成 | SYSTEM_REGISTRY + SYSTEMS_REFERENCE_FOR_DESIGN + CLEANUP_PLAN/SKILL_ARCHITECTURE 命名修复 | 先于 P2-04 定稿 |
 | P2-06 | ACTIVE_TASKS 正式落地（IDLE） | ✅ 完成 | 新建 `docs/handoff/ACTIVE_TASKS.md` + 模板加指针 | 独立 |
 | P2-07 | 历史文档分类归档 | ✅ 完成 | `git mv` 17 文档 → `docs/archive/{plans,sprints,reviews,demos}/` | **先于 P2-08** |
-| P2-08 | 全仓文档链接与导航修复 | 待 | 各文档引用 | **必须在 P2-07 之后** |
+| P2-08 | 全仓文档链接与导航修复 | ✅ 完成 | README/CURRENT/PROJECT_MAP/COLLABORATION_RULES/archived SPRINT_04 | 在 P2-07 之后 |
 | P2-09 | DOCUMENT_REGISTRY 重写 | 待 | DOCUMENT_REGISTRY.md | **在归档+引用修复之后**（否则注册表立即过期） |
 | P2-10 | 文档治理验收、push 与 tag | 待 | 收口提交 + tag | 最后统一验收 |
 
@@ -223,6 +223,32 @@
 - 其余为治理文档中的**散文提及**（DOCUMENT_REGISTRY 若干 → 随 P2-09 重写修；CLEANUP_PLAN/SHARED_FILE_REGISTRY/COLLABORATION_RULES/PROJECT_MAP 的历史/计划性描述）——非 markdown 断链，P2-08/P2-09 视需要处理。
 
 **P2-08 前置**：满足（路径已稳定；上述断链清单已明确，可修）。
+
+## 17. P2-08 执行记录 · 文档链接与路径修复
+
+**ACTIVE_TASKS 生命周期**：登记 P2-08（`ACTIVE`, 1 task, 锁 7 文件）→ 修复 → 恢复 `IDLE`（0/0/0），入 Recently Closed（保留 P2-07/P2-08 共 2 条）。第二个正式任务。
+
+**初始扫描**（git-tracked 状态，非本机残留空目录）：Markdown 断链 **3**（README `docs/sprints/`、CURRENT `../sprints/`×2，均指向 P2-07 后已空/消失的 `docs/sprints/`）；裸路径当前导航 **4**（archived SPRINT_04→SPRINT_03、PROJECT_MAP→pre09、COLLABORATION_RULES×2）；case-mismatch 0；TS-001 图片链接为 URL 编码假阳性（文件存在，非 P2-07 相关，未改）。
+
+**修复统计**（改 5 文件）：
+| 文件 | 类型 | 原 → 新 |
+|---|---|---|
+| `README.md` | Markdown link | `docs/sprints/` → `docs/archive/`（含子目录说明，去重） |
+| `docs/handoff/CURRENT.md`（×2） | Markdown link | `../sprints/` → `../archive/`（去重，标子目录） |
+| `docs/governance/PROJECT_MAP.md` | prose path | `docs/reviews/pre09_flow_audit.md` → `docs/archive/reviews/…` |
+| `docs/handoff/COLLABORATION_RULES.md`（×2） | prose path | `docs/sprints/*.md` → `docs/archive/sprints/*.md` |
+| `docs/archive/sprints/SPRINT_04_NATIONAL_TRAINING.md` | prose path（历史内部） | `/docs/sprints/SPRINT_03_…` → `docs/archive/sprints/SPRINT_03_…` |
+
+- Markdown 链接修复 **3**；裸路径/导航修复 **4**；Registry 路径修复 **0**；系统参考名修复 **0**（P2-05 已完成）。
+
+**保留的历史/旧路径**（按 §XI/§X 不改）：
+- `DOCUMENT_GOVERNANCE_AUDIT.md` §6/§8 等的迁移记录与分类表（旧路径 = 可追溯证据，§16 已列新路径）。
+- `docs/governance/DOCUMENT_REGISTRY.md` 的旧路径 prose（**随 P2-09 重写处理**，本轮不动）。
+- `CLEANUP_PLAN.md` 的计划性 prose、`SHARED_FILE_REGISTRY.md:37` 的未来新建 sprint 文档示例（AMBIGUOUS）、`LEGACY_SANDBOX_PROTOTYPE.md:161` 的历史陈述、各归档文档内部的历史引用。
+
+**最终链接状态**：当前权威文档 Markdown 断链 **0**；历史归档内部 Markdown 断链 **0**；无法验证项 0；外部链接（http）未改。
+
+**P2-09 前置**：满足（路径稳定、当前导航零断链；DOCUMENT_REGISTRY 可基于真实现状重写）。
 
 ## 附：本轮基线核验
 - HEAD=`3a69f90`；main 与 origin/main 同步；tag `repository-hygiene-complete-2026-07-11` 指向 HEAD。

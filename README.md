@@ -86,4 +86,4 @@ docs/archive/      历史计划、Sprint、复审与 demo 归档
 
 ## 历史记录
 
-Sprint、旧迭代计划、复审与验收记录保存在 [`docs/sprints/`](docs/sprints/) 与 [`docs/archive/`](docs/archive/)，README **不再维护完整变更日志**。
+Sprint、旧迭代计划、复审与验收记录保存在 [`docs/archive/`](docs/archive/)（含 `plans/` `sprints/` `reviews/` `demos/`），README **不再维护完整变更日志**。
