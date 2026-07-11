@@ -113,7 +113,7 @@
 | P2-04 | CURRENT 校正 | ✅ 完成 | CURRENT.md（55→68 行，内容重构） | 在 P2-05 系统事实确认后定稿 |
 | P2-05 | 系统文档职责声明 + 命名/引用修复 | ✅ 完成 | SYSTEM_REGISTRY + SYSTEMS_REFERENCE_FOR_DESIGN + CLEANUP_PLAN/SKILL_ARCHITECTURE 命名修复 | 先于 P2-04 定稿 |
 | P2-06 | ACTIVE_TASKS 正式落地（IDLE） | ✅ 完成 | 新建 `docs/handoff/ACTIVE_TASKS.md` + 模板加指针 | 独立 |
-| P2-07 | 历史文档分类归档 | 待 | `git mv` → `docs/archive/{plans,sprints,reviews,demos}/` | **先于 P2-08** |
+| P2-07 | 历史文档分类归档 | ✅ 完成 | `git mv` 17 文档 → `docs/archive/{plans,sprints,reviews,demos}/` | **先于 P2-08** |
 | P2-08 | 全仓文档链接与导航修复 | 待 | 各文档引用 | **必须在 P2-07 之后** |
 | P2-09 | DOCUMENT_REGISTRY 重写 | 待 | DOCUMENT_REGISTRY.md | **在归档+引用修复之后**（否则注册表立即过期） |
 | P2-10 | 文档治理验收、push 与 tag | 待 | 收口提交 + tag | 最后统一验收 |
@@ -201,6 +201,28 @@
 - **三份文档职责**：`CURRENT.md` = 项目级状态；`ACTIVE_TASKS.md` = 执行级状态（任务/锁/交接）；`ACTIVE_TASKS_TEMPLATE.md` = 条目结构模板。板 → 模板 + CURRENT 均建立链接；模板 → 板已补指针。
 - **本轮未改** README / CURRENT / 系统文档（CURRENT 里"下一步 = P2-06"暂时落后一轮，按计划在后续状态批次/Phase 2 收口时更新，不在本轮扩范围）。
 - **P2-07 准入**：满足。**从下一项真实任务起，必须在 `ACTIVE_TASKS.md` 登记**（含 owner / 锁 / 验证 / 交接）。
+
+## 16. P2-07 执行记录 · 历史文档分类归档
+
+**ACTIVE_TASKS 生命周期**：开工前登记 P2-07（board `ACTIVE`, 1 task, owner=Claude Code, reviewer=User, 锁 17 移动文档 + 板 + 本审计）→ 执行移动/验证 → 收工恢复 `IDLE`（0/0/0），P2-07 入 Recently Closed。**这是 ACTIVE_TASKS 落地后的首个正式任务。**
+
+**归档统计（17 个，全部 Git R100 纯 rename）**：
+- **plans（1）**：`ITERATION_PLAN.md` → `docs/archive/plans/`。
+- **sprints（12）**：`docs/sprints/*`（11）+ `docs/SPRINT_01_FOUNDATION.md` → `docs/archive/sprints/`。
+- **reviews（2）**：`SPRINT_01_FOUNDATION_REVIEW.md`、`pre09_flow_audit.md` → `docs/archive/reviews/`。
+- **demos（2）**：`FIRST_PLAYABLE_DEMO_TEST_PLAN.md`、`KNOWN_ISSUES_PRE09.md` → `docs/archive/demos/`。
+- 新建子目录 `plans/reviews/demos`（`sprints/` 已存在，含 P2-03A 的 SPRINT_03/05A，原位保留）。
+
+**KEEP_CURRENT（未移动）**：README、PROJECT_BRIEF、CURRENT、ACTIVE_TASKS(+模板)、全部 `docs/governance/*`、SYSTEMS_REFERENCE_FOR_DESIGN、`LEGACY_SANDBOX_PROTOTYPE.md`（遗留解释权威）、`SPRITE_GUIDE.md`、`docs/text/PROLOGUE_TEXT_STYLE_GUIDE.md`、`docs/design/LUNAR_SURFACE_MAP.md`、`docs/art/**`。NEEDS_REVIEW：0。
+
+**内容安全**：17/17 移动前后 SHA-256 **完全一致**（before==after 哈希集合相同）；Git 全部识别为 `R100`（0% 内容差异）；无正文修改；`git diff --check` 干净。
+
+**临时失效引用（P2-08 输入，本轮不修）**：
+- 当前入口断链 **3**（`README.md:89` `docs/sprints/`；`CURRENT.md:4` 与 `:57` `../sprints/`——`docs/sprints/` 已空、随提交消失；`docs/archive/` 链接仍有效）。
+- 历史内部断链 **1**（`docs/archive/sprints/SPRINT_04_NATIONAL_TRAINING.md:13` → `SPRINT_03_PROLOGUE_APPLICATION.md`，两者现均在 `docs/archive/sprints/`，路径需更新）。
+- 其余为治理文档中的**散文提及**（DOCUMENT_REGISTRY 若干 → 随 P2-09 重写修；CLEANUP_PLAN/SHARED_FILE_REGISTRY/COLLABORATION_RULES/PROJECT_MAP 的历史/计划性描述）——非 markdown 断链，P2-08/P2-09 视需要处理。
+
+**P2-08 前置**：满足（路径已稳定；上述断链清单已明确，可修）。
 
 ## 附：本轮基线核验
 - HEAD=`3a69f90`；main 与 origin/main 同步；tag `repository-hygiene-complete-2026-07-11` 指向 HEAD。
