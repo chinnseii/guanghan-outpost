@@ -1,7 +1,9 @@
-# Godot generated files
+# Godot editor/import cache
 .godot/
-.import/
 *.translation
+
+# Local Godot user data, logs, and playtest saves
+.godot_appdata/
 
 # Export/build output
 builds/
