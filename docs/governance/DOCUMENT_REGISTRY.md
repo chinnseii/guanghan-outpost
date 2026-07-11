@@ -49,7 +49,7 @@
 | 文档 | 状态 | 说明 |
 |---|---|---|
 | [`REPOSITORY_HYGIENE_AUDIT.md`](REPOSITORY_HYGIENE_AUDIT.md) | AUDIT_RECORD | Phase 1 仓库卫生审计与执行记录；非当前仓库状态入口；卫生规则变化时才更新 |
-| [`DOCUMENT_GOVERNANCE_AUDIT.md`](DOCUMENT_GOVERNANCE_AUDIT.md) | ACTIVE_SUPPORTING → Phase 2 完成后转 AUDIT_RECORD | Phase 2 审计/决策/执行依据；非长期注册表；P2-10 完成时记录生命周期转换 |
+| [`DOCUMENT_GOVERNANCE_AUDIT.md`](DOCUMENT_GOVERNANCE_AUDIT.md) | AUDIT_RECORD | Phase 2 文档治理审计与迁移记录；Phase 2 已完成，不再频繁维护；仅事实修正或治理复盘时更新；长期文档职责由本 `DOCUMENT_REGISTRY.md` 维护 |
 
 ## 支持性设计文档
 
@@ -97,6 +97,6 @@
 
 ## 已知待治理项
 
-- `DOCUMENT_GOVERNANCE_AUDIT.md` 将在 Phase 2 收口（P2-10）后转 `AUDIT_RECORD`。
+- `DOCUMENT_GOVERNANCE_AUDIT.md` 已在 Phase 2 收口（P2-10）转为 `AUDIT_RECORD`。
 - Phase 3+（系统边界/存档真相、大脚本拆分）尚未开始；其待办见 `CLEANUP_PLAN.md` 与 `CURRENT.md`。
 - 命名/路径纪律：本表一律用真实文件名（`SYSTEMS_REFERENCE_FOR_DESIGN.md`、`docs/archive/{plans,sprints,reviews,demos}/`），不用 `SYSTEMS_REFERENCE` 简称或旧 `docs/sprints/` 等路径。

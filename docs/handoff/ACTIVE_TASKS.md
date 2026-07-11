@@ -11,7 +11,7 @@
 - **Locked files**: `0`
 - **Pending handoffs**: `0`
 - **Branch**: `main`
-- **Board baseline**: `6fed3c7`（创建/上次收工基线，随提交变化，非长期事实）
+- **Board baseline**: `a340d13`（创建/上次收工基线，随提交变化，非长期事实）
 - **Last updated**: `2026-07-11`
 
 ## Active Tasks
@@ -34,6 +34,15 @@
 > 交替（模式 B）交接时在此填交接单摘要 + 正式报告路径（完整交接单格式见模板）。
 
 ## Recently Closed
+
+### P2-10 — Phase 2 documentation governance close-out
+
+- Status: `DONE`
+- Owner: `Claude Code` ／ Reviewer: `User`
+- Result: Phase 2 文档治理在本收口提交定稿（CURRENT 更新为 Phase 2 完成、审计转 AUDIT_RECORD、DOCUMENT_REGISTRY 生命周期更新）。
+- Verification: 全部本地 Phase 2 验收检查通过（当前权威断链=0、注册表完整、Godot smoke 通过）；push 与 tag 在提交后验证。
+- Commit: 见本任务收尾提交（`docs: complete Phase 2 document governance`）。
+- Closed: `2026-07-11`
 
 ### P2-09 — Document registry rewrite
 

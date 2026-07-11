@@ -1,5 +1,7 @@
 # DOCUMENT_GOVERNANCE_AUDIT · 文档治理审计与迁移依据（Phase 2）
 
+> **Phase 2 已完成（2026-07-11）。本文件现为历史治理审计记录（`AUDIT_RECORD`）**——保留 Phase 2 的审计、决策与执行证据，不再频繁维护。长期文档职责与路径索引请参见 [`DOCUMENT_REGISTRY.md`](DOCUMENT_REGISTRY.md)；项目当前状态见 [`../handoff/CURRENT.md`](../handoff/CURRENT.md)。
+
 > Phase 2 治理审计 · 2026-07-11 · 基线 `repository-hygiene-complete-2026-07-11`（`3a69f90`）
 > **生命周期**：本文件是 Phase 2 文档治理的**审计与迁移依据**——记录发现、冲突、证据、用户决策与迁移批次。Phase 2 完成后转为**历史治理记录**；长期有效的"当前文档职责与索引"由 `docs/governance/DOCUMENT_REGISTRY.md` 维护。未来 Agent **不要**把本审计当作永久实时注册表。
 > P2-01 为只读审计；P2-02（本次）固化用户决策并作为 Phase 2 正式执行基线。
@@ -265,6 +267,25 @@
 **路径与链接**：注册表 27 个链接全部有效（含 4 archive 目录、README `../../`）；失效 **0**；旧名称残留 **0**（`SYSTEMS_REFERENCE` 简称/`docs/sprints` 等仅在"禁止使用"纪律行出现）。
 
 **P2-10 前置**：满足。**注意**：本轮**未**把 Phase 2 标记完成；`DOCUMENT_GOVERNANCE_AUDIT.md` 仍为 ACTIVE_SUPPORTING，将在 P2-10 收口后转 AUDIT_RECORD。
+
+## 19. P2-10 执行记录 · Phase 2 收口
+
+**Phase 2 全部完成**：P2-01（只读审计）· P2-02（六类真相源确认）· P2-03A（README-only 历史保全）· P2-03B（README 收敛 555→89）· P2-04（CURRENT 校正）· P2-05（系统文档职责分层）· P2-06（ACTIVE_TASKS 落地）· P2-07（17 文档归档）· P2-08（链接修复）· P2-09（DOCUMENT_REGISTRY 重写 57→102）· P2-10（本收口）。
+
+**收口成果**：
+- README 555 → 89 行（入口/导航页）；CURRENT 转为当前状态唯一权威并更新为 "Phase 2 完成"。
+- 系统文档职责分层（SYSTEM_REGISTRY 状态/边界 ↔ SYSTEMS_REFERENCE_FOR_DESIGN 玩法/数值，互链）。
+- ACTIVE_TASKS 落地（4 个 Phase 2 任务经它登记/关闭）。
+- 归档 **17** 文档到 `docs/archive/{plans(1),sprints(12),reviews(2),demos(2)}/`（全 R100，内容 hash 不变）。
+- 全仓 Markdown 链接：当前权威断链 **0**、archive 内部断链 **0**、stale current path **0**。
+- DOCUMENT_REGISTRY 重写为长期注册表（NEEDS_REGISTRATION=0）；本审计生命周期转 `AUDIT_RECORD`。
+
+**最终状态**：tracked `.md` **48**；六类真相源唯一、权威无冲突；archive/current 分离完整。
+- **Phase 2 提交系列（10）**：`8d31f6c` `948e66c` `1042113` `c90976e` `fdd7422` `3d50a24` `b2e886d` `6fed3c7` `a340d13` + 本收口提交。
+- **完成 tag**：`document-governance-complete-2026-07-11`（本收口提交，提交并推送后形成）。
+- **下一阶段入口**：Phase 3 系统边界清洗（见 `CLEANUP_PLAN.md` Phase 3；Phase 编号以 CLEANUP_PLAN 为准：3=系统边界、4=大脚本拆分、5=Skill、6=双 Agent）。
+
+> Phase 2 文档治理到此收口；本文件不再承担长期注册职责，长期索引见 `DOCUMENT_REGISTRY.md`。
 
 ## 附：本轮基线核验
 - HEAD=`3a69f90`；main 与 origin/main 同步；tag `repository-hygiene-complete-2026-07-11` 指向 HEAD。

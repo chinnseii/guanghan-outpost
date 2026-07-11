@@ -6,44 +6,46 @@
 
 ## 当前阶段
 
-**Phase 2 · 文档治理**（进行中）。目标：减少文档重复、明确各文档职责与真相源、降低 Agent 上下文负担。
+**Phase 2 · 文档治理：已完成，准备进入下一治理阶段。**
 
 - Phase 0（工程治理基线）：已完成。
 - Phase 1（仓库卫生）：已完成。
-- Phase 2（文档治理）：进行中（见下"当前工作"）。
-- Phase 3+（系统边界/存档真相、大脚本拆分等）：尚未开始。
+- Phase 2（文档治理）：**已完成**（P2-01~P2-10 全部收口）。
+- Phase 3（系统边界清洗）及之后：**尚未开始**（阶段定义以 [`../governance/CLEANUP_PLAN.md`](../governance/CLEANUP_PLAN.md) 为准）。
 
 ## 最近稳定基线
 
-- **最近已推送稳定基线**：commit `3a69f90`，tag `repository-hygiene-complete-2026-07-11`（Phase 1 仓库卫生完成点，已 push 到 origin/main）。
-- **当前本地进展**：Phase 2 文档治理提交在本地累积、**尚未 push**（更新此文时 `main` 领先 `origin/main` 数个提交——具体数量随提交变化，不是长期事实）。
-- 工作区当前干净（无未提交源码/噪声）。
+- **Phase 1 已推送基线**：commit `3a69f90`，tag `repository-hygiene-complete-2026-07-11`（仓库卫生完成点）。
+- **Phase 2 完成基线**：本收口提交，tag `document-governance-complete-2026-07-11`（Phase 2 完成 commit 与 tag 在本轮提交与推送后形成；此处不写未知 hash）。
+- 工作区干净（无未提交源码/噪声）。
 
 ## 最近完成
 
-- Phase 1 仓库卫生：换行规范化（`.gitattributes`）、docs 图片隔离（`.gdignore`）、清除 152 个 docs `.import`、补交 35 个 `.gd.uid`。
-- Phase 2 至今：文档全量审计与六类真相源确认；README 由 555 行收敛到 89 行（改为开发协作者入口/导航页）；README-only 的 Sprint 03 / 05A 历史已归档到 `../archive/sprints/`；`SYSTEM_REGISTRY.md` 与 `SYSTEMS_REFERENCE_FOR_DESIGN.md` 的职责边界已声明并互链。
+Phase 2 文档治理（本阶段成果）：
+- README 收敛（555 → 89 行，改为开发协作者入口/导航页）；本 `CURRENT.md` 校正为当前状态唯一权威。
+- 系统文档职责分层：`SYSTEM_REGISTRY.md`（状态/边界）与 `SYSTEMS_REFERENCE_FOR_DESIGN.md`（玩法/数值）声明并互链。
+- `ACTIVE_TASKS.md` 落地（任务/锁/交接唯一真相）。
+- 17 份历史文档归档到 `../archive/{plans,sprints,reviews,demos}/`，全仓文档链接修复。
+- `DOCUMENT_REGISTRY.md` 重写为长期文档职责/权威/生命周期注册表。
 
 ## 当前工作
 
-- **本轮（P2-04）**：校正并收敛本 `CURRENT.md`，使其成为当前状态唯一权威来源。
-- Phase 2 尚未完成；当前无玩法功能开发混入（纯文档/仓库治理）。
+- **本轮（P2-10）**：Phase 2 收口——最终验收、推送 Phase 2 提交、创建完成 tag。**Phase 2 收口完成。**
+- 当前无玩法功能开发混入（纯文档/仓库治理）。
 
 ## 当前风险与已知待办
 
 > 详细批次与依赖以 [`../governance/DOCUMENT_GOVERNANCE_AUDIT.md`](../governance/DOCUMENT_GOVERNANCE_AUDIT.md) 与 [`../governance/CLEANUP_PLAN.md`](../governance/CLEANUP_PLAN.md) 为准，此处只列项目级风险。
 
-- `ACTIVE_TASKS.md` 尚未创建（并行/交替任务的当前真相缺位）——待 P2-06。
-- 历史文档尚未归档、跨文档引用（含 `SPRINT_04→SPRINT_03` 死链）尚未统一修复——待 P2-07 / P2-08。
-- `DOCUMENT_REGISTRY.md` 待重写（P2-09）；`SYSTEMS_REFERENCE_FOR_DESIGN.md`（2800+ 行）偏长，未来需渐进精简。
+- `SYSTEMS_REFERENCE_FOR_DESIGN.md`（2800+ 行）偏长，未来需渐进精简（非阻塞）。
 - Phase 3 的系统边界与存档真相、Phase 4 的大型脚本拆分尚未开始。
 - 月面 EVA 的已知 deferred 风险（EVA activity 名称、返航估算模型、地表玩家位置未持久化）见 `CLEANUP_PLAN.md` 附录 A。
 - 系统侧 deferred：训练门运行时注册、`DoorStateManager` 未接入正式旧基地导航（见 `SYSTEM_REGISTRY.md`）；`PenaltyDatabase` 预设小、`severity` 未接 UI、`apply_penalty` 无回滚事务语义。
 
 ## 下一步
 
-**唯一优先事项：P2-06 —— 创建 `docs/handoff/ACTIVE_TASKS.md`**，建立当前任务、owner、分支/worktree、文件锁与交接状态的唯一来源。
-（随后：P2-07 历史归档 → P2-08 引用修复 → P2-09 `DOCUMENT_REGISTRY` 重写 → P2-10 验收/push/tag。）
+**唯一优先事项：Phase 3 —— 系统边界清洗**（厘清 Manager 职责与存档真相源，逐系统、中高风险；先文档化每个状态的唯一存档真相源、核实 Inventory/Backpack/Storage 边界，见 [`../governance/CLEANUP_PLAN.md`](../governance/CLEANUP_PLAN.md) Phase 3）。
+（Phase 编号以 `CLEANUP_PLAN.md` 为准：Phase 3 = 系统边界清洗、Phase 4 = 大脚本拆分、Phase 5 = Skill 建设、Phase 6 = 双 Agent 试运行。Phase 3 尚未开始。）
 
 ## 权威文档导航
 
