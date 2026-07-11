@@ -6,12 +6,11 @@
 
 ## 当前阶段
 
-**Phase 2 · 文档治理：已完成，准备进入下一治理阶段。**
+**Phase 3 · 系统边界清洗：已启动**（P3-01 只读审计完成）。
 
-- Phase 0（工程治理基线）：已完成。
-- Phase 1（仓库卫生）：已完成。
-- Phase 2（文档治理）：**已完成**（P2-01~P2-10 全部收口）。
-- Phase 3（系统边界清洗）及之后：**尚未开始**（阶段定义以 [`../governance/CLEANUP_PLAN.md`](../governance/CLEANUP_PLAN.md) 为准）。
+- Phase 0（工程治理基线）/ Phase 1（仓库卫生）/ Phase 2（文档治理）：**均已完成**。
+- Phase 3（系统边界清洗）：**进行中**——P3-01 系统边界只读审计已完成（见 [`../governance/PHASE_3_SYSTEM_BOUNDARY_AUDIT.md`](../governance/PHASE_3_SYSTEM_BOUNDARY_AUDIT.md)）；Phase 3 尚未完成。
+- Phase 4+（大脚本拆分、Skill、双 Agent）：尚未开始（编号以 [`../governance/CLEANUP_PLAN.md`](../governance/CLEANUP_PLAN.md) 为准）。
 
 ## 最近稳定基线
 
@@ -30,8 +29,8 @@ Phase 2 文档治理（本阶段成果）：
 
 ## 当前工作
 
-- **本轮（P2-10）**：Phase 2 收口——最终验收、推送 Phase 2 提交、创建完成 tag。**Phase 2 收口完成。**
-- 当前无玩法功能开发混入（纯文档/仓库治理）。
+- **本轮（P3-01）**：系统边界只读审计——盘点 20 autoload/Manager、数据所有权、存档真相源、依赖与遗留边界，形成 Phase 3 基线。**零玩法代码修改。**
+- 关键结论：跨系统写入全部经公开方法（0 直接外部字段写）、无 P0；核心 P1 = 存档真相源不唯一（详见审计文档 §7/§12）。
 
 ## 当前风险与已知待办
 
@@ -44,8 +43,8 @@ Phase 2 文档治理（本阶段成果）：
 
 ## 下一步
 
-**唯一优先事项：Phase 3 —— 系统边界清洗**（厘清 Manager 职责与存档真相源，逐系统、中高风险；先文档化每个状态的唯一存档真相源、核实 Inventory/Backpack/Storage 边界，见 [`../governance/CLEANUP_PLAN.md`](../governance/CLEANUP_PLAN.md) Phase 3）。
-（Phase 编号以 `CLEANUP_PLAN.md` 为准：Phase 3 = 系统边界清洗、Phase 4 = 大脚本拆分、Phase 5 = Skill 建设、Phase 6 = 双 Agent 试运行。Phase 3 尚未开始。）
+**唯一优先事项：P3-02 —— 存档真相源与数据 owner 定稿**（为每个状态定唯一真相源，核实 Inventory/Backpack/Storage 双记账与双时钟同步；见 [`../governance/PHASE_3_SYSTEM_BOUNDARY_AUDIT.md`](../governance/PHASE_3_SYSTEM_BOUNDARY_AUDIT.md) §13）。P3-03（P1 冗余写修复）需用户先就"真相源以 bundle 还是自存为准"拍板。
+（Phase 编号以 `CLEANUP_PLAN.md` 为准：Phase 3=系统边界、4=大脚本拆分、5=Skill、6=双 Agent。）
 
 ## 权威文档导航
 

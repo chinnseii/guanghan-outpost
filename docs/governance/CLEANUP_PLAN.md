@@ -53,6 +53,7 @@
 ## Phase 3 · 系统边界清洗（中高风险，逐系统）
 - **目标**：厘清 Manager 职责与存档真相源，不重写。
 - **前置条件**：Phase 0-2 完成；SYSTEM_REGISTRY / LEGACY_REGISTRY 已评审。
+- **P3-01 审计结论（2026-07-11，详见 `PHASE_3_SYSTEM_BOUNDARY_AUDIT.md`）**：20 autoload 全现役；**跨系统写入全部经公开方法、0 处直接外部字段写**（PenaltyManager 仅分发）；无依赖环、无 P0。**核心 P1 = 存档真相源不唯一**（Manager 状态同进 `*_state.json` + `training_progress` + `sprint06_progress`，load 顺序覆盖）。P2：Inventory/Backpack/Storage 双记账待核、双时钟同步待核。**下一步唯一任务 = P3-02（存档真相源与数据 owner 定稿）**。批次顺序：P3-02（定 owner/真相源）→ P3-03（P1 冗余写/恢复顺序修复，需用户先定真相源）→ P3-04（职责重叠清洗）→ P3-05（Legacy 隔离）→ P3-06（回归收口）。
 - **具体任务**（每个系统独立 PR，串行）：
   1. **文档化存档真相源**：为每个状态明确"唯一真相源 = 该 Manager 自存 or 训练/ sprint06 快照"，写进 SYSTEMS_REFERENCE_FOR_DESIGN.md，消除 LEGACY_REGISTRY §B2 的双重记账不清。
   2. **Inventory/Backpack/Storage 边界核实**：确认是否存在双记账（SYSTEM_REGISTRY §B2 UNKNOWN），只在确认后再谈是否收敛。

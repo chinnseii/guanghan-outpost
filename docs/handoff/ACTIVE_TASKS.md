@@ -11,7 +11,7 @@
 - **Locked files**: `0`
 - **Pending handoffs**: `0`
 - **Branch**: `main`
-- **Board baseline**: `a340d13`（创建/上次收工基线，随提交变化，非长期事实）
+- **Board baseline**: `bdfdfe1`（创建/上次收工基线，随提交变化，非长期事实）
 - **Last updated**: `2026-07-11`
 
 ## Active Tasks
@@ -34,6 +34,15 @@
 > 交替（模式 B）交接时在此填交接单摘要 + 正式报告路径（完整交接单格式见模板）。
 
 ## Recently Closed
+
+### P3-01 — System boundaries and save-source audit
+
+- Status: `DONE`
+- Owner: `Claude Code` ／ Reviewer: `User`
+- Result: 20 autoload/Manager、数据所有权、存档真相源、依赖与遗留边界只读审计 → `PHASE_3_SYSTEM_BOUNDARY_AUDIT.md`。核心发现：跨系统写入全经公开方法（0 直接写）、无 P0；P1=存档真相源不唯一。
+- Verification: 代码/运行时文件零改动；Godot editor+smoke EXIT=0；变更全为 `.md`。
+- Commit: 见本任务收尾提交（`docs: audit Phase 3 system boundaries`）。
+- Closed: `2026-07-11`
 
 ### P2-10 — Phase 2 documentation governance close-out
 
