@@ -1,6 +1,8 @@
 extends Node
 class_name TrainingManager
 
+const FullSaveOrchestratorScript := preload("res://scripts/systems/full_save_orchestrator.gd")
+
 const SAVE_PATH := "user://saves/training_progress.json"
 const APPLICATION_PROFILE_PATH := "user://saves/application_profile.json"
 
@@ -482,37 +484,7 @@ static func _remap_legacy_training_scene(scene_path: String) -> String:
 	return scene_path
 
 static func _base_continue_scene_path() -> String:
-	if not FileAccess.file_exists(SPRINT06_SAVE_PATH):
-		return ""
-	var file := FileAccess.open(SPRINT06_SAVE_PATH, FileAccess.READ)
-	if file == null:
-		return ""
-	var parsed: Variant = JSON.parse_string(file.get_as_text())
-	if typeof(parsed) != TYPE_DICTIONARY:
-		return ""
-	var data: Dictionary = parsed as Dictionary
-	if bool(data.get("WeekOneCompleted", false)):
-		return PHASE02_PLACEHOLDER
-	var current_day := int(data.get("CurrentDay", data.get("DayNumber", 2)))
-	if current_day >= 3 and current_day <= 7:
-		if bool(data.get("DailyReportSent", false)) or bool(data.get("DayCompleted", false)):
-			return WEEK_ROUTINE_END
-		if bool(data.get("DayStarted", false)):
-			return OLD_BASE_INTERIOR
-		return WEEK_ROUTINE_START
-	if bool(data.get("Day02Completed", false)) or bool(data.get("Day02ReportSent", false)):
-		return DAY02_END
-	if bool(data.get("Day02Started", false)):
-		return OLD_BASE_INTERIOR
-	if bool(data.get("Day01Completed", false)):
-		return DAY02_START
-	if bool(data.get("LastPlantStable", false)):
-		return DAY01_END
-	if bool(data.get("GreenhouseUnlocked", false)) or bool(data.get("LastPlantDiscovered", false)) or bool(data.get("LastPlantDiagnosed", false)):
-		return OLD_GREENHOUSE
-	if bool(data.get("BaseEntered", false)):
-		return OLD_BASE_INTERIOR
-	return ""
+	return FullSaveOrchestratorScript.continue_scene_path()
 
 static func player_name() -> String:
 	var path := "user://saves/application_profile.json"

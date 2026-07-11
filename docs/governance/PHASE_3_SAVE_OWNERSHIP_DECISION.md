@@ -235,3 +235,15 @@
 
 ## 附：P3-03a 改动核验
 - 本轮改动为 P3-03a scoped 代码/测试/文档；未改 `project.godot`、`scenes/**`、`assets/**`、任何 `.tscn/.tres/.json`；无 autoload 增删。Godot editor+smoke EXIT=0；专项测试 39/39 通过；本地存档在测试后与备份 SHA-256 全一致。实际备份路径：`C:\Users\csw83\AppData\Roaming\Godot\app_userdata\Guanghan Outpost\saves_backup_before_p3_03a_2026-07-11`。
+# P3-03b Implementation Record (2026-07-12 · baseline `e09eff8`)
+> P3-03b formalized the Full Save Orchestrator. P3-03c Manager self-save downgrade and P3-03d checkpoint scope trimming have not started.
+
+- Architecture: added non-Autoload `scripts/systems/full_save_orchestrator.gd`. Managers remain runtime canonical data owners; the Orchestrator owns complete-progress bundle collection, schema validation, atomic write, ordered restore, and compatibility mirror finalization.
+- Authoritative file: `user://saves/full_save.json`. Legacy `user://saves/sprint06_progress.json` is no longer authoritative; it is only a limited legacy/unversioned best-effort read source.
+- Schema v1: `schema_version: 1`, `save_kind: "full_save"`, `saved_at` / `created_at`, `game_version`, `target_scene`, `metadata`, `canonical_state`, `scene_state`, `player_context`.
+- Providers: required = `player_state`, `time`, `health`, `base_status`, `air`, `power`, `water`, `inventory`, `backpack`, `storage`, `suit`; optional = `plant_growth`, `supply`, `repair`. `door` and `training_time` are intentionally excluded from core Full Save.
+- Restore order: validate -> restore canonical providers in explicit order -> finalize Power/Suit compatibility mirrors -> return restore-complete result to scene adapter.
+- Atomic write: write `.tmp`, preserve prior authoritative file as `.bak`, promote temp, restore `.bak` on promote failure, clean temp/backup on success.
+- Training isolation: Full Restore does not read `training_progress.json` and does not call `TrainingManager.load_progress()`.
+- Manager self-save remains untouched; P3-03c owns downgrade.
+- Verification: P3-03b 50/50; P3-03a 39/39; tests wrote only temporary `p3_03b_test_*` files and cleaned them; real `user://saves` still matches the P3-03a backup by SHA-256.

@@ -11,7 +11,7 @@
 - **Locked files**: `0`
 - **Pending handoffs**: `0`
 - **Branch**: `main`
-- **Board baseline**: `6354ef7`（创建/上次收工基线，随提交变化，非长期事实）
+- **Board baseline**: `e09eff8`（P3-03b 收口前基线，随提交变化，非长期事实）
 - **Last updated**: `2026-07-12`
 
 ## Active Tasks
@@ -36,6 +36,15 @@
 > 交替（模式 B）交接时在此填交接单摘要 + 正式报告路径（完整交接单格式见模板）。
 
 ## Recently Closed
+
+### P3-03b — Full Save Orchestrator formalization
+
+- Status: `DONE`
+- Owner: `Codex` ／ Reviewer: `User`
+- Result: 新增非 Autoload `FullSaveOrchestrator`；正式完整进度 authoritative 文件为 `user://saves/full_save.json`；建立 schema v1、provider manifest、原子写、legacy sprint06 best-effort、显式恢复顺序与 Power/Suit mirror finalize。`sprint06_base_scene.gd` 降为 scene adapter；Training checkpoint 与 Full Save 分离；Manager 自存未删除/未停用，留给 P3-03c。
+- Verification: P3-03b 专项 50/50；P3-03a 回归 39/39；Godot editor parse EXIT=0；headless smoke EXIT=0；真实 `user://saves` 与 P3-03a 备份 SHA-256 一致；Git leak guard 无 JSON/场景/资源噪声。
+- Commit: 见本任务收尾提交（`feat: formalize authoritative full save`）。
+- Closed: `2026-07-12`
 
 ### P3-03a — Restore consistency fixes
 
@@ -71,15 +80,6 @@
 - Result: 20 autoload/Manager、数据所有权、存档真相源、依赖与遗留边界只读审计 → `PHASE_3_SYSTEM_BOUNDARY_AUDIT.md`。核心发现：跨系统写入全经公开方法（0 直接写）、无 P0；P1=存档真相源不唯一。
 - Verification: 代码/运行时文件零改动；Godot editor+smoke EXIT=0；变更全为 `.md`。
 - Commit: 见本任务收尾提交（`docs: audit Phase 3 system boundaries`）。
-- Closed: `2026-07-11`
-
-### P2-10 — Phase 2 documentation governance close-out
-
-- Status: `DONE`
-- Owner: `Claude Code` ／ Reviewer: `User`
-- Result: Phase 2 文档治理在本收口提交定稿（CURRENT 更新为 Phase 2 完成、审计转 AUDIT_RECORD、DOCUMENT_REGISTRY 生命周期更新）。
-- Verification: 全部本地 Phase 2 验收检查通过（当前权威断链=0、注册表完整、Godot smoke 通过）；push 与 tag 在提交后验证。
-- Commit: 见本任务收尾提交（`docs: complete Phase 2 document governance`）。
 - Closed: `2026-07-11`
 
 > 最多保留最近 3–5 条已关闭任务摘要；超出即清空，长期记录进 `../archive/` 或 Git 历史。本板不保存长期历史。

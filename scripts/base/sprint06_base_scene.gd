@@ -1,6 +1,7 @@
 extends Node2D
 
-const SAVE_PATH := "user://saves/sprint06_progress.json"
+const FullSaveOrchestratorScript := preload("res://scripts/systems/full_save_orchestrator.gd")
+const SAVE_PATH := FullSaveOrchestratorScript.FULL_SAVE_PATH
 const APPLICATION_PROFILE_PATH := "user://saves/application_profile.json"
 const PLAYER_SPEED := 230.0
 
@@ -2434,90 +2435,46 @@ func _default_state() -> Dictionary:
 
 func _load_state() -> void:
 	state = _default_state()
-	if not FileAccess.file_exists(SAVE_PATH):
+	var restore_result: Dictionary = FullSaveOrchestratorScript.restore_full_save(self)
+	if not bool(restore_result.get("success", false)):
 		return
-	var file := FileAccess.open(SAVE_PATH, FileAccess.READ)
-	if file == null:
-		return
-	var parsed: Variant = JSON.parse_string(file.get_as_text())
-	if typeof(parsed) != TYPE_DICTIONARY:
-		return
-	var saved: Dictionary = parsed as Dictionary
+	var saved: Dictionary = restore_result.get("scene_state", {}) as Dictionary
 	for key in saved.keys():
 		state[key] = saved[key]
-	var manager := _time_manager()
-	if manager != null and manager.has_method("deserialize") and state.get("TimeState", {}) is Dictionary:
-		manager.call("deserialize", state.get("TimeState", {}))
-	var health_manager := _health_manager()
-	if health_manager != null and health_manager.has_method("deserialize") and state.get("HealthState", {}) is Dictionary:
-		health_manager.call("deserialize", state.get("HealthState", {}))
-	var base_status_manager := _base_status_manager()
-	if base_status_manager != null and base_status_manager.has_method("deserialize") and state.get("BaseStatusState", {}) is Dictionary:
-		base_status_manager.call("deserialize", state.get("BaseStatusState", {}))
-	var air_system_manager := _air_system_manager()
-	if air_system_manager != null and air_system_manager.has_method("deserialize") and state.get("AirSystemState", {}) is Dictionary:
-		air_system_manager.call("deserialize", state.get("AirSystemState", {}))
-	var power_system_manager := _power_system_manager()
-	if power_system_manager != null and power_system_manager.has_method("deserialize") and state.get("PowerSystemState", {}) is Dictionary:
-		power_system_manager.call("deserialize", state.get("PowerSystemState", {}))
-	var water_system_manager := _water_system_manager()
-	if water_system_manager != null and water_system_manager.has_method("deserialize") and state.get("WaterSystemState", {}) is Dictionary:
-		water_system_manager.call("deserialize", state.get("WaterSystemState", {}))
-	var inventory_manager := _inventory_manager()
-	if inventory_manager != null and inventory_manager.has_method("deserialize") and state.get("InventoryState", {}) is Dictionary:
-		inventory_manager.call("deserialize", state.get("InventoryState", {}))
-	var backpack_manager := _backpack_manager()
-	if backpack_manager != null and backpack_manager.has_method("deserialize") and state.get("BackpackState", {}) is Dictionary:
-		backpack_manager.call("deserialize", state.get("BackpackState", {}))
-	var storage_manager := _storage_manager()
-	if storage_manager != null and storage_manager.has_method("deserialize") and state.get("StorageState", {}) is Dictionary:
-		storage_manager.call("deserialize", state.get("StorageState", {}))
-	var plant_growth_manager := _plant_growth_manager()
-	if plant_growth_manager != null and plant_growth_manager.has_method("deserialize") and state.get("PlantGrowthState", {}) is Dictionary:
-		plant_growth_manager.call("deserialize", state.get("PlantGrowthState", {}))
-	var suit_manager := _suit_manager()
-	if suit_manager != null and suit_manager.has_method("deserialize") and state.get("SuitState", {}) is Dictionary:
-		suit_manager.call("deserialize", state.get("SuitState", {}))
 
 func _save_state() -> void:
 	_sync_base_status_from_state()
-	var manager := _time_manager()
-	if manager != null and manager.has_method("serialize"):
-		state["TimeState"] = manager.call("serialize")
-	var health_manager := _health_manager()
-	if health_manager != null and health_manager.has_method("serialize"):
-		state["HealthState"] = health_manager.call("serialize")
-	var base_status_manager := _base_status_manager()
-	if base_status_manager != null and base_status_manager.has_method("serialize"):
-		state["BaseStatusState"] = base_status_manager.call("serialize")
-	var air_system_manager := _air_system_manager()
-	if air_system_manager != null and air_system_manager.has_method("serialize"):
-		state["AirSystemState"] = air_system_manager.call("serialize")
-	var power_system_manager := _power_system_manager()
-	if power_system_manager != null and power_system_manager.has_method("serialize"):
-		state["PowerSystemState"] = power_system_manager.call("serialize")
-	var water_system_manager := _water_system_manager()
-	if water_system_manager != null and water_system_manager.has_method("serialize"):
-		state["WaterSystemState"] = water_system_manager.call("serialize")
-	var inventory_manager := _inventory_manager()
-	if inventory_manager != null and inventory_manager.has_method("serialize"):
-		state["InventoryState"] = inventory_manager.call("serialize")
-	var backpack_manager := _backpack_manager()
-	if backpack_manager != null and backpack_manager.has_method("serialize"):
-		state["BackpackState"] = backpack_manager.call("serialize")
-	var storage_manager := _storage_manager()
-	if storage_manager != null and storage_manager.has_method("serialize"):
-		state["StorageState"] = storage_manager.call("serialize")
-	var plant_growth_manager := _plant_growth_manager()
-	if plant_growth_manager != null and plant_growth_manager.has_method("serialize"):
-		state["PlantGrowthState"] = plant_growth_manager.call("serialize")
-	var suit_manager := _suit_manager()
-	if suit_manager != null and suit_manager.has_method("serialize"):
-		state["SuitState"] = suit_manager.call("serialize")
-	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("user://saves"))
-	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
-	if file != null:
-		file.store_string(JSON.stringify(state, "\t"))
+	FullSaveOrchestratorScript.save_full_save(state, _full_save_player_context(), _full_save_target_scene())
+
+func _full_save_player_context() -> Dictionary:
+	return {
+		"scene_kind": scene_kind,
+		"player_position": [player_pos.x, player_pos.y],
+		"player_pose": player_pose,
+	}
+
+func _full_save_target_scene() -> String:
+	if not scene_file_path.is_empty():
+		return scene_file_path
+	match scene_kind:
+		"greenhouse":
+			return SCENE_GREENHOUSE
+		"day_end":
+			return SCENE_DAY_END
+		"day02_start":
+			return SCENE_DAY02_START
+		"day02_end":
+			return SCENE_DAY02_END
+		"week_start":
+			return SCENE_WEEK_START
+		"week_end":
+			return SCENE_WEEK_END
+		"airlock":
+			return SCENE_AIRLOCK
+	return SCENE_INTERIOR
+
+func _on_full_save_restore_complete(_restore_result: Dictionary) -> void:
+	pass
 
 func _base_status_manager() -> Node:
 	var tree := get_tree()

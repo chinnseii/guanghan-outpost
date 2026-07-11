@@ -126,3 +126,8 @@ Phase 0 →（1 与 2 可并行，均低风险）→ 3（逐系统）→ 4（逐
 3. **地表玩家位置与 Chunk 状态尚未持久化**：当前地表场景完全不保存玩家位置。未来区域存档至少需要：`current_region_id` / `current_chunk_id` / `player_local_position` / `chunk_state`。属正式存档结构扩展，动之前先停下确认（勿擅改存档 schema）。
 
 > 归属：#1 属 Phase 3（系统边界/Manager）；#2 属数值标定（试玩后）；#3 属 Phase 3 存档边界。三项均**不**在月面分块结构的本轮范围内。
+# P3-03b Completion Note (2026-07-12)
+
+- P3-03b is complete: non-Autoload `FullSaveOrchestrator`, authoritative `user://saves/full_save.json`, schema v1, provider manifest, explicit restore order, atomic write, legacy sprint06 best-effort, and compatibility mirror finalize are implemented.
+- Verification: P3-03b 50/50 and P3-03a regression 39/39.
+- Remaining Phase 3 order: P3-03c Manager self-save downgrade next, then P3-03d checkpoint scope trimming. Manager self-save still exists and the P1 multi-source risk is only partially mitigated, not fully gone.

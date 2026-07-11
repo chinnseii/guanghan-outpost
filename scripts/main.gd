@@ -10,6 +10,7 @@ const SAVE_DIR := "user://saves"
 const DEMO_PROGRESS_PATHS := [
 	"user://saves/application_profile.json",
 	"user://saves/training_progress.json",
+	"user://saves/full_save.json",
 	"user://saves/sprint06_progress.json",
 	"user://saves/time_state.json",
 	"user://saves/health_state.json",
@@ -28,6 +29,7 @@ const AudioFeedbackScript := preload("res://scripts/audio_feedback.gd")
 const RobotTaskManagerScript := preload("res://scripts/robot_task_manager.gd")
 const GameStateManagerScript := preload("res://scripts/game_state_manager.gd")
 const TrainingManagerScript := preload("res://scripts/training/training_manager.gd")
+const FullSaveOrchestratorScript := preload("res://scripts/systems/full_save_orchestrator.gd")
 const TimeManagerScript := preload("res://scripts/time_manager.gd")
 const CameraManagerScript := preload("res://scripts/camera_manager.gd")
 const UIManagerScript := preload("res://scripts/ui_manager.gd")
@@ -4505,7 +4507,10 @@ func _start_clean_new_stay() -> void:
 
 func _continue_mission() -> void:
 	var progress := TrainingManagerScript.read_progress()
-	if _training_has_progress(progress) or _sprint06_has_progress() or _application_has_progress():
+	if _sprint06_has_progress():
+		get_tree().change_scene_to_file(TrainingManagerScript.continue_scene_path())
+		return
+	if _training_has_progress(progress) or _application_has_progress():
 		TrainingManagerScript.load_progress()
 		get_tree().change_scene_to_file(TrainingManagerScript.continue_scene_path())
 		return
@@ -4532,7 +4537,7 @@ func _training_has_progress(progress: Dictionary) -> bool:
 	return bool(progress.get("TrainingStarted", false)) or bool(progress.get("FinalAssessmentCompleted", false)) or bool(progress.get("MissionAssignmentAccepted", false))
 
 func _sprint06_has_progress() -> bool:
-	return FileAccess.file_exists("user://saves/sprint06_progress.json")
+	return FullSaveOrchestratorScript.has_full_save()
 
 func _application_has_progress() -> bool:
 	return FileAccess.file_exists("user://saves/application_profile.json")
@@ -4677,9 +4682,7 @@ func _start_day07_report_test() -> void:
 		"WeekOneCompleted": false,
 	}
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("user://saves"))
-	var file := FileAccess.open("user://saves/sprint06_progress.json", FileAccess.WRITE)
-	if file != null:
-		file.store_string(JSON.stringify(state, "\t"))
+	FullSaveOrchestratorScript.save_full_save(state, {}, TrainingManagerScript.OLD_BASE_INTERIOR)
 	get_tree().change_scene_to_file("res://scenes/base/OldBaseCore_ArtSlice.tscn")
 
 func _select_crop(crop_name: String) -> void:

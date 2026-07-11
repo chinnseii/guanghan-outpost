@@ -78,6 +78,7 @@
 | GuanghanPlayerController2D / InteractionArea2D | `scripts/controllers/*.gd` | 正式移动/交互底座 | ACTIVE |
 | GuanghanPopupModal | `scripts/ui/popup_modal.gd` | 共用弹窗组件 | ACTIVE |
 | TrainingManager | `scripts/training/training_manager.gd` | 训练存档/流程 | ACTIVE（tier-1） |
+| FullSaveOrchestrator | `scripts/systems/full_save_orchestrator.gd` | 非 Autoload 的 Full Save 静态编排服务；负责 `user://saves/full_save.json` 的 schema v1 bundle、provider 收集、原子写入、显式恢复顺序与 compatibility mirror finalize；不拥有 Manager runtime state | ACTIVE（P3-03b） |
 | OpeningFlowManager | `scripts/training/opening_flow_manager.gd` | 派遣后转场 | ACTIVE（tier-1，小范围） |
 | BaseStatusPanel / BasePlayerOverlay / ArtSliceMarkerLayer | `scripts/ui,base/*.gd` | 正式 UI/场景层 | ACTIVE |
 

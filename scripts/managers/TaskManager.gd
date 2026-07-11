@@ -13,6 +13,7 @@ signal tasks_changed
 
 const TaskDatabaseScript := preload("res://scripts/data/TaskDatabase.gd")
 const TrainingManagerScript := preload("res://scripts/training/training_manager.gd")
+const FullSaveOrchestratorScript := preload("res://scripts/systems/full_save_orchestrator.gd")
 
 const STATE_LOCKED := "locked"
 const STATE_ACTIVE := "active"
@@ -133,16 +134,10 @@ func _training_progress() -> Dictionary:
 	return TrainingManagerScript.read_progress()
 
 func _mission_progress() -> Dictionary:
-	var path := String(TrainingManagerScript.SPRINT06_SAVE_PATH)
-	if not FileAccess.file_exists(path):
+	var result := FullSaveOrchestratorScript.read_scene_state()
+	if not bool(result.get("success", false)):
 		return {}
-	var file := FileAccess.open(path, FileAccess.READ)
-	if file == null:
-		return {}
-	var parsed: Variant = JSON.parse_string(file.get_as_text())
-	if typeof(parsed) != TYPE_DICTIONARY:
-		return {}
-	return parsed as Dictionary
+	return result.get("scene_state", {}) as Dictionary
 
 ## -- Supply: a single DYNAMIC task derived from SupplyManager's current
 ## supply order (not a static catalogue entry, since it recurs each cycle) --
