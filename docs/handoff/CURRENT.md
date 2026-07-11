@@ -1,55 +1,68 @@
-# 当前状态（滚动文档，每次覆盖重写）
+# 当前项目状态 / Current Project Status
 
-更新时间：2026-07-08
-更新人：Claude Code（代 Codex）（惩罚系统 + 训练交互/宇航服流程 + 门系统）
+> 本文件是**项目当前状态的唯一权威来源**（滚动文档，完成一个主要批次后覆盖更新）。
+> 完整历史见 [`../sprints/`](../sprints/) 与 [`../archive/`](../archive/)；系统事实见 Registry / Reference（下方导航）。
+> 更新时间：2026-07-11。
 
-## 本轮完成（已提交，未特别说明即已 push）
+## 当前阶段
 
-1. **门系统 DoorStateManager / DoorTypeDatabase / DoorAssetDatabase**（Codex 并行 + 验证提交）。
-2. **训练小地图交互反馈重做（6 项）+ 气闸压力状态门禁 + 宇航服归位流程前移**
-   （`training_base_map.gd`）：
-   - 舱压/电池组答错→关弹窗 + 提示 + 扣 15 分钟 + 需重新交互；制氧/温控答错→
-     居中白色渐隐"呼吸越发困难"/"越发寒冷"；配电控制台改统一弹窗；生命支持
-     控制台弹窗按医学背景标注读数。
-   - 新增 `AirlockPressureState`（低压→外舱门 / 充压→内舱门）。
-   - **宇航服归位移到 EVA 返舱到整备室那一刻**（整备室→中控门在归还前封锁）；
-     温室植物诊断完成后**直接结课→派遣通知**，取消末尾归位。
-3. **惩罚系统 PenaltyManager / PenaltyDatabase**（新 autoload）：统一分派
-   时间/健康/背包仓库/地球补给惩罚，按 training/mission 上下文自动路由时钟。
-   已收编：训练答错扣时、BaseStatus/Air/Water 每小时 morale 扣减（silent，
-   数值不变）、SupplyManager 三个补给惩罚方法。详见
-   `SYSTEMS_REFERENCE_FOR_DESIGN.md` 的"惩罚系统"章节。
-4. `training_module_scene.gd`：Codex 并行的 power_repair 出口自动穿越（已单独提交）。
+**Phase 2 · 文档治理**（进行中）。目标：减少文档重复、明确各文档职责与真相源、降低 Agent 上下文负担。
 
-## 触碰的共用文件（tier-1，均加法式；改前已 git log 抽查）
+- Phase 0（工程治理基线）：已完成。
+- Phase 1（仓库卫生）：已完成。
+- Phase 2（文档治理）：进行中（见下"当前工作"）。
+- Phase 3+（系统边界/存档真相、大脚本拆分等）：尚未开始。
 
-- `scripts/training/training_base_map.gd`：交互反馈 + 压力状态 + 宇航服流程 + 惩罚接线。
-- `scripts/training/training_module_scene.gd`：Codex 并行新增出口穿越检查。
-- `project.godot`：注册 DoorStateManager、PenaltyManager 两个 autoload（各加一行）。
-- `scripts/managers/BaseStatusManager.gd` / `AirSystemManager.gd` /
-  `WaterSystemManager.gd`：每小时 morale 扣减改走 PenaltyManager（`_route_environment_morale()`，
-  数值逐笔不变，带回退）。
-- `scripts/managers/SupplyManager.gd`：新增 `apply_supply_weight_penalty` /
-  `delay_current_supply` / `cancel_current_supply`（纯新增函数）。
+## 最近稳定基线
 
-本轮未修改：`training_manager.gd`、`reference_prop.gd`、`sprint06_base_scene.gd`。
+- **最近已推送稳定基线**：commit `3a69f90`，tag `repository-hygiene-complete-2026-07-11`（Phase 1 仓库卫生完成点，已 push 到 origin/main）。
+- **当前本地进展**：Phase 2 文档治理提交在本地累积、**尚未 push**（更新此文时 `main` 领先 `origin/main` 数个提交——具体数量随提交变化，不是长期事实）。
+- 工作区当前干净（无未提交源码/噪声）。
 
-## 验证方式（本轮实测有效，供下轮沿用）
+## 最近完成
 
-- 单脚本解析：`--headless --path . --check-only --script res://<path>.gd`（秒退，退出码 0）。
-- 全项目导入：`--headless --editor --quit --path .`（grep error/parse/SCRIPT ERROR）。
-- 启动退出：`--headless --path . --quit`。
-- **坑**：`--check-only --path .` 不带 `--script` 在本机不会退出（会跑主菜单挂住），别用。
-- 一次性验证脚本（跑完即删）实测新逻辑，不只走查。
+- Phase 1 仓库卫生：换行规范化（`.gitattributes`）、docs 图片隔离（`.gdignore`）、清除 152 个 docs `.import`、补交 35 个 `.gd.uid`。
+- Phase 2 至今：文档全量审计与六类真相源确认；README 由 555 行收敛到 89 行（改为开发协作者入口/导航页）；README-only 的 Sprint 03 / 05A 历史已归档到 `../archive/sprints/`；`SYSTEM_REGISTRY.md` 与 `SYSTEMS_REFERENCE_FOR_DESIGN.md` 的职责边界已声明并互链。
 
-## 用户偏好记录
+## 当前工作
 
-- 用户明确表示以后不需要 Codex/Claude 主动截图，用户会自己试玩验收。
-- 后续除非用户明确要求截图，否则不要新增截图脚本或跑截图验收。
+- **本轮（P2-04）**：校正并收敛本 `CURRENT.md`，使其成为当前状态唯一权威来源。
+- Phase 2 尚未完成；当前无玩法功能开发混入（纯文档/仓库治理）。
 
-## 已知问题 / 后续建议
+## 当前风险与已知待办
 
-- 惩罚系统预设目录 `PenaltyDatabase` 目前很小，正式任务离散惩罚可继续加；
-  `severity` 尚未接 UI 分级展示；`apply_penalty` 无"部分失败回滚"事务语义。
-- 训练门仍运行时注册、不单独持久化；DoorStateManager 尚未接入正式旧基地导航。
-- 工作区仍有大量历史 `.import` / `.uid` / 素材与截图相关未跟踪或修改文件，本轮未处理。
+> 详细批次与依赖以 [`../governance/DOCUMENT_GOVERNANCE_AUDIT.md`](../governance/DOCUMENT_GOVERNANCE_AUDIT.md) 与 [`../governance/CLEANUP_PLAN.md`](../governance/CLEANUP_PLAN.md) 为准，此处只列项目级风险。
+
+- `ACTIVE_TASKS.md` 尚未创建（并行/交替任务的当前真相缺位）——待 P2-06。
+- 历史文档尚未归档、跨文档引用（含 `SPRINT_04→SPRINT_03` 死链）尚未统一修复——待 P2-07 / P2-08。
+- `DOCUMENT_REGISTRY.md` 待重写（P2-09）；`SYSTEMS_REFERENCE_FOR_DESIGN.md`（2800+ 行）偏长，未来需渐进精简。
+- Phase 3 的系统边界与存档真相、Phase 4 的大型脚本拆分尚未开始。
+- 月面 EVA 的已知 deferred 风险（EVA activity 名称、返航估算模型、地表玩家位置未持久化）见 `CLEANUP_PLAN.md` 附录 A。
+- 系统侧 deferred：训练门运行时注册、`DoorStateManager` 未接入正式旧基地导航（见 `SYSTEM_REGISTRY.md`）；`PenaltyDatabase` 预设小、`severity` 未接 UI、`apply_penalty` 无回滚事务语义。
+
+## 下一步
+
+**唯一优先事项：P2-06 —— 创建 `docs/handoff/ACTIVE_TASKS.md`**，建立当前任务、owner、分支/worktree、文件锁与交接状态的唯一来源。
+（随后：P2-07 历史归档 → P2-08 引用修复 → P2-09 `DOCUMENT_REGISTRY` 重写 → P2-10 验收/push/tag。）
+
+## 权威文档导航
+
+| 内容 | 文档 |
+|---|---|
+| 产品方向 | [`../PROJECT_BRIEF.md`](../PROJECT_BRIEF.md) |
+| 系统状态与边界 | [`../governance/SYSTEM_REGISTRY.md`](../governance/SYSTEM_REGISTRY.md) |
+| 系统行为与数值 | [`SYSTEMS_REFERENCE_FOR_DESIGN.md`](SYSTEMS_REFERENCE_FOR_DESIGN.md) |
+| 场景结构 | [`../governance/SCENE_REGISTRY.md`](../governance/SCENE_REGISTRY.md) |
+| 文档治理计划 | [`../governance/DOCUMENT_GOVERNANCE_AUDIT.md`](../governance/DOCUMENT_GOVERNANCE_AUDIT.md) |
+| 历史记录 | [`../archive/`](../archive/) · [`../sprints/`](../sprints/) |
+
+## 沿用的工作约定（CURRENT-unique，待未来迁入规范文档）
+
+- **验证**：单脚本 `--headless --path . --check-only --script res://<path>.gd`；全项目 `--headless --editor --quit --path .`；启动冒烟 `--headless --path . --quit`。**坑**：`--check-only --path .` 不带 `--script` 在本机不会退出（会挂在主菜单），别用。
+- **截图偏好**：用户会自己试玩验收，除非明确要求，否则**不主动截图、不新增截图脚本**。
+
+## 更新规则
+
+- 只保留当前阶段与最近稳定基线；完成一个主要批次后更新本文件。
+- 历史内容移入 `../archive/` / `../sprints/`，不在此长期累积；不复制 Registry / 系统数值 / Sprint 全文。
+- 每次更新检查 commit/tag 与"下一步"；当前任务细节以后由 `ACTIVE_TASKS.md`（P2-06 创建）管理。

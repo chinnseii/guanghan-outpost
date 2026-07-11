@@ -110,7 +110,7 @@
 | P2-02 | 真相源确认与审计基线提交 | 🔄 本轮 | 仅本审计 | — |
 | P2-03A | 保全 README-only Sprint 历史 | ✅ 完成 | 新增 `docs/archive/sprints/*` + 本审计 | 先于 P2-03B |
 | P2-03B | README 收敛 | ✅ 完成 | README.md（555→89 行） | — |
-| P2-04 | CURRENT 校正 | 待 | CURRENT.md | **在 P2-05 系统事实确认后定稿** |
+| P2-04 | CURRENT 校正 | ✅ 完成 | CURRENT.md（55→68 行，内容重构） | 在 P2-05 系统事实确认后定稿 |
 | P2-05 | 系统文档职责声明 + 命名/引用修复 | ✅ 完成 | SYSTEM_REGISTRY + SYSTEMS_REFERENCE_FOR_DESIGN + CLEANUP_PLAN/SKILL_ARCHITECTURE 命名修复 | 先于 P2-04 定稿 |
 | P2-06 | ACTIVE_TASKS 正式落地（EMPTY/IDLE） | 待 | 新建 `docs/handoff/ACTIVE_TASKS.md` | 独立，可与 P2-03 并行 |
 | P2-07 | 历史文档分类归档 | 待 | `git mv` → `docs/archive/{plans,sprints,reviews,demos}/` | **先于 P2-08** |
@@ -182,6 +182,17 @@
 **留给 Phase 3**：无系统 owner/存档归属/现役判定/数值冲突需处理（本轮 0 项）。仅记一个非阻塞观察：`SYSTEMS_REFERENCE_FOR_DESIGN.md`（2800+ 行）偏长、含较多实现细节，未来可评估是否精简，但**本轮不动内容**。
 
 **P2-04 前置条件**：满足——系统事实（现役/边界/数值分层）已确认无冲突，CURRENT 校正（P2-04）可据此定稿。
+
+## 14. P2-04 执行记录 · CURRENT 校正
+
+- **规模**：`CURRENT.md` 55 → 68 行（**内容重构**，非缩行——旧版是异常简短的 Sprint 级开发日志；行数略增，但删除了过期流水、补齐了标准状态结构）。
+- **删除的过期职责**：2026-07-08 的 Sprint 级"本轮完成"（门/惩罚/训练交互实现细节）、"触碰的共用文件"逐条 diff、以及 **已失效的"工作区仍有大量 .import/.uid 噪声"**（Phase 1 已清零，属 STALE 移除）。
+- **保留/重述**：当前阶段（Phase 2）、最近**已推送**稳定基线（commit `3a69f90` / tag `repository-hygiene-complete-2026-07-11`）、最近完成、当前工作、项目级风险（指向权威文档而非展开）、唯一下一步（P2-06）、6 项权威导航、更新规则。
+- **CURRENT-unique 历史事实**（`git grep` 确认仅存于 CURRENT，本轮**保全**，未删）：① 验证 gotcha `--check-only --path .` 不带 `--script` 会挂住；② 用户"不主动截图"偏好。二者压缩保留在"沿用的工作约定"节，并标注为未来应迁入规范/协作文档的候选。
+- **CURRENT 状态**：由旧的"Sprint 滚动日志"正式确立为 **AUTHORITATIVE**（当前状态唯一权威来源），不再承担完整历史/changelog/系统数值。
+- **链接**：8 个相对链接全部有效；无 `ACTIVE_TASKS.md` 失效链接（文字标注 P2-06 创建）；用真实名 `SYSTEMS_REFERENCE_FOR_DESIGN.md`。
+- **权威文档冲突**：核对 PROJECT_BRIEF / SYSTEM_REGISTRY / SYSTEMS_REFERENCE_FOR_DESIGN / SCENE_REGISTRY / CLEANUP_PLAN，无事实冲突；未修改任何权威系统文档。
+- **P2-06 准入**：满足（可开始 ACTIVE_TASKS 落地）。
 
 ## 附：本轮基线核验
 - HEAD=`3a69f90`；main 与 origin/main 同步；tag `repository-hygiene-complete-2026-07-11` 指向 HEAD。
