@@ -107,3 +107,17 @@
 ## 依赖与顺序小结
 Phase 0 →（1 与 2 可并行，均低风险）→ 3（逐系统）→ 4（逐脚本，依赖 3）；5 可与 3/4 并行；6 最后。
 **先做仓库卫生和文档治理拿到低风险收益，再碰 Manager/存档/大脚本这些高风险区。**
+
+---
+
+## 附录 A · 治理待办 backlog（deferred issues）
+
+> 审计/复核中发现但**当前刻意不修**的问题，记录在此避免遗漏，处置留到对应 Phase 或专项任务。
+> 记录 ≠ 授权修改；动这些之前仍按共用文件/存档规则走。
+
+### 月面地表（NearBaseChunk 复核期发现，来源：Sprint 06.7 之后的月面分块工作）
+1. **EVA activity 名称不一致**：`scripts/surface/lunar_surface_scene.gd` 调 `consume_suit_resources("eva_move" / "eva_idle")`，但 `SuitManager.ACTIVITY_RATES` 只有 `indoor_worn / eva_normal / eva_heavy`，故这两个名字静默回退到 `eva_normal`——move 与 idle 当前耗氧/耗电相同。修的时候要决定是"给 SuitManager 加 eva_move/eva_idle 速率"还是"地表改用现有 activity 名"，属改 Manager，走系统边界规则。
+2. **HUD 返航估算与真实耗氧模型不一致**：`_oxygen_needed_to_return()` 用按像素线性估算（`dist × 0.012`），而真实消耗主要按**时间 × activity rate**结算。导致"该返航"警告偏保守，与实际可走距离脱节。标定时两者应统一到同一模型。
+3. **地表玩家位置与 Chunk 状态尚未持久化**：当前地表场景完全不保存玩家位置。未来区域存档至少需要：`current_region_id` / `current_chunk_id` / `player_local_position` / `chunk_state`。属正式存档结构扩展，动之前先停下确认（勿擅改存档 schema）。
+
+> 归属：#1 属 Phase 3（系统边界/Manager）；#2 属数值标定（试玩后）；#3 属 Phase 3 存档边界。三项均**不**在月面分块结构的本轮范围内。
