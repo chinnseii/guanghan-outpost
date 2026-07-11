@@ -40,11 +40,11 @@
 - **目标**：六类真相各归其位，消除职责重叠（DOCUMENT_REGISTRY §E/§F）。
 - **前置条件**：Phase 1 完成。
 - **具体任务**：
-  1. README 收敛为门面（是什么/怎么跑/指向 BRIEF·SYSTEMS_REFERENCE·CURRENT），把"当前状态"段移除，状态只留 CURRENT.md。
+  1. README 收敛为门面（是什么/怎么跑/指向 PROJECT_BRIEF·SYSTEMS_REFERENCE_FOR_DESIGN.md·CURRENT），把"当前状态"段移除，状态只留 CURRENT.md。
   2. `ITERATION_PLAN.md` 从项目根迁入 `docs/`，标注为历史归档。
   3. 给 `docs/sprints/*`、`LEGACY_SANDBOX_PROTOTYPE.md` 明确"历史归档"标头。
   4. 08.x 收尾后合并/归档 `pre09_flow_audit.md` 与 `KNOWN_ISSUES_PRE09.md`。
-- **禁止事项**：删仍可能被引用的文档；改 PROJECT_BRIEF / SYSTEMS_REFERENCE 的**内容**（只加归位标注）。
+- **禁止事项**：删仍可能被引用的文档；改 PROJECT_BRIEF / SYSTEMS_REFERENCE_FOR_DESIGN.md 的**内容**（只加归位标注）。
 - **验证方法**：人工通读；确认无文档互相矛盾；链接不断。
 - **完成标准**：产品/系统/数值/状态/历史/证据六类各有唯一主文档。
 - **回滚方案**：文档改动 `git revert`；迁移用 `git mv` 保留历史。
@@ -54,7 +54,7 @@
 - **目标**：厘清 Manager 职责与存档真相源，不重写。
 - **前置条件**：Phase 0-2 完成；SYSTEM_REGISTRY / LEGACY_REGISTRY 已评审。
 - **具体任务**（每个系统独立 PR，串行）：
-  1. **文档化存档真相源**：为每个状态明确"唯一真相源 = 该 Manager 自存 or 训练/ sprint06 快照"，写进 SYSTEMS_REFERENCE，消除 LEGACY_REGISTRY §B2 的双重记账不清。
+  1. **文档化存档真相源**：为每个状态明确"唯一真相源 = 该 Manager 自存 or 训练/ sprint06 快照"，写进 SYSTEMS_REFERENCE_FOR_DESIGN.md，消除 LEGACY_REGISTRY §B2 的双重记账不清。
   2. **Inventory/Backpack/Storage 边界核实**：确认是否存在双记账（SYSTEM_REGISTRY §B2 UNKNOWN），只在确认后再谈是否收敛。
   3. **UNKNOWN 结案**：`interaction_detector.gd` 是否 orphan、`BaseInterior_Test.tscn`/`ArrivalLandingScene` 是否可达、`arrival` 对 `game_state_manager` 的真实用法（LEGACY_REGISTRY §C）。逐一给证据。
   4. **DoorStateManager 接入正式导航**（`CURRENT.md:54` 已知未接）——属功能，**排到治理期之后**，此处仅登记。

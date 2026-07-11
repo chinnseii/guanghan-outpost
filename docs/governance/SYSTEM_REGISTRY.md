@@ -4,6 +4,14 @@
 > 状态取值：`ACTIVE`（正式流程现役）/ `COMPATIBILITY`（仅为存档/旧路径兼容保留）/ `LEGACY_PLAYABLE`（仅遗留可玩流程用）/ `DEPRECATED_CANDIDATE`（疑似废弃，须列引用证据）/ `UNKNOWN`。
 > 引用数 = `grep -rl` 命中的不同文件数（已排除自身定义文件）；用于佐证现役性，非精确调用数。
 
+## 文档职责
+
+本文件是**系统身份、状态与职责边界**的权威来源，回答：系统是否现役（`ACTIVE` / `COMPATIBILITY` / `LEGACY_PLAYABLE` / `DEPRECATED_CANDIDATE` / `UNKNOWN`）、对应 Manager / 脚本 / Autoload、数据所有权与职责边界、系统依赖、迁移状态与治理风险。
+
+**不承担**：完整玩法规则、数值与阈值、训练步骤细节、UI 文案、接口使用示例、逐方法说明、实现历史。这些是玩法/设计层面的真相，见 [`SYSTEMS_REFERENCE_FOR_DESIGN.md`](../handoff/SYSTEMS_REFERENCE_FOR_DESIGN.md)。
+
+**该读哪份**：判断"改哪个系统 / 谁拥有数据 / 哪个 Manager 现役 / 是否遗留"→ 读**本文件**；判断"系统该怎么玩 / 数值是多少 / UI 该呈现什么"→ 读 [`SYSTEMS_REFERENCE_FOR_DESIGN.md`](../handoff/SYSTEMS_REFERENCE_FOR_DESIGN.md)。两者冲突时：**现役状态与职责边界以本文件为准**，玩法规则与设计目标以 `SYSTEMS_REFERENCE_FOR_DESIGN.md` 为准；若出现真实事实冲突，停下标记文档待同步，不自行猜测。
+
 ## A. 已注册 Autoload（`project.godot:21-42`，共 20 个）
 
 | # | 名称 / class_name | 路径 | 引用文件数 | 核心职责 | 参与存档 | 状态 |

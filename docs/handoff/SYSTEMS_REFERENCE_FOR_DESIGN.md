@@ -6,6 +6,14 @@
 不是设计草稿。如果要基于这些系统做新一轮设计，请以本文档 + 源码为准，不要凭记忆
 假设数值。
 
+## 文档职责
+
+本文件是**系统玩法规则、数值与设计约束**的权威参考，回答：系统如何影响玩家和基地运行、玩法规则/状态/阈值/数值、系统之间的设计交互、UI/训练/反馈的产品要求、设计层面的接口预期。
+
+**不承担**：哪个脚本现役、Manager 生命周期治理、`legacy`/`compatibility` 注册状态、共用文件锁、Agent owner、清理优先级、Git/协作流程。这些是系统身份与治理层面的真相，见 [`SYSTEM_REGISTRY.md`](../governance/SYSTEM_REGISTRY.md)。
+
+> 本文档出现的脚本名/系统名用于说明**设计对应关系**，不替代 `SYSTEM_REGISTRY.md` 的现役状态判断——不要因为这里提到某个 Manager 名就断定它仍现役（现役与否以 [`SYSTEM_REGISTRY.md`](../governance/SYSTEM_REGISTRY.md) 为准）。
+
 代码位置：
 - `scripts/managers/TimeManager.gd`（autoload `/root/TimeManager`）
 - `scripts/managers/HealthManager.gd`（autoload `/root/HealthManager`）

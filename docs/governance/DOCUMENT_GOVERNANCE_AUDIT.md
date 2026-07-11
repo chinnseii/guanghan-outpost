@@ -91,7 +91,7 @@
 - **冲突**：README 顶部进度（08.7.x/"V0.6-dev"）vs CURRENT（07-08 更近、约定滚动源）→ **CURRENT 可信**；ITERATION_PLAN L832"当前下一步" vs CLEANUP_PLAN/CURRENT → **前者失效**。无数值/存档实质矛盾。
 - **README REWRITE 前置**：Sprint 03/05 历史**只在 README** 有（无独立 sprint 文档）→ 收敛前必须先把这两段抽出保存（见 §8）。
 - 🔴 **失效引用**：`docs/sprints/SPRINT_04_NATIONAL_TRAINING.md:13` → 不存在的 `SPRINT_03_PROLOGUE_APPLICATION.md`。
-- **命名不一致**：治理文档简称 "SYSTEMS_REFERENCE" ≠ 真实文件名（P2-05 修正）。
+- **命名不一致**：治理文档简称 "SYSTEMS_REFERENCE" ≠ 真实文件名 —— **P2-05 已修正**（CLEANUP_PLAN 3 处、SKILL_ARCHITECTURE 4 处；DOCUMENT_REGISTRY 3 处随其 P2-09 重写一并修）。
 
 ## 8. Sprint 03 / 05 引用处理建议（本轮不修）
 记录已发现的死链（SPRINT_04→SPRINT_03）。**本轮不改链接**，留 P2-07/P2-08：
@@ -111,7 +111,7 @@
 | P2-03A | 保全 README-only Sprint 历史 | ✅ 完成 | 新增 `docs/archive/sprints/*` + 本审计 | 先于 P2-03B |
 | P2-03B | README 收敛 | ✅ 完成 | README.md（555→89 行） | — |
 | P2-04 | CURRENT 校正 | 待 | CURRENT.md | **在 P2-05 系统事实确认后定稿** |
-| P2-05 | 系统文档职责声明 + 命名/引用修复 | 待 | SYSTEM_REGISTRY + SYSTEMS_REFERENCE_FOR_DESIGN | 先于 P2-04 定稿 |
+| P2-05 | 系统文档职责声明 + 命名/引用修复 | ✅ 完成 | SYSTEM_REGISTRY + SYSTEMS_REFERENCE_FOR_DESIGN + CLEANUP_PLAN/SKILL_ARCHITECTURE 命名修复 | 先于 P2-04 定稿 |
 | P2-06 | ACTIVE_TASKS 正式落地（EMPTY/IDLE） | 待 | 新建 `docs/handoff/ACTIVE_TASKS.md` | 独立，可与 P2-03 并行 |
 | P2-07 | 历史文档分类归档 | 待 | `git mv` → `docs/archive/{plans,sprints,reviews,demos}/` | **先于 P2-08** |
 | P2-08 | 全仓文档链接与导航修复 | 待 | 各文档引用 | **必须在 P2-07 之后** |
@@ -162,6 +162,26 @@
 - **历史保全确认**：Sprint 02（ITERATION_PLAN，后续归档）/ 03（`docs/archive/sprints/SPRINT_03_PROLOGUE_APPLICATION.md`）/ 04/06/07/08（`docs/sprints/*`）/ 05A（`docs/archive/sprints/SPRINT_05A_VERTICAL_SLICE_POLISH.md`）—— 均在位，README 删除的历史无一成为仓库唯一缺失。
 - **链接**：README 16 个相对链接全部有效（含 `docs/archive/`、`docs/sprints/` 目录链接）；无 `CLAUDE.md`/`AGENTS.md`/裸 `SYSTEMS_REFERENCE.md` 链接；`ACTIVE_TASKS.md` 以文字说明"P2-06 创建"、未做失效链接。
 - **下一批建议**：P2-05（系统文档职责声明 + 命名/引用修复）；可并行 P2-06（ACTIVE_TASKS 落地）。
+
+## 13. P2-05 执行记录 · 系统文档职责边界
+
+**两份系统文档最终职责**（已在各自开头加"文档职责"声明 + 双向链接）：
+- `SYSTEM_REGISTRY.md`（`docs/governance/`）：系统**身份/状态/边界/治理**——是否现役、对应 Manager/Autoload、数据所有权、依赖、迁移与治理风险。不承担玩法规则/数值/UI/接口示例。
+- `SYSTEMS_REFERENCE_FOR_DESIGN.md`（`docs/handoff/`）：系统**玩法规则/数值/设计约束**——玩家如何感知、规则/阈值/数值、设计交互、UI/训练/反馈要求。不承担现役判定/生命周期/共用锁/owner/清理优先级；并声明"其脚本名仅表设计对应，不替代 REGISTRY 的现役判断"。
+
+**双向引用**：REGISTRY → `../handoff/SYSTEMS_REFERENCE_FOR_DESIGN.md`；REFERENCE → `../governance/SYSTEM_REGISTRY.md`；均在文档靠前"文档职责"节，路径经验证可解析。含"该读哪份/冲突时以谁为准"的 Agent 阅读规则（写入两份声明，未新建规则文档）。
+
+**命名引用审计**：搜索到 "SYSTEMS_REFERENCE" 简称 10 处（CLEANUP_PLAN 3 + SKILL_ARCHITECTURE 4 + DOCUMENT_REGISTRY 3）。**已修 7**（CLEANUP_PLAN、SKILL_ARCHITECTURE → 全名）；**保留/延后 3**（DOCUMENT_REGISTRY，随其 P2-09 重写一并修，避免重复 churn）。无错误 `.md` 路径链接、无失效链接。审计文档自身对 "SYSTEMS_REFERENCE" 的 meta 引述属描述问题本身，未改。
+
+**内容冲突审计**（两份系统文档只读对比）：
+- NO_CONFLICT：Manager 名称/现役状态/owner/存档归属主干一致。REFERENCE 对 `game_state_manager.gd`（"从未注册 autoload"）、`AreaManager`（"项目里不存在，未来若增"）的表述与 REGISTRY 判定**一致**，非冲突。
+- TERMINOLOGY_MISMATCH：仅"SYSTEMS_REFERENCE"简称问题（已修）。
+- RESPONSIBILITY_OVERLAP：两份都列 Manager——属**有意分层**（状态 vs 行为），已由职责声明澄清，非缺陷。
+- STALE_REFERENCE：0。 FACT_CONFLICT：**0**。 NEEDS_REVIEW：0。
+
+**留给 Phase 3**：无系统 owner/存档归属/现役判定/数值冲突需处理（本轮 0 项）。仅记一个非阻塞观察：`SYSTEMS_REFERENCE_FOR_DESIGN.md`（2800+ 行）偏长、含较多实现细节，未来可评估是否精简，但**本轮不动内容**。
+
+**P2-04 前置条件**：满足——系统事实（现役/边界/数值分层）已确认无冲突，CURRENT 校正（P2-04）可据此定稿。
 
 ## 附：本轮基线核验
 - HEAD=`3a69f90`；main 与 origin/main 同步；tag `repository-hygiene-complete-2026-07-11` 指向 HEAD。
