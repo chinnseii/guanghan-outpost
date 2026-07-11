@@ -70,7 +70,7 @@
 | `docs/design/LUNAR_SURFACE_MAP.md` | ACTIVE_SUPPORTING | KEEP_AS_SUPPORT（在建；完成后要点并入 SYSTEMS_REFERENCE_FOR_DESIGN） |
 | `docs/art/*/README.md`（6）+ `docs/art/ASSET_OLD_BASE_ART_SLICE.md` | ACTIVE_SUPPORTING | KEEP_AS_SUPPORT（随资产走） |
 | `docs/LEGACY_SANDBOX_PROTOTYPE.md` | HISTORICAL(权威) | KEEP_AS_SUPPORT（遗留解释唯一权威，勿删/勿归档失联） |
-| `README.md` | **CONFLICTING** | **REWRITE**（P2-03；判定口径见 §7） |
+| `README.md` | **AUTHORITATIVE_ENTRY**（P2-03B 后：开发协作者入口/导航页，不再承担当前状态真相） | KEEP_AS_AUTHORITY（入口页；曾 CONFLICTING，已 REWRITE） |
 | `ITERATION_PLAN.md` | **HISTORICAL/STALE** | **ARCHIVE**（P2-07 → `docs/archive/plans/`；主要动作是归档） |
 | `docs/SPRINT_01_FOUNDATION.md` | HISTORICAL | ARCHIVE（→ sprints/） |
 | `docs/reports/SPRINT_01_FOUNDATION_REVIEW.md` | HISTORICAL | ARCHIVE（→ reviews/） |
@@ -109,7 +109,7 @@
 | P2-01 | 文档全量只读审计 | ✅ 完成 | 仅新增本审计 | — |
 | P2-02 | 真相源确认与审计基线提交 | 🔄 本轮 | 仅本审计 | — |
 | P2-03A | 保全 README-only Sprint 历史 | ✅ 完成 | 新增 `docs/archive/sprints/*` + 本审计 | 先于 P2-03B |
-| P2-03B | README 收敛 | 待 | README.md | 可与 P2-06 并行（文件不重叠） |
+| P2-03B | README 收敛 | ✅ 完成 | README.md（555→89 行） | — |
 | P2-04 | CURRENT 校正 | 待 | CURRENT.md | **在 P2-05 系统事实确认后定稿** |
 | P2-05 | 系统文档职责声明 + 命名/引用修复 | 待 | SYSTEM_REGISTRY + SYSTEMS_REFERENCE_FOR_DESIGN | 先于 P2-04 定稿 |
 | P2-06 | ACTIVE_TASKS 正式落地（EMPTY/IDLE） | 待 | 新建 `docs/handoff/ACTIVE_TASKS.md` | 独立，可与 P2-03 并行 |
@@ -152,6 +152,16 @@
 **README 收敛无信息丢失前提**：**已满足**。README 待裁剪的 Sprint 历史，或已有独立 sprint 文档（04/06/07/08）、或由 ITERATION_PLAN 承载（02，随后归档）、或已提取为专门归档（03/05A）。P2-03B 可安全进行。
 
 **本轮不修改 README、不修 SPRINT_04 失效引用**（引用修复归 P2-08）。
+
+## 12. P2-03B 执行记录 · README 收敛
+
+- **规模**：README `555 → 89` 行（约 −84%）。目标区间 120-220 未强制；89 行更短但覆盖全部 8 项必需职责（介绍/状态摘要/技术栈/启动/结构/文档导航/协作规则/历史入口），无必需内容遗漏，属有意精简。
+- **删除的职责**：4 段"当前状态"、Sprint 02-08 详细变更流水账、旧沙盒/系统实现细节、重复 Manager 清单、重复协作规章、失效的"下一步建议"、过时版本号（如 "V0.6-dev"）。
+- **保留/重述的职责**：项目一句话概念、当前状态**摘要**（指向 CURRENT）、技术栈（Godot 4.7/GDScript/2D 像素/Git/Claude+Codex）、快速启动+验证命令、关键目录、权威文档导航表、最小协作规则（6 条）、历史入口。
+- **README 状态转变**：`CONFLICTING` → `AUTHORITATIVE_ENTRY`（开发协作者入口/导航页）；**不再承担当前状态真相**（明确写"最新状态以 CURRENT.md 为准"）。
+- **历史保全确认**：Sprint 02（ITERATION_PLAN，后续归档）/ 03（`docs/archive/sprints/SPRINT_03_PROLOGUE_APPLICATION.md`）/ 04/06/07/08（`docs/sprints/*`）/ 05A（`docs/archive/sprints/SPRINT_05A_VERTICAL_SLICE_POLISH.md`）—— 均在位，README 删除的历史无一成为仓库唯一缺失。
+- **链接**：README 16 个相对链接全部有效（含 `docs/archive/`、`docs/sprints/` 目录链接）；无 `CLAUDE.md`/`AGENTS.md`/裸 `SYSTEMS_REFERENCE.md` 链接；`ACTIVE_TASKS.md` 以文字说明"P2-06 创建"、未做失效链接。
+- **下一批建议**：P2-05（系统文档职责声明 + 命名/引用修复）；可并行 P2-06（ACTIVE_TASKS 落地）。
 
 ## 附：本轮基线核验
 - HEAD=`3a69f90`；main 与 origin/main 同步；tag `repository-hygiene-complete-2026-07-11` 指向 HEAD。
