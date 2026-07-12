@@ -9,7 +9,7 @@ This file is the current coordination board for active task ownership, file lock
 - **Locked files**: `0`
 - **Pending handoffs**: `0`
 - **Branch**: `main`
-- **Board baseline**: `592b602`
+- **Board baseline**: `b9d1c0a`
 - **Last updated**: `2026-07-12`
 
 ## Active Tasks
@@ -25,6 +25,17 @@ No file locks.
 No pending handoffs.
 
 ## Recently Closed
+
+### P4-07B - Extract TrainingModuleScreenPresenter
+
+- Status: `DONE`
+- Owner: `Codex`
+- Reviewer: `User`
+- Base commit: `b9d1c0a`
+- Result: extracted display-only training-module screen chrome from `training_module_scene.gd` into non-Autoload `scripts/controllers/training_module_screen_presenter.gd` (`class_name`, RefCounted). Scene now injects UI-intent callbacks and keeps all gameplay state/step flow/checkpoint writes. `training_module_scene.gd` **3417 -> 3114 (net -303)**. `training_base_map.gd`, scenes, `project.godot`, schemas, and gameplay values untouched.
+- Scope adjustment: flow-coupled diagnosis/plant/repair option decisions stayed in the scene; presenter owns the popup shell API only. This keeps correct-answer logic and `_complete_step()` out of the display layer.
+- Verification: Godot editor/smoke EXIT 0; P4-07B 20/20; P4-07A 32/32; P4-06B 41/41; P4-06A 28/28; P4-05 30/30; P4-04 35/35; P4-03 27/27; P4-02 22/22; P3-03a 40/40; P3-03b 50/50; P3-03c 34/34; P3-03d 25/25; P3-04 33/33; P3-05 37/37.
+- Follow-up: Phase 4 close-out / regression closure. Do not start P4-08 automatically.
 
 ### P4-07A - Audit training large scripts and UI extraction candidates
 
@@ -65,16 +76,3 @@ No pending handoffs.
 - Result: safely-separable navigation **computation** extracted from `sprint06_base_scene.gd` into stateless `scripts/controllers/base_navigation_controller.gd` (49 lines, `class_name`/RefCounted, non-Autoload) — `terrain_type_for`, `is_near`, `compute_current_target`. Scene keeps thin delegators, `current_target` (~40 flow consumers), `_transition_to` (12 flow callers), `_interaction_target_rect` (day/schedule logic), the movement main loop, and Full Save. Behavior unchanged (characterized). `sprint06_base_scene.gd` 2331 → 2308 (net −24). P4-05A interface-prep scope: sprint06 nav is largely flow-coupled, so the safe movable amount is small by design (per §9/§12, not a failure). No scene/`project.godot`/schema change.
 - Verification: Godot editor/smoke EXIT 0 (no base-scene boot); P4-05 30/30; P4-04 35/35; P4-03 27/27; P4-02 22/22; P3-03a 40/40; P3-03b 50/50; P3-03c 34/34; P3-03d 25/25; P3-04 33/33; P3-05 37/37; real `user://saves/` SHA-256 unchanged.
 - Follow-up: P4-06 sprint06 daily/mission flow controller (audit coupling first) — do not start automatically.
-
-### P4-04 - Extract BaseHudPanelPresenter from sprint06_base_scene.gd
-
-- Status: `DONE`
-- Owner: `Claude Code`
-- Reviewer: `User`
-- Base commit: `549b464`
-- Result: HUD/status-panel UI construction + 8 panel toggles + panel refresh extracted from `sprint06_base_scene.gd` into `scripts/controllers/base_hud_panel_presenter.gd` (263 lines, RefCounted, non-Autoload). Scene re-exposes the flow-updated label nodes to its own vars (all HUD/flow update sites unchanged); plant-diagnosis modal (gameplay buttons), save/load, Full Save, navigation, day/task flow stay in the scene. Greenhouse gate injected into the plant toggle. `sprint06_base_scene.gd` 2556 → 2331 (net −225). No scene/`project.godot`/schema change. (Original P4-04 sandbox slot-save aggregation deferred: legacy/dev, 20+ shared fields, low value.)
-- Verification: Godot editor/smoke EXIT 0; base scene boots clean; P4-04 35/35; P4-03 27/27; P4-02 22/22; P3-03a 40/40; P3-03b 50/50; P3-03c 34/34; P3-03d 25/25; P3-04 33/33; P3-05 37/37; real `user://saves/` SHA-256 restored to baseline.
-- Follow-up: P4-05 sprint06 navigation / daily-flow controller — do not start automatically.
-
-
-

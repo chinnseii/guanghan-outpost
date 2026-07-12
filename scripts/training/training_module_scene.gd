@@ -4,6 +4,7 @@ const TrainingManagerScript := preload("res://scripts/training/training_manager.
 const PlayerControllerScript := preload("res://scripts/controllers/player_controller_2d.gd")
 const InteractionAreaScript := preload("res://scripts/controllers/interaction_area_2d.gd")
 const FaultDatabaseScript := preload("res://scripts/data/FaultDatabase.gd")
+const TrainingModuleScreenPresenterScript := preload("res://scripts/controllers/training_module_screen_presenter.gd")
 
 const TRAINING_03_CONTAINER_ID := "training_03_parts"
 
@@ -685,28 +686,11 @@ var step_index := 0
 var player: Control
 var training_area: Control
 var floor_node: Control
-var objective_label: Label
-var hud_label: Label
+var screen_presenter: TrainingModuleScreenPresenter
 var hint_label: Label
-var log_label: Label
 var diagnosis_panel: VBoxContainer
 var _popup: GuanghanPopupModal
-var suit_status_scrim: ColorRect
-var suit_status_modal: PanelContainer
-var suit_status_text_label: Label
 var suit_status_panel_visible := false
-var footer_buttons: HBoxContainer
-var left_panel: PanelContainer
-var minimal_hud: PanelContainer
-var minimal_title_label: Label
-var minimal_objective_label: Label
-var minimal_time_label: Label
-var briefing_scrim: ColorRect
-var briefing_modal: PanelContainer
-var pause_panel: PanelContainer
-var interaction_panel: PanelContainer
-var interaction_label: Label
-var interaction_bar: ProgressBar
 var target_nodes: Dictionary = {}
 var prompt_label: Label
 var completed := false
@@ -738,8 +722,8 @@ func _ready() -> void:
 	_push_player_state_area()
 	if completed:
 		briefing_visible = false
-		if briefing_modal != null:
-			briefing_modal.visible = false
+		if screen_presenter != null:
+			screen_presenter.set_briefing_visible(false)
 	elif entry_blocked:
 		_show_entry_blocked_dialog()
 	elif module_id == "power_repair":
@@ -831,221 +815,69 @@ func _release_stale_movement_input() -> void:
 			Input.action_release(action)
 
 func _build_screen() -> void:
-	var background := ColorRect.new()
-	background.color = Color("#06101a")
-	background.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(background)
-
-	var root := VBoxContainer.new()
-	root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root.offset_left = 36
-	root.offset_top = 24
-	root.offset_right = -36
-	root.offset_bottom = -32
-	root.add_theme_constant_override("separation", 10)
-	add_child(root)
-
-	var header := HBoxContainer.new()
-	header.add_theme_constant_override("separation", 20)
-	root.add_child(header)
-	_add_header_label(header, "国家深空生命科学中心训练控制系统", Vector2(620, 46), 24, Color("#eaf4ff"))
-	_add_header_label(header, String(module_data.get("subtitle", "TRAINING MODULE")), Vector2(420, 46), 13, Color("#6f8493"))
-	_add_header_label(header, "训练编号  GHT-2068-0421", Vector2(280, 46), 14, Color("#8fa3b2"))
-
-	var row := HBoxContainer.new()
-	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	row.add_theme_constant_override("separation", 14)
-	root.add_child(row)
-
-	left_panel = PanelContainer.new()
-	left_panel.custom_minimum_size = Vector2(420, 0)
-	left_panel.visible = false
-	row.add_child(left_panel)
-	var left := VBoxContainer.new()
-	left.add_theme_constant_override("separation", 12)
-	left_panel.add_child(left)
-
-	var title := Label.new()
-	title.text = String(module_data.get("title", "训练模块"))
-	title.modulate = Color("#eaf4ff")
-	title.add_theme_font_size_override("font_size", 24)
-	left.add_child(title)
-
-	_add_panel_section_label(left, "当前目标")
-	objective_label = Label.new()
-	objective_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	objective_label.modulate = Color("#d8e7f2")
-	objective_label.add_theme_font_size_override("font_size", 18)
-	left.add_child(objective_label)
-
-	_add_panel_section_label(left, "系统状态")
-	hud_label = Label.new()
-	hud_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	hud_label.modulate = Color("#9fb4c4")
-	hud_label.add_theme_font_size_override("font_size", 15)
-	left.add_child(hud_label)
-
-	_add_panel_section_label(left, "操作步骤")
-	hint_label = Label.new()
-	hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	hint_label.modulate = Color("#86c7ff")
-	hint_label.add_theme_font_size_override("font_size", 16)
-	left.add_child(hint_label)
-
-	diagnosis_panel = VBoxContainer.new()
-	diagnosis_panel.visible = false
-	diagnosis_panel.add_theme_constant_override("separation", 8)
-	left.add_child(diagnosis_panel)
-
-	_add_panel_section_label(left, "输入提示")
-	log_label = Label.new()
-	log_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	log_label.modulate = Color("#d8e7f2")
-	log_label.add_theme_font_size_override("font_size", 15)
-	log_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	left.add_child(log_label)
-
-	var area_panel := PanelContainer.new()
-	area_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	area_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	row.add_child(area_panel)
-	training_area = Control.new()
-	training_area.custom_minimum_size = Vector2(760, 520)
-	area_panel.add_child(training_area)
+	screen_presenter = TrainingModuleScreenPresenterScript.new()
+	screen_presenter.build_screen(self, module_data, module_id, _screen_presenter_callbacks())
+	_adopt_screen_presenter_nodes()
 	_build_training_area()
-	_build_training_overlays()
-
-	var footer := HBoxContainer.new()
-	footer_buttons = footer
-	footer.alignment = BoxContainer.ALIGNMENT_END
-	footer.custom_minimum_size = Vector2(0, 48)
-	footer.add_theme_constant_override("separation", 12)
-	footer.visible = false
-	root.add_child(footer)
-	_add_button(footer, "保存训练进度", func(): TrainingManagerScript.set_current_module(module_id))
-	_add_button(footer, "返回主菜单", func(): get_tree().change_scene_to_file("res://scenes/main.tscn"))
+	screen_presenter.build_training_overlays(self, module_data, module_id, completed, _screen_presenter_callbacks())
+	_adopt_screen_presenter_nodes()
+	briefing_visible = not completed
 
 func _build_training_overlays() -> void:
-	minimal_hud = PanelContainer.new()
-	minimal_hud.position = Vector2(60, 84)
-	minimal_hud.custom_minimum_size = Vector2(390, 118)
-	add_child(minimal_hud)
-	var hud_box := VBoxContainer.new()
-	hud_box.add_theme_constant_override("separation", 6)
-	minimal_hud.add_child(hud_box)
-	minimal_title_label = Label.new()
-	minimal_title_label.modulate = Color("#eaf4ff")
-	minimal_title_label.add_theme_font_size_override("font_size", 17)
-	hud_box.add_child(minimal_title_label)
-	minimal_objective_label = Label.new()
-	minimal_objective_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	minimal_objective_label.modulate = Color("#f0c766")
-	minimal_objective_label.add_theme_font_size_override("font_size", 15)
-	hud_box.add_child(minimal_objective_label)
-	minimal_time_label = Label.new()
-	minimal_time_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	minimal_time_label.modulate = Color("#9fb4c4")
-	minimal_time_label.add_theme_font_size_override("font_size", 13)
-	hud_box.add_child(minimal_time_label)
-	var key_hint := Label.new()
-	key_hint.text = "Tab 查看任务    Esc 暂停"
-	key_hint.modulate = Color("#7f93a3")
-	key_hint.add_theme_font_size_override("font_size", 12)
-	hud_box.add_child(key_hint)
-	_build_briefing_modal()
-	_build_pause_panel()
-	_build_interaction_panel()
-	_build_diagnosis_modal()
-	_build_suit_status_panel()
+	if screen_presenter == null:
+		return
+	screen_presenter.build_training_overlays(self, module_data, module_id, completed, _screen_presenter_callbacks())
+	_adopt_screen_presenter_nodes()
 
-## The choice/confirm/diagnosis modal is now the shared GuanghanPopupModal
-## component (scripts/ui/popup_modal.gd) instead of a hand-built scrim+panel
-## duplicated per scene. Each _show_* function drives it via _popup.open({...})
-## + add_action_control(); the image-left / text-right layout and per-dialog
-## title/image are handled by the component's config.
-func _build_diagnosis_modal() -> void:
-	_popup = GuanghanPopupModal.new()
-	add_child(_popup)
+func _screen_presenter_callbacks() -> Dictionary:
+	return {
+		"save_progress": Callable(self, "_save_training_progress"),
+		"return_main": Callable(self, "_return_to_main_menu"),
+		"close_briefing": Callable(self, "_close_briefing"),
+		"resume_training": func(): _set_pause_visible(false),
+		"show_tasks": func():
+			_set_pause_visible(false)
+			_set_mission_panel_visible(true),
+		"confirm_suit_status": Callable(self, "_on_confirm_suit_status_pressed"),
+	}
 
-## Tab (the "mission_panel" action) opens this instead of the normal
-## left_panel mission overview while the current step is
-## "suit_status_panel" -- see _toggle_mission_panel().
-func _build_suit_status_panel() -> void:
-	suit_status_scrim = ColorRect.new()
-	suit_status_scrim.color = Color("#02070d", 0.78)
-	suit_status_scrim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	suit_status_scrim.visible = false
-	add_child(suit_status_scrim)
+func _adopt_screen_presenter_nodes() -> void:
+	if screen_presenter == null:
+		return
+	hint_label = screen_presenter.hint_label
+	diagnosis_panel = screen_presenter.diagnosis_panel
+	training_area = screen_presenter.training_area
+	_popup = screen_presenter.popup
+	suit_status_panel_visible = screen_presenter.suit_status_panel_visible
+	if screen_presenter.prompt_label == null and prompt_label != null:
+		screen_presenter.prompt_label = prompt_label
+	elif screen_presenter.prompt_label != null:
+		prompt_label = screen_presenter.prompt_label
 
-	suit_status_modal = PanelContainer.new()
-	suit_status_modal.set_anchors_preset(Control.PRESET_CENTER)
-	suit_status_modal.offset_left = -260
-	suit_status_modal.offset_top = -190
-	suit_status_modal.offset_right = 260
-	suit_status_modal.offset_bottom = 190
-	suit_status_modal.visible = false
-	add_child(suit_status_modal)
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color("#170a1e", 0.97)
-	style.border_color = Color("#8a5fa8", 0.9)
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(4)
-	style.content_margin_left = 22
-	style.content_margin_top = 20
-	style.content_margin_right = 22
-	style.content_margin_bottom = 20
-	suit_status_modal.add_theme_stylebox_override("panel", style)
+func _save_training_progress() -> void:
+	TrainingManagerScript.set_current_module(module_id)
 
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 12)
-	suit_status_modal.add_child(box)
-	var title := Label.new()
-	title.text = "宇航服状态"
-	title.modulate = Color("#eaf4ff")
-	title.add_theme_font_size_override("font_size", 20)
-	box.add_child(title)
-	suit_status_text_label = Label.new()
-	suit_status_text_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	suit_status_text_label.modulate = Color("#e8d9f5")
-	suit_status_text_label.add_theme_font_size_override("font_size", 16)
-	box.add_child(suit_status_text_label)
-	var confirm := Button.new()
-	confirm.text = "确认外勤状态" if module_id == "power_repair" else "确认状态"
-	confirm.custom_minimum_size = Vector2(0, 42)
-	confirm.pressed.connect(_on_confirm_suit_status_pressed)
-	box.add_child(confirm)
+func _return_to_main_menu() -> void:
+	get_tree().change_scene_to_file("res://scenes/main.tscn")
 
 func _toggle_suit_status_panel() -> void:
-	suit_status_panel_visible = not suit_status_panel_visible
-	if suit_status_panel_visible:
-		_refresh_suit_status_panel()
-	if suit_status_scrim != null:
-		suit_status_scrim.visible = suit_status_panel_visible
-	if suit_status_modal != null:
-		suit_status_modal.visible = suit_status_panel_visible
+	if screen_presenter == null:
+		return
+	screen_presenter.toggle_suit_status_panel(_suit_status_for_presenter(), module_id)
+	suit_status_panel_visible = screen_presenter.suit_status_panel_visible
 	_sync_overlay_visibility()
 
 func _refresh_suit_status_panel() -> void:
-	if suit_status_text_label == null:
-		return
+	if screen_presenter != null:
+		screen_presenter.refresh_suit_status_panel(_suit_status_for_presenter(), module_id)
+
+func _suit_status_for_presenter() -> Dictionary:
 	var suit_manager := _suit_manager()
 	if suit_manager == null or not suit_manager.has_method("get_suit_status_for_ui"):
-		suit_status_text_label.text = "宇航服数据不可用。"
-		return
+		return {"available": false}
 	var data: Dictionary = suit_manager.call("get_suit_status_for_ui")
-	var text := "宇航服状态\n\n氧气储备：%.0f%%\n电力储备：%.0f%%\n移动倍率：%.2f" % [
-		float(data.get("oxygen", 0.0)), float(data.get("power", 0.0)),
-		float(data.get("speed_multiplier", 0.8)),
-	]
-	# Extra narrative context lines specific to the solar array EVA training
-	# room -- kept as a module_id check here rather than a second copy of
-	# this whole panel, since every other module just wants the plain
-	# oxygen/power/seal/comm/speed readout.
-	if module_id == "power_repair":
-		text += "\n\n当前环境：真空模拟\n外勤任务：太阳能阵列维修"
-	else:
-		text += "\n\n初代宇航服会降低行动速度。后续升级可将移动倍率提升至 1.00。"
-	suit_status_text_label.text = text
+	data["available"] = true
+	return data
 
 ## Only completes the step if the confirm button is pressed while this
 ## step is genuinely current -- guards against a stray click after the
@@ -1053,11 +885,9 @@ func _refresh_suit_status_panel() -> void:
 func _on_confirm_suit_status_pressed() -> void:
 	if String(_current_step().get("type", "")) != "suit_status_panel":
 		return
-	suit_status_panel_visible = false
-	if suit_status_scrim != null:
-		suit_status_scrim.visible = false
-	if suit_status_modal != null:
-		suit_status_modal.visible = false
+	if screen_presenter != null:
+		screen_presenter.set_suit_status_panel_visible(false)
+		suit_status_panel_visible = screen_presenter.suit_status_panel_visible
 	_complete_step()
 
 func _suit_manager() -> Node:
@@ -1078,110 +908,10 @@ func _training_inventory_manager() -> Node:
 		return null
 	return tree.root.get_node_or_null("InventoryManager")
 
-func _build_briefing_modal() -> void:
-	briefing_scrim = ColorRect.new()
-	briefing_scrim.color = Color("#02070d", 0.78)
-	briefing_scrim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	briefing_scrim.visible = not completed
-	add_child(briefing_scrim)
-
-	briefing_modal = PanelContainer.new()
-	briefing_modal.set_anchors_preset(Control.PRESET_CENTER)
-	briefing_modal.offset_left = -310
-	briefing_modal.offset_top = -190
-	briefing_modal.offset_right = 310
-	briefing_modal.offset_bottom = 190
-	briefing_modal.visible = not completed
-	add_child(briefing_modal)
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 14)
-	briefing_modal.add_child(box)
-	var title := Label.new()
-	title.text = String(module_data.get("title", "训练模块"))
-	title.modulate = Color("#eaf4ff")
-	title.add_theme_font_size_override("font_size", 24)
-	box.add_child(title)
-	var subtitle := Label.new()
-	subtitle.text = "训练入口简报"
-	subtitle.modulate = Color("#86c7ff")
-	subtitle.add_theme_font_size_override("font_size", 16)
-	box.add_child(subtitle)
-	var body := Label.new()
-	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	body.modulate = Color("#c6d5df")
-	body.add_theme_font_size_override("font_size", 16)
-	body.text = "本模块将在模拟训练舱内记录你的操作顺序。\n\n靠近当前目标后，按 E / Enter 交互。\n按 Tab 可随时查看完整任务面板。"
-	box.add_child(body)
-	var button := Button.new()
-	button.text = "确认，开始训练"
-	button.custom_minimum_size = Vector2(0, 44)
-	button.pressed.connect(func(): _close_briefing())
-	box.add_child(button)
-	briefing_visible = not completed
-
-func _build_pause_panel() -> void:
-	pause_panel = PanelContainer.new()
-	pause_panel.set_anchors_preset(Control.PRESET_CENTER)
-	pause_panel.offset_left = -210
-	pause_panel.offset_top = -150
-	pause_panel.offset_right = 210
-	pause_panel.offset_bottom = 150
-	pause_panel.visible = false
-	add_child(pause_panel)
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 12)
-	pause_panel.add_child(box)
-	var title := Label.new()
-	title.text = "训练暂停"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.modulate = Color("#eaf4ff")
-	title.add_theme_font_size_override("font_size", 22)
-	box.add_child(title)
-	var resume := Button.new()
-	resume.text = "继续训练"
-	resume.custom_minimum_size = Vector2(0, 42)
-	resume.pressed.connect(func(): _set_pause_visible(false))
-	box.add_child(resume)
-	var tasks := Button.new()
-	tasks.text = "查看任务"
-	tasks.custom_minimum_size = Vector2(0, 42)
-	tasks.pressed.connect(func():
-		_set_pause_visible(false)
-		_set_mission_panel_visible(true)
-	)
-	box.add_child(tasks)
-	var main := Button.new()
-	main.text = "返回主菜单"
-	main.custom_minimum_size = Vector2(0, 42)
-	main.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/main.tscn"))
-	box.add_child(main)
-
-func _build_interaction_panel() -> void:
-	interaction_panel = PanelContainer.new()
-	interaction_panel.position = Vector2(520, 720)
-	interaction_panel.custom_minimum_size = Vector2(560, 78)
-	interaction_panel.visible = false
-	add_child(interaction_panel)
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 6)
-	interaction_panel.add_child(box)
-	interaction_label = Label.new()
-	interaction_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	interaction_label.modulate = Color("#eaf4ff")
-	interaction_label.add_theme_font_size_override("font_size", 16)
-	box.add_child(interaction_label)
-	interaction_bar = ProgressBar.new()
-	interaction_bar.min_value = 0.0
-	interaction_bar.max_value = 1.0
-	interaction_bar.value = 0.0
-	interaction_bar.show_percentage = false
-	interaction_bar.custom_minimum_size = Vector2(0, 12)
-	box.add_child(interaction_bar)
-
 func _close_briefing() -> void:
 	briefing_visible = false
-	if briefing_modal != null:
-		briefing_modal.visible = false
+	if screen_presenter != null:
+		screen_presenter.set_briefing_visible(false)
 	_sync_overlay_visibility()
 
 ## Tab is bound to the "mission_panel" action for every module; while the
@@ -1199,8 +929,8 @@ func _toggle_mission_panel() -> void:
 
 func _set_mission_panel_visible(value: bool) -> void:
 	mission_panel_visible = value
-	if log_label != null:
-		log_label.text = "Tab：关闭任务面板\nE / Enter：与当前目标交互\nEsc：暂停"
+	if screen_presenter != null:
+		screen_presenter.set_log_text("Tab：关闭任务面板\nE / Enter：与当前目标交互\nEsc：暂停")
 	_sync_overlay_visibility()
 
 func _toggle_pause_menu() -> void:
@@ -1211,24 +941,18 @@ func _toggle_pause_menu() -> void:
 
 func _set_pause_visible(value: bool) -> void:
 	pause_visible = value
-	if pause_panel != null:
-		pause_panel.visible = value
+	if screen_presenter != null:
+		screen_presenter.set_pause_visible(value)
 	_sync_overlay_visibility()
 
 func _sync_overlay_visibility() -> void:
-	var diagnosis_panel_open := diagnosis_panel != null and diagnosis_panel.visible
-	var diagnosis_open := diagnosis_panel_open or (_popup != null and _popup.is_open())
-	var suit_status_open := suit_status_modal != null and suit_status_modal.visible
-	if briefing_scrim != null:
-		briefing_scrim.visible = briefing_visible
-	if briefing_modal != null:
-		briefing_modal.visible = briefing_visible
-	if left_panel != null:
-		left_panel.visible = mission_panel_visible or diagnosis_panel_open
-	if minimal_hud != null:
-		minimal_hud.visible = not briefing_visible and not mission_panel_visible and not pause_visible and not diagnosis_open and not suit_status_open
-	if prompt_label != null and (briefing_visible or mission_panel_visible or pause_visible or diagnosis_open or suit_status_open):
-		prompt_label.visible = false
+	if screen_presenter == null:
+		return
+	screen_presenter.sync_overlay_visibility({
+		"briefing_visible": briefing_visible,
+		"mission_panel_visible": mission_panel_visible,
+		"pause_visible": pause_visible,
+	})
 
 func _build_training_area() -> void:
 	target_nodes.clear()
@@ -1724,27 +1448,21 @@ func _begin_step_interaction_feedback(step: Dictionary) -> void:
 	var duration := _interaction_duration_for_step(step)
 	var start_text := _interaction_start_text(step)
 	var done_text := _interaction_done_text(step)
-	if interaction_panel != null:
-		interaction_panel.visible = true
-	if interaction_label != null:
-		interaction_label.text = start_text
-	if interaction_bar != null:
-		interaction_bar.value = 0.0
+	if screen_presenter != null:
+		screen_presenter.set_interaction_running(start_text)
 	var elapsed := 0.0
 	while elapsed < duration:
 		await get_tree().process_frame
 		var delta := get_process_delta_time()
 		elapsed += delta
-		if interaction_bar != null:
-			interaction_bar.value = clamp(elapsed / duration, 0.0, 1.0)
+		if screen_presenter != null:
+			screen_presenter.set_interaction_progress(elapsed / duration)
 		_update_room_prompt()
-	if interaction_label != null:
-		interaction_label.text = done_text
-	if interaction_bar != null:
-		interaction_bar.value = 1.0
+	if screen_presenter != null:
+		screen_presenter.finish_interaction(done_text)
 	await get_tree().create_timer(0.25).timeout
-	if interaction_panel != null:
-		interaction_panel.visible = false
+	if screen_presenter != null:
+		screen_presenter.hide_interaction()
 	interaction_target_id = ""
 	interaction_running = false
 	if player != null:
@@ -1968,12 +1686,12 @@ func _completed_hint_text() -> String:
 	return "训练记录已完成。请前往训练出口，进入下一阶段。"
 
 func _show_completed_next_action() -> void:
-	if footer_buttons != null:
-		_clear_container(footer_buttons)
-		_add_button(footer_buttons, String(module_data.get("next_button", "进入下一阶段")), func():
+	if screen_presenter != null:
+		screen_presenter.clear_footer_buttons()
+		screen_presenter.add_footer_button(String(module_data.get("next_button", "进入下一阶段")), func():
 			get_tree().change_scene_to_file(String(module_data.get("next_scene", TrainingManagerScript.START_SCENE)))
 		)
-		_add_button(footer_buttons, "返回主菜单", func(): get_tree().change_scene_to_file("res://scenes/main.tscn"))
+		screen_presenter.add_footer_button("返回主菜单", Callable(self, "_return_to_main_menu"))
 	if diagnosis_panel == null:
 		return
 	for child in diagnosis_panel.get_children():
@@ -2270,7 +1988,7 @@ func _show_diagnosis_options(options: Array, correct: String) -> void:
 	var professional_hint := _professional_hint_block("training_06_greenhouse_light_low")
 	var base_text := "传感器读数\n补光输出：低于维持阈值\n水循环：最低运行\n根区温度：正常\n生命信号：弱\n\n植物状态\n叶片偏淡，植株向补光灯方向倾斜。\n新叶展开缓慢。\n\n原因分析\n补光输出不足，无法支撑最低光合维持。"
 	var body := "%s\n\n%s\n\n请选择诊断结论。" % [base_text, professional_hint] if not professional_hint.is_empty() else "%s\n\n请选择诊断结论。" % base_text
-	_popup.open({
+	_open_training_popup({
 		"image": _load_diagnosis_texture("res://assets/art/greenhouse/plant_states/light_low.png"),
 		"title": "植物舱诊断详情\nPLANT CHAMBER DIAGNOSTIC",
 		"text": body,
@@ -2287,7 +2005,7 @@ func _show_diagnosis_options(options: Array, correct: String) -> void:
 			else:
 				hint_label.text = String(_current_step().get("wrong_hint", "诊断结论不足。请重新核对观察信息。"))
 		)
-		_popup.add_action_control(button)
+		_add_training_popup_action(button)
 	var close := Button.new()
 	close.text = "关闭弹窗"
 	close.custom_minimum_size = Vector2(0, 42)
@@ -2295,13 +2013,13 @@ func _show_diagnosis_options(options: Array, correct: String) -> void:
 		hint_label.text = "诊断视图已关闭。"
 		_hide_training_diagnosis_modal()
 	)
-	_popup.add_action_control(close)
+	_add_training_popup_action(close)
 	_sync_overlay_visibility()
 
 func _show_plant_control_options(options: Array, correct: String) -> void:
 	if diagnosis_panel != null:
 		diagnosis_panel.visible = false
-	_popup.open({
+	_open_training_popup({
 		"image": _load_diagnosis_texture("res://assets/art/greenhouse/plant_states/light_low.png"),
 		"title": "植物控制台\nPLANT CONTROL",
 		"text": "植物控制台\nPLANT CONTROL\n\n当前维护目标\n根据植物舱诊断结果选择一项维护动作。\n\n传感器摘要\n补光输出：低于维持阈值\n水循环：最低运行\n根区温度：正常\n生命信号：弱\n\n可用操作\n调节温度：用于根区温度异常。\n浇水：用于水分不足。\n补光：用于光照不足。\n\n请选择维护动作。",
@@ -2318,7 +2036,7 @@ func _show_plant_control_options(options: Array, correct: String) -> void:
 			else:
 				hint_label.text = String(_current_step().get("wrong_hint", "维护动作不匹配。请重新核对植物舱诊断结果。"))
 		)
-		_popup.add_action_control(button)
+		_add_training_popup_action(button)
 	var close := Button.new()
 	close.text = "关闭弹窗"
 	close.custom_minimum_size = Vector2(0, 42)
@@ -2326,7 +2044,7 @@ func _show_plant_control_options(options: Array, correct: String) -> void:
 		hint_label.text = "植物控制台已关闭。"
 		_hide_training_diagnosis_modal()
 	)
-	_popup.add_action_control(close)
+	_add_training_popup_action(close)
 	_sync_overlay_visibility()
 
 ## Reuses the same diagnosis-modal infrastructure as _show_plant_control_options()
@@ -2338,7 +2056,7 @@ func _show_plant_control_options(options: Array, correct: String) -> void:
 func _show_wear_suit_confirm_dialog() -> void:
 	if diagnosis_panel != null:
 		diagnosis_panel.visible = false
-	_popup.open({
+	_open_training_popup({
 		"title": "宇航服整备\nSUIT PREPARATION",
 		"text": "穿戴宇航服\n\n穿戴将消耗训练时间 15 分钟。\n是否确认？",
 		"content_min_size": Vector2(520, 0),
@@ -2357,7 +2075,7 @@ func _show_wear_suit_confirm_dialog() -> void:
 		else:
 			hint_label.text = "宇航服当前无法穿戴。"
 	)
-	_popup.add_action_control(confirm)
+	_add_training_popup_action(confirm)
 	var cancel := Button.new()
 	cancel.text = "取消"
 	cancel.custom_minimum_size = Vector2(0, 42)
@@ -2365,7 +2083,7 @@ func _show_wear_suit_confirm_dialog() -> void:
 		hint_label.text = "已取消穿戴。"
 		_hide_training_diagnosis_modal()
 	)
-	_popup.add_action_control(cancel)
+	_add_training_popup_action(cancel)
 	_sync_overlay_visibility()
 
 ## -- Training module 03 (太阳能阵列训练场) -- see FA-TR-SOLAR-001 in
@@ -2374,7 +2092,7 @@ func _show_wear_suit_confirm_dialog() -> void:
 func _show_return_suit_confirm_dialog() -> void:
 	if diagnosis_panel != null:
 		diagnosis_panel.visible = false
-	_popup.open({
+	_open_training_popup({
 		"title": "宇航服归位\nSUIT RETURN",
 		"text": "宇航服归位\n\n脱下宇航服并放回维护位。\n维护系统将恢复宇航服氧气、电力与状态。\n\n训练模式下无需等待完整维护流程。\n是否确认？",
 		"content_min_size": Vector2(520, 0),
@@ -2393,7 +2111,7 @@ func _show_return_suit_confirm_dialog() -> void:
 		else:
 			hint_label.text = "宇航服当前无法归位。"
 	)
-	_popup.add_action_control(confirm)
+	_add_training_popup_action(confirm)
 	var cancel := Button.new()
 	cancel.text = "取消"
 	cancel.custom_minimum_size = Vector2(0, 42)
@@ -2401,13 +2119,13 @@ func _show_return_suit_confirm_dialog() -> void:
 		hint_label.text = "已取消宇航服归位。"
 		_hide_training_diagnosis_modal()
 	)
-	_popup.add_action_control(cancel)
+	_add_training_popup_action(cancel)
 	_sync_overlay_visibility()
 
 func _show_inspect_solar_array_confirm_dialog() -> void:
 	if diagnosis_panel != null:
 		diagnosis_panel.visible = false
-	_popup.open({
+	_open_training_popup({
 		"title": "太阳能阵列检查\nSOLAR ARRAY INSPECTION",
 		"text": "检查太阳能阵列\n\n预计耗时：15 分钟。\n训练时间将推进。\n宇航服氧气与电力将少量消耗。\n\n是否继续？",
 		"content_min_size": Vector2(520, 0),
@@ -2419,7 +2137,7 @@ func _show_inspect_solar_array_confirm_dialog() -> void:
 		_hide_training_diagnosis_modal()
 		_confirm_inspect_solar_array()
 	)
-	_popup.add_action_control(confirm)
+	_add_training_popup_action(confirm)
 	var cancel := Button.new()
 	cancel.text = "取消"
 	cancel.custom_minimum_size = Vector2(0, 42)
@@ -2427,7 +2145,7 @@ func _show_inspect_solar_array_confirm_dialog() -> void:
 		hint_label.text = "已取消检查。"
 		_hide_training_diagnosis_modal()
 	)
-	_popup.add_action_control(cancel)
+	_add_training_popup_action(cancel)
 	_sync_overlay_visibility()
 
 ## Fixed costs per the design spec (15 min / -2 oxygen / -2 power / -2
@@ -2456,7 +2174,7 @@ func _show_solar_fault_diagnosis() -> void:
 	if diagnosis_panel != null:
 		diagnosis_panel.visible = false
 	var fault: Dictionary = FaultDatabaseScript.get_fault("FA-TR-SOLAR-001")
-	_popup.open({
+	_open_training_popup({
 		"title": "太阳能阵列诊断\nSOLAR ARRAY DIAGNOSTIC",
 		"text": _solar_fault_panel_text(),
 		"content_min_size": Vector2(520, 0),
@@ -2478,7 +2196,7 @@ func _show_solar_fault_diagnosis() -> void:
 			else:
 				_execute_solar_repair_option(option_id)
 		)
-		_popup.add_action_control(button)
+		_add_training_popup_action(button)
 	_sync_overlay_visibility()
 
 ## The "强行切换满功率输入" option requires its own second confirmation
@@ -2486,7 +2204,7 @@ func _show_solar_fault_diagnosis() -> void:
 ## replacing its buttons with confirm/cancel; canceling rebuilds the
 ## normal option list via _show_solar_fault_diagnosis().
 func _show_high_risk_repair_confirm(option_id: String) -> void:
-	_popup.open({
+	_open_training_popup({
 		"title": "高风险操作确认\nHIGH RISK CONFIRM",
 		"text": "高风险操作\n\n当前故障原因未确认。\n强行切换满功率输入可能导致接口过载，并消耗额外训练资源。\n\n是否继续？",
 		"content_min_size": Vector2(520, 0),
@@ -2496,12 +2214,12 @@ func _show_high_risk_repair_confirm(option_id: String) -> void:
 	confirm.modulate = Color("#ff6b6b")
 	confirm.custom_minimum_size = Vector2(0, 42)
 	confirm.pressed.connect(func(): _execute_solar_repair_option(option_id))
-	_popup.add_action_control(confirm)
+	_add_training_popup_action(confirm)
 	var cancel := Button.new()
 	cancel.text = "取消"
 	cancel.custom_minimum_size = Vector2(0, 42)
 	cancel.pressed.connect(func(): _show_solar_fault_diagnosis())
-	_popup.add_action_control(cancel)
+	_add_training_popup_action(cancel)
 	_sync_overlay_visibility()
 
 ## The one place that actually calls RepairManager.apply_repair_option()
@@ -2534,7 +2252,7 @@ func _execute_solar_repair_option(option_id: String) -> void:
 		return
 	var new_hint := String(result.get("new_hint", ""))
 	if _popup != null:
-		_popup.set_body_text("%s\n\n%s" % [message, _solar_fault_panel_text()] if new_hint.is_empty() else "%s\n\n%s\n\n%s" % [message, new_hint, _solar_fault_panel_text()])
+		_set_training_popup_body_text("%s\n\n%s" % [message, _solar_fault_panel_text()] if new_hint.is_empty() else "%s\n\n%s\n\n%s" % [message, new_hint, _solar_fault_panel_text()])
 	_add_log(message)
 	_check_solar_parts_depleted()
 
@@ -2625,31 +2343,8 @@ func _professional_hint_block(context_id: String) -> String:
 ## while entry_blocked is true, so no movement/interaction is possible.
 func _show_entry_blocked_dialog() -> void:
 	briefing_visible = true
-	if briefing_scrim != null:
-		briefing_scrim.visible = true
-	if briefing_modal == null:
-		return
-	briefing_modal.visible = true
-	_clear_container(briefing_modal)
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 14)
-	briefing_modal.add_child(box)
-	var title := Label.new()
-	title.text = "无法进入训练"
-	title.modulate = Color("#ff6b6b")
-	title.add_theme_font_size_override("font_size", 24)
-	box.add_child(title)
-	var body := Label.new()
-	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	body.modulate = Color("#c6d5df")
-	body.add_theme_font_size_override("font_size", 16)
-	body.text = "未检测到宇航服穿戴状态。无法进入月面真空模拟环境。\n\n请先完成宇航服穿戴，再进入本训练模块。"
-	box.add_child(body)
-	var button := Button.new()
-	button.text = "返回主菜单"
-	button.custom_minimum_size = Vector2(0, 44)
-	button.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/main.tscn"))
-	box.add_child(button)
+	if screen_presenter != null:
+		screen_presenter.show_entry_blocked_dialog(Callable(self, "_return_to_main_menu"))
 
 ## Training-only container, kept entirely separate from the real inventory/
 ## StorageManager (per spec) -- reset every time the module is (re)entered
@@ -2667,9 +2362,32 @@ func _setup_training_03_container() -> void:
 		inventory_manager.call("add_item_to_container", TRAINING_03_CONTAINER_ID, "TR-MT-002", 1)
 
 func _hide_training_diagnosis_modal() -> void:
-	if _popup != null:
-		_popup.close()
+	_close_training_popup()
 	_sync_overlay_visibility()
+
+func _open_training_popup(config: Dictionary) -> void:
+	if screen_presenter != null:
+		screen_presenter.open_popup(config)
+	elif _popup != null:
+		_popup.open(config)
+
+func _add_training_popup_action(control: Control) -> void:
+	if screen_presenter != null:
+		screen_presenter.add_popup_action_control(control)
+	elif _popup != null:
+		_popup.add_action_control(control)
+
+func _close_training_popup() -> void:
+	if screen_presenter != null:
+		screen_presenter.close_popup()
+	elif _popup != null:
+		_popup.close()
+
+func _set_training_popup_body_text(text: String) -> void:
+	if screen_presenter != null:
+		screen_presenter.set_popup_body_text(text)
+	elif _popup != null:
+		_popup.set_body_text(text)
 
 func _load_diagnosis_texture(path: String) -> Texture2D:
 	var image := Image.load_from_file(ProjectSettings.globalize_path(path))
@@ -2680,55 +2398,59 @@ func _load_diagnosis_texture(path: String) -> Texture2D:
 func _update_hud() -> void:
 	var step := _current_step()
 	var objective := String(step.get("objective", "训练流程已完成。")) if not completed else "训练流程已完成。"
-	objective_label.text = "当前目标：%s" % objective
 	if completed:
 		objective = _completed_objective_text()
-		objective_label.text = "当前目标：%s" % objective
-	if minimal_title_label != null:
-		minimal_title_label.text = String(module_data.get("title", "训练模块"))
-	if minimal_objective_label != null:
-		minimal_objective_label.text = "当前目标：%s" % objective
-	if minimal_time_label != null:
-		minimal_time_label.text = _minimal_resident_status_text()
+	var objective_text := "当前目标：%s" % objective
+	var hud_text := ""
 	if module_id == "airlock_procedure":
-		hud_label.text = _airlock_hud_text()
+		hud_text = _airlock_hud_text()
 	elif module_id == "power_repair":
-		hud_label.text = _power_hud_text()
+		hud_text = _power_hud_text()
 	elif module_id == "power_distribution":
-		hud_label.text = _power_distribution_hud_text()
+		hud_text = _power_distribution_hud_text()
 	elif module_id == "life_support":
-		hud_label.text = _life_support_hud_text()
+		hud_text = _life_support_hud_text()
 	elif module_id == "plant_diagnosis":
-		hud_label.text = _plant_hud_text()
+		hud_text = _plant_hud_text()
 	elif module_id == "final_assessment":
-		hud_label.text = _assessment_hud_text()
+		hud_text = _assessment_hud_text()
 	else:
-		hud_label.text = String(module_data.get("hud", "氧气模拟值：98%\n电力模拟值：稳定\n生命支持状态：训练环境"))
+		hud_text = String(module_data.get("hud", "氧气模拟值：98%\n电力模拟值：稳定\n生命支持状态：训练环境"))
 	var time_text := _resident_status_hud_text()
 	if not time_text.is_empty():
-		hud_label.text = "%s\n\n%s" % [time_text, hud_label.text]
+		hud_text = "%s\n\n%s" % [time_text, hud_text]
+	var hint_text := ""
 	if module_id == "suit_control" and not completed:
-		hint_label.text = _suit_control_hint(step)
+		hint_text = _suit_control_hint(step)
 	elif module_id == "airlock_procedure" and not completed:
-		hint_label.text = _airlock_hint(step)
+		hint_text = _airlock_hint(step)
 	elif module_id == "power_repair" and not completed:
-		hint_label.text = _power_hint(step)
+		hint_text = _power_hint(step)
 	elif module_id == "power_distribution" and not completed:
-		hint_label.text = _power_distribution_hint(step)
+		hint_text = _power_distribution_hint(step)
 	elif module_id == "life_support" and not completed:
-		hint_label.text = _life_support_hint(step)
+		hint_text = _life_support_hint(step)
 	elif module_id == "plant_diagnosis" and not completed:
-		hint_label.text = _plant_hint(step)
+		hint_text = _plant_hint(step)
 	elif module_id == "final_assessment" and not completed:
-		hint_label.text = _assessment_hint(step)
+		hint_text = _assessment_hint(step)
 	else:
-		hint_label.text = String(step.get("hint", "移动至目标区域，按 E 交互。")) if not completed else "训练记录已保存。"
+		hint_text = String(step.get("hint", "移动至目标区域，按 E 交互。")) if not completed else "训练记录已保存。"
 	if String(step.get("type", "")) == "diagnosis":
 		_show_diagnosis_options(step.get("options", []), String(step.get("correct", "")))
 	if String(step.get("type", "")) == "solar_fault_diagnosis":
 		_show_solar_fault_diagnosis()
 	if completed:
-		hint_label.text = _completed_hint_text()
+		hint_text = _completed_hint_text()
+	if screen_presenter != null:
+		screen_presenter.update_hud({
+			"objective_text": objective_text,
+			"minimal_title": String(module_data.get("title", "训练模块")),
+			"minimal_objective": objective_text,
+			"minimal_time": _minimal_resident_status_text(),
+			"hud_text": hud_text,
+			"hint_text": hint_text,
+		})
 	_sync_overlay_visibility()
 
 ## Matches on step type, not target -- wear_suit_confirm/suit_status_panel
@@ -3115,33 +2837,8 @@ func _assessment_hint(step: Dictionary) -> String:
 func _add_log(line: String) -> void:
 	if line.is_empty():
 		return
-	log_label.text += line + "\n"
-
-func _add_header_label(parent: HBoxContainer, text: String, min_size: Vector2, font_size: int, color: Color) -> void:
-	var label := Label.new()
-	label.text = text
-	label.custom_minimum_size = min_size
-	label.modulate = color
-	label.add_theme_font_size_override("font_size", font_size)
-	parent.add_child(label)
-
-func _add_panel_section_label(parent: VBoxContainer, text: String) -> void:
-	var label := Label.new()
-	label.text = text
-	label.modulate = Color("#86c7ff")
-	label.add_theme_font_size_override("font_size", 13)
-	parent.add_child(label)
-
-func _add_button(parent: HBoxContainer, text: String, callback: Callable) -> void:
-	var button := Button.new()
-	button.text = text
-	button.custom_minimum_size = Vector2(190, 42)
-	# Footer buttons must never hold keyboard focus: Tab doubles as Godot's
-	# ui_focus_next (stealing the suit-status-panel toggle) and Enter doubles
-	# as the "interact" action (which would trigger the focused button).
-	button.focus_mode = Control.FOCUS_NONE
-	button.pressed.connect(callback)
-	parent.add_child(button)
+	if screen_presenter != null:
+		screen_presenter.append_log(line)
 
 func _clear_container(node: Node) -> void:
 	for child in node.get_children():

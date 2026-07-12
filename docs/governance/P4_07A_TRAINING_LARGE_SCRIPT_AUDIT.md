@@ -112,3 +112,14 @@
 ## 13. Phase 4 Closure Implications
 - 若 P4-07B（training module UI）完成后，训练两脚本仍余：状态机 + 房间导航（base_map）+ 布局，均 scene-tree/flow/checkpoint 强耦合 → 那时应 **CLOSE_PHASE_4**（剩余不值得高风险拆分）。
 - 无 P0/P1；训练进度 canonical 边界（P3 定稿）未受影响。
+
+## P4-07B Completion Note (2026-07-12)
+
+- **DONE**: extracted `TrainingModuleScreenPresenter` from `training_module_scene.gd` into `scripts/controllers/training_module_screen_presenter.gd` (`class_name`, RefCounted, non-Autoload).
+- `training_module_scene.gd` **3417 -> 3114 (net -303)**. The reduction lands within the lower edge of the P4-07A estimate while preserving flow boundaries.
+- Moved display-only screen chrome: left mission panel labels, footer buttons, minimal HUD, briefing/pause/interaction panels, popup shell ownership, suit-status panel display, entry-blocked briefing UI, overlay visibility, HUD label assignment, and interaction progress display.
+- Kept in scene: `_build_training_area`, room targets/layout, movement/input locks, `step_index`/`completed` state, `_complete_step`, `_finish_module`, `TrainingManagerScript.set_current_module`, `TrainingManagerScript.mark_module_completed`, and all diagnosis/repair option correctness decisions.
+- Scope adjustment from the generated instruction: option dialogs that decide correctness and call `_complete_step()` remain in the scene. The presenter owns the popup container API only; it does not own answers, checkpoints, scene changes, or step advancement.
+- `training_base_map.gd`, scenes, `project.godot`, Full Save schema, Training Checkpoint schema, and gameplay values were not changed.
+- Verification: Godot editor/smoke EXIT 0; P4-07B 20/20; P4-07A 32/32; P4-06B 41/41; P4-06A 28/28; P4-05 30/30; P4-04 35/35; P4-03 27/27; P4-02 22/22; P3-03a 40/40; P3-03b 50/50; P3-03c 34/34; P3-03d 25/25; P3-04 33/33; P3-05 37/37.
+- Closure implication remains: after P4-07B, remaining training-script bulk is scene-tree/flow/checkpoint coupled. Recommend Phase 4 close-out rather than starting P4-08 automatically.

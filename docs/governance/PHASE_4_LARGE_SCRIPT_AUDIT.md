@@ -245,5 +245,15 @@ scripts/ 全量 29,739 行。Top：`main.gd` 5182 · `training/training_module_s
 - **Unique conclusion: A — EXTRACT_TRAINING_MODULE_UI.** P4-07B should extract `TrainingModuleScreenPresenter` from `training_module_scene.gd` (UI chrome build + toggle/refresh/sync, ~300-400 line reduction) via the P4-04 re-expose pattern + injected UI-intent callbacks; do NOT move `_build_training_area`/room targets, the step state machine, `_complete_step`/`_finish_module`, checkpoint writes, movement/input locks, or touch base_map. Recommendation modifier: **CHARACTERIZE_FIRST** (tier-1, flow-wired buttons, modal state reads → characterize before moving). After P4-07B, the remaining training bulk (state machine + base_map room navigation) is scene-tree/flow-coupled → then **CLOSE_PHASE_4**.
 - **Verification**: Godot editor/smoke EXIT 0; all suites green (P4-07A 30/30 + P4-02..06B + P3-03a..d/04/05); real saves SHA unchanged; no production code changed.
 
+## P4-07B Completion Note (2026-07-12)
+
+- **DONE**: extracted `TrainingModuleScreenPresenter` from `training_module_scene.gd` into `scripts/controllers/training_module_screen_presenter.gd` (501 lines, `class_name`/RefCounted, non-Autoload). `training_module_scene.gd` **3417 -> 3114 (net -303)**.
+- **Moved**: display-only screen chrome, left mission-panel labels, footer buttons, minimal HUD, briefing/pause/interaction panels, popup shell ownership, suit-status panel display, entry-blocked briefing UI, overlay visibility, HUD label assignment, and interaction progress display.
+- **Kept in scene**: `_build_training_area`, room target/layout logic, movement/input locks, `step_index`/`completed`, `_complete_step`, `_finish_module`, checkpoint writes (`TrainingManagerScript.set_current_module` / `mark_module_completed`), and all diagnosis/plant/repair correctness decisions.
+- **Scope adjustment**: flow-coupled option dialogs were not moved wholesale because they own correct-answer checks and call `_complete_step()`. The presenter exposes popup-container methods only; it does not own answers, checkpoints, scene changes, or step advancement.
+- **Unaffected**: `training_base_map.gd`, scenes, `project.godot`, Full Save schema, Training Checkpoint schema, gameplay values.
+- **Verification**: Godot editor/smoke EXIT 0; P4-07B 20/20; P4-07A 32/32; P4-06B 41/41; P4-06A 28/28; P4-05 30/30; P4-04 35/35; P4-03 27/27; P4-02 22/22; P3-03a 40/40; P3-03b 50/50; P3-03c 34/34; P3-03d 25/25; P3-04 33/33; P3-05 37/37.
+- **Next**: recommend Phase 4 close-out / regression closure. Do not start P4-08 automatically.
+
 ## 附：验收标准（本轮 P4-01）
 所有 P0+P1 脚本已清点并映射职责块（附行号）✓；依赖/共享状态热点已识别 ✓；抽离候选有边界卡片（main/sprint06 各 ≥3）✓；不可拆区域已列 ✓；测试保护需求已定义 ✓；分阶段拆分顺序 + 唯一 P4-02 推荐 ✓；**零生产代码改动** ✓。

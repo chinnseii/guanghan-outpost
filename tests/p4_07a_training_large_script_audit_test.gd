@@ -7,12 +7,14 @@ extends SceneTree
 
 const MODULE_PATH := "res://scripts/training/training_module_scene.gd"
 const BASE_PATH := "res://scripts/training/training_base_map.gd"
+const PRESENTER_PATH := "res://scripts/controllers/training_module_screen_presenter.gd"
 
 var _done := false
 var _failures: Array[String] = []
 var _checks := 0
 var _mod := ""
 var _base := ""
+var _presenter := ""
 
 func _process(_delta: float) -> bool:
 	if _done:
@@ -20,6 +22,7 @@ func _process(_delta: float) -> bool:
 	_done = true
 	_mod = _read_text(MODULE_PATH)
 	_base = _read_text(BASE_PATH)
+	_presenter = _read_text(PRESENTER_PATH)
 	_run_all()
 	var passed := _checks - _failures.size()
 	print("\n[P4-07A] checks=%d passed=%d failed=%d" % [_checks, passed, _failures.size()])
@@ -61,23 +64,27 @@ func _run_all() -> void:
 
 ## A. Big-script facts + key methods + TrainingManager call locations.
 func _test_big_script_facts() -> void:
-	_ok("both training scripts load", _mod != "" and _base != "")
+	_ok("training scripts and module presenter load", _mod != "" and _base != "" and _presenter != "")
 	_ok("training_module_scene is P1-sized (>3000 lines)", _line_count(_mod) > 3000)
 	_ok("training_base_map is P1-sized (>2000 lines)", _line_count(_base) > 2000)
-	# Core methods exist in both.
+	# Core scene methods remain; pure screen building moved to presenter.
+	for m in ["_build_screen", "_build_training_area", "_update_hud", "_sync_overlay_visibility"]:
+		_ok("module_scene keeps scene/flow method %s" % m, _mod.contains("func %s(" % m))
+	for m in ["build_screen", "build_training_overlays", "refresh_suit_status_panel", "show_entry_blocked_dialog"]:
+		_ok("module presenter has UI method %s" % m, _presenter.contains("func %s(" % m))
 	for m in ["_build_screen", "_build_briefing_modal", "_build_pause_panel", "_build_interaction_panel", "_build_suit_status_panel", "_update_hud", "_sync_overlay_visibility"]:
-		_ok("module_scene has UI builder %s" % m, _mod.contains("func %s(" % m))
 		_ok("base_map has UI builder %s" % m, _base.contains("func %s(" % m))
 	# TrainingManager checkpoint calls are present in the scene (not a controller).
 	_ok("module_scene writes checkpoint via set_current_module / mark_module_completed",
 		_mod.contains("TrainingManagerScript.set_current_module(") and _mod.contains("TrainingManagerScript.mark_module_completed("))
+	_ok("module presenter does not write checkpoints", not _presenter.contains("TrainingManagerScript.") and not _presenter.contains("mark_module_completed("))
 
 ## B. UI-only vs flow-coupled vs mutation vs async boundary samples.
 func _test_ui_vs_flow_boundary() -> void:
 	# UI-only: _build_screen dynamically creates nodes (add_child), no checkpoint/step writes.
 	var build := _method_body(_mod, "_build_screen")
 	_ok("B: _build_screen is UI construction (add_child), not step/checkpoint mutation",
-		build.contains("add_child(") and not build.contains("_complete_step(") and not build.contains("mark_module_completed("))
+		build.contains("screen_presenter.build_screen(") and not build.contains("_complete_step(") and not build.contains("mark_module_completed("))
 	# Flow-coupled UI: suit-confirm advances the step.
 	var confirm := _method_body(_mod, "_on_confirm_suit_status_pressed")
 	_ok("B: suit-status confirm is flow-coupled (calls _complete_step)", confirm.contains("_complete_step("))
@@ -103,5 +110,4 @@ func _test_scenetree_boundary() -> void:
 	_ok("D: module scene builds UI dynamically via add_child", _mod.contains("add_child("))
 	_ok("D: module scene uses no tween (UI is instant; presenter extraction needs no .tscn)", not _mod.contains("create_tween("))
 	_ok("D: base_map room switching is scene-tree coupled (stays in scene)", _base.contains("func _switch_room(") or _base.contains("func _load_area("))
-	# The (not-yet-created) presenter must not exist yet -- this is an audit-only round.
-	_ok("D: no training presenter created this round (audit only)", _read_text("res://scripts/controllers/training_module_screen_presenter.gd") == "")
+	_ok("D: training presenter exists after P4-07B and is not an autoload", _presenter.contains("class_name TrainingModuleScreenPresenter") and not _read_text("res://project.godot").contains("TrainingModuleScreenPresenter"))
