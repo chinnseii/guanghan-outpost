@@ -9,7 +9,7 @@ This file is the current coordination board for active task ownership, file lock
 - **Locked files**: `0`
 - **Pending handoffs**: `0`
 - **Branch**: `main`
-- **Board baseline**: `bda3d13`
+- **Board baseline**: `f5c55fc`
 - **Last updated**: `2026-07-12`
 
 ## Active Tasks
@@ -25,6 +25,16 @@ No file locks.
 No pending handoffs.
 
 ## Recently Closed
+
+### P4-06B - Extract Sprint06ScheduleEvaluator
+
+- Status: `DONE`
+- Owner: `Claude Code`
+- Reviewer: `User`
+- Base commit: `f5c55fc`
+- Result: pure schedule/daily-check predicates + schedule text extracted from `sprint06_base_scene.gd` into stateless `scripts/controllers/sprint06_schedule_evaluator.gd` (66 lines, `class_name`/RefCounted, zero member state) — 8 pure fns over `(day, state)` that never mutate the passed Dictionary. Scene keeps thin delegators (call sites unchanged) + ALL mutation/async/finish/transition/save/input-locks (untouched). Strings byte-equivalent + Dictionary immutability unit-tested. `sprint06_base_scene.gd` 2307 → 2268 (net −39). No scene/`project.godot`/schema change.
+- Verification: Godot editor/smoke EXIT 0 (no base-scene boot); P4-06B 41/41; P4-06A 28/28 (migrated); P4-05 30/30; P4-04 35/35; P4-03 27/27; P4-02 22/22; P3-03a 40/40; P3-03b 50/50; P3-03c 34/34; P3-03d 25/25; P3-04 33/33; P3-05 37/37; real `user://saves/` SHA-256 unchanged; no residue.
+- Follow-up: audit training_module_scene / training_base_map UI split, or Phase 4 close-out — do not start automatically.
 
 ### P4-06A - Audit sprint06 schedule and mission-flow coupling
 
@@ -66,13 +76,4 @@ No pending handoffs.
 - Verification: Godot editor/smoke EXIT 0; P4-03 27/27; P4-02 22/22; P3-03a 40/40; P3-03b 50/50; P3-03c 34/34; P3-03d 25/25; P3-04 33/33; P3-05 37/37; real `user://saves/` SHA-256 unchanged. Migrated the "routing in main.gd" assertions in p3_05/p4_02/p3_03c/p3_03a to the router (per §11; extends §14's file list).
 - Follow-up: P4-04 sandbox slot-save aggregation — do not start automatically.
 
-### P4-02 - Extract DevToolsController from main.gd
-
-- Status: `DONE`
-- Owner: `Claude Code`
-- Reviewer: `User`
-- Base commit: `27c5fbe`
-- Result: dev-only menu + all `_debug_*` actions extracted from `main.gd` into `scripts/controllers/dev_tools_controller.gd` (876 lines, non-Autoload, held by main). `main.gd` **5182 → 4346 (−836 / ~16%)**. Shared `_debug_reset_time` kept in main (formal new-game uses it); thin `_toggle_dev_menu` wrapper retained. Formal continue/new-game/Full Save/training/sandbox/arrival flows unchanged and do not depend on the controller. No scene/`project.godot`/save/gameplay change.
-- Verification: Godot editor/smoke EXIT 0; P4-02 22/22; P3-03a 39/39; P3-03b 50/50; P3-03c 33/33; P3-03d 25/25; P3-04 33/33; P3-05 36/36; real `user://saves/` SHA-256 unchanged.
-- Follow-up: P4-03 FormalFlowRouter — do not start automatically.
 

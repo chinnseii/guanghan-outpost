@@ -226,5 +226,16 @@ scripts/ 全量 29,739 行。Top：`main.gd` 5182 · `training/training_module_s
 - **Unique conclusion: A — SAFE_EVALUATOR_EXTRACTION.** P4-06B should extract a stateless `Sprint06ScheduleEvaluator` (~70 lines) for the pure predicates/text, scene keeping thin delegators; do NOT touch completion/finish/async/transition/save.
 - **Verification**: Godot editor/smoke EXIT 0; all suites green (P4-06A 26/26 + P4-02..05 + P3-03a..d/04/05); real saves SHA unchanged; no production code changed.
 
+## P4-06B Completion Note (2026-07-12)
+
+- **DONE**: extracted the pure schedule/daily-check predicates + schedule text from `sprint06_base_scene.gd` into stateless `scripts/controllers/sprint06_schedule_evaluator.gd` (66 lines, `class_name`/RefCounted, non-Autoload, zero member state). `sprint06_base_scene.gd` **2307 → 2268 (net −39)**.
+- **Moved (8 pure fns)**: `current_day`, `required_daily_keys`, `daily_checks_complete`, `day02_inspections_complete`, `task_line`, `day_label`, `daily_report_label`, `daily_checklist_text` — all pure over `(day, state)`, never mutate the passed `state` Dictionary.
+- **Scene keeps thin delegators** (call sites unchanged) + ALL mutation/async/finish/transition/save/input-locks (untouched). Behavior preserved: day→key table, iteration order, and checklist strings/punctuation/newlines are byte-equivalent (unit-tested); Dictionary immutability tested (deep-equal before/after).
+- **Test**: `tests/p4_06b_sprint06_schedule_evaluator_test.gd` (41/41) — current_day fallbacks, per-day key sets + unknown fallback + no-poison, completion truth tables, day02, exact checklist text (day 3/5/7/unknown), purity (no member vars / no Manager/save/await/change_scene), immutability, and scene-delegation boundary. Migrated the P4-06A characterization schedule/predicate assertions to the evaluator (P4-06A now 28/28; execution-order + boundary asserts retained).
+- **Line-target note**: target 50–90; actual −39 (thin delegators kept to avoid call-site churn, per the task's §6). The value is a stateless, unit-tested schedule interface; the boundary is clean.
+- **Verification**: Godot editor/smoke EXIT 0 (no base-scene boot); all suites green (P4-06B 41/41, P4-06A 28/28, P4-02..05, P3-03a..d/04/05); real saves SHA unchanged; no residue.
+- **sprint06 remaining**: 2268 lines — mostly async completion/finish sequences, equipment interaction, transitions, save, prop/art setup, `_interaction_target_rect` (day/schedule logic) — all order/async/save-coupled, KEEP_IN_SCENE.
+- **Next**: sprint06 has no further low-risk Phase-4 extraction; recommend either **(a) audit `training_module_scene.gd` (3417) / `training_base_map.gd` (2255)** for their UI-builder split (same pattern as P4-04), or **(b) Phase 4 close-out** if the remaining big scripts are all flow/scene-tree coupled.
+
 ## 附：验收标准（本轮 P4-01）
 所有 P0+P1 脚本已清点并映射职责块（附行号）✓；依赖/共享状态热点已识别 ✓；抽离候选有边界卡片（main/sprint06 各 ≥3）✓；不可拆区域已列 ✓；测试保护需求已定义 ✓；分阶段拆分顺序 + 唯一 P4-02 推荐 ✓；**零生产代码改动** ✓。

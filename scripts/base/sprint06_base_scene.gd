@@ -29,6 +29,7 @@ var prompt_text := ""
 var objective_text := ""
 var current_target := ""
 var _nav := BaseNavigationController.new()
+var _schedule_evaluator := Sprint06ScheduleEvaluator.new()
 var ai_text := ""
 var sequence_running := false
 var scene_title_alpha := 0.0
@@ -513,32 +514,19 @@ func _is_day02_active() -> bool:
 	return bool(state.get("Day02Started", false)) and not bool(state.get("Day02Completed", false))
 
 func _current_day() -> int:
-	return int(state.get("CurrentDay", state.get("DayNumber", 2)))
+	return _schedule_evaluator.current_day(state)
 
 func _is_week_routine_active() -> bool:
 	var day := _current_day()
 	return day >= 3 and day <= 7 and bool(state.get("DayStarted", false)) and not bool(state.get("DayCompleted", false)) and not bool(state.get("WeekOneCompleted", false))
 
+# P4-06B: pure schedule predicates/text live in Sprint06ScheduleEvaluator; these are thin
+# delegators (call sites unchanged). State mutation / async / save / transitions stay below.
 func _daily_required_keys() -> Array[String]:
-	var day := _current_day()
-	match day:
-		3:
-			return ["DailyConsoleChecked", "DailyPowerChecked", "DailyLifeSupportChecked", "DailyPlantChecked"]
-		4:
-			return ["DailyConsoleChecked", "DailyWaterChecked", "DailySpecialChecked", "DailyPlantChecked"]
-		5:
-			return ["DailyConsoleChecked", "DailyPowerChecked", "DailySpecialChecked", "DailyPlantChecked"]
-		6:
-			return ["DailyConsoleChecked", "DailySpecialChecked", "DailyPlantChecked", "DailyRecordUpdated"]
-		7:
-			return ["DailyConsoleChecked", "DailyPowerChecked", "DailyLifeSupportChecked", "DailyPlantChecked"]
-	return ["DailyConsoleChecked"]
+	return _schedule_evaluator.required_daily_keys(_current_day())
 
 func _daily_checks_complete() -> bool:
-	for key: String in _daily_required_keys():
-		if not bool(state.get(key, false)):
-			return false
-	return true
+	return _schedule_evaluator.daily_checks_complete(_current_day(), state)
 
 func _complete_daily_check(key: String, text: String) -> void:
 	if key != "DailyConsoleChecked" and not bool(state.get("DailyConsoleChecked", false)):
@@ -571,43 +559,16 @@ func _reset_daily_flags(day: int) -> void:
 	state["DailyReportSent"] = false
 
 func _day_label() -> String:
-	return "Day %02d" % _current_day()
+	return _schedule_evaluator.day_label(_current_day())
 
 func _daily_report_label() -> String:
-	return "第一周驻留报告" if _current_day() == 7 else "%s 对地报告" % _day_label()
+	return _schedule_evaluator.daily_report_label(_current_day())
 
 func _daily_checklist_text() -> String:
-	var day := _current_day()
-	var text := _task_line("查看中央控制台", "DailyConsoleChecked")
-	match day:
-		3:
-			text += "\n" + _task_line("检查供电面板", "DailyPowerChecked")
-			text += "\n" + _task_line("检查生命支持", "DailyLifeSupportChecked")
-			text += "\n" + _task_line("检查最后一株植物", "DailyPlantChecked")
-		4:
-			text += "\n" + _task_line("检查水循环状态", "DailyWaterChecked")
-			text += "\n" + _task_line("检查温室供水", "DailySpecialChecked")
-			text += "\n" + _task_line("检查最后一株植物", "DailyPlantChecked")
-		5:
-			text += "\n" + _task_line("检查供电面板", "DailyPowerChecked")
-			text += "\n" + _task_line("检查当前负载", "DailySpecialChecked")
-			text += "\n" + _task_line("检查最后一株植物", "DailyPlantChecked")
-		6:
-			text += "\n" + _task_line("进入旧温室", "DailySpecialChecked")
-			text += "\n" + _task_line("近距观察最后一株植物", "DailyPlantChecked")
-			text += "\n" + _task_line("更新植物状态记录", "DailyRecordUpdated")
-		7:
-			text += "\n" + _task_line("复核供电状态", "DailyPowerChecked")
-			text += "\n" + _task_line("复核生命支持状态", "DailyLifeSupportChecked")
-			text += "\n" + _task_line("复核温室生命信号", "DailyPlantChecked")
-	text += "\n" + _task_line("发送%s" % _daily_report_label(), "DailyReportSent")
-	return text
+	return _schedule_evaluator.daily_checklist_text(_current_day(), state)
 
 func _day02_inspections_complete() -> bool:
-	return bool(state.get("Day02PowerChecked", false)) \
-		and bool(state.get("Day02LifeSupportChecked", false)) \
-		and bool(state.get("Day02WaterChecked", false)) \
-		and bool(state.get("Day02LastPlantChecked", false))
+	return _schedule_evaluator.day02_inspections_complete(state)
 
 func _complete_day02_check(key: String, text: String) -> void:
 	if not bool(state.get("Day02ConsoleChecked", false)):
@@ -1687,7 +1648,7 @@ func _safe_hud_text(title: String, plant: String, checklist: String, objective: 
 	return text
 
 func _task_line(label: String, key: String) -> String:
-	return "✓ %s" % label if bool(state.get(key, false)) else "□ %s" % label
+	return _schedule_evaluator.task_line(label, key, state)
 
 func _prompt_text() -> String:
 	if not input_enabled:

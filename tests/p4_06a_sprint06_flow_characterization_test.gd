@@ -84,29 +84,31 @@ func _test_execution_order() -> void:
 	_ok("A: DailyInspectionsComplete is set inside the post-interaction callback (after _begin_equipment_interaction)",
 		cdc.find("_begin_equipment_interaction(") != -1 and cdc.find("DailyInspectionsComplete") > cdc.find("_begin_equipment_interaction("))
 
-## B. Schedule day->required-keys table is preserved exactly.
+## B. Schedule day->required-keys table is preserved exactly (P4-06B: now in the evaluator).
 func _test_schedule_conditions() -> void:
-	var keys := _method_body("_daily_required_keys")
+	var keys := _read_text("res://scripts/controllers/sprint06_schedule_evaluator.gd")
 	_ok("B: day 3 required keys", keys.contains("3:") and keys.contains("[\"DailyConsoleChecked\", \"DailyPowerChecked\", \"DailyLifeSupportChecked\", \"DailyPlantChecked\"]"))
 	_ok("B: day 4 required keys", keys.contains("4:") and keys.contains("[\"DailyConsoleChecked\", \"DailyWaterChecked\", \"DailySpecialChecked\", \"DailyPlantChecked\"]"))
 	_ok("B: day 6 required keys (record update)", keys.contains("6:") and keys.contains("[\"DailyConsoleChecked\", \"DailySpecialChecked\", \"DailyPlantChecked\", \"DailyRecordUpdated\"]"))
 	_ok("B: default required keys = console only", keys.contains("return [\"DailyConsoleChecked\"]"))
-	# Day02 inspection predicate reads exactly the 4 Day02 flags.
-	var d02 := _method_body("_day02_inspections_complete")
-	_ok("B: day02 inspections require the 4 Day02 flags", d02.contains("Day02PowerChecked") and d02.contains("Day02LifeSupportChecked") and d02.contains("Day02WaterChecked") and d02.contains("Day02LastPlantChecked"))
+	_ok("B: day02 inspections require the 4 Day02 flags", keys.contains("Day02PowerChecked") and keys.contains("Day02LifeSupportChecked") and keys.contains("Day02WaterChecked") and keys.contains("Day02LastPlantChecked"))
 
-## C. Completion predicate is pure over the required keys; current_day is pure over state.
+## C. Pure predicates live in the evaluator; scene keeps thin delegators (P4-06B).
 func _test_completion_boundary() -> void:
-	var complete := _method_body("_daily_checks_complete")
-	_ok("C: _daily_checks_complete iterates _daily_required_keys and reads state (no writes)",
-		complete.contains("_daily_required_keys()") and complete.contains("state.get(") and not complete.contains("state[") and not complete.contains("_save_state"))
-	var cur := _method_body("_current_day")
-	_ok("C: _current_day is a pure read of state (CurrentDay/DayNumber)",
-		cur.contains("state.get(\"CurrentDay\"") and not cur.contains("state["))
-	# The candidate evaluator methods must not write managers or save.
+	var ev := _read_text("res://scripts/controllers/sprint06_schedule_evaluator.gd")
+	_ok("C: evaluator.daily_checks_complete iterates required_daily_keys and reads state (no writes)",
+		ev.contains("required_daily_keys(day)") and ev.contains("state.get(") and not ev.contains("state["))
+	_ok("C: evaluator.current_day is a pure read of state (CurrentDay/DayNumber)",
+		ev.contains("state.get(\"CurrentDay\""))
+	_ok("C: scene delegates the pure predicates to the evaluator",
+		_src.contains("_schedule_evaluator.daily_checks_complete(") and _src.contains("_schedule_evaluator.current_day("))
+	# The evaluator must not write managers or save or change scene.
+	_ok("C: evaluator has no save/manager/scene-change",
+		not ev.contains("_save_state") and not ev.contains("_advance_action_time") and not ev.contains("change_scene_to_file") and not ev.contains("FullSaveOrchestrator"))
+	# Scene delegators are still side-effect-free (1-line calls into the evaluator).
 	for m in ["_daily_required_keys", "_daily_checks_complete", "_day02_inspections_complete", "_daily_checklist_text", "_day_label"]:
 		var body := _method_body(m)
-		_ok("C: pure predicate has no save/manager write: %s" % m,
+		_ok("C: scene delegator has no save/manager write: %s" % m,
 			not body.contains("_save_state") and not body.contains("_advance_action_time") and not body.contains("change_scene_to_file"))
 
 ## D. Manager / save / responsibility boundary stays put.

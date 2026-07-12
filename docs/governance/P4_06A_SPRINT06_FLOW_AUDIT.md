@@ -116,7 +116,7 @@ _unhandled_input(交互键)
 `tests/p4_06a_sprint06_flow_characterization_test.gd`（源码分析 + 纯逻辑锁定，**不启动基地场景**）：执行顺序（谓词先于 mutation、mutation 先于 save/transition、`_interact` 首行守卫、完成置位在 async after 内）；日程表（day 3/4/5/6/7 键集）；完成边界（门禁 DailyConsoleChecked、`DailyInspectionsComplete` 触发、`_daily_checks_complete` 结构）；Manager/save 边界（`_save_state` 用 FullSaveOrchestrator、`_transition_to` 在场景、nav/HUD/router 不承担 task flow）；存档安全（SHA 不变）。
 
 ## 13. P4-06B Recommendation
-**唯一结论：A — SAFE_EVALUATOR_EXTRACTION。**
+**唯一结论：A — SAFE_EVALUATOR_EXTRACTION。** ✅ **已执行（P4-06B，2026-07-12，commit 见收尾）**：抽出 `scripts/controllers/sprint06_schedule_evaluator.gd`（无状态 RefCounted，8 纯方法：`current_day`/`required_daily_keys`/`daily_checks_complete`/`day02_inspections_complete`/`task_line`/`day_label`/`daily_report_label`/`daily_checklist_text`）。场景保留薄委托，全部 mutation/async/finish/transition/save/输入锁**仍在场景**（未触碰）。字符串逐字等价、Dictionary 不变性经测试锁定。`sprint06_base_scene.gd` 2307→2268（净 −39）。测试 `p4_06b` 41/41，`p4_06a` characterization 迁移后 28/28。
 - 抽出 `scripts/controllers/sprint06_schedule_evaluator.gd`（无状态 RefCounted，~70 行）：`current_day(state)`、`required_daily_keys(day)`、`daily_checks_complete(day, state)`、`day02_inspections_complete(state)`、`task_line(label,key,state)`、`day_label(state)`、`daily_report_label(state)`、`daily_checklist_text(state)`。
 - 场景保留薄委托（`_daily_checks_complete()` → `_schedule.daily_checks_complete(_current_day(), state)`），行为不变。
 - **不触碰**：`_complete_*`、`_finish_*`、`_begin_equipment_interaction`、`_transition_to`、`_save_state`/`_load_state`、输入锁字段、`state` 的写入方。
