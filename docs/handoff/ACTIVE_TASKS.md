@@ -6,10 +6,10 @@ This file is the current coordination board for active task ownership, file lock
 
 - **Status**: `IDLE`
 - **Active tasks**: `0`
-- **Locked files**: `0`
+- **Locked files**: `none`
 - **Pending handoffs**: `0`
 - **Branch**: `main`
-- **Board baseline**: `8baa382`
+- **Board baseline**: `4f9359a`
 - **Last updated**: `2026-07-13`
 
 ## Active Tasks
@@ -25,6 +25,20 @@ No file locks.
 No pending handoffs.
 
 ## Recently Closed
+
+### P5-06 - Build Guanghan Art Review and Godot Handoff Skill
+
+- Status: `DONE`
+- Owner: `Claude Code`
+- Reviewer: `User`
+- Base commit: `4f9359a`
+- Result: Created the fifth formal repository Skill and second Guanghan Project layer Skill (review-side): `skills/guanghan/guanghan-art-review-and-godot-handoff/SKILL.md`, registered it, and exercised it through a controlled dry run. **ChatGPT is the primary visual reviewer** (compares approved target / specs / screenshots; judges style, scale, pixel density, layering, occlusion, readability, state feedback, and modular-asset use; writes structured tickets and verdicts; does NOT read/modify code or judge state-machine/save/signal/Manager/collision correctness). **Codex / Claude Code are implementation recipients**; **User retains final acceptance**.
+- Skill: `skills/guanghan/guanghan-art-review-and-godot-handoff/SKILL.md`
+- Registry: `skills/SKILL_REGISTRY.md` (now 5 rows)
+- Trial: `docs/governance/P5_06_GUANGHAN_ART_REVIEW_SKILL_TRIAL.md`
+- Verification: Skill/dry-run checks passed; formal SKILL.md count = 5; only Markdown changed (no images/code/scenes/assets/JSON/`project.godot`/saves); `git diff --check` PASS; Godot editor parse EXIT 0; Godot headless smoke EXIT 0; no stray saves after smoke; maturity remains `TRIAL`.
+- Decision: The dry run reviewed a described "full concept image imported as one background sprite" screenshot and concluded `FAIL` (not `PASS`); full-image import = `REFERENCE_ONLY_MISUSE` (P0); path occlusion = `OCCLUSION_ERROR` (P1); unreadable terminal = `READABILITY_ISSUE` (P1); three structured tickets (ART-001..003) with a code-correctness disclaimer and no code judgement.
+- Next: P5-07 (do not start automatically); do not push or tag.
 
 ### P5-05 - Build Guanghan Art Design and Production Skill
 
@@ -77,14 +91,4 @@ No pending handoffs.
 - Trial: `docs/governance/P5_02_CHARACTERIZATION_SKILL_TRIAL.md`
 - Verification: Skill structure and content checks passed; Godot editor/smoke EXIT 0; diff limited to allowed Markdown docs; no production code/tests/scenes/assets/project/JSON/saves changed; maturity remains `TRIAL`.
 - Next: P5-03 - Save Integrity Guard Skill. P5-03 was not started.
-
-### P5-01 - Skill architecture, directory, and boundary audit
-
-- Status: `DONE`
-- Owner: `Codex`
-- Reviewer: `User`
-- Base commit: `219cc8d`
-- Result: Phase 5 Skill architecture was audited and documented. Final layers, directory scheme, Skill file standard, metadata standard, invocation pattern, ACTIVE_TASKS integration, candidate catalog, overlap decisions, art Skill architecture, lifecycle, Wave 1/2/3 plan, and the unique P5-02 target were defined.
-- Verification: docs-only change; Godot editor parse EXIT 0; Godot headless smoke EXIT 0; diff limited to allowed Markdown docs; no formal Skill directory or `SKILL.md` created.
-- Next: P5-02 should build only `skills/godot/characterization-first-refactor/SKILL.md`. P5-02 was not started.
 
