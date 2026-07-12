@@ -139,3 +139,10 @@ Phase 0 →（1 与 2 可并行，均低风险）→ 3（逐系统）→ 4（逐
 - `main.gd` formal continue no longer calls `TrainingManager.load_progress()`; training/dev legacy APIs remain.
 - P3-03cV found and fixed the lifecycle gap where a completed Full Restore could otherwise suppress Manager-local fallback for the rest of the process. Runtime verification now passes: Godot editor parse EXIT 0, Godot headless smoke EXIT 0, P3-03a 39/39, P3-03b 50/50, P3-03c 33/33, and real saves SHA stayed unchanged from the pre-test baseline.
 - Remaining Phase 3 order: P3-03d checkpoint scope trimming is ready to schedule next; it was not started during P3-03cV.
+
+# P3-03d Completion Note (2026-07-12)
+
+- P3-03d is complete: Training Checkpoint is scoped to training-owned data only, legacy global fields are metadata-only, and `save_progress()` strips global Manager snapshots.
+- Full Save remains the only formal complete-progress restore source. `sprint06_progress.json` no longer serves as automatic fallback for missing `full_save.json`; explicit legacy read remains available, but formal restore rejects legacy sources.
+- Verification: Godot editor parse EXIT 0; Godot headless smoke EXIT 0; P3-03a 39/39; P3-03b 50/50; P3-03c 33/33; P3-03d 25/25; real saves SHA unchanged from pre-test baseline.
+- Remaining Phase 3 order: P3-03 can close after review; P3-04 is ready to schedule next.

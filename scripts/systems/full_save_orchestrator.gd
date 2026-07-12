@@ -115,6 +115,8 @@ static func restore_full_save(scene_node: Node = null, save_path: String = FULL_
 	var read_result := read_bundle(save_path)
 	if not bool(read_result.get("success", false)):
 		return read_result
+	if bool(read_result.get("legacy_source", false)):
+		return _result(false, RESULT_RESTORE_FAILED, "Legacy sprint06 checkpoint is read-only; formal restore requires full_save.json.")
 	var bundle: Dictionary = read_result.get("bundle", {}) as Dictionary
 	var validation := validate_bundle(bundle, true)
 	if not bool(validation.get("success", false)):
@@ -164,8 +166,6 @@ static func finalize_restore() -> void:
 static func read_bundle(save_path: String = FULL_SAVE_PATH) -> Dictionary:
 	if FileAccess.file_exists(save_path):
 		return _read_bundle_from_path(save_path, save_path != FULL_SAVE_PATH)
-	if save_path == FULL_SAVE_PATH and FileAccess.file_exists(LEGACY_SPRINT06_SAVE_PATH):
-		return _read_bundle_from_path(LEGACY_SPRINT06_SAVE_PATH, true)
 	return _result(false, RESULT_MISSING, "Full Save file is missing.")
 
 static func read_scene_state(save_path: String = FULL_SAVE_PATH) -> Dictionary:

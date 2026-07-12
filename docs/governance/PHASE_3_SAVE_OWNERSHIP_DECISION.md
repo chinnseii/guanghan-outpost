@@ -258,3 +258,13 @@
 - Legacy/dev compatibility: `TrainingManager.load_progress()` and Manager `save_state/load_state` APIs remain present. Training Checkpoint schema and Full Save schema are unchanged.
 - P3-03cV correction: verification found the restore-completed guard had no new-game/session reset path. `FullSaveOrchestrator.reset_formal_restore_session()` now clears the guard, and demo/new-game progress clearing calls it before starting over.
 - Verification: Godot editor parse EXIT 0; Godot headless smoke EXIT 0; P3-03a 39/39; P3-03b 50/50; P3-03c 33/33; real saves SHA unchanged from pre-test baseline; no `p3_03*` temporary save files remained.
+
+# P3-03d Implementation Record (2026-07-12 / baseline `8429f6a`)
+
+- Decision applied: checkpoints do not restore formal global Manager state. Only Full Save Orchestrator may restore complete game progress.
+- Training Checkpoint owner fields are limited to training progress flags, current module/status, assignment/opening flow state, temporary Suit state, TrainingTime state, and training-only Inventory containers.
+- Training Checkpoint no longer owns mission/global snapshots for Time, Health, BaseStatus, Air, Power, Water, Inventory real item state, Backpack, Storage, PlantGrowth, or PlayerState.
+- Legacy training checkpoint global fields remain readable as metadata through `LegacyGlobalStateFields`, but are not applied to live Managers and are stripped on the next `save_progress()`.
+- Mission/scene checkpoint boundary: `sprint06_progress.json` can still be explicitly read as legacy best-effort input, but it is not a formal restore source. `restore_full_save()` rejects legacy sources.
+- Full Save schema unchanged; Manager `serialize/deserialize` shapes unchanged; Manager local save files retained.
+- Verification: Godot editor parse EXIT 0; Godot headless smoke EXIT 0; P3-03a 39/39; P3-03b 50/50; P3-03c 33/33; P3-03d 25/25; real saves SHA unchanged from pre-test baseline.

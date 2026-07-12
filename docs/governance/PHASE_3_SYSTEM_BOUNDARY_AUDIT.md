@@ -272,3 +272,15 @@ Suit/Repair(从代码)→ TrainingTimeManager / TimeManager（推进时间）
 - Remaining P3 risk: checkpoint scope trimming is still pending P3-03d, and Door formal-base integration remains outside Full Save until its feature integration is scheduled.
 - P3-03cV correction: the Full Restore completed flag is no longer an unresettable process-wide blocker. `FullSaveOrchestrator.reset_formal_restore_session()` clears the guard for new-game/demo-reset flows, while restored sessions still block late Manager-local `load_state()`.
 - Verification: Godot editor parse EXIT 0; Godot headless smoke EXIT 0; P3-03a 39/39; P3-03b 50/50; P3-03c 33/33; real saves SHA unchanged from pre-test baseline.
+
+# P3-03d Boundary Update (2026-07-12)
+
+- Training Checkpoint scope is now restricted in `scripts/training/training_manager.gd`.
+- `training_progress.json` owned fields: training flags/current module/status, assignment/opening flow flags, `SuitState` as training temporary equipment state, `TrainingTimeState`, and `TrainingInventoryState.training_containers`.
+- Legacy global fields from older `training_progress.json` files (`TimeState`, `HealthState`, `BaseStatusState`, `AirSystemState`, `PowerSystemState`, `WaterSystemState`, `InventoryState`, `BackpackState`, `StorageState`, `PlantGrowthState`, `PlayerStateManagerState`) are read as `LegacyGlobalStateFields` metadata only and are not applied to live Managers.
+- `TrainingManager.save_progress()` strips those legacy global fields on write.
+- `FullSaveOrchestrator.read_bundle()` no longer auto-falls back from missing `full_save.json` to `sprint06_progress.json`.
+- Explicit legacy sprint06 reads remain available for best-effort inspection/conversion, but `FullSaveOrchestrator.restore_full_save()` rejects `legacy_source` bundles. Formal restore requires `full_save.json`.
+- P1 multi-truth-source risk is now materially reduced for P3-03 scope: formal complete restore is Full Save only; Manager local saves are downgraded; Training Checkpoint cannot restore formal global Manager state.
+- Remaining P3 risk: Door formal-base integration is still outside Full Save, and Inventory/Backpack field-level relationship remains a P3-04 audit item.
+- Verification: Godot editor parse EXIT 0; Godot headless smoke EXIT 0; P3-03a 39/39; P3-03b 50/50; P3-03c 33/33; P3-03d 25/25; real saves SHA unchanged from pre-test baseline; no `p3_03d*` temp files remained.

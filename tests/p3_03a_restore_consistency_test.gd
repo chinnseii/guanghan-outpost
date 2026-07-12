@@ -153,16 +153,13 @@ func _test_static_call_points() -> void:
 	_ok("no external script calls TrainingManager.load_progress()", load_progress_calls.is_empty())
 
 func _test_restore_operation() -> void:
-	var power := _node("PowerSystemManager")
 	var base_status := _node("BaseStatusManager")
-	var before := _full_snapshot()
 	base_status.set("power", 1.0)
+	var before := _global_checkpoint_scope_snapshot()
 	var data: Dictionary = TrainingManagerScript.load_progress()
 	_ok("load_progress returns a Dictionary", data is Dictionary)
-	var canonical: float = power.call("get_power_percent")
-	var mirror := float(base_status.get("power"))
-	_ok("after load_progress, Power mirror finalized-consistent", abs(mirror - canonical) < 0.001)
-	_ok("load_progress remains a restoring path when saved data differs or finalization repairs mirror", before != _full_snapshot() or abs(mirror - 1.0) > 0.001)
+	_ok("load_progress does not restore global mission manager snapshots", before == _global_checkpoint_scope_snapshot())
+	_ok("after load_progress, Suit mirror remains training-checkpoint consistent", _suit_mirror_matches())
 
 func _test_finalize_idempotent_and_pure() -> void:
 	var power := _node("PowerSystemManager")
@@ -224,6 +221,38 @@ func _full_snapshot() -> Dictionary:
 	else:
 		result["TaskManager"] = {}
 	return result
+
+func _global_checkpoint_scope_snapshot() -> Dictionary:
+	var result := {}
+	for name in [
+		"TimeManager",
+		"HealthManager",
+		"BaseStatusManager",
+		"PowerSystemManager",
+		"WaterSystemManager",
+		"AirSystemManager",
+		"BackpackManager",
+		"StorageManager",
+		"SupplyManager",
+	]:
+		var manager := _node(name)
+		result[name] = manager.call("serialize") if manager != null and manager.has_method("serialize") else {}
+	var task := _node("TaskManager")
+	if task != null:
+		result["TaskManager"] = {
+			"training": task.call("get_progress", "training"),
+			"mission": task.call("get_progress", "mission"),
+			"supply": task.call("get_progress", "supply"),
+			"objective": task.call("get_current_objective", "training"),
+		}
+	else:
+		result["TaskManager"] = {}
+	return result
+
+func _suit_mirror_matches() -> bool:
+	var suit := _node("SuitManager")
+	var player_state := _node("PlayerStateManager")
+	return suit != null and player_state != null and bool(suit.get("is_suit_worn")) == bool(player_state.get("is_suit_worn"))
 
 func _snapshot_delta(expected: Dictionary, actual: Dictionary) -> String:
 	var changed: Array[String] = []

@@ -62,6 +62,42 @@ const MODULE_SCENES := {
 	"assignment_black_screen": BLACK_SCREEN,
 }
 
+const TRAINING_CHECKPOINT_KEYS := {
+	"TrainingStarted": true,
+	"CurrentTrainingModule": true,
+	"SuitControlCompleted": true,
+	"AirlockProcedureCompleted": true,
+	"PowerRepairCompleted": true,
+	"PowerDistributionCompleted": true,
+	"LifeSupportCompleted": true,
+	"PlantDiagnosisCompleted": true,
+	"CompletedTrainingModules": true,
+	"PowerRepairUnlockToastShown": true,
+	"FinalAssessmentCompleted": true,
+	"MissionAssignmentAccepted": true,
+	"TrainingStatus": true,
+	"TrainingFailureReason": true,
+	"OpeningFlowStage": true,
+	"CurrentSceneAfterTraining": true,
+	"SuitState": true,
+	"TrainingTimeState": true,
+	"TrainingInventoryState": true,
+}
+
+const LEGACY_GLOBAL_STATE_KEYS := [
+	"TimeState",
+	"HealthState",
+	"BaseStatusState",
+	"AirSystemState",
+	"PowerSystemState",
+	"WaterSystemState",
+	"InventoryState",
+	"BackpackState",
+	"StorageState",
+	"PlantGrowthState",
+	"PlayerStateManagerState",
+]
+
 static func default_data() -> Dictionary:
 	return {
 		"TrainingStarted": false,
@@ -84,18 +120,11 @@ static func default_data() -> Dictionary:
 		"TrainingFailureReason": "",
 		"OpeningFlowStage": "",
 		"CurrentSceneAfterTraining": START_SCENE,
-		"TimeState": {},
-		"HealthState": {},
-		"BaseStatusState": {},
-		"AirSystemState": {},
-		"PowerSystemState": {},
-		"WaterSystemState": {},
-		"InventoryState": {},
-		"BackpackState": {},
-		"StorageState": {},
-		"PlantGrowthState": {},
+		## Training checkpoint-owned state. Full Save owns formal mission
+		## globals; these fields are limited to the training sandbox.
 		"SuitState": {},
-		"PlayerStateManagerState": {},
+		"TrainingTimeState": {},
+		"TrainingInventoryState": {},
 	}
 
 ## Reads the raw progress flags (completion booleans, CurrentTrainingModule,
@@ -124,48 +153,27 @@ static func _read_progress_data() -> Dictionary:
 		return data
 	var saved: Dictionary = parsed
 	for key in saved.keys():
-		data[key] = saved[key]
+		var key_string := String(key)
+		if TRAINING_CHECKPOINT_KEYS.has(key_string):
+			data[key_string] = saved[key]
+	var legacy_global_fields := {}
+	for key in LEGACY_GLOBAL_STATE_KEYS:
+		if saved.has(key):
+			legacy_global_fields[key] = saved[key]
+	if not legacy_global_fields.is_empty():
+		data["LegacyGlobalStateFields"] = legacy_global_fields
 	return data
 
 static func load_progress() -> Dictionary:
 	var data := _read_progress_data()
-	var manager := _time_manager()
-	if manager != null and manager.has_method("deserialize") and data.get("TimeState", {}) is Dictionary:
-		manager.call("deserialize", data.get("TimeState", {}))
-	var health_manager := _health_manager()
-	if health_manager != null and health_manager.has_method("deserialize") and data.get("HealthState", {}) is Dictionary:
-		health_manager.call("deserialize", data.get("HealthState", {}))
-	var base_status_manager := _base_status_manager()
-	if base_status_manager != null and base_status_manager.has_method("deserialize") and data.get("BaseStatusState", {}) is Dictionary:
-		base_status_manager.call("deserialize", data.get("BaseStatusState", {}))
-	var air_system_manager := _air_system_manager()
-	if air_system_manager != null and air_system_manager.has_method("deserialize") and data.get("AirSystemState", {}) is Dictionary:
-		air_system_manager.call("deserialize", data.get("AirSystemState", {}))
-	var power_system_manager := _power_system_manager()
-	if power_system_manager != null and power_system_manager.has_method("deserialize") and data.get("PowerSystemState", {}) is Dictionary:
-		power_system_manager.call("deserialize", data.get("PowerSystemState", {}))
-	var water_system_manager := _water_system_manager()
-	if water_system_manager != null and water_system_manager.has_method("deserialize") and data.get("WaterSystemState", {}) is Dictionary:
-		water_system_manager.call("deserialize", data.get("WaterSystemState", {}))
-	var inventory_manager := _inventory_manager()
-	if inventory_manager != null and inventory_manager.has_method("deserialize") and data.get("InventoryState", {}) is Dictionary:
-		inventory_manager.call("deserialize", data.get("InventoryState", {}))
-	var backpack_manager := _backpack_manager()
-	if backpack_manager != null and backpack_manager.has_method("deserialize") and data.get("BackpackState", {}) is Dictionary:
-		backpack_manager.call("deserialize", data.get("BackpackState", {}))
-	var storage_manager := _storage_manager()
-	if storage_manager != null and storage_manager.has_method("deserialize") and data.get("StorageState", {}) is Dictionary:
-		storage_manager.call("deserialize", data.get("StorageState", {}))
-	var plant_growth_manager := _plant_growth_manager()
-	if plant_growth_manager != null and plant_growth_manager.has_method("deserialize") and data.get("PlantGrowthState", {}) is Dictionary:
-		plant_growth_manager.call("deserialize", data.get("PlantGrowthState", {}))
 	var suit_manager := _suit_manager()
 	if suit_manager != null and suit_manager.has_method("deserialize") and data.get("SuitState", {}) is Dictionary:
 		suit_manager.call("deserialize", data.get("SuitState", {}))
-	var player_state_manager := _player_state_manager()
-	if player_state_manager != null and player_state_manager.has_method("deserialize") and data.get("PlayerStateManagerState", {}) is Dictionary:
-		player_state_manager.call("deserialize", data.get("PlayerStateManagerState", {}))
-	finalize_restore()
+	var training_time_manager := _training_time_manager()
+	if training_time_manager != null and training_time_manager.has_method("deserialize") and data.get("TrainingTimeState", {}) is Dictionary:
+		training_time_manager.call("deserialize", data.get("TrainingTimeState", {}))
+	_restore_training_inventory_state(data.get("TrainingInventoryState", {}))
+	_finalize_training_checkpoint_restore()
 	return data
 
 ## Read-only inspection of saved progress (P3-03a). Same merged dict as the internal
@@ -199,46 +207,51 @@ static func finalize_restore() -> void:
 		player_state_manager.call("sync_suit_state_from_suit_manager")
 
 static func save_progress(data: Dictionary) -> void:
-	var manager := _time_manager()
-	if manager != null and manager.has_method("serialize"):
-		data["TimeState"] = manager.call("serialize")
-	var health_manager := _health_manager()
-	if health_manager != null and health_manager.has_method("serialize"):
-		data["HealthState"] = health_manager.call("serialize")
-	var base_status_manager := _base_status_manager()
-	if base_status_manager != null and base_status_manager.has_method("serialize"):
-		data["BaseStatusState"] = base_status_manager.call("serialize")
-	var air_system_manager := _air_system_manager()
-	if air_system_manager != null and air_system_manager.has_method("serialize"):
-		data["AirSystemState"] = air_system_manager.call("serialize")
-	var power_system_manager := _power_system_manager()
-	if power_system_manager != null and power_system_manager.has_method("serialize"):
-		data["PowerSystemState"] = power_system_manager.call("serialize")
-	var water_system_manager := _water_system_manager()
-	if water_system_manager != null and water_system_manager.has_method("serialize"):
-		data["WaterSystemState"] = water_system_manager.call("serialize")
-	var inventory_manager := _inventory_manager()
-	if inventory_manager != null and inventory_manager.has_method("serialize"):
-		data["InventoryState"] = inventory_manager.call("serialize")
-	var backpack_manager := _backpack_manager()
-	if backpack_manager != null and backpack_manager.has_method("serialize"):
-		data["BackpackState"] = backpack_manager.call("serialize")
-	var storage_manager := _storage_manager()
-	if storage_manager != null and storage_manager.has_method("serialize"):
-		data["StorageState"] = storage_manager.call("serialize")
-	var plant_growth_manager := _plant_growth_manager()
-	if plant_growth_manager != null and plant_growth_manager.has_method("serialize"):
-		data["PlantGrowthState"] = plant_growth_manager.call("serialize")
+	var checkpoint := _checkpoint_data(data)
 	var suit_manager := _suit_manager()
 	if suit_manager != null and suit_manager.has_method("serialize"):
-		data["SuitState"] = suit_manager.call("serialize")
-	var player_state_manager := _player_state_manager()
-	if player_state_manager != null and player_state_manager.has_method("serialize"):
-		data["PlayerStateManagerState"] = player_state_manager.call("serialize")
+		checkpoint["SuitState"] = suit_manager.call("serialize")
+	var training_time_manager := _training_time_manager()
+	if training_time_manager != null and training_time_manager.has_method("serialize"):
+		checkpoint["TrainingTimeState"] = training_time_manager.call("serialize")
+	checkpoint["TrainingInventoryState"] = _training_inventory_state()
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("user://saves"))
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file != null:
-		file.store_string(JSON.stringify(data, "\t"))
+		file.store_string(JSON.stringify(checkpoint, "\t"))
+
+static func _checkpoint_data(data: Dictionary) -> Dictionary:
+	var checkpoint := default_data()
+	for key in data.keys():
+		var key_string := String(key)
+		if TRAINING_CHECKPOINT_KEYS.has(key_string):
+			checkpoint[key_string] = data[key]
+	return checkpoint
+
+static func _training_inventory_state() -> Dictionary:
+	var inventory_manager := _inventory_manager()
+	if inventory_manager == null:
+		return {}
+	var containers: Variant = inventory_manager.get("training_containers")
+	if containers is Dictionary:
+		return {"training_containers": (containers as Dictionary).duplicate(true)}
+	return {}
+
+static func _restore_training_inventory_state(state: Variant) -> void:
+	if not (state is Dictionary):
+		return
+	var inventory_manager := _inventory_manager()
+	if inventory_manager == null:
+		return
+	var containers: Variant = (state as Dictionary).get("training_containers", {})
+	if containers is Dictionary:
+		inventory_manager.set("training_containers", (containers as Dictionary).duplicate(true))
+		inventory_manager.emit_signal("inventory_changed")
+
+static func _finalize_training_checkpoint_restore() -> void:
+	var player_state_manager := _player_state_manager()
+	if player_state_manager != null and player_state_manager.has_method("sync_suit_state_from_suit_manager"):
+		player_state_manager.call("sync_suit_state_from_suit_manager")
 
 static func reset_progress() -> void:
 	var manager := _time_manager()
