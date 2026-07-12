@@ -70,7 +70,10 @@
 - **回滚方案**：逐系统 PR，可单独 revert；存档结构改动保留旧字段读兼容。
 - **风险**：🔴 存档兼容——改 schema 会让旧存档失效；必须保留读旧路径。
 
-## Phase 4 · 大型脚本渐进拆分（高风险，一次一个职责）
+## Phase 4 · 大型脚本渐进拆分（高风险，一次一个职责）— IN_PROGRESS（P4-01 审计完成 2026-07-12）
+- **P4-01 审计结论（详见 `PHASE_4_LARGE_SCRIPT_AUDIT.md`）**：实测 P0=`main.gd`(5182)；P1=`training_module_scene.gd`(3417)/`sprint06_base_scene.gd`(2556)/`training_base_map.gd`(2255)。4 个大场景脚本均 HIGH_FAN_OUT + SCENE_TREE_COUPLED 但 fan-in 低（利于拆）；`training_manager`(591) 是 HIGH_FAN_IN static hub，靠后。
+- **P4-02 唯一推荐（修订原"MainMenuController 首拆"）**：先抽 **`main.gd` 的 DevToolsController**（dev 菜单 + ~150 `_debug_*`，~840 行/~16%）。理由：**dev-only、对正式玩法/存档/恢复零影响**、共享状态最低、近乎纯 relocation、可独立 revert——比 MainMenuController/FormalFlowRouter 更安全（后者触正式路由/restore，排 P4-03）。
+- **推荐顺序**：P4-02 DevTools → P4-03 FormalFlowRouter → P4-04 Sandbox 存档聚合 → P4-05 sprint06 HUD 面板 → P4-06 sprint06 导航/日程流程 → P4-07 训练 UI builder → (可选)P4-08 training_manager checkpoint IO → P4-09 收口。每批一个 commit、可独立 revert、拆前补 characterization 测试、拆后跑 Phase 3 全量(216)+editor/smoke。
 - **目标**：给 4 个巨型脚本减负，**不大爆炸重写**。
 - **前置条件**：Phase 3 相关系统边界已清。
 - **具体任务**（严格一次一个，每步独立回归+回滚点）：
