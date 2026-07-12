@@ -100,6 +100,7 @@
 - **P5-02 状态**：COMPLETE（2026-07-13）。已创建首个正式仓库 Skill：`skills/godot/characterization-first-refactor/SKILL.md`，并建立 `skills/SKILL_REGISTRY.md`。dry run 记录见 `P5_02_CHARACTERIZATION_SKILL_TRIAL.md`。当前 maturity = `TRIAL`，不是 `VALIDATED`。未改生产代码、测试、场景、资源、JSON、真实存档或 `project.godot`。
 - **P5-03 状态**：COMPLETE（2026-07-13）。已创建第二个正式仓库 Skill：`skills/core/save-integrity-guard/SKILL.md`，并更新 `skills/SKILL_REGISTRY.md`。dry run 记录见 `P5_03_SAVE_INTEGRITY_SKILL_TRIAL.md`。当前 maturity = `TRIAL`，不是 `VALIDATED`。本 Skill 负责真实用户数据备份、SHA、结构化 JSON 对比、变化分类与禁止机械回滚；与 `characterization-first-refactor` 为 COMPOSABLE 关系。未改生产代码、测试、场景、资源、JSON、真实存档或 `project.godot`。
 - **P5-04 状态**：COMPLETE（2026-07-13）。已创建第三个正式仓库 Skill：`skills/core/task-baseline-and-lock/SKILL.md`，并更新 `skills/SKILL_REGISTRY.md`。dry run 记录见 `P5_04_TASK_BASELINE_LOCK_SKILL_TRIAL.md`。当前 maturity = `TRIAL`，不是 `VALIDATED`。本 Skill 负责任务基线确认、ACTIVE_TASKS 登记、单 owner、锁、范围、owner transfer、close-out 与 push/tag 权限边界；与前两项 Skill 为 COMPOSABLE 关系。未改生产代码、测试、场景、资源、JSON、真实存档或 `project.godot`。
+- **P5-05 状态**：**VERIFIED**（2026-07-13；Owner Transfer Codex → Claude Code，Codex 触达 usage limit）。已创建第四个正式仓库 Skill、也是首个 Guanghan Project 层 Skill：`skills/guanghan/guanghan-art-design-and-production/SKILL.md`，并更新 `skills/SKILL_REGISTRY.md`。dry run 记录见 `P5_05_GUANGHAN_ART_PRODUCTION_SKILL_TRIAL.md`。当前 maturity = `TRIAL`，不是 `VALIDATED`。**职责边界**：Primary creative agent = **ChatGPT**（视觉设计/生图/风格/交付）；Implementation consumers = **Codex / Claude Code**（读批准规格、接入仓库、切图/命名/导入、配 Godot、搭场景，不擅改视觉方向、不替代主要美术创作）；Final approval = **User**。本 Skill 负责场景美术设计、模块化素材拆分、生成提示词、规格与生产 brief；不负责代码、场景修改、资产导入或最终截图验收。未改生产代码、测试、场景、资源、图片、JSON、真实存档或 `project.godot`。**P5-06 READY**（未启动）。
 - **最终 Skill 层模型**：
   1. Core Governance Skills
   2. Godot Engineering Skills
@@ -113,7 +114,7 @@
 - **Wave 1**：`characterization-first-refactor`、`task-baseline-and-lock`、`save-integrity-guard`。
 - **Wave 2**：`regression-and-closure`、`system-boundary-audit`、`godot-presenter-extraction`、`guanghan-art-design-and-production`。
 - **Wave 3 / deferred**：`owner-transfer-and-handoff`、`godot-controller-extraction`、`guanghan-art-review-and-godot-handoff`、`bug-ticket-formatter`、`product-experience-acceptance`。
-- **P5-05 默认建议**：`Guanghan Art Design and Production Skill`。理由：Wave 1 的工程/治理基础 Skill 已建立到 TRIAL；下一步可以沉淀项目视觉方向、美术规格与生产交接流程。若 P5-04 后续真实任务试用暴露问题，则改排 `P5-04R - Task Baseline and Lock Skill revision`。
+- **P5-06 默认建议**：`Guanghan Art Review and Godot Handoff Skill`。理由：Art Skill 架构保持两段式，P5-05 已沉淀生产前设计与素材拆分；下一步应沉淀目标图/截图对照、视觉落地验收和修订工单。若 P5-05 后续真实任务试用暴露问题，则改排 `P5-05R - Guanghan Art Production Skill revision`。
 - **禁止事项**：不要批量创建 Skill；不要把项目当前文件列表写死为长期真相；不要用 Skill 取代 ACTIVE_TASKS、CURRENT、用户任务范围或 push/tag 授权；不要在 P5-01 之后自动开始 P5-02。
 - **验证方法**：每个 Skill 先 `draft`，真实任务试用后为 `trial`，至少一次高价值或两次重复成功后才标 `validated`，过期则 `deprecated`。
 

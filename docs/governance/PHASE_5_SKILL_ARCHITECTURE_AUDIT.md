@@ -510,3 +510,56 @@ Next recommended task:
 ```text
 P5-05 - Guanghan Art Design and Production Skill
 ```
+
+## 22. P5-05 Implementation Note
+
+P5-05 completed the first Guanghan Project layer Skill:
+
+```text
+skills/guanghan/guanghan-art-design-and-production/SKILL.md
+```
+
+Current formal Skill count:
+
+```text
+4
+```
+
+Current maturity:
+
+```text
+characterization-first-refactor = TRIAL
+save-integrity-guard = TRIAL
+task-baseline-and-lock = TRIAL
+guanghan-art-design-and-production = TRIAL
+```
+
+The Skill was exercised through a controlled dry run documented in:
+
+```text
+docs/governance/P5_05_GUANGHAN_ART_PRODUCTION_SKILL_TRIAL.md
+```
+
+Dry-run result:
+
+- The Skill produced a modular production brief for the Training Base spacesuit preparation room.
+- The brief kept solar panels out of the indoor room.
+- The brief marked the full room concept as `NOT_FOR_DIRECT_GAME_IMPORT`.
+- The brief separated walls, floor, doors, suit rack, status terminal, storage, lights, warning stripes, and decals.
+- No images, production assets, scenes, code, JSON, real saves, or `project.godot` were modified.
+- The Skill remains `TRIAL`, not `VALIDATED`.
+
+Art Skill architecture remains two-stage:
+
+```text
+guanghan-art-design-and-production = scene design / modular asset breakdown / generation prompts / production brief
+guanghan-art-review-and-godot-handoff = future screenshot-target review / landing acceptance / revision ticketing
+```
+
+The two art Skills are `SEQUENTIAL_AND_COMPOSABLE`, not merged.
+
+Next recommended task:
+
+```text
+P5-06 - Guanghan Art Review and Godot Handoff Skill
+```

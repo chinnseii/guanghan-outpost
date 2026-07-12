@@ -9,7 +9,7 @@ This file is the current coordination board for active task ownership, file lock
 - **Locked files**: `0`
 - **Pending handoffs**: `0`
 - **Branch**: `main`
-- **Board baseline**: `ee6732b`
+- **Board baseline**: `8baa382`
 - **Last updated**: `2026-07-13`
 
 ## Active Tasks
@@ -25,6 +25,17 @@ No file locks.
 No pending handoffs.
 
 ## Recently Closed
+
+### P5-05 - Build Guanghan Art Design and Production Skill
+
+- Status: `DONE`
+- Owner: `Claude Code`
+- Previous owner: `Codex`
+- Transfer reason: Codex usage limit reached; system prohibited further editing or workaround. Same task (P5-05), not a re-implementation. Base commit `8baa382`; non-clean working tree with approved P5-05 drafts taken over.
+- Reviewer: `User`
+- Result: a project-specific art design and modular asset-production Skill (`skills/guanghan/guanghan-art-design-and-production/SKILL.md`) was created and trialed, with **ChatGPT as primary creative agent**, **Codex/Claude Code as implementation consumers**, and **User as final approver**. Claude Code completed the takeover by adding the explicit `Agent Responsibilities` section (+ agents-metadata clarification) and one missing cable/pipe asset row in the dry run; forbids using a full concept image as the shipped interactive map; modular breakdown for the spacesuit preparation room.
+- Verification: Skill + dry-run checks passed; formal SKILL.md count = 4; only Markdown changed (no images/code/scenes/assets/JSON/`project.godot`/saves); Godot editor/smoke EXIT 0; maturity remains `TRIAL`.
+- Follow-up: P5-06 Guanghan Art Review and Godot Handoff Skill — do not start automatically.
 
 ### P5-04 - Build Task Baseline and Lock Skill
 
@@ -77,13 +88,3 @@ No pending handoffs.
 - Verification: docs-only change; Godot editor parse EXIT 0; Godot headless smoke EXIT 0; diff limited to allowed Markdown docs; no formal Skill directory or `SKILL.md` created.
 - Next: P5-02 should build only `skills/godot/characterization-first-refactor/SKILL.md`. P5-02 was not started.
 
-### P4-08 - Phase 4 regression, save-baseline recovery, and closure
-
-- Status: `DONE`
-- Owner: `Codex`
-- Reviewer: `User`
-- Base commit: `02fd9d3`
-- Result: Phase 4 fully regressed and closed; a trustworthy current save baseline was established without overwriting newer user progress.
-- Verification: P4-07B 20/20; P4-07A 32/32; P4-06B 41/41; P4-06A 28/28; P4-05 30/30; P4-04 35/35; P4-03 27/27; P4-02 22/22; P3-03a 40/40; P3-03b 50/50; P3-03c 34/34; P3-03d 25/25; P3-04 33/33; P3-05 37/37; Godot editor/smoke EXIT 0.
-- Save baseline: `saves_backup_before_p4_08_2026-07-12_234110`, 19/19 SHA match; post-test SHA unchanged with expected mtime-only mirror refresh. Final conclusion: `SAVE_BASELINE_STABLE_WITH_EXPECTED_MIRROR_REFRESH`.
-- Follow-up: Phase 5 - Skill development is READY.
