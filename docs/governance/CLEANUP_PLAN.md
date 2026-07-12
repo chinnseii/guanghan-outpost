@@ -94,18 +94,25 @@
 - **回滚方案**：每次拆分一个 commit/PR，可整体 revert。
 - **风险**：🔴 tier-1 文件（reference_prop/sprint06/training_*）拆分波及多线；先拆耦合最低的 main.gd 菜单。
 
-## Phase 5 · Skill 建设（低风险）— READY（未启动）
-- **目标**：按 SKILL_ARCHITECTURE 分批落地。
-- **前置条件**：治理文档稳定。
-- **具体任务**：
-  1. 第一批：`task-intake`、`change-planning`、`handoff`（+已有 conventions/verify）。
-  2. 第二批：`feature-design`、`product-review`。
-  3. 治理期临时：`architecture-audit`、`cleanup-migration`。
-- **禁止事项**：为凑数建 Skill；两个 Skill 抢同一阶段；硬编码本机绝对路径。
-- **验证方法**：每个 Skill 的 description 做误触发检查（skill-creator 评测）。
-- **完成标准**：闭环"入口→规划→写码→验证→交接"可用。
-- **回滚方案**：删 Skill 目录，无代码副作用。
-- **风险**：description 太宽导致误触发 → 收紧。
+## Phase 5 · Skill 建设（低风险）— IN_PROGRESS
+- **目标**：把已验证的治理、Godot 工程、广寒项目、美术与交接流程沉淀为少量可验证 Skill，而不是批量冻结临时提示词。
+- **P5-01 状态**：COMPLETE（2026-07-13）。审计报告见 `PHASE_5_SKILL_ARCHITECTURE_AUDIT.md`。本轮只做架构、目录、边界、候选目录和 P5-02 选择；未创建 `skills/`、未创建 `SKILL.md`、未改生产代码。
+- **最终 Skill 层模型**：
+  1. Core Governance Skills
+  2. Godot Engineering Skills
+  3. Guanghan Project Skills
+  4. Agent-specific Operating Guides（保留为协作/角色规则，不作为正式 Skill）
+- **推荐目录方案（未来 P5-02 起创建）**：
+  - `skills/core/<skill-name>/SKILL.md`
+  - `skills/godot/<skill-name>/SKILL.md`
+  - `skills/guanghan/<skill-name>/SKILL.md`
+  - 未来注册表建议：`skills/SKILL_REGISTRY.md`
+- **Wave 1**：`characterization-first-refactor`、`task-baseline-and-lock`、`save-integrity-guard`。
+- **Wave 2**：`regression-and-closure`、`system-boundary-audit`、`godot-presenter-extraction`、`guanghan-art-design-and-production`。
+- **Wave 3 / deferred**：`owner-transfer-and-handoff`、`godot-controller-extraction`、`guanghan-art-review-and-godot-handoff`、`bug-ticket-formatter`、`product-experience-acceptance`。
+- **唯一 P5-02**：`skills/godot/characterization-first-refactor/SKILL.md`。理由：Phase 4 已反复验证；能降低 Godot 大脚本/共用脚本拆分风险；同时给后续 controller/presenter extraction Skill 做父方法。
+- **禁止事项**：不要批量创建 Skill；不要把项目当前文件列表写死为长期真相；不要用 Skill 取代 ACTIVE_TASKS、CURRENT、用户任务范围或 push/tag 授权；不要在 P5-01 之后自动开始 P5-02。
+- **验证方法**：每个 Skill 先 `draft`，真实任务试用后为 `trial`，至少一次高价值或两次重复成功后才标 `validated`，过期则 `deprecated`。
 
 ## Phase 6 · 双 Agent 试运行（验证流程本身）
 - **目标**：用两个真正独立的小任务实测 AGENT_WORKFLOW 模式 C。

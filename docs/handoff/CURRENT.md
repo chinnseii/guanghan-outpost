@@ -1,113 +1,102 @@
 # Current Project Status
 
-Updated: 2026-07-12
+Updated: 2026-07-13
 
 ## Phase
 
-Current Phase: Phase 4 complete.
-Next Phase: Phase 5 — Skill development.
+Current Phase: Phase 5 in progress.
+Next task: P5-02 - build `characterization-first-refactor` Skill.
 
-Phase 3 system-boundary cleanup is COMPLETE and tagged `system-boundary-cleanup-complete-2026-07-12`. Phase 4 large-script decomposition is COMPLETE through P4-08. Phase 5 is READY but has not been started.
+Phase 3 system-boundary cleanup is COMPLETE and tagged `system-boundary-cleanup-complete-2026-07-12`.
+Phase 4 large-script decomposition is COMPLETE and tagged `large-script-decomposition-complete-2026-07-12`.
+Phase 5 has started with P5-01. Phase 6 has not started.
 
 ## Recent Completion
 
-P4-08 — Phase 4 regression, save-baseline recovery, and closure.
+P5-01 - Skill architecture, directory, and boundary audit.
 
 Result:
-- Full P3/P4 regression passed.
-- Godot editor parse and default headless smoke passed.
-- A new current real-save baseline was created without overwriting newer user progress.
-- P4-07B save integrity is resolved as `SAVE_BASELINE_STABLE_WITH_EXPECTED_MIRROR_REFRESH`.
-- Phase 4 is formally closed.
+- Created `docs/governance/PHASE_5_SKILL_ARCHITECTURE_AUDIT.md`.
+- Defined boundaries between Skill, project docs, agent role, and one-off task prompt.
+- Recommended future formal Skill root: `skills/` with `core/`, `godot/`, and `guanghan/` layers.
+- Recommended future registry path: `skills/SKILL_REGISTRY.md`.
+- Chose exactly one P5-02 target: `skills/godot/characterization-first-refactor/SKILL.md`.
+- Did not create a Skill directory or `SKILL.md`.
+- Did not modify production code, tests, scenes, assets, saves, or `project.godot`.
+- Did not push, tag, or start P5-02.
 
-Current repository baseline before P4-08 closing commit:
-- HEAD: `02fd9d3`
+Current repository baseline before P5-01 commit:
+- HEAD: `219cc8d`
+- `origin/main`: `219cc8d`
 - Branch: `main`
-- Ahead/behind before closing commit: ahead `9`, behind `0`
-- Working tree at P4-08 start: clean
-- P4-08 owner: `Codex`
-- P4-07B owner transfer: Claude Code quota exhaustion -> Codex completed the same approved task, not a duplicate task.
+- Ahead/behind at P5-01 start: ahead `0`, behind `0`
+- Working tree at P5-01 start: clean
+- ACTIVE_TASKS at P5-01 start: IDLE
 
-## Phase 4 Completed Work
+## Skill Architecture Decision
 
-- P4-01 large-script responsibility & decomposition audit.
-- P4-02 DevToolsController extraction from `main.gd` (5182 -> 4346).
-- P4-03 FormalFlowRouter extraction from `main.gd` (4346 -> 4302).
-- P4-04 BaseHudPanelPresenter extraction from `sprint06_base_scene.gd` (2556 -> 2331).
-- P4-05 BaseNavigationController extraction from `sprint06_base_scene.gd` (2331 -> 2308).
-- P4-06A sprint06 schedule/mission-flow coupling audit.
-- P4-06B Sprint06ScheduleEvaluator extraction from `sprint06_base_scene.gd` (2307 -> 2268).
-- P4-07A training large-script UI audit.
-- P4-07B TrainingModuleScreenPresenter extraction from `training_module_scene.gd` (3417 -> 3114).
-- P4-08 regression, save-baseline recovery, and closure.
+Final Skill layers:
+- Core Governance Skills
+- Godot Engineering Skills
+- Guanghan Project Skills
+- Agent-specific Operating Guides
 
-## Large Script Final State
+Wave 1:
+- `characterization-first-refactor`
+- `task-baseline-and-lock`
+- `save-integrity-guard`
 
-| File | Phase 4 start lines | Final lines | Net reduction | Remaining reason |
-|---|---:|---:|---:|---|
-| `scripts/main.gd` | 5182 | 4302 | -880 | legacy sandbox root/menu/save glue remains coupled |
-| `scripts/base/sprint06_base_scene.gd` | 2556 | 2268 | -288 | async finish/transition/save and scene task state remain coupled |
-| `scripts/training/training_module_scene.gd` | 3417 | 3114 | -303 | room layout, movement, step flow, checkpoint, answer logic remain coupled |
-| `scripts/training/training_base_map.gd` | 2255 | 2255 | 0 | dynamic rooms/doors/area switching remain SceneTree-coupled |
+Wave 2:
+- `regression-and-closure`
+- `system-boundary-audit`
+- `godot-presenter-extraction`
+- `guanghan-art-design-and-production`
 
-## Save Baseline
+Wave 3 / deferred:
+- `owner-transfer-and-handoff`
+- `godot-controller-extraction`
+- `guanghan-art-review-and-godot-handoff`
+- `bug-ticket-formatter`
+- `product-experience-acceptance`
 
-Actual user data directory:
+## P5-02 Recommendation
 
-`C:\Users\csw83\AppData\Roaming\Godot\app_userdata\Guanghan Outpost`
+P5-02 should build exactly one formal Skill:
 
-P4-08 backup:
+`skills/godot/characterization-first-refactor/SKILL.md`
 
-`C:\Users\csw83\AppData\Roaming\Godot\app_userdata\Guanghan Outpost\saves_backup_before_p4_08_2026-07-12_234110`
+Rationale:
+- strongest validated pattern from Phase 4;
+- immediately reduces Godot refactor risk;
+- reusable by Codex and Claude Code;
+- acts as parent method for later controller/presenter extraction Skills.
 
-Backup status:
-- 19 source files copied.
-- 19 backup files verified.
-- 0 SHA mismatches.
-- Test-after-baseline comparison: all SHA unchanged; 14 files had mtime-only refresh.
-- Final save conclusion: `SAVE_BASELINE_STABLE_WITH_EXPECTED_MIRROR_REFRESH`.
-
-Why no 2026-07-11 rollback:
-- The 2026-07-11 backup predates later user/test progress from 2026-07-12.
-- It was used for analysis only, not as an overwrite source.
-
-## Verification
-
-- P4-07B: 20/20
-- P4-07A: 32/32
-- P4-06B: 41/41
-- P4-06A: 28/28
-- P4-05: 30/30
-- P4-04: 35/35
-- P4-03: 27/27
-- P4-02: 22/22
-- P3-03a: 40/40
-- P3-03b: 50/50
-- P3-03c: 34/34
-- P3-03d: 25/25
-- P3-04: 33/33
-- P3-05: 37/37
-- Total: 454/454
-- Godot editor parse: EXIT 0
-- Godot headless smoke: EXIT 0
+Do not start P5-02 automatically.
 
 ## Deferred Risks
 
-DEFER_TO_FEATURE_WORK:
+Deferred from earlier phases and not closed by P5-01:
 - DoorState formal old-base integration.
 - Legacy file physical deletion.
 - `interaction_detector` / `BaseInterior_Test` UNKNOWN cleanup.
-- Product-level Inventory <-> Backpack relationship.
-
-DEFER_TO_FUTURE_REFACTOR:
+- Product-level Inventory <-> Backpack relationship decisions.
 - `training_base_map.gd` room/door/dynamic SceneTree ownership.
-- `training_module_scene.gd` remaining state machine and room layout.
-- `sprint06_base_scene.gd` async finish/transition/save.
-- legacy sandbox slot-save aggregation.
+- `training_module_scene.gd` remaining training state machine and room layout.
+- `sprint06_base_scene.gd` async finish/transition/save sequences.
+- Legacy sandbox slot-save aggregation.
 - `main.gd` remaining legacy sandbox core.
 
-These are not Phase 4 blockers.
+## Verification
+
+P5-01 is docs-only.
+- Git diff contains only allowed Markdown docs.
+- `git diff --check`: PASS.
+- Godot editor parse: EXIT 0.
+- Godot headless smoke: EXIT 0.
+- Formal Skill directory / `SKILL.md`: not created.
 
 ## Next Step
 
-Phase 5 — Skill development. Do not push, tag, or start Phase 5 automatically from P4-08.
+P5-02 - build `characterization-first-refactor` Skill.
+
+Do not push, tag, or start P5-02 automatically from P5-01.
