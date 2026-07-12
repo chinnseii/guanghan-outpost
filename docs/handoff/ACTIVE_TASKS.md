@@ -9,7 +9,7 @@ This file is the current coordination board for active task ownership, file lock
 - **Locked files**: `0`
 - **Pending handoffs**: `0`
 - **Branch**: `main`
-- **Board baseline**: `a3aca62`
+- **Board baseline**: `bda3d13`
 - **Last updated**: `2026-07-12`
 
 ## Active Tasks
@@ -25,6 +25,16 @@ No file locks.
 No pending handoffs.
 
 ## Recently Closed
+
+### P4-06A - Audit sprint06 schedule and mission-flow coupling
+
+- Status: `DONE`
+- Owner: `Claude Code`
+- Reviewer: `User`
+- Base commit: `bda3d13`
+- Result: read-only audit + characterization of sprint06 schedule/daily-check/mission-phase/transition/async/save coupling → `docs/governance/P4_06A_SPRINT06_FLOW_AUDIT.md`. **No production flow logic moved.** Findings: sprint06 mission progress is scene-local `state` (Full Save scene_state), not TaskManager — no double-holding, no P0/P1; completion/finish sequences are async + time-advance + save + scene-change (KEEP); pure daily predicates + checklist text are safely separable. **Unique conclusion: A — SAFE_EVALUATOR_EXTRACTION** (P4-06B should extract a stateless `Sprint06ScheduleEvaluator`, ~70 lines, no touch to async/finish/transition/save).
+- Verification: Godot editor/smoke EXIT 0 (no base-scene boot); P4-06A 26/26 (source-analysis); P4-05 30/30; P4-04 35/35; P4-03 27/27; P4-02 22/22; P3-03a 40/40; P3-03b 50/50; P3-03c 34/34; P3-03d 25/25; P3-04 33/33; P3-05 37/37; real `user://saves/` SHA-256 unchanged.
+- Follow-up: P4-06B `Sprint06ScheduleEvaluator` extraction — do not start automatically.
 
 ### P4-05 - Extract base navigation controller
 
@@ -65,14 +75,4 @@ No pending handoffs.
 - Result: dev-only menu + all `_debug_*` actions extracted from `main.gd` into `scripts/controllers/dev_tools_controller.gd` (876 lines, non-Autoload, held by main). `main.gd` **5182 → 4346 (−836 / ~16%)**. Shared `_debug_reset_time` kept in main (formal new-game uses it); thin `_toggle_dev_menu` wrapper retained. Formal continue/new-game/Full Save/training/sandbox/arrival flows unchanged and do not depend on the controller. No scene/`project.godot`/save/gameplay change.
 - Verification: Godot editor/smoke EXIT 0; P4-02 22/22; P3-03a 39/39; P3-03b 50/50; P3-03c 33/33; P3-03d 25/25; P3-04 33/33; P3-05 36/36; real `user://saves/` SHA-256 unchanged.
 - Follow-up: P4-03 FormalFlowRouter — do not start automatically.
-
-### P4-01 - Large-script responsibility and decomposition audit
-
-- Status: `DONE`
-- Owner: `Claude Code`
-- Reviewer: `User`
-- Base commit: `1f53659`
-- Result: oversized-script responsibilities, dependencies, shared-state hotspots, extraction candidates, and the Phase 4 decomposition sequence audited (`PHASE_4_LARGE_SCRIPT_AUDIT.md`). Sizes: P0 `main.gd` 5182; P1 `training_module_scene.gd` 3417 / `sprint06_base_scene.gd` 2556 / `training_base_map.gd` 2255. **Sole P4-02 recommendation: extract `DevToolsController` from `main.gd`** (dev-only, ~840 lines, zero formal-gameplay/save/restore impact).
-- Verification: documentation-only (Markdown); Godot editor/smoke EXIT 0; scripts/tests/scenes untouched.
-- Follow-up: P4-02 (DevToolsController) — do not start automatically.
 

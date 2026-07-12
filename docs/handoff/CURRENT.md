@@ -4,7 +4,7 @@ Updated: 2026-07-12
 
 ## Phase
 
-Phase 3 system-boundary cleanup is COMPLETE (pushed + tag `system-boundary-cleanup-complete-2026-07-12`). Phase 4 — Large-script decomposition — is IN PROGRESS: P4-01 audit + P4-02 DevToolsController + P4-03 FormalFlowRouter + P4-04 BaseHudPanelPresenter + P4-05 BaseNavigationController done; next is P4-06.
+Phase 3 system-boundary cleanup is COMPLETE (pushed + tag `system-boundary-cleanup-complete-2026-07-12`). Phase 4 — Large-script decomposition — is IN PROGRESS: P4-01 audit + P4-02 DevToolsController + P4-03 FormalFlowRouter + P4-04 BaseHudPanelPresenter + P4-05 BaseNavigationController + P4-06A flow audit done; next is P4-06B.
 
 Completed:
 - P3-01 system boundary audit.
@@ -22,9 +22,10 @@ Completed:
 - P4-03 FormalFlowRouter extraction from `main.gd` (4346→4302; `scripts/controllers/formal_flow_router.gd`).
 - P4-04 BaseHudPanelPresenter extraction from `sprint06_base_scene.gd` (2556→2331; `scripts/controllers/base_hud_panel_presenter.gd`).
 - P4-05 BaseNavigationController extraction from `sprint06_base_scene.gd` (2331→2308; pure nav computation; P4-05A interface-prep scope — sprint06 nav is largely flow-coupled).
+- P4-06A sprint06 schedule/mission-flow coupling audit + characterization (`P4_06A_SPRINT06_FLOW_AUDIT.md`; conclusion: A — SAFE_EVALUATOR_EXTRACTION).
 
 Not started:
-- P4-06 — sprint06 daily/mission flow controller (day/week routine; needs a coupling audit first), or the deferred sandbox slot-save aggregation. Do not start automatically.
+- P4-06B — extract stateless `Sprint06ScheduleEvaluator` (pure daily/schedule predicates + text; ~70 lines). Do not start automatically.
 
 ## P3-05 Summary
 
@@ -110,6 +111,6 @@ P3-04 passed:
 
 ## Next Step
 
-Phase 3 is COMPLETE, pushed, and tagged. Phase 4 in progress: P4-01 audit + P4-02 DevToolsController + P4-03 FormalFlowRouter + P4-04 BaseHudPanelPresenter + P4-05 BaseNavigationController done (`main.gd` 5182→4302; `sprint06_base_scene.gd` 2556→2308; new controllers under `scripts/controllers/`). **Next: P4-06 — sprint06 daily/mission flow controller** (day/week routine; MEDIUM-HIGH, task-state coupled — audit the daily-flow coupling first), or revisit the deferred sandbox slot-save aggregation. Do not start P4-06 automatically.
+Phase 3 is COMPLETE, pushed, and tagged. Phase 4 in progress: P4-01 audit + P4-02 DevToolsController + P4-03 FormalFlowRouter + P4-04 BaseHudPanelPresenter + P4-05 BaseNavigationController + P4-06A sprint06 flow audit done. **Next: P4-06B — extract stateless `Sprint06ScheduleEvaluator`** (the pure daily/schedule predicates + checklist text, ~70 lines; per the P4-06A conclusion A). Do NOT touch the async completion/finish/transition/save sequences (KEEP_IN_SCENE). Do not start P4-06B automatically.
 
 Deferred beyond Phase 3 (not regressions, tracked): legacy file physical deletion; DoorStateManager formal old-base integration (feature work); `main.gd` / `sprint06_base_scene.gd` large-script split (Phase 4); `interaction_detector` orphan and `BaseInterior_Test` entry (UNKNOWN); product-level Inventory↔Backpack relationship.

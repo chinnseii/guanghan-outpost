@@ -217,5 +217,14 @@ scripts/ 全量 29,739 行。Top：`main.gd` 5182 · `training/training_module_s
 - **Verification**: Godot editor/smoke EXIT 0; NO base-scene boot (avoids autosave); all suites green (P4-05 30/30 + P4-02/03/04 + P3-03a..d/04/05); real saves SHA unchanged.
 - **Next: P4-06 — sprint06 daily/mission flow controller** (`_daily_checks_*`, day/week routine) — MEDIUM-HIGH (task-state coupled); or revisit the deferred sandbox slot-save aggregation. Recommend a fresh audit of the daily-flow coupling first.
 
+## P4-06A Note (2026-07-12) — sprint06 flow coupling audit (no code moved)
+
+- **DONE (audit + characterization only)**: mapped sprint06's schedule / daily-check / mission-phase / transition / async / save coupling → `docs/governance/P4_06A_SPRINT06_FLOW_AUDIT.md`. **Zero production flow logic moved.**
+- **Key findings**: sprint06 mission progress lives in the scene-local `state` dict (Full Save `scene_state`), **not** TaskManager — no double-holding, no P0/P1 gap. The daily/mission **completion** effects (`_complete_*`, `_finish_day_one/two/week_day`) are async (`await` + tween) + `_advance_action_time` + `_save_state` + `change_scene_to_file`, with order-dependent flags → **KEEP_IN_SCENE**. `_begin_equipment_interaction` is an async input-locked sequence → DEFER.
+- **Pure, safely-separable logic identified**: `_current_day`, `_daily_required_keys`, `_daily_checks_complete`, `_day02_inspections_complete`, `_task_line`, `_day_label`, `_daily_report_label`, `_daily_checklist_text` — all pure functions over `(day, state)`, no writes/managers/save.
+- **Characterization**: `tests/p4_06a_sprint06_flow_characterization_test.gd` (26/26, source-analysis, **no base-scene boot**) locks execution order (guard→predicate→mutation→save→transition), the day→required-keys table, the completion boundary (console gate + `DailyInspectionsComplete` in the post-async callback), and the Manager/save boundary (nav/HUD/router own no task flow).
+- **Unique conclusion: A — SAFE_EVALUATOR_EXTRACTION.** P4-06B should extract a stateless `Sprint06ScheduleEvaluator` (~70 lines) for the pure predicates/text, scene keeping thin delegators; do NOT touch completion/finish/async/transition/save.
+- **Verification**: Godot editor/smoke EXIT 0; all suites green (P4-06A 26/26 + P4-02..05 + P3-03a..d/04/05); real saves SHA unchanged; no production code changed.
+
 ## 附：验收标准（本轮 P4-01）
 所有 P0+P1 脚本已清点并映射职责块（附行号）✓；依赖/共享状态热点已识别 ✓；抽离候选有边界卡片（main/sprint06 各 ≥3）✓；不可拆区域已列 ✓；测试保护需求已定义 ✓；分阶段拆分顺序 + 唯一 P4-02 推荐 ✓；**零生产代码改动** ✓。
