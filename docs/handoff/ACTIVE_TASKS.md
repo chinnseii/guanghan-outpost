@@ -9,7 +9,7 @@ This file is the current coordination board for active task ownership, file lock
 - **Locked files**: `0`
 - **Pending handoffs**: `0`
 - **Branch**: `main`
-- **Board baseline**: `e33ea48`
+- **Board baseline**: `ee6732b`
 - **Last updated**: `2026-07-13`
 
 ## Active Tasks
@@ -25,6 +25,20 @@ No file locks.
 No pending handoffs.
 
 ## Recently Closed
+
+### P5-04 - Build Task Baseline and Lock Skill
+
+- Status: `DONE`
+- Owner: `Codex`
+- Reviewer: `User`
+- Base commit: `ee6732b`
+- Result: A reusable task-baseline and locking Skill was created, registered, and exercised against clean-start and parallel-conflict scenarios.
+- Skill: `skills/core/task-baseline-and-lock/SKILL.md`
+- Registry: `skills/SKILL_REGISTRY.md`
+- Trial: `docs/governance/P5_04_TASK_BASELINE_LOCK_SKILL_TRIAL.md`
+- Verification: Skill checks and dry run passed; Godot editor/smoke EXIT 0; diff limited to allowed Markdown docs; no production code/tests/scenes/assets/project/JSON/saves changed; maturity remains `TRIAL`.
+- Decision: Dry run rejected the overlapping-lock scenario with `HARD_STOP_PARALLEL_CONFLICT` and allowed the clean single-owner scenario with `TASK_START_ALLOWED`.
+- Next: P5-05 - Guanghan Art Design and Production Skill. P5-05 was not started.
 
 ### P5-03 - Build Save Integrity Guard Skill
 
@@ -73,14 +87,3 @@ No pending handoffs.
 - Verification: P4-07B 20/20; P4-07A 32/32; P4-06B 41/41; P4-06A 28/28; P4-05 30/30; P4-04 35/35; P4-03 27/27; P4-02 22/22; P3-03a 40/40; P3-03b 50/50; P3-03c 34/34; P3-03d 25/25; P3-04 33/33; P3-05 37/37; Godot editor/smoke EXIT 0.
 - Save baseline: `saves_backup_before_p4_08_2026-07-12_234110`, 19/19 SHA match; post-test SHA unchanged with expected mtime-only mirror refresh. Final conclusion: `SAVE_BASELINE_STABLE_WITH_EXPECTED_MIRROR_REFRESH`.
 - Follow-up: Phase 5 - Skill development is READY.
-
-### P4-07B - Extract TrainingModuleScreenPresenter
-
-- Status: `DONE`
-- Owner: `Codex`
-- Reviewer: `User`
-- Base commit: `b9d1c0a`
-- Result: extracted display-only training-module screen chrome from `training_module_scene.gd` into non-Autoload `scripts/controllers/training_module_screen_presenter.gd` (`class_name`, RefCounted). Scene now injects UI-intent callbacks and keeps all gameplay state/step flow/checkpoint writes. `training_module_scene.gd` 3417 -> 3114 (net -303). `training_base_map.gd`, scenes, `project.godot`, schemas, and gameplay values untouched.
-- Scope adjustment: flow-coupled diagnosis/plant/repair option decisions stayed in the scene; presenter owns the popup shell API only. This keeps correct-answer logic and `_complete_step()` out of the display layer.
-- Verification: Godot editor/smoke EXIT 0; P4-07B 20/20; P4-07A 32/32; P4-06B 41/41; P4-06A 28/28; P4-05 30/30; P4-04 35/35; P4-03 27/27; P4-02 22/22; P3-03a 40/40; P3-03b 50/50; P3-03c 34/34; P3-03d 25/25; P3-04 33/33; P3-05 37/37.
-- Follow-up: Superseded by P4-08 closure.

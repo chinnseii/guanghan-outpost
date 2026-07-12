@@ -99,6 +99,7 @@
 - **P5-01 状态**：COMPLETE（2026-07-13）。审计报告见 `PHASE_5_SKILL_ARCHITECTURE_AUDIT.md`。本轮只做架构、目录、边界、候选目录和 P5-02 选择；未创建 `skills/`、未创建 `SKILL.md`、未改生产代码。
 - **P5-02 状态**：COMPLETE（2026-07-13）。已创建首个正式仓库 Skill：`skills/godot/characterization-first-refactor/SKILL.md`，并建立 `skills/SKILL_REGISTRY.md`。dry run 记录见 `P5_02_CHARACTERIZATION_SKILL_TRIAL.md`。当前 maturity = `TRIAL`，不是 `VALIDATED`。未改生产代码、测试、场景、资源、JSON、真实存档或 `project.godot`。
 - **P5-03 状态**：COMPLETE（2026-07-13）。已创建第二个正式仓库 Skill：`skills/core/save-integrity-guard/SKILL.md`，并更新 `skills/SKILL_REGISTRY.md`。dry run 记录见 `P5_03_SAVE_INTEGRITY_SKILL_TRIAL.md`。当前 maturity = `TRIAL`，不是 `VALIDATED`。本 Skill 负责真实用户数据备份、SHA、结构化 JSON 对比、变化分类与禁止机械回滚；与 `characterization-first-refactor` 为 COMPOSABLE 关系。未改生产代码、测试、场景、资源、JSON、真实存档或 `project.godot`。
+- **P5-04 状态**：COMPLETE（2026-07-13）。已创建第三个正式仓库 Skill：`skills/core/task-baseline-and-lock/SKILL.md`，并更新 `skills/SKILL_REGISTRY.md`。dry run 记录见 `P5_04_TASK_BASELINE_LOCK_SKILL_TRIAL.md`。当前 maturity = `TRIAL`，不是 `VALIDATED`。本 Skill 负责任务基线确认、ACTIVE_TASKS 登记、单 owner、锁、范围、owner transfer、close-out 与 push/tag 权限边界；与前两项 Skill 为 COMPOSABLE 关系。未改生产代码、测试、场景、资源、JSON、真实存档或 `project.godot`。
 - **最终 Skill 层模型**：
   1. Core Governance Skills
   2. Godot Engineering Skills
@@ -112,7 +113,7 @@
 - **Wave 1**：`characterization-first-refactor`、`task-baseline-and-lock`、`save-integrity-guard`。
 - **Wave 2**：`regression-and-closure`、`system-boundary-audit`、`godot-presenter-extraction`、`guanghan-art-design-and-production`。
 - **Wave 3 / deferred**：`owner-transfer-and-handoff`、`godot-controller-extraction`、`guanghan-art-review-and-godot-handoff`、`bug-ticket-formatter`、`product-experience-acceptance`。
-- **P5-04 默认建议**：`Task Baseline and Lock Skill`。理由：任务基线确认、ACTIVE_TASKS 登记、单 owner 锁定和禁止越权 push/tag 已成为所有高风险任务的共同前置能力。若 P5-03 后续真实任务试用暴露问题，则改排 `P5-03R - Save Integrity Skill trial revision`。
+- **P5-05 默认建议**：`Guanghan Art Design and Production Skill`。理由：Wave 1 的工程/治理基础 Skill 已建立到 TRIAL；下一步可以沉淀项目视觉方向、美术规格与生产交接流程。若 P5-04 后续真实任务试用暴露问题，则改排 `P5-04R - Task Baseline and Lock Skill revision`。
 - **禁止事项**：不要批量创建 Skill；不要把项目当前文件列表写死为长期真相；不要用 Skill 取代 ACTIVE_TASKS、CURRENT、用户任务范围或 push/tag 授权；不要在 P5-01 之后自动开始 P5-02。
 - **验证方法**：每个 Skill 先 `draft`，真实任务试用后为 `trial`，至少一次高价值或两次重复成功后才标 `validated`，过期则 `deprecated`。
 

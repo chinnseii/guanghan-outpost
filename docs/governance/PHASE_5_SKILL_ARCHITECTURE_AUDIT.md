@@ -451,3 +451,62 @@ Next recommended task:
 ```text
 P5-04 - Task Baseline and Lock Skill
 ```
+
+## 21. P5-04 Implementation Note
+
+P5-04 completed the third formal repository Skill:
+
+```text
+skills/core/task-baseline-and-lock/SKILL.md
+```
+
+Current formal Skill count:
+
+```text
+3
+```
+
+Current maturity:
+
+```text
+characterization-first-refactor = TRIAL
+save-integrity-guard = TRIAL
+task-baseline-and-lock = TRIAL
+```
+
+The Skill was exercised through a controlled dry run documented in:
+
+```text
+docs/governance/P5_04_TASK_BASELINE_LOCK_SKILL_TRIAL.md
+```
+
+Dry-run result:
+
+- The Skill rejected a simulated locked-file overlap with `HARD_STOP_PARALLEL_CONFLICT`.
+- The Skill refused duplicate task registration, reviewer auto-fix, and stash/reset/overwrite behavior.
+- The Skill allowed a clean single-owner start only after baseline, owner, board, locks, and scope were explicit.
+- No production code, tests, scenes, assets, JSON, real saves, or `project.godot` were modified.
+- The Skill remains `TRIAL`, not `VALIDATED`.
+
+Core Governance layer now has two Skills:
+
+```text
+save-integrity-guard
+task-baseline-and-lock
+```
+
+Skill boundary:
+
+```text
+task-baseline-and-lock = task lifecycle / owner / board / locks / scope / commit-push-tag permission
+characterization-first-refactor = behavior baseline / minimal refactor / unchanged behavior proof
+save-integrity-guard = real user-data backup / SHA / structured JSON comparison / rollback prevention
+```
+
+The three Skills are `COMPOSABLE`, not merged.
+
+Next recommended task:
+
+```text
+P5-05 - Guanghan Art Design and Production Skill
+```
