@@ -26,6 +26,16 @@ No pending handoffs.
 
 ## Recently Closed
 
+### P4-04 - Extract BaseHudPanelPresenter from sprint06_base_scene.gd
+
+- Status: `DONE`
+- Owner: `Claude Code`
+- Reviewer: `User`
+- Base commit: `549b464`
+- Result: HUD/status-panel UI construction + 8 panel toggles + panel refresh extracted from `sprint06_base_scene.gd` into `scripts/controllers/base_hud_panel_presenter.gd` (263 lines, RefCounted, non-Autoload). Scene re-exposes the flow-updated label nodes to its own vars (all HUD/flow update sites unchanged); plant-diagnosis modal (gameplay buttons), save/load, Full Save, navigation, day/task flow stay in the scene. Greenhouse gate injected into the plant toggle. `sprint06_base_scene.gd` 2556 → 2331 (net −225). No scene/`project.godot`/schema change. (Original P4-04 sandbox slot-save aggregation deferred: legacy/dev, 20+ shared fields, low value.)
+- Verification: Godot editor/smoke EXIT 0; base scene boots clean; P4-04 35/35; P4-03 27/27; P4-02 22/22; P3-03a 40/40; P3-03b 50/50; P3-03c 34/34; P3-03d 25/25; P3-04 33/33; P3-05 37/37; real `user://saves/` SHA-256 restored to baseline.
+- Follow-up: P4-05 sprint06 navigation / daily-flow controller — do not start automatically.
+
 ### P4-03 - Extract FormalFlowRouter from main.gd
 
 - Status: `DONE`
@@ -66,12 +76,3 @@ No pending handoffs.
 - Verification: P3-03a 39/39; P3-03b 50/50; P3-03c 33/33; P3-03d 25/25; P3-04 33/33; P3-05 36/36 (216 total); Godot editor/smoke EXIT 0; real `user://saves/` SHA-256 identical before/after; no residue.
 - Follow-up: Phase 4 — Large-script decomposition (not started).
 
-### P3-05 - Legacy runtime isolation
-
-- Status: `COMPLETED`
-- Owner: `Claude Code`
-- Reviewer: `User`
-- Base commit: `0a1c1af`
-- Result: sandbox (`main.gd`) and arrival prototype (`arrival_landing_scene.gd`) runtime paths isolated from formal autoloads / Full Save / formal continue. Local manager node names renamed `Sandbox…` / `ArrivalPrototype…` (only true collision was local `TimeManager` vs `/root/TimeManager`; safe — member-var access only). Legacy save namespaces (`slot_N.json` / `arrival_prototype_save.json`) confirmed separate from `full_save.json`; `FullSaveOrchestrator` rejects legacy and never reads legacy files. Adapted GPT spec: no new mode-framework/guards, no `main.gd` logic rewrite, no legacy deletion, no schema/`project.godot` change.
-- Verification: Godot editor/smoke EXIT 0; P3-05 32/32; P3-03a 39/39; P3-03b 50/50; P3-03c 33/33; P3-03d 25/25; P3-04 33/33; real saves SHA-256 identical before/after.
-- Follow-up: P3-06 Phase 3 regression sweep + closure.

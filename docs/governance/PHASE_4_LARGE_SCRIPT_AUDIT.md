@@ -192,5 +192,17 @@ scripts/ 全量 29,739 行。Top：`main.gd` 5182 · `training/training_module_s
 - **Verification**: Godot editor/smoke EXIT 0; all suites green; real saves SHA-256 unchanged; no scene/`project.godot`/schema change.
 - **Next: P4-04 — Sandbox slot-save aggregation** (`main.gd` `_save_game`/`_load_game`/`_apply_save_data` + ~20 shared sandbox fields; needs a sandbox-state struct first — MEDIUM-HIGH; user-decision on whether the legacy sandbox warrants the investment).
 
+## P4-04 Completion Note (2026-07-12)
+
+- **DONE**: extracted `BaseHudPanelPresenter` from `sprint06_base_scene.gd` → `scripts/controllers/base_hud_panel_presenter.gd` (263 lines, `extends RefCounted`, **not** an Autoload, created/held by the scene). `sprint06_base_scene.gd` **2556 → 2331 (net −225)**; diff 28 ins / 253 del, no EOL churn.
+- **Moved**: all HUD/status-panel UI **construction** (`build_ui` [was `_setup_ui`], `_setup_interaction_feedback_ui`, the 8 `_setup_*_panel`), the 8 `_toggle_*_panel`, and a new `refresh_open_panels()` (extracted from `_update_ui`). The 8 panel preload consts + `HUD_SAFE_POSITION`/`HUD_SAFE_SIZE` moved too. Presenter owns the UI nodes only.
+- **Re-expose pattern (safety key)**: the scene's `_setup_ui()` now creates the presenter, calls `build_ui(self)`, then re-points its own flow-updated label vars (`hud_label`, `message_label`, `prompt_label`, `ai_label`, `time_hud_*`, `interaction_*`, `fade_rect`) at the presenter's nodes — so **every HUD/flow update site in the scene stays unchanged**. Only construction moved, not the updates.
+- **UI intent boundary**: the greenhouse gate for the plant panel is injected (`_hud._toggle_plant_growth_panel(scene_kind == "greenhouse")`) — the scene owns the gameplay condition, the presenter owns the toggle. The presenter performs no Manager writes, no save, no scene change.
+- **Kept in scene (FLOW_COUPLED)**: `_setup_plant_diagnosis_ui` + `_add_plant_action_button` (action buttons drive `_choose_plant_maintenance` gameplay); all HUD text builders (`_hud_text`, `_time_hud_text`, …); save/load (`_save_state`/`_load_state`), Full Save restore, navigation, task/day flow, scene-local state. Input handler delegates the 8 toggles + `_update_ui` delegates panel refresh to the presenter.
+- **Line-target note**: audit estimated ~250-500 / floor 150; actual −225 (within range). The status-panel widgets already live in `scripts/ui/*` and do their own Manager reads inside `refresh()`, so the presenter is thin orchestration.
+- **Test**: `tests/p4_04_base_hud_panel_presenter_test.gd` (35/35) — build_ui creates overlay + all labels + 8 panels, toggle shows/hides, injected greenhouse gate, `refresh_open_panels` safe, and a static boundary (presenter has no FullSave/save/change_scene/Manager-write; scene keeps flow/save/plant-diagnosis and delegates toggles/refresh).
+- **Verification**: Godot editor/smoke EXIT 0; base scene (`BaseAirlockEntryScene`) boots with no script error; all suites green (P4-04 35/35, P4-03 27/27, P4-02 22/22, P3-03a 40/40, P3-03b 50/50, P3-03c 34/34, P3-03d 25/25, P3-04 33/33, P3-05 37/37); real saves restored to baseline SHA.
+- **Next: P4-05 — sprint06 base navigation / daily-mission flow controller** (`_move_player`/`_update_target`/`_switch`, `_daily_checks_*`), OR revisit the deferred sandbox slot-save aggregation. MEDIUM-HIGH (flow + scene-tree coupled) — recommend after this HUD split settles.
+
 ## 附：验收标准（本轮 P4-01）
 所有 P0+P1 脚本已清点并映射职责块（附行号）✓；依赖/共享状态热点已识别 ✓；抽离候选有边界卡片（main/sprint06 各 ≥3）✓；不可拆区域已列 ✓；测试保护需求已定义 ✓；分阶段拆分顺序 + 唯一 P4-02 推荐 ✓；**零生产代码改动** ✓。

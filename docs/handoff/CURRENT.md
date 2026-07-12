@@ -4,7 +4,7 @@ Updated: 2026-07-12
 
 ## Phase
 
-Phase 3 system-boundary cleanup is COMPLETE (pushed + tag `system-boundary-cleanup-complete-2026-07-12`). Phase 4 — Large-script decomposition — is IN PROGRESS: P4-01 audit + P4-02 DevToolsController + P4-03 FormalFlowRouter extraction done; next is P4-04.
+Phase 3 system-boundary cleanup is COMPLETE (pushed + tag `system-boundary-cleanup-complete-2026-07-12`). Phase 4 — Large-script decomposition — is IN PROGRESS: P4-01 audit + P4-02 DevToolsController + P4-03 FormalFlowRouter + P4-04 BaseHudPanelPresenter done; next is P4-05.
 
 Completed:
 - P3-01 system boundary audit.
@@ -20,9 +20,10 @@ Completed:
 - P4-01 large-script responsibility & decomposition audit (`PHASE_4_LARGE_SCRIPT_AUDIT.md`).
 - P4-02 DevToolsController extraction from `main.gd` (5182→4346; `scripts/controllers/dev_tools_controller.gd`).
 - P4-03 FormalFlowRouter extraction from `main.gd` (4346→4302; `scripts/controllers/formal_flow_router.gd`).
+- P4-04 BaseHudPanelPresenter extraction from `sprint06_base_scene.gd` (2556→2331; `scripts/controllers/base_hud_panel_presenter.gd`).
 
 Not started:
-- P4-04 — sandbox slot-save aggregation from `main.gd` (do not start automatically; needs a sandbox-state struct first).
+- P4-05 — sprint06 base navigation / daily-mission flow controller (or the deferred sandbox slot-save aggregation). Do not start automatically.
 
 ## P3-05 Summary
 
@@ -108,6 +109,6 @@ P3-04 passed:
 
 ## Next Step
 
-Phase 3 is COMPLETE, pushed, and tagged. Phase 4 in progress: P4-01 audit + P4-02 DevToolsController + P4-03 FormalFlowRouter done (`main.gd` 5182→4302; `scripts/controllers/{dev_tools_controller,formal_flow_router}.gd`). **Next: P4-04 — sandbox slot-save aggregation from `main.gd`** (`_save_game`/`_load_game`/`_apply_save_data` + ~20 shared sandbox fields — MEDIUM-HIGH, needs a sandbox-state struct first; user-decision on whether the legacy sandbox warrants the investment). Do not start P4-04 automatically.
+Phase 3 is COMPLETE, pushed, and tagged. Phase 4 in progress: P4-01 audit + P4-02 DevToolsController + P4-03 FormalFlowRouter + P4-04 BaseHudPanelPresenter done (`main.gd` 5182→4302; `sprint06_base_scene.gd` 2556→2331; new controllers under `scripts/controllers/`). **Next: P4-05 — sprint06 base navigation / daily-mission flow controller**, or revisit the deferred sandbox slot-save aggregation (MEDIUM-HIGH). Do not start P4-05 automatically.
 
 Deferred beyond Phase 3 (not regressions, tracked): legacy file physical deletion; DoorStateManager formal old-base integration (feature work); `main.gd` / `sprint06_base_scene.gd` large-script split (Phase 4); `interaction_detector` orphan and `BaseInterior_Test` entry (UNKNOWN); product-level Inventory↔Backpack relationship.
