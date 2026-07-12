@@ -9,7 +9,7 @@ This file is the current coordination board for active task ownership, file lock
 - **Locked files**: `0`
 - **Pending handoffs**: `0`
 - **Branch**: `main`
-- **Board baseline**: `4f2baf7`
+- **Board baseline**: `a3aca62`
 - **Last updated**: `2026-07-12`
 
 ## Active Tasks
@@ -25,6 +25,16 @@ No file locks.
 No pending handoffs.
 
 ## Recently Closed
+
+### P4-05 - Extract base navigation controller
+
+- Status: `DONE`
+- Owner: `Claude Code`
+- Reviewer: `User`
+- Base commit: `a3aca62`
+- Result: safely-separable navigation **computation** extracted from `sprint06_base_scene.gd` into stateless `scripts/controllers/base_navigation_controller.gd` (49 lines, `class_name`/RefCounted, non-Autoload) — `terrain_type_for`, `is_near`, `compute_current_target`. Scene keeps thin delegators, `current_target` (~40 flow consumers), `_transition_to` (12 flow callers), `_interaction_target_rect` (day/schedule logic), the movement main loop, and Full Save. Behavior unchanged (characterized). `sprint06_base_scene.gd` 2331 → 2308 (net −24). P4-05A interface-prep scope: sprint06 nav is largely flow-coupled, so the safe movable amount is small by design (per §9/§12, not a failure). No scene/`project.godot`/schema change.
+- Verification: Godot editor/smoke EXIT 0 (no base-scene boot); P4-05 30/30; P4-04 35/35; P4-03 27/27; P4-02 22/22; P3-03a 40/40; P3-03b 50/50; P3-03c 34/34; P3-03d 25/25; P3-04 33/33; P3-05 37/37; real `user://saves/` SHA-256 unchanged.
+- Follow-up: P4-06 sprint06 daily/mission flow controller (audit coupling first) — do not start automatically.
 
 ### P4-04 - Extract BaseHudPanelPresenter from sprint06_base_scene.gd
 
@@ -65,14 +75,4 @@ No pending handoffs.
 - Result: oversized-script responsibilities, dependencies, shared-state hotspots, extraction candidates, and the Phase 4 decomposition sequence audited (`PHASE_4_LARGE_SCRIPT_AUDIT.md`). Sizes: P0 `main.gd` 5182; P1 `training_module_scene.gd` 3417 / `sprint06_base_scene.gd` 2556 / `training_base_map.gd` 2255. **Sole P4-02 recommendation: extract `DevToolsController` from `main.gd`** (dev-only, ~840 lines, zero formal-gameplay/save/restore impact).
 - Verification: documentation-only (Markdown); Godot editor/smoke EXIT 0; scripts/tests/scenes untouched.
 - Follow-up: P4-02 (DevToolsController) — do not start automatically.
-
-### P3-06 - Phase 3 regression and closure
-
-- Status: `DONE`
-- Owner: `Claude Code`
-- Reviewer: `User`
-- Base commit: `d1b0802`
-- Result: Phase 3 fully regressed, documented, and CLOSED; Phase 4 baseline established (`PHASE_3_CLOSURE_REPORT.md`). One minimal regression fix — a residual legacy node-name collision in `arrival_cinematic_scene.gd` (missed by P3-05) renamed to `ArrivalCinematic…`; repo-wide `name = "TimeManager"/"GameStateManager"` now 0; P3-05 test extended to cover it.
-- Verification: P3-03a 39/39; P3-03b 50/50; P3-03c 33/33; P3-03d 25/25; P3-04 33/33; P3-05 36/36 (216 total); Godot editor/smoke EXIT 0; real `user://saves/` SHA-256 identical before/after; no residue.
-- Follow-up: Phase 4 — Large-script decomposition (not started).
 

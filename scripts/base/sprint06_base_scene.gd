@@ -15,7 +15,6 @@ const SCENE_WEEK_START := "res://scenes/base/WeekRoutineStartScene.tscn"
 const SCENE_WEEK_END := "res://scenes/base/WeekRoutineEndScene.tscn"
 const ART_SLICE_MARKER_LAYER_SCRIPT := preload("res://scripts/base/art_slice_marker_layer.gd")
 const PlayerControllerScript := preload("res://scripts/controllers/player_controller_2d.gd")
-const InteractionAreaScript := preload("res://scripts/controllers/interaction_area_2d.gd")
 const HUD_SAFE_WORLD_MIN_X := 140.0
 
 @export var scene_kind := "interior"
@@ -29,6 +28,7 @@ var message_text := ""
 var prompt_text := ""
 var objective_text := ""
 var current_target := ""
+var _nav := BaseNavigationController.new()
 var ai_text := ""
 var sequence_running := false
 var scene_title_alpha := 0.0
@@ -491,13 +491,8 @@ func _ensure_player_controller(movement_bounds: Rect2) -> void:
 	player_controller = PlayerControllerScript.new()
 	player_controller.configure(player_pos, Vector2.ZERO, PLAYER_SPEED, movement_bounds, true, _time_manager())
 
-## No per-tile terrain map exists yet -- scene_kind is the only signal we
-## have for "this scene is outdoors," so it's a per-scene default rather
-## than something that varies as the player walks around within one scene.
 func _current_terrain_type() -> String:
-	if scene_kind == "solar_array":
-		return "lunar_flat"
-	return "indoor"
+	return _nav.terrain_type_for(scene_kind)
 
 func _world_left_limit() -> float:
 	if scene_kind == "interior" and (_is_week_routine_active() or _is_day02_active()):
@@ -507,26 +502,7 @@ func _world_left_limit() -> float:
 	return 90.0
 
 func _update_target() -> void:
-	current_target = ""
-	if scene_kind == "interior":
-		for key in interior_targets.keys():
-			if _near(interior_targets[key]):
-				current_target = key
-				break
-	elif scene_kind == "greenhouse":
-		for key in greenhouse_targets.keys():
-			if _near(greenhouse_targets[key]):
-				current_target = key
-				break
-	elif scene_kind == "day_end" and player_pos.distance_to(Vector2(760, 570)) < 96.0:
-		current_target = "sleep"
-	elif scene_kind == "day02_end" and player_pos.distance_to(Vector2(760, 570)) < 96.0:
-		current_target = "sleep"
-	elif scene_kind == "week_end" and player_pos.distance_to(Vector2(760, 570)) < 96.0:
-		current_target = "sleep"
-
-func _near(rect: Rect2) -> bool:
-	return InteractionAreaScript.is_point_near_rect(player_pos, rect, 44.0)
+	current_target = _nav.compute_current_target(player_pos, scene_kind, interior_targets, greenhouse_targets)
 
 func _fade_scene_title() -> void:
 	await get_tree().create_timer(1.6).timeout
