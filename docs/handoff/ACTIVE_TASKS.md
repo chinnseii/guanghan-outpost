@@ -26,6 +26,16 @@ No pending handoffs.
 
 ## Recently Closed
 
+### P4-02 - Extract DevToolsController from main.gd
+
+- Status: `DONE`
+- Owner: `Claude Code`
+- Reviewer: `User`
+- Base commit: `27c5fbe`
+- Result: dev-only menu + all `_debug_*` actions extracted from `main.gd` into `scripts/controllers/dev_tools_controller.gd` (876 lines, non-Autoload, held by main). `main.gd` **5182 → 4346 (−836 / ~16%)**. Shared `_debug_reset_time` kept in main (formal new-game uses it); thin `_toggle_dev_menu` wrapper retained. Formal continue/new-game/Full Save/training/sandbox/arrival flows unchanged and do not depend on the controller. No scene/`project.godot`/save/gameplay change.
+- Verification: Godot editor/smoke EXIT 0; P4-02 22/22; P3-03a 39/39; P3-03b 50/50; P3-03c 33/33; P3-03d 25/25; P3-04 33/33; P3-05 36/36; real `user://saves/` SHA-256 unchanged.
+- Follow-up: P4-03 FormalFlowRouter — do not start automatically.
+
 ### P4-01 - Large-script responsibility and decomposition audit
 
 - Status: `DONE`
@@ -70,13 +80,3 @@ No pending handoffs.
 - Verification (Codex, pre-transfer): Godot editor parse EXIT 0; Godot headless smoke EXIT 0; P3-03a 39/39; P3-03b 50/50; P3-03c 33/33; P3-03d 25/25; P3-04 33/33; real saves SHA unchanged.
 - Verification (Claude, post-transfer re-run): Godot editor parse EXIT 0; Godot headless smoke EXIT 0; P3-04 33/33; P3-03a 39/39; P3-03b 50/50; P3-03c 33/33; P3-03d 25/25; real `user://saves/` SHA-256 identical before/after (test suites self-restore, no corruption).
 - Follow-up: P3-05 legacy isolation is ready to schedule next.
-
-### P3-03d - Checkpoint scope trimming
-
-- Status: `COMPLETED`
-- Owner: `Codex`
-- Reviewer: `User`
-- Base commit: `8429f6a`
-- Result: Training Checkpoint is restricted to training progress, temporary Suit state, TrainingTime state, and training-only Inventory containers; legacy global Manager fields are readable as metadata only and are not applied; `save_progress()` strips legacy global snapshot keys.
-- Full Save boundary: missing `full_save.json` no longer falls back to `sprint06_progress.json`; explicit legacy sprint06 reads remain available, but formal `restore_full_save()` rejects legacy sources as read-only compatibility input.
-- Verification completed: Godot editor parse EXIT 0; Godot headless smoke EXIT 0; P3-03a 39/39; P3-03b 50/50; P3-03c 33/33; P3-03d 25/25; real saves SHA unchanged from pre-test baseline; no `p3_03d*` temp files remained.

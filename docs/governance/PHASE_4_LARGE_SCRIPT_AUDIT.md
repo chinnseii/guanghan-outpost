@@ -168,5 +168,16 @@ scripts/ 全量 29,739 行。Top：`main.gd` 5182 · `training/training_module_s
 - **P3**：debug/legacy/formal 路由串线；测试覆盖不足（多数大块无专项测试 → 拆前先补 characterization）。
 - 本轮只建立基线，不关闭风险。
 
+## P4-02 Completion Note (2026-07-12)
+
+- **DONE**: extracted `DevToolsController` from `main.gd` → `scripts/controllers/dev_tools_controller.gd` (876 lines). `main.gd` **5182 → 4346 (−836 / ~16%)**. Diff: 14 insertions / 850 deletions in `main.gd`, no EOL churn.
+- **Moved (90 funcs)**: the dev-menu builder (`build_menu` [was `_setup_dev_menu`], `_dev_add`, `_dev_group_name_for`, `_dev_group_content`, `_make_dev_button`) + all `_debug_*` actions. Controller `extends Node`, created/held by `main.gd`, **not** an Autoload (`/root/DevToolsController` absent).
+- **Dependency injection**: `setup(host, menu_parent)` — `host`=main (for `add_log` forwarder, `_refresh_main_menu` forwarder, and 5 shared formal callbacks wired via `Callable(_host, ...)`: `_reset_demo_progress_from_dev`, `_start_new_game`, `_start_day07_report_test`, `_debug_reset_time`, `_clear_current_save`); `menu_parent`=main's `$UI/Root`. Managers reached via `/root/*Manager` lookups (dev tools inherently operate on live autoloads). No canonical state copied.
+- **Kept in main (SHARED_HELPER)**: `_debug_reset_time` (called by formal `_start_clean_new_stay`/`_reset_demo_progress_from_dev`) — so the formal flow never depends on the controller. Thin `_toggle_dev_menu` wrapper retained (delegates to controller; preserves F12 + title-button call sites unchanged).
+- **Formal isolation verified**: formal continue/new-game/Full Save/training/sandbox/arrival paths unchanged; controller is not a dependency of any of them.
+- **Test**: `tests/p4_02_dev_tools_controller_test.gd` (22/22) — instantiation/non-autoload, menu builds (171 buttons), toggle, a sampled Power debug action (with file self-restore), and main.gd static boundary (only `_debug_reset_time` remains; formal router + `restore_full_save` + sandbox save untouched).
+- **Verification**: Godot editor/smoke EXIT 0; P4-02 22/22; P3-03a 39/39, P3-03b 50/50, P3-03c 33/33, P3-03d 25/25, P3-04 33/33, P3-05 36/36; real saves SHA-256 unchanged.
+- **Next: P4-03 — extract `FormalFlowRouter` from `main.gd`** (formal continue/new-game routing; MEDIUM risk — touches formal restore, so migrate the P3-05 static assertions to the new file). The extraction pattern is now proven on the inert DevTools block.
+
 ## 附：验收标准（本轮 P4-01）
 所有 P0+P1 脚本已清点并映射职责块（附行号）✓；依赖/共享状态热点已识别 ✓；抽离候选有边界卡片（main/sprint06 各 ≥3）✓；不可拆区域已列 ✓；测试保护需求已定义 ✓；分阶段拆分顺序 + 唯一 P4-02 推荐 ✓；**零生产代码改动** ✓。

@@ -4,7 +4,7 @@ Updated: 2026-07-12
 
 ## Phase
 
-Phase 3 system-boundary cleanup is COMPLETE (pushed + tag `system-boundary-cleanup-complete-2026-07-12`). Phase 4 — Large-script decomposition — is IN PROGRESS: P4-01 audit done; next is P4-02.
+Phase 3 system-boundary cleanup is COMPLETE (pushed + tag `system-boundary-cleanup-complete-2026-07-12`). Phase 4 — Large-script decomposition — is IN PROGRESS: P4-01 audit + P4-02 DevToolsController extraction done; next is P4-03.
 
 Completed:
 - P3-01 system boundary audit.
@@ -18,9 +18,10 @@ Completed:
 - P3-05 legacy runtime isolation.
 - P3-06 Phase 3 regression sweep + closure (Phase 3 formally closed).
 - P4-01 large-script responsibility & decomposition audit (`PHASE_4_LARGE_SCRIPT_AUDIT.md`).
+- P4-02 DevToolsController extraction from `main.gd` (5182→4346; `scripts/controllers/dev_tools_controller.gd`).
 
 Not started:
-- P4-02 — extract DevToolsController from `main.gd` (recommended first extraction; do not start automatically).
+- P4-03 — extract FormalFlowRouter from `main.gd` (do not start automatically).
 
 ## P3-05 Summary
 
@@ -106,6 +107,6 @@ P3-04 passed:
 
 ## Next Step
 
-Phase 3 is COMPLETE, pushed, and tagged. Phase 4 has started with the P4-01 audit (`docs/governance/PHASE_4_LARGE_SCRIPT_AUDIT.md`). **Next: P4-02 — extract `DevToolsController` from `main.gd`** (dev menu + ~150 `_debug_*`, ~840 lines / ~16%; dev-only, zero formal-gameplay/save/restore impact — the safest first extraction). Do not start P4-02 automatically.
+Phase 3 is COMPLETE, pushed, and tagged. Phase 4 in progress: P4-01 audit + P4-02 DevToolsController extraction done (`main.gd` 5182→4346; `scripts/controllers/dev_tools_controller.gd`). **Next: P4-03 — extract `FormalFlowRouter` from `main.gd`** (formal continue/new-game routing; MEDIUM risk — touches formal restore, migrate the P3-05 static assertions to the new file). Do not start P4-03 automatically.
 
 Deferred beyond Phase 3 (not regressions, tracked): legacy file physical deletion; DoorStateManager formal old-base integration (feature work); `main.gd` / `sprint06_base_scene.gd` large-script split (Phase 4); `interaction_detector` orphan and `BaseInterior_Test` entry (UNKNOWN); product-level Inventory↔Backpack relationship.
