@@ -270,4 +270,5 @@ Suit/Repair(从代码)→ TrainingTimeManager / TimeManager（推进时间）
 - Formal restore boundary: `FullSaveOrchestrator.restore_full_save()` validates provider availability first, applies canonical provider state in explicit order, finalizes Power/Suit mirrors, then marks restore complete. After that point, downgraded Manager-local reads cannot reload `*_state.json` over Full Save state.
 - Cross-system write status unchanged: no new direct foreign field writes were introduced; changes are API/static guard calls only.
 - Remaining P3 risk: checkpoint scope trimming is still pending P3-03d, and Door formal-base integration remains outside Full Save until its feature integration is scheduled.
-- Runtime verification gap: Godot execution was not available in this run due environment usage-limit rejection of required escalation. Static scan and `git diff --check` passed; runtime verification remains required before P3-03d.
+- P3-03cV correction: the Full Restore completed flag is no longer an unresettable process-wide blocker. `FullSaveOrchestrator.reset_formal_restore_session()` clears the guard for new-game/demo-reset flows, while restored sessions still block late Manager-local `load_state()`.
+- Verification: Godot editor parse EXIT 0; Godot headless smoke EXIT 0; P3-03a 39/39; P3-03b 50/50; P3-03c 33/33; real saves SHA unchanged from pre-test baseline.

@@ -28,13 +28,13 @@ No pending handoffs.
 
 ### P3-03c - Manager self-save authority downgrade
 
-- Status: `CODE_COMPLETE_RUNTIME_VERIFICATION_BLOCKED`
+- Status: `VERIFIED_AFTER_FIX`
 - Owner: `Codex`
 - Reviewer: `User`
 - Base commit: `1cb6e78`
 - Result: `full_save.json` remains the formal complete-progress authority; formal core Manager-local `load_state()` paths now skip after Full Restore starts/completes; formal continue no longer calls `TrainingManager.load_progress()`; Manager self-save files/APIs, Training Checkpoint, Full Save schema, and JSON field shapes remain unchanged.
 - Downgraded: `TimeManager`, `HealthManager`, `BaseStatusManager`, `PowerSystemManager`, `WaterSystemManager`, `AirSystemManager`, `InventoryManager`, `BackpackManager`, `StorageManager`, `SuitManager`, `SupplyManager`, `RepairManager`, `PlantGrowthManager`.
 - Not downgraded: `DoorStateManager` (training/local, formal base not connected), `TrainingTimeManager` (training-local), `AcademicBackgroundManager` (profile/settings), and non-self-save Managers.
-- Verification completed: `git diff --check` PASS with only line-ending warnings; static scans confirm downgraded Manager guards and no `TrainingManagerScript.load_progress()` in `scripts/main.gd`.
-- Verification blocked: Godot editor/headless, P3-03c focused test, P3-03a regression, and P3-03b regression could not be run because required Godot escalation was rejected by the environment usage limit.
-- Follow-up gate: do not start P3-03d until the blocked Godot verification set passes.
+- P3-03cV fix: added `FullSaveOrchestrator.reset_formal_restore_session()` and calls it from demo/new-game progress clearing so same-process new game/fallback is not permanently blocked after a Full Restore.
+- Verification completed: Godot editor parse EXIT 0; Godot headless smoke EXIT 0; P3-03a 39/39; P3-03b 50/50; P3-03c 33/33; real saves SHA unchanged from pre-test baseline; no `p3_03*` temp files remained.
+- Follow-up: P3-03d is ready to schedule; do not start it in this task.

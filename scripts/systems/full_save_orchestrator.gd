@@ -71,9 +71,12 @@ static func should_skip_manager_local_restore() -> bool:
 static func is_formal_restore_completed() -> bool:
 	return _formal_restore_completed
 
-static func reset_formal_restore_guard_for_tests() -> void:
+static func reset_formal_restore_session() -> void:
 	_formal_restore_in_progress = false
 	_formal_restore_completed = false
+
+static func reset_formal_restore_guard_for_tests() -> void:
+	reset_formal_restore_session()
 
 static func save_full_save(scene_state: Dictionary = {}, player_context: Dictionary = {}, target_scene: String = "", save_path: String = FULL_SAVE_PATH) -> Dictionary:
 	var bundle := build_bundle(scene_state, player_context, target_scene)

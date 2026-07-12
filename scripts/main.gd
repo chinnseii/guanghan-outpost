@@ -4576,6 +4576,7 @@ func _clear_current_save() -> void:
 	_refresh_main_menu()
 
 func _clear_demo_progress() -> void:
+	FullSaveOrchestratorScript.reset_formal_restore_session()
 	for path: String in DEMO_PROGRESS_PATHS:
 		if FileAccess.file_exists(path):
 			DirAccess.remove_absolute(ProjectSettings.globalize_path(path))

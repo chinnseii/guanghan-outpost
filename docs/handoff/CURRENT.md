@@ -12,7 +12,7 @@ Completed:
 - P3-02R independent review reconciliation.
 - P3-03a restore consistency fixes.
 - P3-03b Full Save Orchestrator formalization.
-- P3-03c Manager self-save authority downgrade code/docs are implemented in this working copy.
+- P3-03c Manager self-save authority downgrade is verified after the P3-03cV lifecycle fix.
 
 Not started:
 - P3-03d checkpoint scope trimming.
@@ -24,6 +24,7 @@ Goal: make `user://saves/full_save.json` the formal continue/restore authority w
 
 Implemented:
 - `FullSaveOrchestrator.restore_full_save()` now validates required providers before mutation, marks formal restore in progress, and records restore completion.
+- `FullSaveOrchestrator.reset_formal_restore_session()` clears the in-progress/completed guard for new-game/demo-reset flows.
 - Formal core progress Managers now skip their local `load_state()` after Full Restore has started/completed:
   - `TimeManager`
   - `HealthManager`
@@ -74,7 +75,7 @@ Formal rule after P3-03c:
 
 ## Known Issues / Risks
 
-- Godot editor/headless verification could not be executed in this run because escalation approval was rejected by the environment usage limit. Do not start P3-03d until P3-03c, P3-03a, P3-03b, editor parse, and headless smoke are run successfully.
+- P3-03cV found and fixed one lifecycle gap: a completed Full Restore was previously a permanent static flag with no new-game reset path. The new session reset API is called by demo/new-game progress clearing.
 - `DoorStateManager` remains outside core Full Save until formal base Door integration is implemented.
 - Training Checkpoint scope is intentionally unchanged; P3-03d owns trimming.
 - Full Save schema and Manager JSON field shapes were not changed.
@@ -82,19 +83,15 @@ Formal rule after P3-03c:
 
 ## Verification Status
 
-Completed without Godot:
-- `git diff --check`: PASS, only existing line-ending warnings for touched CRLF files.
-- Static scan confirms `scripts/main.gd` no longer contains `TrainingManagerScript.load_progress()`.
-- Static scan confirms all downgraded Managers contain `FullSaveOrchestratorScript.should_skip_manager_local_restore()`.
-- Static scan confirms `FullSaveOrchestrator` still does not read `training_progress.json`.
-
-Blocked:
-- P3-03c focused Godot test.
-- P3-03a 39/39 regression.
-- P3-03b 50/50 regression.
-- Godot editor parse.
-- Godot headless smoke.
+P3-03cV passed:
+- Godot editor parse EXIT 0.
+- Godot headless smoke EXIT 0.
+- P3-03a regression: 39/39.
+- P3-03b Full Save regression: 50/50.
+- P3-03c focused test: 33/33.
+- Real saves SHA-256 unchanged from the pre-test baseline.
+- No `p3_03*` temporary save files remained.
 
 ## Next Step
 
-Run the blocked Godot verification set. If all pass, P3-03d can be scheduled. Until then, treat P3-03d as not ready.
+P3-03d can be scheduled next. Do not start it from the P3-03cV task.
