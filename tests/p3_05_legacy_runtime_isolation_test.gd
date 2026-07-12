@@ -83,6 +83,13 @@ func _test_local_manager_naming(main_src: String, arrival_src: String) -> void:
 	_ok("arrival no longer names a local node \"TimeManager\"", not arrival_src.contains("name = \"TimeManager\""))
 	_ok("arrival never looks up managers by node name or /root", not arrival_src.contains("get_node(\"TimeManager\"") and not arrival_src.contains("/root/TimeManager"))
 
+	# Arrival cinematic (formal-path scene running legacy base scripts): same isolation (P3-06).
+	var cinematic_src := _code_only(_read_text("res://scripts/arrival/arrival_cinematic_scene.gd"))
+	_ok("cinematic renames local clock node to ArrivalCinematicTimeManager", cinematic_src.contains("\"ArrivalCinematicTimeManager\""))
+	_ok("cinematic renames local state node to ArrivalCinematicGameStateManager", cinematic_src.contains("\"ArrivalCinematicGameStateManager\""))
+	_ok("cinematic no longer names a local node \"TimeManager\"/\"GameStateManager\"", not cinematic_src.contains("name = \"TimeManager\"") and not cinematic_src.contains("name = \"GameStateManager\""))
+	_ok("cinematic never looks up managers by node name or /root", not cinematic_src.contains("get_node(\"TimeManager\"") and not cinematic_src.contains("/root/TimeManager"))
+
 ## A. Formal continue routes through Full Save; training through TrainingManager.
 func _test_formal_continue_isolation(main_src: String) -> void:
 	_ok("formal continue uses FullSaveOrchestrator.restore_full_save()", main_src.contains("FullSaveOrchestratorScript.restore_full_save()"))

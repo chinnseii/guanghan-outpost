@@ -50,7 +50,8 @@
 - **回滚方案**：文档改动 `git revert`；迁移用 `git mv` 保留历史。
 - **风险**：迁移破坏他处引用路径 → 迁移后全仓 grep 旧路径。
 
-## Phase 3 · 系统边界清洗（中高风险，逐系统）
+## Phase 3 · 系统边界清洗（中高风险，逐系统）— ✅ COMPLETE（2026-07-12，收口见 `PHASE_3_CLOSURE_REPORT.md`）
+- **状态**：**COMPLETE**。P3-01/02/02R/03a/03b/03c/03cV/03d/04/05/06 全部完成；全部专项测试通过；无 P0；下一步 = Phase 4 大脚本拆分。
 - **目标**：厘清 Manager 职责与存档真相源，不重写。
 - **前置条件**：Phase 0-2 完成；SYSTEM_REGISTRY / LEGACY_REGISTRY 已评审。
 - **P3-01 审计结论（2026-07-11，详见 `PHASE_3_SYSTEM_BOUNDARY_AUDIT.md`）**：20 autoload 全现役；**跨系统写入全部经公开方法、0 处直接外部字段写**（PenaltyManager 仅分发）；无依赖环、无 P0。**核心 P1 = 存档真相源不唯一**（Manager 状态同进 `*_state.json` + `training_progress` + `sprint06_progress`，load 顺序覆盖）。
@@ -164,4 +165,13 @@ Phase 0 →（1 与 2 可并行，均低风险）→ 3（逐系统）→ 4（逐
 - Legacy save isolation verified and documented: distinct file namespaces; `FullSaveOrchestrator` never reads arrival/sandbox files and rejects legacy sprint06 sources; legacy saves never write `full_save.json`. Formal continue depends only on Full Save / Training; the legacy sandbox-slot fallback is a commented last resort.
 - Reachability resolved: `ArrivalLandingScene` = DEV_ONLY (`main.gd:3751`); arrival genuinely calls `game_state_manager` (prior UNKNOWN resolved). sandbox/arrival not reachable from the formal Continue/New-Game path.
 - Verification: Godot editor parse EXIT 0; Godot headless smoke EXIT 0; P3-05 32/32; P3-03a 39/39; P3-03b 50/50; P3-03c 33/33; P3-03d 25/25; P3-04 33/33; real saves SHA unchanged.
-- Remaining Phase 3 order: **P3-06 (Phase 3 regression sweep + closure)** is ready to schedule next. Phase 3 is NOT closed yet. Deferred beyond Phase 3: legacy file deletion, DoorState formal-base integration, `main.gd` large-script split (Phase 4).
+- Remaining Phase 3 order: **P3-06 (Phase 3 regression sweep + closure)** is ready to schedule next. ~~Phase 3 is NOT closed yet.~~ (superseded by the P3-06 note below.) Deferred beyond Phase 3: legacy file deletion, DoorState formal-base integration, `main.gd` large-script split (Phase 4).
+
+# P3-06 Completion Note (2026-07-12) — Phase 3 CLOSED
+
+- **Phase 3 is COMPLETE.** Full regression re-run: P3-03a 39/39, P3-03b 50/50, P3-03c 33/33, P3-03d 25/25, P3-04 33/33, P3-05 36/36; Godot editor/smoke EXIT 0; real `user://saves/` SHA-256 unchanged; no residue.
+- Minimal regression fix this round: renamed a residual legacy node-name collision in `arrival_cinematic_scene.gd` (missed by P3-05). Repo-wide `name = "TimeManager"/"GameStateManager"` = 0. This is the only code change in P3-06; everything else is verification + documentation.
+- **Closed risks**: multi-truth-source P1; Power/Suit mirror restore gaps; checkpoint over-restore; legacy runtime confusion + node-name collision; formal-continue-vs-legacy-restore mixing; manager-local late overwrite of Full Restore.
+- **Deferred (NOT closed, tracked, not regressions)**: DoorState formal old-base integration (feature work) → DEFERRED_TO_FEATURE_WORK; `main.gd` (5165) + `sprint06_base_scene.gd` large-script split → **DEFERRED_TO_PHASE_4**; legacy file physical deletion → DEFERRED_TO_FEATURE_WORK; `interaction_detector` orphan + `BaseInterior_Test` entry (UNKNOWN); product-level Inventory↔Backpack relationship.
+- **Next phase: Phase 4 — 大型脚本渐进拆分**（大脚本拆分）。**未启动。**
+- Closure report: `PHASE_3_CLOSURE_REPORT.md`. Completion commit: this task's closing commit (`fix: close Phase 3 regression gaps`).

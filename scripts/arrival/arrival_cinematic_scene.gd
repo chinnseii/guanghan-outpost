@@ -61,11 +61,16 @@ func _add_key_action(action_name: String, keys: Array[int]) -> void:
 			InputMap.action_add_event(action_name, input_event)
 
 func _setup_managers() -> void:
+	# P3-05/P3-06 legacy isolation: this cinematic runs on the LEGACY base scripts
+	# (`scripts/game_state_manager.gd`, real-time sandbox `scripts/time_manager.gd`) as local
+	# child nodes, reached only through the member variables below -- never by node-name path
+	# lookup and never via `/root/*`. Node names are prefixed "ArrivalCinematic…" so the local
+	# clock is not mistaken for the formal `/root/TimeManager` (`scripts/managers/TimeManager.gd`).
 	game_state_manager = GameStateManagerScript.new()
-	game_state_manager.name = "GameStateManager"
+	game_state_manager.name = "ArrivalCinematicGameStateManager"
 	add_child(game_state_manager)
 	time_manager = TimeManagerScript.new()
-	time_manager.name = "TimeManager"
+	time_manager.name = "ArrivalCinematicTimeManager"
 	add_child(time_manager)
 	time_manager.call("set_time", 1, 7, 42)
 	event_manager = EventManagerScript.new()

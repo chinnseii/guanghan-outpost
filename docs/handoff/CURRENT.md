@@ -4,7 +4,7 @@ Updated: 2026-07-12
 
 ## Phase
 
-Phase 3 system-boundary cleanup is in progress.
+Phase 3 system-boundary cleanup is COMPLETE. Next: Phase 4 — Large-script decomposition.
 
 Completed:
 - P3-01 system boundary audit.
@@ -16,9 +16,10 @@ Completed:
 - P3-03d checkpoint scope trimming.
 - P3-04 Manager responsibility overlap cleanup.
 - P3-05 legacy runtime isolation.
+- P3-06 Phase 3 regression sweep + closure (Phase 3 formally closed).
 
 Not started:
-- P3-06 Phase 3 regression sweep + closure (Phase 3 not yet closed).
+- Phase 4 — Large-script decomposition (not started; do not start automatically).
 
 ## P3-05 Summary
 
@@ -104,4 +105,6 @@ P3-04 passed:
 
 ## Next Step
 
-P3-04 is complete and ready for review. P3-05 legacy isolation is ready to schedule next; do not start it automatically.
+Phase 3 is COMPLETE and closed (see `docs/governance/PHASE_3_CLOSURE_REPORT.md`). Next is **Phase 4 — Large-script decomposition** (`main.gd` 5165 lines and `sprint06_base_scene.gd` first, per CLEANUP_PLAN). Do not start Phase 4 automatically.
+
+Deferred beyond Phase 3 (not regressions, tracked): legacy file physical deletion; DoorStateManager formal old-base integration (feature work); `main.gd` / `sprint06_base_scene.gd` large-script split (Phase 4); `interaction_detector` orphan and `BaseInterior_Test` entry (UNKNOWN); product-level Inventory↔Backpack relationship.

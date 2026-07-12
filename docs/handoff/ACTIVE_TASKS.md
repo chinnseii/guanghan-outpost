@@ -9,7 +9,7 @@ This file is the current coordination board for active task ownership, file lock
 - **Locked files**: `0`
 - **Pending handoffs**: `0`
 - **Branch**: `main`
-- **Board baseline**: `0a1c1af`
+- **Board baseline**: `d1b0802`
 - **Last updated**: `2026-07-12`
 
 ## Active Tasks
@@ -25,6 +25,16 @@ No file locks.
 No pending handoffs.
 
 ## Recently Closed
+
+### P3-06 - Phase 3 regression and closure
+
+- Status: `DONE`
+- Owner: `Claude Code`
+- Reviewer: `User`
+- Base commit: `d1b0802`
+- Result: Phase 3 fully regressed, documented, and CLOSED; Phase 4 baseline established (`PHASE_3_CLOSURE_REPORT.md`). One minimal regression fix — a residual legacy node-name collision in `arrival_cinematic_scene.gd` (missed by P3-05) renamed to `ArrivalCinematic…`; repo-wide `name = "TimeManager"/"GameStateManager"` now 0; P3-05 test extended to cover it.
+- Verification: P3-03a 39/39; P3-03b 50/50; P3-03c 33/33; P3-03d 25/25; P3-04 33/33; P3-05 36/36 (216 total); Godot editor/smoke EXIT 0; real `user://saves/` SHA-256 identical before/after; no residue.
+- Follow-up: Phase 4 — Large-script decomposition (not started).
 
 ### P3-05 - Legacy runtime isolation
 

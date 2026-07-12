@@ -101,3 +101,7 @@
 
 ### D4. 本轮未处理（明确留后）
 - legacy 文件物理删除、Inventory/Backpack/Storage 重构、DoorStateManager 正式基地接入、大脚本拆分（main.gd 5165 行属 Phase 4）、UNKNOWN #2 `interaction_detector` orphan、`BaseInterior_Test` 入口确认。
+
+### D5. P3-06 补充（2026-07-12）：第三处遗留基座场景
+- **`scripts/arrival/arrival_cinematic_scene.gd`**（正式抵达路径，但跑遗留基座脚本）**同样**创建局部 `game_state_manager`/`time_manager` 并命名 `"GameStateManager"`/`"TimeManager"` —— P3-05 只覆盖了 main.gd + arrival_landing，**漏掉了 cinematic**。P3-06 全量回归静态扫描发现此残留撞名并最小修复：节点名改为 `ArrivalCinematic{GameState,Time}Manager`（仍仅成员变量访问、无名字路径查找、无 `/root/`，安全）。
+- 修复后全仓 `name = "TimeManager"/"GameStateManager"` 命中 = **0**；P3-05 专项测试扩展到 cinematic（36/36）。这是 P3-06 唯一的代码改动（其余为验证/文档）。
