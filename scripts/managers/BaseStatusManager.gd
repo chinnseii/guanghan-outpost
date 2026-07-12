@@ -77,11 +77,19 @@ func advance_base_time(minutes: int) -> void:
 	_save_state()
 	base_status_changed.emit()
 
-## Called by PowerSystemManager after it settles current_energy/battery_capacity,
-## so the rest of this tick's systems (temperature multiplier, AirSystemManager,
-## HealthManager) see an up-to-date value without needing to change how they read it.
-func set_power_percent(value: float) -> void:
+## Called by PowerSystemManager after it settles current_energy/battery_capacity.
+## This is a compatibility mirror only: BaseStatusManager never writes this
+## value back into PowerSystemManager's canonical energy fields.
+func sync_power_mirror_from_power_system(value: float) -> void:
 	power = clamp(value, 0.0, 100.0)
+
+## Compatibility wrapper for older callers/tests. New code should use the
+## mirror-specific name above so the ownership direction is explicit.
+func set_power_percent(value: float) -> void:
+	sync_power_mirror_from_power_system(value)
+
+func get_power_mirror_percent() -> float:
+	return power
 
 func _apply_pressure_change(hours: float) -> void:
 	var rate := 0.0

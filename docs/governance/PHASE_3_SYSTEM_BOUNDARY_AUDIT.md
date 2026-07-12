@@ -284,3 +284,15 @@ Suit/Repair(从代码)→ TrainingTimeManager / TimeManager（推进时间）
 - P1 multi-truth-source risk is now materially reduced for P3-03 scope: formal complete restore is Full Save only; Manager local saves are downgraded; Training Checkpoint cannot restore formal global Manager state.
 - Remaining P3 risk: Door formal-base integration is still outside Full Save, and Inventory/Backpack field-level relationship remains a P3-04 audit item.
 - Verification: Godot editor parse EXIT 0; Godot headless smoke EXIT 0; P3-03a 39/39; P3-03b 50/50; P3-03c 33/33; P3-03d 25/25; real saves SHA unchanged from pre-test baseline; no `p3_03d*` temp files remained.
+
+# P3-04 Boundary Update (2026-07-12)
+
+- Inventory / Backpack / Storage final owner split: `InventoryManager` owns quantity-style global goods (`stack_items`, `durable_items`) and training-only `training_containers`; `BackpackManager` owns player carried slots; `StorageManager` owns base storage slots.
+- Backpack/Storage transfer protocol is explicit in API results: `source`, `destination`, `source_slot_index`, `requested_amount`, `returned_to_source`, and `rolled_back`. Existing take/add/reject rollback behavior is unchanged.
+- Consumption source remains explicit by owner API: `InventoryManager.remove_item/eat_item/use_item`, `BackpackManager.remove_item/eat_item`, and `StorageManager.remove_item/eat_item` each mutate only their own ledger. P3-04 did not redesign item quantities or storage rules.
+- Time split is confirmed: `TimeManager` is formal mission time; `TrainingTimeManager` is training-local time. `MovementTimeManager` routes by context, Suit has mission/training entry points, and Repair keeps explicit formal/training branches. Training time does not write back to formal time.
+- BaseStatus compatibility mirrors are clarified: `PowerSystemManager` owns canonical power; `BaseStatusManager.power` is a one-way compatibility mirror updated through `sync_power_mirror_from_power_system()` with `set_power_percent()` kept as a wrapper. `AirSystemManager` owns oxygen/CO2; BaseStatus owns pressure/temperature.
+- Suit compatibility mirror is clarified: `SuitManager.is_suit_worn` is canonical; `PlayerStateManager.is_suit_worn` is a cached mirror updated through `sync_suit_worn_mirror_from_suit_manager()` with `set_suit_worn()` kept as a wrapper.
+- Door boundary is confirmed unchanged: `DoorStateManager` is used by `training_base_map.gd`; `scripts/base/**` has no `DoorStateManager` references. Formal old-base Door integration remains out of scope and not connected.
+- Risk status after P3-04: no P0 found; P1 multi-truth-source risk remains reduced/closed for P3-03 scope; Inventory/Backpack/Storage ownership ambiguity is closed for current runtime design; Door formal-base integration remains a scheduled feature boundary, not a P3-04 implementation.
+- Verification: Godot editor parse EXIT 0; Godot headless smoke EXIT 0; P3-03a 39/39; P3-03b 50/50; P3-03c 33/33; P3-03d 25/25; P3-04 33/33; real saves SHA unchanged from pre-test baseline.

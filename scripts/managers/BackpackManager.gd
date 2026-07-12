@@ -110,14 +110,22 @@ func sort_inventory() -> void:
 func transfer_slot_to_storage(slot_index: int, amount: int = -1) -> Dictionary:
 	var storage_manager := _storage_manager()
 	if storage_manager == null or not storage_manager.has_method("add_existing_slot"):
-		return {"accepted": 0}
+		return {"accepted": 0, "source": "backpack", "destination": "storage", "source_slot_index": slot_index, "requested_amount": amount}
 	var taken := ItemContainerScript.take_from_slot(slots, slot_index, amount)
 	if taken.is_empty():
-		return {"accepted": 0}
+		return {"accepted": 0, "source": "backpack", "destination": "storage", "source_slot_index": slot_index, "requested_amount": amount}
 	var result: Dictionary = storage_manager.call("add_existing_slot", taken, amount)
 	var rejected: Variant = result.get("rejected_slot", null)
+	var returned_to_source := 0
 	if rejected is Dictionary:
+		returned_to_source = int((rejected as Dictionary).get("quantity", 1))
 		ItemContainerScript.add_existing_slot(slots, rejected as Dictionary, "backpack")
+	result["source"] = "backpack"
+	result["destination"] = "storage"
+	result["source_slot_index"] = slot_index
+	result["requested_amount"] = amount
+	result["returned_to_source"] = returned_to_source
+	result["rolled_back"] = int(result.get("accepted", 0)) == 0 and returned_to_source > 0
 	_save_state()
 	backpack_changed.emit()
 	return result

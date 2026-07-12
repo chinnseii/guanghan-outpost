@@ -91,5 +91,18 @@
 
 ## E. DEPRECATED_CANDIDATE
 
+# P3-04 Registry Update (2026-07-12)
+
+- Inventory/Backpack/Storage boundary is no longer `UNKNOWN` for current runtime design:
+  - `InventoryManager` owns quantity-style global goods (`stack_items`, `durable_items`) and training-only `training_containers`.
+  - `BackpackManager` owns player carried slots.
+  - `StorageManager` owns base storage slots.
+  - Backpack/Storage transfer APIs are the authorized cross-ledger mutation path and now report source/destination/rollback metadata.
+- Time boundary remains intentional layering: `TimeManager` owns formal mission time; `TrainingTimeManager` owns training-local time; `MovementTimeManager` only routes movement time to the correct clock.
+- Compatibility mirrors are explicitly one-way:
+  - `PowerSystemManager` -> `BaseStatusManager.power` through `sync_power_mirror_from_power_system()`.
+  - `SuitManager` -> `PlayerStateManager.is_suit_worn` through `sync_suit_worn_mirror_from_suit_manager()`.
+- DoorState status is unchanged: training map is connected; formal old-base scripts are not connected. Do not treat `DoorStateManager` as formal-base navigation authority until a later feature task explicitly integrates it.
+
 - 本阶段**无**可安全标为 DEPRECATED_CANDIDATE 的 Manager。所有遗留脚本都仍被 `main.gd` 或 `arrival/*` 引用（有调用证据），只能标 LEGACY_PLAYABLE。
 - 唯一"疑似废弃但需确认"的是 `scripts/game_state_manager.gd` 是否被 `arrival` 真正调用还是仅 preload 未用——证据不足，标 UNKNOWN，留待 Phase 3。

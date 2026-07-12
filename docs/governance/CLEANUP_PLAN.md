@@ -146,3 +146,13 @@ Phase 0 →（1 与 2 可并行，均低风险）→ 3（逐系统）→ 4（逐
 - Full Save remains the only formal complete-progress restore source. `sprint06_progress.json` no longer serves as automatic fallback for missing `full_save.json`; explicit legacy read remains available, but formal restore rejects legacy sources.
 - Verification: Godot editor parse EXIT 0; Godot headless smoke EXIT 0; P3-03a 39/39; P3-03b 50/50; P3-03c 33/33; P3-03d 25/25; real saves SHA unchanged from pre-test baseline.
 - Remaining Phase 3 order: P3-03 can close after review; P3-04 is ready to schedule next.
+
+# P3-04 Completion Note (2026-07-12)
+
+- P3-04 is complete: Manager responsibility overlap cleanup clarified current canonical owners and mirror/transfer boundaries without changing schemas, scenes, gameplay values, or `project.godot`.
+- Inventory/Backpack/Storage: current design is `InventoryManager` for quantity global goods, `BackpackManager` for player carried slots, and `StorageManager` for base storage slots. Backpack/Storage transfers now expose source/destination/rollback metadata while preserving existing atomic rollback behavior.
+- Time: formal mission actions route to `TimeManager`; training actions route to `TrainingTimeManager`; training completion still does not implicitly sync formal time.
+- Mirrors: Power -> BaseStatus and Suit -> PlayerState are documented one-way compatibility mirrors with mirror-specific APIs and compatibility wrappers.
+- Door: training map remains connected to `DoorStateManager`; formal old-base Door integration remains out of scope and should be handled by a later feature task, not by P3-04 cleanup.
+- Verification: Godot editor parse EXIT 0; Godot headless smoke EXIT 0; P3-03a 39/39; P3-03b 50/50; P3-03c 33/33; P3-03d 25/25; P3-04 33/33; real saves SHA unchanged from pre-test baseline.
+- Remaining Phase 3 order: P3-05 legacy isolation is ready to schedule next.

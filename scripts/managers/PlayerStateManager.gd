@@ -152,11 +152,16 @@ func can_player_interact() -> bool:
 
 ## -- Suit-worn snapshot (SuitManager pushes these) --
 
-func set_suit_worn(value: bool) -> void:
+func sync_suit_worn_mirror_from_suit_manager(value: bool) -> void:
 	if is_suit_worn == value:
 		return
 	is_suit_worn = value
 	_notify()
+
+## Compatibility wrapper for older callers/tests. SuitManager remains the
+## canonical write entry for actual wear/remove gameplay state.
+func set_suit_worn(value: bool) -> void:
+	sync_suit_worn_mirror_from_suit_manager(value)
 
 func get_is_suit_worn() -> bool:
 	return is_suit_worn
@@ -164,7 +169,7 @@ func get_is_suit_worn() -> bool:
 func sync_suit_state_from_suit_manager() -> void:
 	var suit_manager := _suit_manager()
 	if suit_manager != null:
-		set_suit_worn(bool(suit_manager.get("is_suit_worn")))
+		sync_suit_worn_mirror_from_suit_manager(bool(suit_manager.get("is_suit_worn")))
 
 ## -- Area entry rules (suit gate) -- callers (doors / scene transitions)
 ## check these BEFORE moving the player into an area. PlayerStateManager

@@ -384,7 +384,11 @@ func _sync_player_state_suit_worn() -> void:
 	if tree == null or tree.root == null:
 		return
 	var player_state_manager := tree.root.get_node_or_null("PlayerStateManager")
-	if player_state_manager != null and player_state_manager.has_method("set_suit_worn"):
+	if player_state_manager == null:
+		return
+	if player_state_manager.has_method("sync_suit_worn_mirror_from_suit_manager"):
+		player_state_manager.call("sync_suit_worn_mirror_from_suit_manager", is_suit_worn)
+	elif player_state_manager.has_method("set_suit_worn"):
 		player_state_manager.call("set_suit_worn", is_suit_worn)
 
 func _advance_time(minutes: int, reason: String) -> void:

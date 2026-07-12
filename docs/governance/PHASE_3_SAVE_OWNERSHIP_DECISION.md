@@ -268,3 +268,22 @@
 - Mission/scene checkpoint boundary: `sprint06_progress.json` can still be explicitly read as legacy best-effort input, but it is not a formal restore source. `restore_full_save()` rejects legacy sources.
 - Full Save schema unchanged; Manager `serialize/deserialize` shapes unchanged; Manager local save files retained.
 - Verification: Godot editor parse EXIT 0; Godot headless smoke EXIT 0; P3-03a 39/39; P3-03b 50/50; P3-03c 33/33; P3-03d 25/25; real saves SHA unchanged from pre-test baseline.
+
+# P3-04 Implementation Record (2026-07-12 / baseline `be363f2`)
+
+- Owner decisions applied without schema changes:
+  - `InventoryManager` = quantity-style global goods ledger and training-only containers.
+  - `BackpackManager` = player carried slot ledger.
+  - `StorageManager` = base storage slot ledger.
+  - `TimeManager` = formal mission clock.
+  - `TrainingTimeManager` = training-local clock.
+  - `PowerSystemManager` = canonical power.
+  - `AirSystemManager` = canonical oxygen/CO2/air systems.
+  - `BaseStatusManager` = pressure/temperature owner plus one-way Power mirror.
+  - `SuitManager` = canonical suit state.
+  - `PlayerStateManager` = player context registry plus one-way Suit mirror.
+  - `DoorStateManager` = training Door state owner for now.
+- Transfer authority: Backpack/Storage transfers remain atomic take/add/reject-rollback operations and now expose explicit source/destination/rollback metadata for callers/tests. No UI or scene needs to mutate both ledgers directly.
+- Mirror authority: BaseStatus and PlayerState compatibility setters remain for old callers, but new canonical pushes use mirror-specific APIs. Mirrors do not write back to canonical owners.
+- Checkpoint and Full Save ownership unchanged: Full Save schema unchanged; Training Checkpoint schema unchanged; Manager-local self-save files retained as P3-03c fallback/debug mirrors.
+- Verification: Godot editor parse EXIT 0; Godot headless smoke EXIT 0; P3-03a 39/39; P3-03b 50/50; P3-03c 33/33; P3-03d 25/25; P3-04 33/33; real saves SHA unchanged from pre-test baseline.

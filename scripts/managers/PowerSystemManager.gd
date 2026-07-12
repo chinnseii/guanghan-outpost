@@ -156,9 +156,12 @@ func get_power_percent() -> float:
 
 func _sync_base_status_power() -> void:
 	var manager := _base_status_manager()
-	if manager == null or not manager.has_method("set_power_percent"):
+	if manager == null:
 		return
-	manager.call("set_power_percent", get_power_percent())
+	if manager.has_method("sync_power_mirror_from_power_system"):
+		manager.call("sync_power_mirror_from_power_system", get_power_percent())
+	elif manager.has_method("set_power_percent"):
+		manager.call("set_power_percent", get_power_percent())
 
 ## -- Display labels
 
