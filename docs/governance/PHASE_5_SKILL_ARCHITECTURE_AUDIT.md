@@ -400,3 +400,54 @@ Next recommended task:
 ```text
 P5-03 - Save Integrity Guard Skill
 ```
+
+## 20. P5-03 Implementation Note
+
+P5-03 completed the second formal repository Skill:
+
+```text
+skills/core/save-integrity-guard/SKILL.md
+```
+
+Current formal Skill count:
+
+```text
+2
+```
+
+Current maturity:
+
+```text
+characterization-first-refactor = TRIAL
+save-integrity-guard = TRIAL
+```
+
+The Skill was exercised through a controlled dry run documented in:
+
+```text
+docs/governance/P5_03_SAVE_INTEGRITY_SKILL_TRIAL.md
+```
+
+Dry-run result:
+
+- The Skill correctly refused mechanical rollback from the 2026-07-11 backup over the newer P4-08 current baseline.
+- The Skill classified mtime-only save refresh as non-content change.
+- The Skill treated absent `full_save.json` before and after as no deletion event.
+- The Skill separated canonical saves, checkpoints, manager-local mirrors, legacy saves, test temp files, and unknown files.
+- No production code, tests, scenes, assets, JSON, real saves, or `project.godot` were modified.
+- The Skill remains `TRIAL`, not `VALIDATED`.
+
+Skill boundary:
+
+```text
+characterization-first-refactor = behavior baseline / minimal refactor / unchanged behavior proof
+save-integrity-guard = real user-data backup / SHA / structured JSON comparison / rollback prevention
+```
+
+The two Skills are `COMPOSABLE`, not merged. A high-risk Godot refactor may invoke both.
+
+Next recommended task:
+
+```text
+P5-04 - Task Baseline and Lock Skill
+```

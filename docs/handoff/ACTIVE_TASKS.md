@@ -9,7 +9,7 @@ This file is the current coordination board for active task ownership, file lock
 - **Locked files**: `0`
 - **Pending handoffs**: `0`
 - **Branch**: `main`
-- **Board baseline**: `8b12ad9`
+- **Board baseline**: `e33ea48`
 - **Last updated**: `2026-07-13`
 
 ## Active Tasks
@@ -25,6 +25,20 @@ No file locks.
 No pending handoffs.
 
 ## Recently Closed
+
+### P5-03 - Build Save Integrity Guard Skill
+
+- Status: `DONE`
+- Owner: `Codex`
+- Reviewer: `User`
+- Base commit: `e33ea48`
+- Result: The second formal repository Skill was created, registered, and exercised through a controlled dry run without production-code or real-save changes.
+- Skill: `skills/core/save-integrity-guard/SKILL.md`
+- Registry: `skills/SKILL_REGISTRY.md`
+- Trial: `docs/governance/P5_03_SAVE_INTEGRITY_SKILL_TRIAL.md`
+- Verification: Skill structure and content checks passed; Godot editor/smoke EXIT 0; diff limited to allowed Markdown docs; no production code/tests/scenes/assets/project/JSON/saves changed; maturity remains `TRIAL`.
+- Decision: Dry run concluded `SAVE_BASELINE_STABLE_WITH_EXPECTED_REFRESH`; older backups are analysis-only and must not overwrite newer current progress.
+- Next: P5-04 - Task Baseline and Lock Skill. P5-04 was not started.
 
 ### P5-02 - Build Characterization-First Refactor Skill
 
@@ -70,13 +84,3 @@ No pending handoffs.
 - Scope adjustment: flow-coupled diagnosis/plant/repair option decisions stayed in the scene; presenter owns the popup shell API only. This keeps correct-answer logic and `_complete_step()` out of the display layer.
 - Verification: Godot editor/smoke EXIT 0; P4-07B 20/20; P4-07A 32/32; P4-06B 41/41; P4-06A 28/28; P4-05 30/30; P4-04 35/35; P4-03 27/27; P4-02 22/22; P3-03a 40/40; P3-03b 50/50; P3-03c 34/34; P3-03d 25/25; P3-04 33/33; P3-05 37/37.
 - Follow-up: Superseded by P4-08 closure.
-
-### P4-07A - Audit training large scripts and UI extraction candidates
-
-- Status: `DONE`
-- Owner: `Claude Code`
-- Reviewer: `User`
-- Base commit: `592b602`
-- Result: read-only audit + characterization of `training_module_scene.gd` (3417) and `training_base_map.gd` (2255) -> `docs/governance/P4_07A_TRAINING_LARGE_SCRIPT_AUDIT.md`. No production code moved. Dynamic UI means presenter extraction needs no `.tscn` change; flow-wired options and checkpoint/step ownership stay in the scene.
-- Verification: Godot editor/smoke EXIT 0; P4-07A 30/30; P4-06B 41/41; P4-06A 28/28; P4-05 30/30; P4-04 35/35; P4-03 27/27; P4-02 22/22; P3-03a 40/40; P3-03b 50/50; P3-03c 34/34; P3-03d 25/25; P3-04 33/33; P3-05 37/37; real `user://saves/` SHA-256 unchanged.
-- Follow-up: Superseded by P4-07B/P4-08 closure.
