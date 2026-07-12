@@ -179,5 +179,18 @@ scripts/ 全量 29,739 行。Top：`main.gd` 5182 · `training/training_module_s
 - **Verification**: Godot editor/smoke EXIT 0; P4-02 22/22; P3-03a 39/39, P3-03b 50/50, P3-03c 33/33, P3-03d 25/25, P3-04 33/33, P3-05 36/36; real saves SHA-256 unchanged.
 - **Next: P4-03 — extract `FormalFlowRouter` from `main.gd`** (formal continue/new-game routing; MEDIUM risk — touches formal restore, so migrate the P3-05 static assertions to the new file). The extraction pattern is now proven on the inert DevTools block.
 
+## P4-03 Completion Note (2026-07-12)
+
+- **DONE**: extracted `FormalFlowRouter` from `main.gd` → `scripts/controllers/formal_flow_router.gd` (133 lines, `class_name FormalFlowRouter extends RefCounted`, **not** an Autoload, created/held by main). `main.gd` **4346 → 4302 (net −44)**.
+- **Moved (10 methods)**: `continue_mission` (the priority router), `has_continue_mission`, `has_demo_progress`, `training_has_progress`, `full_save_exists`, `application_progress_exists`, `latest_save_slot`, `start_application_flow`, `start_clean_new_stay`, `clear_demo_progress`.
+- **Priority preserved exactly**: Full Save (`restore_full_save`) → Training Checkpoint (`continue_scene_path`) → legacy sandbox slot → menu notice. Read-only predicates use `read_progress()`; the router never calls `load_progress()` / `_read_progress_data()`.
+- **Dependency injection** (`setup(deps)`, RefCounted + callbacks — chosen over host-reaching for testability): `change_scene`, `legacy_continue`, `log`, `refresh_menu`, `save_slot_path`, `show_new_game_confirmation`, `reset_time` + config `demo_progress_paths`, `save_slots`. Router owns no canonical/save state and writes no save bundle.
+- **Wrappers: 0** — the 5 call sites (2 menu buttons, continue-button disable, confirmation-modal confirm, dev demo-reset) were rewired directly to the router; 2 tiny host helpers remain in main (`_fmt_change_scene`, `_fmt_legacy_continue`) backing injected callbacks.
+- **Kept in main**: `_show_new_game_confirmation` (UI modal), `_clear_current_save` (couples to sandbox `current_save_slot`), `_reset_demo_progress_from_dev`/`_start_day07_report_test` (dev), sandbox root/save. DevToolsController unaffected (its host callbacks still target main; no DevTools↔Router coupling).
+- **Line-target note (adapts P4-01 estimate)**: audit estimated ~80-180 lines; actual net is −44 because the UI confirmation modal and the current-slot-coupled save-delete correctly stay in main, and RefCounted+callback injection adds ~19 lines of setup/host glue in main. The *gross* routing logic moved is ~63 lines; the value is a single-responsibility, unit-tested router, not raw line delta.
+- **Test migration (required by §11; extends §14's file list)**: new `tests/p4_03_formal_flow_router_test.gd` (27/27, probe-subclass drives priority Full Save/Training/legacy/none + new-game paths, file-safe). Migrated the "routing lives in main.gd" assertions in `p3_05` (37/37), `p4_02` (22/22), `p3_03c` (34/34), and `p3_03a` (40/40) to point at the router.
+- **Verification**: Godot editor/smoke EXIT 0; all suites green; real saves SHA-256 unchanged; no scene/`project.godot`/schema change.
+- **Next: P4-04 — Sandbox slot-save aggregation** (`main.gd` `_save_game`/`_load_game`/`_apply_save_data` + ~20 shared sandbox fields; needs a sandbox-state struct first — MEDIUM-HIGH; user-decision on whether the legacy sandbox warrants the investment).
+
 ## 附：验收标准（本轮 P4-01）
 所有 P0+P1 脚本已清点并映射职责块（附行号）✓；依赖/共享状态热点已识别 ✓；抽离候选有边界卡片（main/sprint06 各 ≥3）✓；不可拆区域已列 ✓；测试保护需求已定义 ✓；分阶段拆分顺序 + 唯一 P4-02 推荐 ✓；**零生产代码改动** ✓。

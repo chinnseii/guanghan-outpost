@@ -67,10 +67,13 @@ func _check_static_boundaries() -> void:
 	for path in DOWNGRADED_MANAGER_SOURCES:
 		var source := FileAccess.get_file_as_string(path)
 		_expect(source.contains("FullSaveOrchestratorScript.should_skip_manager_local_restore()"), "manager local restore is guarded: %s" % path)
+	# P4-03: formal continue/new-game routing moved from main.gd to FormalFlowRouter.
 	var main_source := FileAccess.get_file_as_string("res://scripts/main.gd")
-	_expect(main_source.contains("FullSaveOrchestratorScript.restore_full_save()"), "formal continue calls FullSaveOrchestrator.restore_full_save")
-	_expect(main_source.contains("FullSaveOrchestratorScript.reset_formal_restore_session()"), "new game/clear path resets formal restore session")
-	_expect(not main_source.contains("TrainingManagerScript.load_progress()"), "formal continue no longer calls TrainingManager.load_progress")
+	var router_source := FileAccess.get_file_as_string("res://scripts/controllers/formal_flow_router.gd")
+	_expect(main_source.contains("FormalFlowRouterScript.new()"), "main.gd creates the FormalFlowRouter")
+	_expect(router_source.contains("FullSaveOrchestratorScript.restore_full_save()"), "formal continue calls FullSaveOrchestrator.restore_full_save (in router)")
+	_expect(router_source.contains("FullSaveOrchestratorScript.reset_formal_restore_session()"), "new game/clear path resets formal restore session (in router)")
+	_expect(not router_source.contains("TrainingManagerScript.load_progress()"), "formal continue no longer calls TrainingManager.load_progress")
 	_expect(not FileAccess.get_file_as_string("res://scripts/systems/full_save_orchestrator.gd").contains("training_progress.json"), "Full Restore does not read training checkpoint")
 
 func _check_no_full_save_fallback_guard() -> void:

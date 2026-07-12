@@ -152,9 +152,11 @@ func _test_main_static_boundary() -> void:
 	_ok("main.gd keeps shared _debug_reset_time", main_src.contains("func _debug_reset_time("))
 	_ok("main.gd creates DevToolsController", main_src.contains("DevToolsControllerScript.new()"))
 	_ok("main.gd dev builder funcs removed", not main_src.contains("func _setup_dev_menu(") and not main_src.contains("func _make_dev_button("))
-	# Formal routing stays in main.
-	_ok("formal router _continue_mission stays in main", main_src.contains("func _continue_mission("))
-	_ok("formal new-game entry stays in main", main_src.contains("func _start_application_flow("))
-	_ok("Full Save restore call NOT moved (still in main)", main_src.contains("FullSaveOrchestratorScript.restore_full_save()"))
+	# Formal routing was later extracted to FormalFlowRouter in P4-03; main delegates to it.
+	# (These assertions are kept but migrated to reflect the current boundary.)
+	var router_src := _code_only(_read_text("res://scripts/controllers/formal_flow_router.gd"))
+	_ok("formal continue routing lives in FormalFlowRouter (P4-03)", router_src.contains("func continue_mission("))
+	_ok("main.gd creates the FormalFlowRouter", main_src.contains("FormalFlowRouterScript.new()"))
+	_ok("Full Save restore call lives in the router, not main.gd", router_src.contains("FullSaveOrchestratorScript.restore_full_save()") and not main_src.contains("FullSaveOrchestratorScript.restore_full_save()"))
 	_ok("legacy sandbox root _start_new_game stays in main", main_src.contains("func _start_new_game("))
 	_ok("sandbox slot save stays in main", main_src.contains("func _save_game(") and main_src.contains("func _load_game("))

@@ -9,7 +9,7 @@ This file is the current coordination board for active task ownership, file lock
 - **Locked files**: `0`
 - **Pending handoffs**: `0`
 - **Branch**: `main`
-- **Board baseline**: `1f53659`
+- **Board baseline**: `4f2baf7`
 - **Last updated**: `2026-07-12`
 
 ## Active Tasks
@@ -25,6 +25,16 @@ No file locks.
 No pending handoffs.
 
 ## Recently Closed
+
+### P4-03 - Extract FormalFlowRouter from main.gd
+
+- Status: `DONE`
+- Owner: `Claude Code`
+- Reviewer: `User`
+- Base commit: `4f2baf7`
+- Result: formal new-game/continue/route-selection extracted from `main.gd` into `scripts/controllers/formal_flow_router.gd` (133 lines, `class_name`/RefCounted, non-Autoload). Continue priority preserved exactly (Full Save → Training Checkpoint → legacy sandbox slot → notice); read-only predicates use `read_progress()`, router never calls `load_progress()`. Injected callbacks (no state duplication), 0 wrappers (5 call sites rewired). `main.gd` 4346 → 4302. DevToolsController unaffected. No scene/`project.godot`/schema change.
+- Verification: Godot editor/smoke EXIT 0; P4-03 27/27; P4-02 22/22; P3-03a 40/40; P3-03b 50/50; P3-03c 34/34; P3-03d 25/25; P3-04 33/33; P3-05 37/37; real `user://saves/` SHA-256 unchanged. Migrated the "routing in main.gd" assertions in p3_05/p4_02/p3_03c/p3_03a to the router (per §11; extends §14's file list).
+- Follow-up: P4-04 sandbox slot-save aggregation — do not start automatically.
 
 ### P4-02 - Extract DevToolsController from main.gd
 
@@ -65,18 +75,3 @@ No pending handoffs.
 - Result: sandbox (`main.gd`) and arrival prototype (`arrival_landing_scene.gd`) runtime paths isolated from formal autoloads / Full Save / formal continue. Local manager node names renamed `Sandbox…` / `ArrivalPrototype…` (only true collision was local `TimeManager` vs `/root/TimeManager`; safe — member-var access only). Legacy save namespaces (`slot_N.json` / `arrival_prototype_save.json`) confirmed separate from `full_save.json`; `FullSaveOrchestrator` rejects legacy and never reads legacy files. Adapted GPT spec: no new mode-framework/guards, no `main.gd` logic rewrite, no legacy deletion, no schema/`project.godot` change.
 - Verification: Godot editor/smoke EXIT 0; P3-05 32/32; P3-03a 39/39; P3-03b 50/50; P3-03c 33/33; P3-03d 25/25; P3-04 33/33; real saves SHA-256 identical before/after.
 - Follow-up: P3-06 Phase 3 regression sweep + closure.
-
-### P3-04 - Manager responsibility overlap cleanup
-
-- Status: `COMPLETED`
-- Owner: `Claude Code`
-- Previous owner: `Codex`
-- Transfer reason: Codex usage limit reached before it could write `.git/index` (commit); ownership transferred to Claude Code to complete takeover review and Git close-out. Same task, not a re-implementation.
-- Reviewer: `User`
-- Base commit: `be363f2`
-- Result: canonical owners and compatibility mirror directions are clarified for Inventory/Backpack/Storage, Time/TrainingTime, BaseStatus/Power/Air, Suit/PlayerState, and DoorState. Codex completed the implementation and tests; Claude completed takeover review and the commit.
-- Code changes: transfer APIs now return explicit source/destination/rollback metadata; BaseStatus and PlayerState now expose mirror-specific sync APIs (`sync_power_mirror_from_power_system`, `sync_suit_worn_mirror_from_suit_manager`) while keeping compatibility wrappers; Power and Suit push through those mirror-specific APIs.
-- Boundaries preserved: no Full Save schema change, no Training Checkpoint format change, no gameplay value change, no scene resource change, no `project.godot` change, no formal-base Door integration.
-- Verification (Codex, pre-transfer): Godot editor parse EXIT 0; Godot headless smoke EXIT 0; P3-03a 39/39; P3-03b 50/50; P3-03c 33/33; P3-03d 25/25; P3-04 33/33; real saves SHA unchanged.
-- Verification (Claude, post-transfer re-run): Godot editor parse EXIT 0; Godot headless smoke EXIT 0; P3-04 33/33; P3-03a 39/39; P3-03b 50/50; P3-03c 33/33; P3-03d 25/25; real `user://saves/` SHA-256 identical before/after (test suites self-restore, no corruption).
-- Follow-up: P3-05 legacy isolation is ready to schedule next.

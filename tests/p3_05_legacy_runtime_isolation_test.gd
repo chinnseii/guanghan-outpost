@@ -92,12 +92,15 @@ func _test_local_manager_naming(main_src: String, arrival_src: String) -> void:
 
 ## A. Formal continue routes through Full Save; training through TrainingManager.
 func _test_formal_continue_isolation(main_src: String) -> void:
-	_ok("formal continue uses FullSaveOrchestrator.restore_full_save()", main_src.contains("FullSaveOrchestratorScript.restore_full_save()"))
-	_ok("formal continue scene comes from FullSaveOrchestrator.continue_scene_path()", main_src.contains("FullSaveOrchestratorScript.continue_scene_path()"))
-	_ok("training continue uses TrainingManager.continue_scene_path()", main_src.contains("TrainingManagerScript.continue_scene_path()"))
+	# P4-03: formal routing moved from main.gd into FormalFlowRouter; assertions migrated there.
+	var router_src := _code_only(_read_text("res://scripts/controllers/formal_flow_router.gd"))
+	_ok("main.gd creates the FormalFlowRouter", main_src.contains("FormalFlowRouterScript.new()"))
+	_ok("formal continue uses FullSaveOrchestrator.restore_full_save() (in router)", router_src.contains("FullSaveOrchestratorScript.restore_full_save()"))
+	_ok("formal continue scene comes from FullSaveOrchestrator.continue_scene_path() (in router)", router_src.contains("FullSaveOrchestratorScript.continue_scene_path()"))
+	_ok("training continue uses TrainingManager.continue_scene_path() (in router)", router_src.contains("TrainingManagerScript.continue_scene_path()"))
 	# Progress inspection uses the read-only API, not the restoring load_progress().
-	_ok("has-progress checks use TrainingManager.read_progress() (no side effects)", main_src.contains("TrainingManagerScript.read_progress()"))
-	_ok("main.gd does not call TrainingManager.load_progress()", not main_src.contains("TrainingManagerScript.load_progress("))
+	_ok("has-progress checks use TrainingManager.read_progress() (in router, no side effects)", router_src.contains("TrainingManagerScript.read_progress()"))
+	_ok("router does not call TrainingManager.load_progress()", not router_src.contains("TrainingManagerScript.load_progress(") and not router_src.contains("load_progress("))
 
 ## C. Legacy save files are a separate namespace and never enter formal Full Save.
 func _test_legacy_save_isolation(main_src: String, arrival_src: String, orch_src: String) -> void:

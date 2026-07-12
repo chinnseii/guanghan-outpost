@@ -32,6 +32,7 @@ const TrainingManagerScript := preload("res://scripts/training/training_manager.
 const FullSaveOrchestratorScript := preload("res://scripts/systems/full_save_orchestrator.gd")
 const TimeManagerScript := preload("res://scripts/time_manager.gd")
 const DevToolsControllerScript := preload("res://scripts/controllers/dev_tools_controller.gd")
+const FormalFlowRouterScript := preload("res://scripts/controllers/formal_flow_router.gd")
 const CameraManagerScript := preload("res://scripts/camera_manager.gd")
 const UIManagerScript := preload("res://scripts/ui_manager.gd")
 const EventManagerScript := preload("res://scripts/event_manager.gd")
@@ -352,6 +353,7 @@ var player_node: Node2D
 var robot_node: Node2D
 
 var _dev_tools: Node = null
+var _formal_flow_router: FormalFlowRouter = null
 
 func _ready() -> void:
 	_setup_input_map()
@@ -3539,6 +3541,19 @@ func _eva_risk_text() -> String:
 	return _join_strings(risks, " / ") if not risks.is_empty() else "nominal"
 
 func _setup_main_menu() -> void:
+	if _formal_flow_router == null:
+		_formal_flow_router = FormalFlowRouterScript.new()
+		_formal_flow_router.setup({
+			"change_scene": Callable(self, "_fmt_change_scene"),
+			"legacy_continue": Callable(self, "_fmt_legacy_continue"),
+			"log": Callable(self, "add_log"),
+			"refresh_menu": Callable(self, "_refresh_main_menu"),
+			"save_slot_path": Callable(self, "_save_path"),
+			"show_new_game_confirmation": Callable(self, "_show_new_game_confirmation"),
+			"reset_time": Callable(self, "_debug_reset_time"),
+			"demo_progress_paths": DEMO_PROGRESS_PATHS,
+			"save_slots": SAVE_SLOTS,
+		})
 	var menu := Control.new()
 	menu.name = "MainMenu"
 	menu.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -3593,8 +3608,8 @@ func _setup_main_menu() -> void:
 	subtitle.add_theme_font_size_override("font_size", 22)
 	box.add_child(subtitle)
 
-	box.add_child(_make_title_button("开始新驻留", _start_application_flow, true))
-	var continue_button := _make_title_button("继续驻留", _continue_mission, _has_continue_mission())
+	box.add_child(_make_title_button("开始新驻留", Callable(_formal_flow_router, "start_application_flow"), true))
+	var continue_button := _make_title_button("继续驻留", Callable(_formal_flow_router, "continue_mission"), _formal_flow_router.has_continue_mission())
 	continue_button.name = "ContinueButton"
 	box.add_child(continue_button)
 	var dev_separator := HSeparator.new()
@@ -3671,67 +3686,19 @@ func _set_gameplay_hud_visible(visible: bool) -> void:
 	if is_instance_valid(ui_manager) and ui_manager.has_method("set_hud_visible"):
 		ui_manager.call("set_hud_visible", visible)
 
-func _start_application_flow() -> void:
-	if _has_demo_progress():
-		_show_new_game_confirmation()
-		return
-	_start_clean_new_stay()
+# P4-03: formal new-game / continue routing now lives in FormalFlowRouter
+# (scripts/controllers/formal_flow_router.gd), created in _setup_main_menu and reached via
+# `_formal_flow_router`. Small host helpers below back its injected callbacks.
 
-func _start_clean_new_stay() -> void:
-	_clear_demo_progress()
-	_debug_reset_time()
-	get_tree().change_scene_to_file("res://scenes/application/ApplicationStartScene.tscn")
+## Injected callback: FormalFlowRouter asks main to change scenes (main owns the SceneTree).
+func _fmt_change_scene(path: String) -> void:
+	get_tree().change_scene_to_file(path)
 
-func _continue_mission() -> void:
-	var progress := TrainingManagerScript.read_progress()
-	if _sprint06_has_progress():
-		var restore_result := FullSaveOrchestratorScript.restore_full_save()
-		if not bool(restore_result.get("success", false)):
-			add_log("Full Save restore failed: %s" % String(restore_result.get("message", "")))
-			_refresh_main_menu()
-			return
-		get_tree().change_scene_to_file(FullSaveOrchestratorScript.continue_scene_path())
-		return
-	if _training_has_progress(progress) or _application_has_progress():
-		get_tree().change_scene_to_file(TrainingManagerScript.continue_scene_path())
-		return
-	# P3-05 legacy isolation: last-resort LEGACY SANDBOX continue. Only reached when there is
-	# NO formal Full Save, NO training progress, and NO application profile -- i.e. the formal
-	# continue flow does not depend on this. It restores an old `slot_N.json` sandbox save into
-	# the local sandbox state (never Full Save / formal managers).
-	var latest_slot := _latest_save_slot()
-	if latest_slot > 0:
-		current_save_slot = latest_slot
-		_load_game()
-		return
-	add_log("没有可继续的任务档案。")
-	_refresh_main_menu()
-
-func _has_continue_mission() -> bool:
-	return _training_has_progress(TrainingManagerScript.read_progress()) or _sprint06_has_progress() or _application_has_progress() or _latest_save_slot() > 0
-
-func _has_demo_progress() -> bool:
-	if _has_continue_mission():
-		return true
-	for path: String in DEMO_PROGRESS_PATHS:
-		if FileAccess.file_exists(path):
-			return true
-	return false
-
-func _training_has_progress(progress: Dictionary) -> bool:
-	return bool(progress.get("TrainingStarted", false)) or bool(progress.get("FinalAssessmentCompleted", false)) or bool(progress.get("MissionAssignmentAccepted", false))
-
-func _sprint06_has_progress() -> bool:
-	return FullSaveOrchestratorScript.has_full_save()
-
-func _application_has_progress() -> bool:
-	return FileAccess.file_exists("user://saves/application_profile.json")
-
-func _latest_save_slot() -> int:
-	for slot in range(1, SAVE_SLOTS + 1):
-		if FileAccess.file_exists(_save_path(slot)):
-			return slot
-	return 0
+## Injected callback: legacy sandbox continue -- select the old slot and load it into the
+## local sandbox state. Kept in main because `current_save_slot`/`_load_game` are sandbox-owned.
+func _fmt_legacy_continue(slot: int) -> void:
+	current_save_slot = slot
+	_load_game()
 
 func _show_archive_placeholder() -> void:
 	_set_title_menu_notice("档案系统将在后续版本开放。")
@@ -3756,19 +3723,8 @@ func _clear_current_save() -> void:
 		add_log("Dev: save slot %d is already empty." % current_save_slot)
 	_refresh_main_menu()
 
-func _clear_demo_progress() -> void:
-	FullSaveOrchestratorScript.reset_formal_restore_session()
-	for path: String in DEMO_PROGRESS_PATHS:
-		if FileAccess.file_exists(path):
-			DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
-	for slot in range(1, SAVE_SLOTS + 1):
-		var path := _save_path(slot)
-		if FileAccess.file_exists(path):
-			DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
-	_refresh_main_menu()
-
 func _reset_demo_progress_from_dev() -> void:
-	_clear_demo_progress()
+	_formal_flow_router.clear_demo_progress()
 	TrainingManagerScript.reset_progress()
 	_debug_reset_time()
 	add_log("Dev: demo progress reset.")
@@ -3811,7 +3767,7 @@ func _show_new_game_confirmation() -> void:
 	confirm.modulate = Color("#9ac7e8")
 	confirm.pressed.connect(func():
 		panel.queue_free()
-		_start_clean_new_stay()
+		_formal_flow_router.start_clean_new_stay()
 	)
 	footer.add_child(confirm)
 
@@ -4307,7 +4263,7 @@ func _refresh_main_menu() -> void:
 		return
 	if has_node("UI/Root/MainMenu/Box/ContinueButton"):
 		var button: Button = $UI/Root/MainMenu/Box/ContinueButton
-		button.disabled = not _has_continue_mission()
+		button.disabled = not (_formal_flow_router != null and _formal_flow_router.has_continue_mission())
 
 func _tech_button_text(tech_id: String) -> String:
 	var tech: Dictionary = tech_defs[tech_id]

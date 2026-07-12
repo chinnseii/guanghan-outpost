@@ -4,7 +4,7 @@ Updated: 2026-07-12
 
 ## Phase
 
-Phase 3 system-boundary cleanup is COMPLETE (pushed + tag `system-boundary-cleanup-complete-2026-07-12`). Phase 4 — Large-script decomposition — is IN PROGRESS: P4-01 audit + P4-02 DevToolsController extraction done; next is P4-03.
+Phase 3 system-boundary cleanup is COMPLETE (pushed + tag `system-boundary-cleanup-complete-2026-07-12`). Phase 4 — Large-script decomposition — is IN PROGRESS: P4-01 audit + P4-02 DevToolsController + P4-03 FormalFlowRouter extraction done; next is P4-04.
 
 Completed:
 - P3-01 system boundary audit.
@@ -19,9 +19,10 @@ Completed:
 - P3-06 Phase 3 regression sweep + closure (Phase 3 formally closed).
 - P4-01 large-script responsibility & decomposition audit (`PHASE_4_LARGE_SCRIPT_AUDIT.md`).
 - P4-02 DevToolsController extraction from `main.gd` (5182→4346; `scripts/controllers/dev_tools_controller.gd`).
+- P4-03 FormalFlowRouter extraction from `main.gd` (4346→4302; `scripts/controllers/formal_flow_router.gd`).
 
 Not started:
-- P4-03 — extract FormalFlowRouter from `main.gd` (do not start automatically).
+- P4-04 — sandbox slot-save aggregation from `main.gd` (do not start automatically; needs a sandbox-state struct first).
 
 ## P3-05 Summary
 
@@ -107,6 +108,6 @@ P3-04 passed:
 
 ## Next Step
 
-Phase 3 is COMPLETE, pushed, and tagged. Phase 4 in progress: P4-01 audit + P4-02 DevToolsController extraction done (`main.gd` 5182→4346; `scripts/controllers/dev_tools_controller.gd`). **Next: P4-03 — extract `FormalFlowRouter` from `main.gd`** (formal continue/new-game routing; MEDIUM risk — touches formal restore, migrate the P3-05 static assertions to the new file). Do not start P4-03 automatically.
+Phase 3 is COMPLETE, pushed, and tagged. Phase 4 in progress: P4-01 audit + P4-02 DevToolsController + P4-03 FormalFlowRouter done (`main.gd` 5182→4302; `scripts/controllers/{dev_tools_controller,formal_flow_router}.gd`). **Next: P4-04 — sandbox slot-save aggregation from `main.gd`** (`_save_game`/`_load_game`/`_apply_save_data` + ~20 shared sandbox fields — MEDIUM-HIGH, needs a sandbox-state struct first; user-decision on whether the legacy sandbox warrants the investment). Do not start P4-04 automatically.
 
 Deferred beyond Phase 3 (not regressions, tracked): legacy file physical deletion; DoorStateManager formal old-base integration (feature work); `main.gd` / `sprint06_base_scene.gd` large-script split (Phase 4); `interaction_detector` orphan and `BaseInterior_Test` entry (UNKNOWN); product-level Inventory↔Backpack relationship.
