@@ -70,10 +70,10 @@
 - **回滚方案**：逐系统 PR，可单独 revert；存档结构改动保留旧字段读兼容。
 - **风险**：🔴 存档兼容——改 schema 会让旧存档失效；必须保留读旧路径。
 
-## Phase 4 · 大型脚本渐进拆分（高风险，一次一个职责）— IN_PROGRESS（P4-01 审计完成 2026-07-12）
+## Phase 4 · 大型脚本渐进拆分（高风险，一次一个职责）— ✅ COMPLETE（2026-07-12，收口见 `PHASE_4_CLOSURE_REPORT.md`）
 - **P4-01 审计结论（详见 `PHASE_4_LARGE_SCRIPT_AUDIT.md`）**：实测 P0=`main.gd`(5182)；P1=`training_module_scene.gd`(3417)/`sprint06_base_scene.gd`(2556)/`training_base_map.gd`(2255)。4 个大场景脚本均 HIGH_FAN_OUT + SCENE_TREE_COUPLED 但 fan-in 低（利于拆）；`training_manager`(591) 是 HIGH_FAN_IN static hub，靠后。
 - **P4-02 唯一推荐（修订原"MainMenuController 首拆"）**：先抽 **`main.gd` 的 DevToolsController**（dev 菜单 + ~150 `_debug_*`，~840 行/~16%）。理由：**dev-only、对正式玩法/存档/恢复零影响**、共享状态最低、近乎纯 relocation、可独立 revert——比 MainMenuController/FormalFlowRouter 更安全（后者触正式路由/restore，排 P4-03）。
-- **推荐顺序**：P4-02 DevTools → P4-03 FormalFlowRouter → P4-04 Sandbox 存档聚合 → P4-05 sprint06 HUD 面板 → P4-06 sprint06 导航/日程流程 → P4-07 训练 UI builder → (可选)P4-08 training_manager checkpoint IO → P4-09 收口。每批一个 commit、可独立 revert、拆前补 characterization 测试、拆后跑 Phase 3 全量(216)+editor/smoke。
+- **执行顺序（最终）**：P4-01 audit → P4-02 DevTools → P4-03 FormalFlowRouter → P4-04 sprint06 HUD presenter → P4-05 sprint06 navigation computation → P4-06A/B sprint06 schedule evaluator → P4-07A/B training module screen presenter → P4-08 regression/save-baseline/closure。原计划中的 sandbox slot-save aggregation 与 training_manager checkpoint IO 均延期，不作为 Phase 4 阻塞项。
 - **P4-02 ✅ DONE（2026-07-12）**：`DevToolsController` 抽出（`scripts/controllers/dev_tools_controller.gd`，876 行），`main.gd` **5182→4346（−836/~16%）**；90 funcs 移出（dev 菜单 + 全部 `_debug_*`），`_debug_reset_time` 作为 SHARED_HELPER 留 main（formal new-game 用），非 Autoload、正式流程不依赖它。测试 `p4_02` 22/22 + Phase3 全量绿 + 真实存档 SHA 不变。
 - **P4-03 ✅ DONE（2026-07-12）**：`FormalFlowRouter` 抽出（`scripts/controllers/formal_flow_router.gd`，133 行，`class_name`/RefCounted，非 Autoload）。移出 10 个正式路由方法（continue_mission + 全部进度谓词 + new-game/clear）；续档优先级 **Full Save→Training→legacy slot→notice** 完全不变；只读谓词用 `read_progress()`、router 不调 `load_progress()`。依赖注入（callbacks，利于测试），0 wrapper（5 调用点直接改线）。`main.gd` **4346→4302（净 −44）**。新增 `p4_03` 27/27，并迁移 p3_05/p4_02/p3_03c/p3_03a 断言。真实存档 SHA 不变。
 - **P4-04 ✅ DONE（2026-07-12，调整原计划）**：原计划 P4-04=sandbox 存档聚合，**延期**（legacy/dev、20+ 共享字段、收益低）；改为抽 `sprint06_base_scene.gd` 的 **`BaseHudPanelPresenter`**（`scripts/controllers/base_hud_panel_presenter.gd`，263 行，RefCounted，非 Autoload）。移出全部 HUD/状态面板 UI 构建 + 8 面板 toggle + `refresh_open_panels`；场景 `_setup_ui` 用 **re-expose** 把 flow 更新的 label 节点回指自身 var（更新点全不变=安全）；plant-diagnosis（按钮驱动玩法）与 save/flow/导航留场景。`sprint06_base_scene.gd` **2556→2331（净 −225）**。新增 `p4_04` 35/35，全绿。
@@ -82,6 +82,7 @@
 - **P4-06B ✅ DONE（2026-07-12）**：抽无状态 `Sprint06ScheduleEvaluator`（`scripts/controllers/sprint06_schedule_evaluator.gd`，66 行，`class_name`/RefCounted，零成员状态）——8 个纯函数（`current_day`/`required_daily_keys`/`daily_checks_complete`/`day02_inspections_complete`/`task_line`/`day_label`/`daily_report_label`/`daily_checklist_text`）。场景保留薄委托，全部 mutation/async/finish/transition/save/输入锁未动。字符串逐字等价 + Dictionary 不变性测试锁定。`sprint06_base_scene.gd` **2307→2268（净 −39）**。新增 `p4_06b` 41/41，迁移 `p4_06a` 28/28，全绿，真实存档 SHA 不变。
 - **P4-07A ✅ DONE（2026-07-12，只读审计 + characterization，零代码移动）**：审计 `training_module_scene.gd`(3417)/`training_base_map.gd`(2255) → `P4_07A_TRAINING_LARGE_SCRIPT_AUDIT.md`。关键：两脚本 UI 全动态 `add_child`（无 `$` 硬路径、无 tween）→ UI presenter 抽离**无需改 .tscn**（P4-04 模式）；UI flow-wired（按钮→checkpoint/step）；无 P0/P1（训练进度 canonical 在 training_progress.json）。新增 `p4_07a` 30/30（源码分析，不启动场景），全绿，SHA 不变。**唯一结论：A — EXTRACT_TRAINING_MODULE_UI**（`TrainingModuleScreenPresenter`，~300-400 行，CHARACTERIZE_FIRST）；此后剩余训练逻辑（状态机 + base_map 房间导航）强耦合 → 建议 **CLOSE_PHASE_4**。**下一步 P4-07B**：抽 training_module UI presenter（先 characterize）。
 - **P4-07B ✅ DONE（2026-07-12）**：抽 `TrainingModuleScreenPresenter`（`scripts/controllers/training_module_screen_presenter.gd`，501 行，`class_name`/RefCounted，非 Autoload）。移出 `training_module_scene.gd` 的显示层 screen chrome、minimal HUD、briefing/pause/interaction 面板、popup shell、suit-status panel、entry-blocked briefing、overlay/HUD/interaction display；场景保留 `_build_training_area`、room target/layout、movement/input locks、step state、`_complete_step`/`_finish_module`、checkpoint 写入和所有正确/错误选项判定。`training_module_scene.gd` **3417→3114（净 −303）**。新增 `p4_07b` 20/20，迁移 `p4_07a` 32/32，全绿。`training_base_map.gd`、场景、`project.godot`、schema、玩法数值未动。**建议下一步：Phase 4 close-out；不要自动开始 P4-08。**
+- **P4-08 ✅ DONE（2026-07-12）**：Phase 4 全量回归、存档基线重建与收口完成。新增 `PHASE_4_CLOSURE_REPORT.md`。全部 P3/P4 专项测试通过（454/454），Godot editor/smoke EXIT 0。当前真实存档先备份到 `saves_backup_before_p4_08_2026-07-12_234110`（19/19 SHA 匹配），测试后所有 SHA 仍不变，仅 manager/training JSON mtime 刷新；结论 `SAVE_BASELINE_STABLE_WITH_EXPECTED_MIRROR_REFRESH`。Phase 4 COMPLETE；下一步 Phase 5 — Skill 建设，未启动。
 - **目标**：给 4 个巨型脚本减负，**不大爆炸重写**。
 - **前置条件**：Phase 3 相关系统边界已清。
 - **具体任务**（严格一次一个，每步独立回归+回滚点）：
@@ -93,7 +94,7 @@
 - **回滚方案**：每次拆分一个 commit/PR，可整体 revert。
 - **风险**：🔴 tier-1 文件（reference_prop/sprint06/training_*）拆分波及多线；先拆耦合最低的 main.gd 菜单。
 
-## Phase 5 · Skill 建设（低风险）
+## Phase 5 · Skill 建设（低风险）— READY（未启动）
 - **目标**：按 SKILL_ARCHITECTURE 分批落地。
 - **前置条件**：治理文档稳定。
 - **具体任务**：
@@ -184,5 +185,5 @@ Phase 0 →（1 与 2 可并行，均低风险）→ 3（逐系统）→ 4（逐
 - Minimal regression fix this round: renamed a residual legacy node-name collision in `arrival_cinematic_scene.gd` (missed by P3-05). Repo-wide `name = "TimeManager"/"GameStateManager"` = 0. This is the only code change in P3-06; everything else is verification + documentation.
 - **Closed risks**: multi-truth-source P1; Power/Suit mirror restore gaps; checkpoint over-restore; legacy runtime confusion + node-name collision; formal-continue-vs-legacy-restore mixing; manager-local late overwrite of Full Restore.
 - **Deferred (NOT closed, tracked, not regressions)**: DoorState formal old-base integration (feature work) → DEFERRED_TO_FEATURE_WORK; `main.gd` (5165) + `sprint06_base_scene.gd` large-script split → **DEFERRED_TO_PHASE_4**; legacy file physical deletion → DEFERRED_TO_FEATURE_WORK; `interaction_detector` orphan + `BaseInterior_Test` entry (UNKNOWN); product-level Inventory↔Backpack relationship.
-- **Next phase: Phase 4 — 大型脚本渐进拆分**（大脚本拆分）。**未启动。**
+- **Next phase at that time was Phase 4 — 大型脚本渐进拆分**（now complete as of P4-08; next current phase is Phase 5 — Skill 建设）。
 - Closure report: `PHASE_3_CLOSURE_REPORT.md`. Completion commit: this task's closing commit (`fix: close Phase 3 regression gaps`).

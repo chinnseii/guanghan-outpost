@@ -4,80 +4,110 @@ Updated: 2026-07-12
 
 ## Phase
 
-Phase 3 system-boundary cleanup is COMPLETE (pushed + tag `system-boundary-cleanup-complete-2026-07-12`). Phase 4 — Large-script decomposition — is IN PROGRESS through P4-07B.
+Current Phase: Phase 4 complete.
+Next Phase: Phase 5 — Skill development.
 
-Completed in Phase 4:
-- P4-01 large-script responsibility & decomposition audit (`PHASE_4_LARGE_SCRIPT_AUDIT.md`).
+Phase 3 system-boundary cleanup is COMPLETE and tagged `system-boundary-cleanup-complete-2026-07-12`. Phase 4 large-script decomposition is COMPLETE through P4-08. Phase 5 is READY but has not been started.
+
+## Recent Completion
+
+P4-08 — Phase 4 regression, save-baseline recovery, and closure.
+
+Result:
+- Full P3/P4 regression passed.
+- Godot editor parse and default headless smoke passed.
+- A new current real-save baseline was created without overwriting newer user progress.
+- P4-07B save integrity is resolved as `SAVE_BASELINE_STABLE_WITH_EXPECTED_MIRROR_REFRESH`.
+- Phase 4 is formally closed.
+
+Current repository baseline before P4-08 closing commit:
+- HEAD: `02fd9d3`
+- Branch: `main`
+- Ahead/behind before closing commit: ahead `9`, behind `0`
+- Working tree at P4-08 start: clean
+- P4-08 owner: `Codex`
+- P4-07B owner transfer: Claude Code quota exhaustion -> Codex completed the same approved task, not a duplicate task.
+
+## Phase 4 Completed Work
+
+- P4-01 large-script responsibility & decomposition audit.
 - P4-02 DevToolsController extraction from `main.gd` (5182 -> 4346).
 - P4-03 FormalFlowRouter extraction from `main.gd` (4346 -> 4302).
 - P4-04 BaseHudPanelPresenter extraction from `sprint06_base_scene.gd` (2556 -> 2331).
 - P4-05 BaseNavigationController extraction from `sprint06_base_scene.gd` (2331 -> 2308).
-- P4-06A sprint06 schedule/mission-flow coupling audit + characterization.
+- P4-06A sprint06 schedule/mission-flow coupling audit.
 - P4-06B Sprint06ScheduleEvaluator extraction from `sprint06_base_scene.gd` (2307 -> 2268).
-- P4-07A training large-script UI audit + characterization.
-- P4-07B TrainingModuleScreenPresenter extraction from `training_module_scene.gd` (3417 -> 3114; net -303).
+- P4-07A training large-script UI audit.
+- P4-07B TrainingModuleScreenPresenter extraction from `training_module_scene.gd` (3417 -> 3114).
+- P4-08 regression, save-baseline recovery, and closure.
 
-## P4-07B Summary
+## Large Script Final State
 
-Goal: extract display-only training-module screen construction from `training_module_scene.gd` without moving training state, checkpoint ownership, room layout, input locks, or flow-coupled step completion.
+| File | Phase 4 start lines | Final lines | Net reduction | Remaining reason |
+|---|---:|---:|---:|---|
+| `scripts/main.gd` | 5182 | 4302 | -880 | legacy sandbox root/menu/save glue remains coupled |
+| `scripts/base/sprint06_base_scene.gd` | 2556 | 2268 | -288 | async finish/transition/save and scene task state remain coupled |
+| `scripts/training/training_module_scene.gd` | 3417 | 3114 | -303 | room layout, movement, step flow, checkpoint, answer logic remain coupled |
+| `scripts/training/training_base_map.gd` | 2255 | 2255 | 0 | dynamic rooms/doors/area switching remain SceneTree-coupled |
 
-Implemented:
-- Added non-Autoload `TrainingModuleScreenPresenter` (`scripts/controllers/training_module_screen_presenter.gd`) as a RefCounted display helper.
-- Moved dynamic screen chrome, left mission panel labels, footer buttons, minimal HUD, briefing/pause/interaction panels, popup shell ownership, suit-status panel display, entry-blocked briefing UI, overlay visibility, HUD label assignment, and interaction progress display into the presenter.
-- `training_module_scene.gd` now creates the presenter, injects UI-intent callbacks, re-exposes only the small set of nodes still needed by scene flow (`hint_label`, `diagnosis_panel`, popup reference, `training_area`, and `prompt_label`).
-- Training state remains in the scene: `module_id`, `module_data`, `step_index`, `completed`, `mission_panel_visible`, `briefing_visible`, `pause_visible`, `interaction_running`, `target_nodes`, movement/input handling, `_build_training_area`, `_complete_step`, `_finish_module`, and checkpoint writes.
-- Added `tests/p4_07b_training_module_screen_presenter_test.gd` and updated P4-07A characterization to reflect the new presenter boundary.
+## Save Baseline
 
-Instruction adjustment:
-- The original generated instruction suggested broad UI extraction. In code, diagnosis/plant/repair option dialogs contain correct-answer checks and call `_complete_step()`, so those gameplay decisions stayed in `training_module_scene.gd`. The presenter owns only the popup container API (`open_popup`, `add_popup_action_control`, body text, close), not training answers or step advancement.
-- `training_base_map.gd` remains untouched. Base-map UI extraction is still deferred because its room switching and door navigation are more scene-tree coupled.
+Actual user data directory:
 
-Shared/core files touched:
-- `scripts/training/training_module_scene.gd` (core training scene; UI delegation only).
+`C:\Users\csw83\AppData\Roaming\Godot\app_userdata\Guanghan Outpost`
 
-New files:
-- `scripts/controllers/training_module_screen_presenter.gd`
-- `scripts/controllers/training_module_screen_presenter.gd.uid`
-- `tests/p4_07b_training_module_screen_presenter_test.gd`
-- `tests/p4_07b_training_module_screen_presenter_test.gd.uid`
+P4-08 backup:
 
-Tests/docs touched:
-- `tests/p4_07a_training_large_script_audit_test.gd`
-- `docs/handoff/ACTIVE_TASKS.md`
-- `docs/handoff/CURRENT.md`
-- `docs/governance/P4_07A_TRAINING_LARGE_SCRIPT_AUDIT.md`
-- `docs/governance/PHASE_4_LARGE_SCRIPT_AUDIT.md`
-- `docs/governance/CLEANUP_PLAN.md`
+`C:\Users\csw83\AppData\Roaming\Godot\app_userdata\Guanghan Outpost\saves_backup_before_p4_08_2026-07-12_234110`
 
-## Verification Status
+Backup status:
+- 19 source files copied.
+- 19 backup files verified.
+- 0 SHA mismatches.
+- Test-after-baseline comparison: all SHA unchanged; 14 files had mtime-only refresh.
+- Final save conclusion: `SAVE_BASELINE_STABLE_WITH_EXPECTED_MIRROR_REFRESH`.
 
-P4-07B passed:
-- Godot editor parse EXIT 0.
-- Godot headless smoke EXIT 0.
-- P4-07B focused test: 20/20.
-- P4-07A characterization: 32/32.
-- P4-06B: 41/41.
-- P4-06A: 28/28.
-- P4-05: 30/30.
-- P4-04: 35/35.
-- P4-03: 27/27.
-- P4-02: 22/22.
-- P3-03a: 40/40.
-- P3-03b: 50/50.
-- P3-03c: 34/34.
-- P3-03d: 25/25.
-- P3-04: 33/33.
-- P3-05: 37/37.
+Why no 2026-07-11 rollback:
+- The 2026-07-11 backup predates later user/test progress from 2026-07-12.
+- It was used for analysis only, not as an overwrite source.
 
-Note: initial sandboxed Godot runs crashed before script execution because `user://logs` was not writable. The same commands passed with normal Godot user-data permissions.
+## Verification
 
-## Known Issues / Risks
+- P4-07B: 20/20
+- P4-07A: 32/32
+- P4-06B: 41/41
+- P4-06A: 28/28
+- P4-05: 30/30
+- P4-04: 35/35
+- P4-03: 27/27
+- P4-02: 22/22
+- P3-03a: 40/40
+- P3-03b: 50/50
+- P3-03c: 34/34
+- P3-03d: 25/25
+- P3-04: 33/33
+- P3-05: 37/37
+- Total: 454/454
+- Godot editor parse: EXIT 0
+- Godot headless smoke: EXIT 0
 
-- `training_module_scene.gd` is still P1-sized at 3114 lines, but the remaining bulk is mostly room layout, target visuals, movement/input locks, step flow, and checkpoint-coupled logic. Further extraction should be justified by a fresh audit, not by line count alone.
-- `training_base_map.gd` remains P1-sized and untouched; its UI/navigation coupling was intentionally deferred.
-- Diagnosis/repair choice dialogs remain flow-coupled in the scene by design.
-- Full Save schema, Training Checkpoint schema, scenes, `project.godot`, gameplay values, and `training_base_map.gd` were not changed.
+## Deferred Risks
+
+DEFER_TO_FEATURE_WORK:
+- DoorState formal old-base integration.
+- Legacy file physical deletion.
+- `interaction_detector` / `BaseInterior_Test` UNKNOWN cleanup.
+- Product-level Inventory <-> Backpack relationship.
+
+DEFER_TO_FUTURE_REFACTOR:
+- `training_base_map.gd` room/door/dynamic SceneTree ownership.
+- `training_module_scene.gd` remaining state machine and room layout.
+- `sprint06_base_scene.gd` async finish/transition/save.
+- legacy sandbox slot-save aggregation.
+- `main.gd` remaining legacy sandbox core.
+
+These are not Phase 4 blockers.
 
 ## Next Step
 
-Recommended next step: Phase 4 close-out / regression closure. Do not start P4-08 automatically. If further training decomposition is requested later, start with a new audit because the safe display-only module-scene extraction is now complete.
+Phase 5 — Skill development. Do not push, tag, or start Phase 5 automatically from P4-08.

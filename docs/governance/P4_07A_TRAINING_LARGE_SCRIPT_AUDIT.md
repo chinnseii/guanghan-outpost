@@ -123,3 +123,10 @@
 - `training_base_map.gd`, scenes, `project.godot`, Full Save schema, Training Checkpoint schema, and gameplay values were not changed.
 - Verification: Godot editor/smoke EXIT 0; P4-07B 20/20; P4-07A 32/32; P4-06B 41/41; P4-06A 28/28; P4-05 30/30; P4-04 35/35; P4-03 27/27; P4-02 22/22; P3-03a 40/40; P3-03b 50/50; P3-03c 34/34; P3-03d 25/25; P3-04 33/33; P3-05 37/37.
 - Closure implication remains: after P4-07B, remaining training-script bulk is scene-tree/flow/checkpoint coupled. Recommend Phase 4 close-out rather than starting P4-08 automatically.
+
+## P4-08 Closure Note (2026-07-12)
+
+- Phase 4 is now COMPLETE. P4-08 performed full regression, protected the current real saves with a new backup baseline, and closed the P4-07B save-integrity question.
+- Final save conclusion: `SAVE_BASELINE_STABLE_WITH_EXPECTED_MIRROR_REFRESH`. `training_progress.json` remained SHA-stable after P4-08 tests; only mtime refreshed.
+- `training_base_map.gd` remains untouched and deferred. Its room/door/dynamic SceneTree responsibilities are not a Phase 4 blocker.
+- Next phase: Phase 5 — Skill development, not started here.

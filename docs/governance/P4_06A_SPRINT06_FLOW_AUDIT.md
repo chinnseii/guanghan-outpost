@@ -125,3 +125,9 @@ _unhandled_input(交互键)
 ## 14. Remaining Risks
 - 无 P0/P1。sprint06 阶段进度为 scene-local + Full Save，**无双持有缺口**（本轮未发现需即修的缺口）。
 - 剩余大部分 sprint06 流程（完成/异步/切场景）**按设计保留在场景**；Phase 4 对其收益低、风险高，建议仅做 evaluator 抽离后即止于 sprint06，转向其它大脚本（training UI）或延期项。
+
+## P4-08 Closure Note (2026-07-12)
+
+- P4-06B completed the recommended evaluator extraction and P4-08 verified the final boundary.
+- `Sprint06ScheduleEvaluator` remains stateless and pure; async finish/transition/save responsibilities remain in `sprint06_base_scene.gd`.
+- Phase 4 is now COMPLETE. Remaining sprint06 bulk is deferred future refactor scope, not a Phase 4 blocker.

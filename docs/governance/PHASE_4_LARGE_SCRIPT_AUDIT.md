@@ -146,8 +146,8 @@ scripts/ 全量 29,739 行。Top：`main.gd` 5182 · `training/training_module_s
 | P4-05 | sprint06 → BaseHudPanelPresenter | `sprint06_base_scene.gd`,+presenter | MEDIUM | UI 存在性 characterization + smoke | 单 commit | 与 main 批次可并行（不同文件） | Claude | 否 |
 | P4-06 | sprint06 → BaseNavigation / DailyMissionFlow | `sprint06_base_scene.gd`,+controllers | MEDIUM-HIGH | 正式 base 链路回归 | 单 commit | 否 | Claude | 否 |
 | P4-07 | training_module_scene / training_base_map → TrainingUIBuilder | 两脚本,+builder | MEDIUM | 训练链路 + Phase3 回归 | 单 commit | 与 sprint06 批次可并行 | Claude | 否 |
-| P4-08 | (可选) training_manager → CheckpointIO/Flow | `training_manager.gd`,+io | MEDIUM（HIGH_FAN_IN） | 全 Phase3 checkpoint 回归 | 单 commit | 否 | Claude | 是（是否动 P3 刚定稿的 API） |
-| P4-09 | Phase 4 回归与收口 | docs | — | 全量 | — | — | Claude | — |
+| P4-08 | Phase 4 regression / save-baseline recovery / closure | docs | LOW | 全 P3/P4 回归 + save baseline | 单 commit | 否 | Codex | 否 |
+| Deferred | (可选) training_manager → CheckpointIO/Flow | `training_manager.gd`,+io | MEDIUM（HIGH_FAN_IN） | 全 Phase3 checkpoint 回归 | 单 commit | 否 | TBD | 是（是否动 P3 刚定稿的 API） |
 - 并行性：main.gd 批次（P4-02/03/04）与 sprint06/training 批次（P4-05/06/07）**改不同文件**，理论可并行；但同一 owner 串行更稳，建议串行。
 
 ## 14. Test Protection Plan
@@ -254,6 +254,16 @@ scripts/ 全量 29,739 行。Top：`main.gd` 5182 · `training/training_module_s
 - **Unaffected**: `training_base_map.gd`, scenes, `project.godot`, Full Save schema, Training Checkpoint schema, gameplay values.
 - **Verification**: Godot editor/smoke EXIT 0; P4-07B 20/20; P4-07A 32/32; P4-06B 41/41; P4-06A 28/28; P4-05 30/30; P4-04 35/35; P4-03 27/27; P4-02 22/22; P3-03a 40/40; P3-03b 50/50; P3-03c 34/34; P3-03d 25/25; P3-04 33/33; P3-05 37/37.
 - **Next**: recommend Phase 4 close-out / regression closure. Do not start P4-08 automatically.
+
+## P4-08 Closure Note (2026-07-12) — Phase 4 COMPLETE
+
+- **DONE**: full Phase 4 regression, save-baseline recovery, and closure. Closure report: `docs/governance/PHASE_4_CLOSURE_REPORT.md`.
+- **Regression**: P4-07B 20/20; P4-07A 32/32; P4-06B 41/41; P4-06A 28/28; P4-05 30/30; P4-04 35/35; P4-03 27/27; P4-02 22/22; P3-03a 40/40; P3-03b 50/50; P3-03c 34/34; P3-03d 25/25; P3-04 33/33; P3-05 37/37. Total 454/454.
+- **Godot**: editor parse EXIT 0; default headless smoke EXIT 0.
+- **Save baseline**: current real saves backed up to `saves_backup_before_p4_08_2026-07-12_234110` before tests (19/19 SHA match). Post-test SHA unchanged; mtime-only refresh on manager/training JSON. Final conclusion: `SAVE_BASELINE_STABLE_WITH_EXPECTED_MIRROR_REFRESH`.
+- **Final large-script sizes**: `main.gd` 4302; `sprint06_base_scene.gd` 2268; `training_module_scene.gd` 3114; `training_base_map.gd` 2255.
+- **Closure decision**: stop further Phase 4 splitting here. Remaining large areas are SceneTree/flow/save/checkpoint coupled and are documented as deferred risks, not Phase 4 blockers.
+- **Next**: Phase 5 — Skill development is READY but not started.
 
 ## 附：验收标准（本轮 P4-01）
 所有 P0+P1 脚本已清点并映射职责块（附行号）✓；依赖/共享状态热点已识别 ✓；抽离候选有边界卡片（main/sprint06 各 ≥3）✓；不可拆区域已列 ✓；测试保护需求已定义 ✓；分阶段拆分顺序 + 唯一 P4-02 推荐 ✓；**零生产代码改动** ✓。

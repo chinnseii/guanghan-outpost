@@ -26,6 +26,17 @@ No pending handoffs.
 
 ## Recently Closed
 
+### P4-08 - Phase 4 regression, save-baseline recovery, and closure
+
+- Status: `DONE`
+- Owner: `Codex`
+- Reviewer: `User`
+- Base commit: `02fd9d3`
+- Result: Phase 4 fully regressed and closed; a trustworthy current save baseline was established without overwriting newer user progress.
+- Verification: P4-07B 20/20; P4-07A 32/32; P4-06B 41/41; P4-06A 28/28; P4-05 30/30; P4-04 35/35; P4-03 27/27; P4-02 22/22; P3-03a 40/40; P3-03b 50/50; P3-03c 34/34; P3-03d 25/25; P3-04 33/33; P3-05 37/37; Godot editor/smoke EXIT 0.
+- Save baseline: `saves_backup_before_p4_08_2026-07-12_234110`, 19/19 SHA match; post-test SHA unchanged with expected mtime-only mirror refresh. Final conclusion: `SAVE_BASELINE_STABLE_WITH_EXPECTED_MIRROR_REFRESH`.
+- Follow-up: Phase 5 — Skill development is READY but not started.
+
 ### P4-07B - Extract TrainingModuleScreenPresenter
 
 - Status: `DONE`
@@ -35,7 +46,7 @@ No pending handoffs.
 - Result: extracted display-only training-module screen chrome from `training_module_scene.gd` into non-Autoload `scripts/controllers/training_module_screen_presenter.gd` (`class_name`, RefCounted). Scene now injects UI-intent callbacks and keeps all gameplay state/step flow/checkpoint writes. `training_module_scene.gd` **3417 -> 3114 (net -303)**. `training_base_map.gd`, scenes, `project.godot`, schemas, and gameplay values untouched.
 - Scope adjustment: flow-coupled diagnosis/plant/repair option decisions stayed in the scene; presenter owns the popup shell API only. This keeps correct-answer logic and `_complete_step()` out of the display layer.
 - Verification: Godot editor/smoke EXIT 0; P4-07B 20/20; P4-07A 32/32; P4-06B 41/41; P4-06A 28/28; P4-05 30/30; P4-04 35/35; P4-03 27/27; P4-02 22/22; P3-03a 40/40; P3-03b 50/50; P3-03c 34/34; P3-03d 25/25; P3-04 33/33; P3-05 37/37.
-- Follow-up: Phase 4 close-out / regression closure. Do not start P4-08 automatically.
+- Follow-up: Superseded by P4-08 closure. Phase 5 — Skill development is READY but not started.
 
 ### P4-07A - Audit training large scripts and UI extraction candidates
 
@@ -45,7 +56,7 @@ No pending handoffs.
 - Base commit: `592b602`
 - Result: read-only audit + characterization of `training_module_scene.gd` (3417) and `training_base_map.gd` (2255) → `docs/governance/P4_07A_TRAINING_LARGE_SCRIPT_AUDIT.md`. **No production code moved.** Both build UI dynamically (`add_child`, no `$` hardcoded paths, no tween) → presenter extraction needs no `.tscn` change; UI is flow-wired (buttons→checkpoint/step); no P0/P1 (training progress canonical in `training_progress.json`, not a scene double-hold). **Unique conclusion: A — EXTRACT_TRAINING_MODULE_UI** (`TrainingModuleScreenPresenter`, ~300-400 line reduction, CHARACTERIZE_FIRST); after P4-07B, close Phase 4 (remaining training bulk is scene-tree/flow-coupled).
 - Verification: Godot editor/smoke EXIT 0 (no training/base-scene boot); P4-07A 30/30 (source-analysis); P4-06B 41/41; P4-06A 28/28; P4-05 30/30; P4-04 35/35; P4-03 27/27; P4-02 22/22; P3-03a 40/40; P3-03b 50/50; P3-03c 34/34; P3-03d 25/25; P3-04 33/33; P3-05 37/37; real `user://saves/` SHA-256 unchanged.
-- Follow-up: P4-07B `TrainingModuleScreenPresenter` extraction — do not start automatically.
+- Follow-up: Superseded by P4-07B/P4-08 closure.
 
 ### P4-06B - Extract Sprint06ScheduleEvaluator
 
@@ -66,13 +77,3 @@ No pending handoffs.
 - Result: read-only audit + characterization of sprint06 schedule/daily-check/mission-phase/transition/async/save coupling → `docs/governance/P4_06A_SPRINT06_FLOW_AUDIT.md`. **No production flow logic moved.** Findings: sprint06 mission progress is scene-local `state` (Full Save scene_state), not TaskManager — no double-holding, no P0/P1; completion/finish sequences are async + time-advance + save + scene-change (KEEP); pure daily predicates + checklist text are safely separable. **Unique conclusion: A — SAFE_EVALUATOR_EXTRACTION** (P4-06B should extract a stateless `Sprint06ScheduleEvaluator`, ~70 lines, no touch to async/finish/transition/save).
 - Verification: Godot editor/smoke EXIT 0 (no base-scene boot); P4-06A 26/26 (source-analysis); P4-05 30/30; P4-04 35/35; P4-03 27/27; P4-02 22/22; P3-03a 40/40; P3-03b 50/50; P3-03c 34/34; P3-03d 25/25; P3-04 33/33; P3-05 37/37; real `user://saves/` SHA-256 unchanged.
 - Follow-up: P4-06B `Sprint06ScheduleEvaluator` extraction — do not start automatically.
-
-### P4-05 - Extract base navigation controller
-
-- Status: `DONE`
-- Owner: `Claude Code`
-- Reviewer: `User`
-- Base commit: `a3aca62`
-- Result: safely-separable navigation **computation** extracted from `sprint06_base_scene.gd` into stateless `scripts/controllers/base_navigation_controller.gd` (49 lines, `class_name`/RefCounted, non-Autoload) — `terrain_type_for`, `is_near`, `compute_current_target`. Scene keeps thin delegators, `current_target` (~40 flow consumers), `_transition_to` (12 flow callers), `_interaction_target_rect` (day/schedule logic), the movement main loop, and Full Save. Behavior unchanged (characterized). `sprint06_base_scene.gd` 2331 → 2308 (net −24). P4-05A interface-prep scope: sprint06 nav is largely flow-coupled, so the safe movable amount is small by design (per §9/§12, not a failure). No scene/`project.godot`/schema change.
-- Verification: Godot editor/smoke EXIT 0 (no base-scene boot); P4-05 30/30; P4-04 35/35; P4-03 27/27; P4-02 22/22; P3-03a 40/40; P3-03b 50/50; P3-03c 34/34; P3-03d 25/25; P3-04 33/33; P3-05 37/37; real `user://saves/` SHA-256 unchanged.
-- Follow-up: P4-06 sprint06 daily/mission flow controller (audit coupling first) — do not start automatically.
