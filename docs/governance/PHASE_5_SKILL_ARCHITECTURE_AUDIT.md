@@ -361,3 +361,42 @@ P5-01 is accepted if:
 - exactly one P5-02 target is selected;
 - no production code, tests, scenes, assets, formal Skill directory, or `SKILL.md` was added;
 - Godot editor and smoke pass.
+
+## 19. P5-02 Implementation Note
+
+P5-02 completed the first formal repository Skill:
+
+```text
+skills/godot/characterization-first-refactor/SKILL.md
+```
+
+The formal Skill registry now exists at:
+
+```text
+skills/SKILL_REGISTRY.md
+```
+
+Current maturity:
+
+```text
+characterization-first-refactor = TRIAL
+```
+
+The Skill was exercised through a controlled dry run documented in:
+
+```text
+docs/governance/P5_02_CHARACTERIZATION_SKILL_TRIAL.md
+```
+
+Dry-run result:
+
+- The Skill correctly accepted the audit-only task context.
+- The sample target `scripts/training/training_base_map.gd` led to `KEEP_IN_SCENE` / `CHARACTERIZE_ONLY` / `INTERFACE_PREPARATION`, not an unsafe extraction.
+- No production code, tests, scenes, assets, JSON, real saves, or `project.godot` were modified.
+- The Skill remains `TRIAL`, not `VALIDATED`.
+
+Next recommended task:
+
+```text
+P5-03 - Save Integrity Guard Skill
+```

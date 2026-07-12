@@ -5,77 +5,64 @@ Updated: 2026-07-13
 ## Phase
 
 Current Phase: Phase 5 in progress.
-Next task: P5-02 - build `characterization-first-refactor` Skill.
+Next task: P5-03 - Save Integrity Guard Skill.
 
 Phase 3 system-boundary cleanup is COMPLETE and tagged `system-boundary-cleanup-complete-2026-07-12`.
 Phase 4 large-script decomposition is COMPLETE and tagged `large-script-decomposition-complete-2026-07-12`.
-Phase 5 has started with P5-01. Phase 6 has not started.
+Phase 5 is in progress. Phase 6 has not started.
 
 ## Recent Completion
 
-P5-01 - Skill architecture, directory, and boundary audit.
+P5-02 - Build Characterization-First Refactor Skill.
 
 Result:
-- Created `docs/governance/PHASE_5_SKILL_ARCHITECTURE_AUDIT.md`.
-- Defined boundaries between Skill, project docs, agent role, and one-off task prompt.
-- Recommended future formal Skill root: `skills/` with `core/`, `godot/`, and `guanghan/` layers.
-- Recommended future registry path: `skills/SKILL_REGISTRY.md`.
-- Chose exactly one P5-02 target: `skills/godot/characterization-first-refactor/SKILL.md`.
-- Did not create a Skill directory or `SKILL.md`.
-- Did not modify production code, tests, scenes, assets, saves, or `project.godot`.
-- Did not push, tag, or start P5-02.
+- Created the first formal repository Skill at `skills/godot/characterization-first-refactor/SKILL.md`.
+- Created the formal Skill registry at `skills/SKILL_REGISTRY.md`.
+- Created the controlled dry-run report at `docs/governance/P5_02_CHARACTERIZATION_SKILL_TRIAL.md`.
+- Updated Phase 5 governance docs to record P5-02 status.
+- Skill maturity remains `TRIAL`, not `VALIDATED`.
+- No second formal Skill was created.
+- Did not modify production code, tests, scenes, assets, JSON, real saves, or `project.godot`.
+- Did not push, tag, or start P5-03.
 
-Current repository baseline before P5-01 commit:
-- HEAD: `219cc8d`
+Current repository baseline before P5-02 commit:
+- HEAD: `8b12ad9`
 - `origin/main`: `219cc8d`
 - Branch: `main`
-- Ahead/behind at P5-01 start: ahead `0`, behind `0`
-- Working tree at P5-01 start: clean
-- ACTIVE_TASKS at P5-01 start: IDLE
+- Ahead/behind at P5-02 start: ahead `1`, behind `0`
+- Working tree at P5-02 start: clean
+- ACTIVE_TASKS at P5-02 start: IDLE
 
-## Skill Architecture Decision
+## Skill Status
 
-Final Skill layers:
-- Core Governance Skills
-- Godot Engineering Skills
-- Guanghan Project Skills
-- Agent-specific Operating Guides
+Formal Skills:
 
-Wave 1:
-- `characterization-first-refactor`
-- `task-baseline-and-lock`
-- `save-integrity-guard`
+| Skill | Layer | Status | Version | Maturity |
+|---|---|---|---|---|
+| `characterization-first-refactor` | `godot` | `trial` | `0.1.0` | `TRIAL` |
 
-Wave 2:
-- `regression-and-closure`
-- `system-boundary-audit`
-- `godot-presenter-extraction`
-- `guanghan-art-design-and-production`
+The Skill should not be treated as `VALIDATED` until it has guided at least two different real refactor tasks, including at least one Controller extraction and at least one Presenter, Evaluator, or `CHARACTERIZE_ONLY` task.
 
-Wave 3 / deferred:
-- `owner-transfer-and-handoff`
-- `godot-controller-extraction`
-- `guanghan-art-review-and-godot-handoff`
-- `bug-ticket-formatter`
-- `product-experience-acceptance`
+## Dry Run Summary
 
-## P5-02 Recommendation
+Dry run target:
 
-P5-02 should build exactly one formal Skill:
+`scripts/training/training_base_map.gd`
 
-`skills/godot/characterization-first-refactor/SKILL.md`
+Objective:
 
-Rationale:
-- strongest validated pattern from Phase 4;
-- immediately reduces Godot refactor risk;
-- reusable by Codex and Claude Code;
-- acts as parent method for later controller/presenter extraction Skills.
+Evaluate whether room-switching logic can be extracted without changing room creation, door registration, or checkpoint state.
 
-Do not start P5-02 automatically.
+Conclusion:
+
+- Room switching is coupled to `areas`, `current_area_id`, `module_data`, `step_index`, live SceneTree rebuild, player/controller sync, DoorStateManager, TrainingManager checkpoint/progress, and HUD state.
+- The Skill correctly points to `KEEP_IN_SCENE` for room switching.
+- Future work may use `CHARACTERIZE_ONLY` or `INTERFACE_PREPARATION` for small pure helpers or room-config tables.
+- No P5-02R is needed from this dry run.
 
 ## Deferred Risks
 
-Deferred from earlier phases and not closed by P5-01:
+Deferred from earlier phases and not closed by P5-02:
 - DoorState formal old-base integration.
 - Legacy file physical deletion.
 - `interaction_detector` / `BaseInterior_Test` UNKNOWN cleanup.
@@ -88,15 +75,16 @@ Deferred from earlier phases and not closed by P5-01:
 
 ## Verification
 
-P5-01 is docs-only.
+P5-02 is docs/Skill-only.
 - Git diff contains only allowed Markdown docs.
 - `git diff --check`: PASS.
 - Godot editor parse: EXIT 0.
 - Godot headless smoke: EXIT 0.
-- Formal Skill directory / `SKILL.md`: not created.
+- Formal Skill count: 1.
+- Production code/tests/scenes/assets/project/JSON/saves: unchanged.
 
 ## Next Step
 
-P5-02 - build `characterization-first-refactor` Skill.
+P5-03 - Save Integrity Guard Skill.
 
-Do not push, tag, or start P5-02 automatically from P5-01.
+Do not push, tag, or start P5-03 automatically from P5-02.

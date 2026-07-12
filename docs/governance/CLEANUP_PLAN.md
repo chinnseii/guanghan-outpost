@@ -97,6 +97,7 @@
 ## Phase 5 · Skill 建设（低风险）— IN_PROGRESS
 - **目标**：把已验证的治理、Godot 工程、广寒项目、美术与交接流程沉淀为少量可验证 Skill，而不是批量冻结临时提示词。
 - **P5-01 状态**：COMPLETE（2026-07-13）。审计报告见 `PHASE_5_SKILL_ARCHITECTURE_AUDIT.md`。本轮只做架构、目录、边界、候选目录和 P5-02 选择；未创建 `skills/`、未创建 `SKILL.md`、未改生产代码。
+- **P5-02 状态**：COMPLETE（2026-07-13）。已创建首个正式仓库 Skill：`skills/godot/characterization-first-refactor/SKILL.md`，并建立 `skills/SKILL_REGISTRY.md`。dry run 记录见 `P5_02_CHARACTERIZATION_SKILL_TRIAL.md`。当前 maturity = `TRIAL`，不是 `VALIDATED`。未改生产代码、测试、场景、资源、JSON、真实存档或 `project.godot`。
 - **最终 Skill 层模型**：
   1. Core Governance Skills
   2. Godot Engineering Skills
@@ -110,7 +111,7 @@
 - **Wave 1**：`characterization-first-refactor`、`task-baseline-and-lock`、`save-integrity-guard`。
 - **Wave 2**：`regression-and-closure`、`system-boundary-audit`、`godot-presenter-extraction`、`guanghan-art-design-and-production`。
 - **Wave 3 / deferred**：`owner-transfer-and-handoff`、`godot-controller-extraction`、`guanghan-art-review-and-godot-handoff`、`bug-ticket-formatter`、`product-experience-acceptance`。
-- **唯一 P5-02**：`skills/godot/characterization-first-refactor/SKILL.md`。理由：Phase 4 已反复验证；能降低 Godot 大脚本/共用脚本拆分风险；同时给后续 controller/presenter extraction Skill 做父方法。
+- **P5-03 默认建议**：`Save Integrity Guard Skill`。理由：真实存档保护已在 P3/P4 多次验证，且是后续 Godot 验证/回归收口的高风险前置能力。若 P5-02 后续真实任务试用暴露问题，则改排 `P5-02R - Characterization Skill trial revision`。
 - **禁止事项**：不要批量创建 Skill；不要把项目当前文件列表写死为长期真相；不要用 Skill 取代 ACTIVE_TASKS、CURRENT、用户任务范围或 push/tag 授权；不要在 P5-01 之后自动开始 P5-02。
 - **验证方法**：每个 Skill 先 `draft`，真实任务试用后为 `trial`，至少一次高价值或两次重复成功后才标 `validated`，过期则 `deprecated`。
 
