@@ -64,6 +64,40 @@
 - 任何改 Manager `serialize()/deserialize()` 结构的改动，会同时影响：该 Manager 自存文件 + `training_progress.json` + `sprint06_progress.json` 三处，且旧存档需 remap。**改前必须评估三处**。
 
 ## C. UNKNOWN（证据不足，明确挂起）
-1. `arrival/*` 对 `game_state_manager.gd` 是真调用还是仅 preload 未用 —— 未逐函数核实。
+1. ~~`arrival/*` 对 `game_state_manager.gd` 是真调用还是仅 preload 未用~~ → **P3-05 已核实：真调用**（`arrival_landing_scene.gd:53` change_state、`:333` change_state、`:440` serialize、`:465` deserialize）。RESOLVED。
 2. `scripts/interaction_detector.gd` 外部无引用（仅 `interactable.gd` 与它互引），是否彻底 orphan —— 需确认。
-3. `ArrivalLandingScene` / `BaseInterior_Test.tscn` 是否仍在任何可达路径 —— 见 SCENE_REGISTRY。
+3. `ArrivalLandingScene` → **P3-05 已核实：DEV_ONLY**（仅 `main.gd:3751`「Dev Only: Arrival Landing」按钮进入，正式抵达走 `ArrivalCinematicScene`）。`BaseInterior_Test.tscn` 仍无入口证据（见 SCENE_REGISTRY）。
+
+## D. P3-05 Legacy 运行路径隔离（2026-07-12 · 基线 `0a1c1af`）
+
+> 本轮**不删除** legacy、**不接入**正式基地 DoorStateManager、**不改** schema。只做隔离 + 命名去歧义 + 文档化。改动仅：局部节点名重命名 + 作用域注释 + 专项测试。
+
+### D1. Legacy 运行路径清单
+
+| 项目 | Arrival 原型 | Sandbox 沙盒 |
+|---|---|---|
+| Entry scene | `scenes/arrival/ArrivalLandingScene.tscn` | `scenes/main.tscn`（沙盒面板/Dev 菜单内） |
+| Entry script | `scripts/arrival/arrival_landing_scene.gd` | `scripts/main.gd`（`_start_new_game` :2360） |
+| Runtime purpose | prototype | sandbox (dev) |
+| 入口 | **DEV_ONLY**：`main.gd:3751`「Dev Only: Arrival Landing」 | **DEV/沙盒**：沙盒 save_panel「新开局」(`:3134`) + Dev 菜单「Start Survival Sandbox」(`:3749`) |
+| Local managers（局部节点） | GameStateManager/TimeManager/Camera/UI/Event/AudioFeedback/Audio/Lighting（均 `.new()` 子节点） | GameStateManager/TimeManager/Camera/UI/Event/Audio/SaveManager/AudioFeedback/RobotTask（均 `.new()` 子节点） |
+| Formal autoload 访问 | **无**（完全 self-contained，零 `/root/*`） | 仅 **Dev 调试工具** 经 `/root/*Manager` 只读（`main.gd:3936+`）；沙盒玩法本体不碰 |
+| Save file | `user://arrival_prototype_save.json`（`user://` 根） | `user://saves/slot_N.json`（`_save_path` :2536） |
+| Restore path | `_load_arrival()`（仅自身文件） | `_load_game()`（仅自身 slot 文件） |
+| Reachable from formal flow | 否（正式抵达走 ArrivalCinematicScene） | 否（正式新局走 `_start_application_flow`→ApplicationStartScene；正式续档走 FullSave/Training） |
+| Status | LEGACY_PROTOTYPE / DEV_ONLY | LEGACY_PLAYABLE / DEV |
+| Isolation action（本轮） | 局部节点名 → `ArrivalPrototype{Time,GameState}Manager`；save/`_setup` 加作用域注释 | 局部节点名 → `Sandbox{Time,GameState}Manager`；save/continue-fallback 加作用域注释 |
+| Delete status | KEEP（DEV 原型，仍可运行） | KEEP（仍被引用，`docs/LEGACY_SANDBOX_PROTOTYPE.md` 记录） |
+
+### D2. 局部 Manager 同名隔离
+- **唯一真实撞名**：局部节点 `"TimeManager"` vs 正式 autoload `/root/TimeManager`（局部是实时沙盒钟 `scripts/time_manager.gd`；正式是行动制 `scripts/managers/TimeManager.gd`，不同脚本）。其余局部名（GameStateManager/Camera/UI/Event/Audio/SaveManager/RobotTask/Lighting）**均非 autoload**，不撞名。
+- 处置：main.gd/arrival 的局部 `TimeManager`/`GameStateManager` 节点名分别改为 `Sandbox…`/`ArrivalPrototype…` 前缀。**安全依据**：两文件对这些管理器**只经成员变量**访问，全仓零 `get_node("TimeManager")`/`$TimeManager`/`%TimeManager` 名字路径查找（已 grep 证实），故改节点名不影响运行。正式 autoload 访问一律 `/root/…`，与局部彻底分离。
+
+### D3. Legacy 存档隔离（验证结论，非本轮新造）
+- 文件命名空间互不重叠：Full Save=`full_save.json`（FullSaveOrchestrator）／Training=`training_progress.json`／Sandbox=`slot_N.json`／Arrival=`arrival_prototype_save.json`／Legacy sprint06=`sprint06_progress.json`（只读 best-effort）。
+- FullSaveOrchestrator **不读** arrival/sandbox 文件；`restore_full_save()` **拒绝** `legacy_source`（P3-03d，`full_save_orchestrator.gd:118-119`）。
+- Sandbox/Arrival 存档**只写自身文件**、**只 (de)serialize 自身局部管理器**，从不写 `full_save.json`、从不碰 `/root/*Manager`（`main.gd:_save_game/_load_game`、`arrival:_save_arrival/_load_arrival`）。
+- 正式续档 `_continue_mission`：FullSave→Training→（末位）legacy slot 回退。前两者为正式路径；legacy slot 仅在**无** FullSave/训练/申请档时的最后回退，正式流程**不依赖**它（已加注释标明）。
+
+### D4. 本轮未处理（明确留后）
+- legacy 文件物理删除、Inventory/Backpack/Storage 重构、DoorStateManager 正式基地接入、大脚本拆分（main.gd 5165 行属 Phase 4）、UNKNOWN #2 `interaction_detector` orphan、`BaseInterior_Test` 入口确认。

@@ -908,11 +908,19 @@ func _setup_entity_root() -> void:
 	_sync_scene_instances()
 
 func _setup_audio() -> void:
+	# P3-05 legacy isolation: these are LEGACY SANDBOX-local child nodes, NOT the formal
+	# `/root/*` autoloads. They are reached only through the member variables below
+	# (game_state_manager / time_manager / ...), never by node-name path lookup, so their
+	# node names are prefixed "Sandbox…" to avoid being mistaken for the formal autoloads in
+	# the scene tree / debugger. In particular this local clock is the real-time sandbox
+	# `scripts/time_manager.gd`, which is a different script from the formal action-based
+	# `/root/TimeManager` (`scripts/managers/TimeManager.gd`). Formal-manager access in this
+	# file always goes through `/root/...` (see the debug tools), never these local nodes.
 	game_state_manager = GameStateManagerScript.new()
-	game_state_manager.name = "GameStateManager"
+	game_state_manager.name = "SandboxGameStateManager"
 	add_child(game_state_manager)
 	time_manager = TimeManagerScript.new()
-	time_manager.name = "TimeManager"
+	time_manager.name = "SandboxTimeManager"
 	add_child(time_manager)
 	time_manager.call("set_time", day, 7, 42)
 	camera_manager = CameraManagerScript.new()
@@ -2247,6 +2255,11 @@ func _random_supply_landing_pos() -> Vector2:
 	pos.y = clamp(pos.y, MAP_ORIGIN.y + 30.0, MAP_ORIGIN.y + MAP_H * TILE - 30.0)
 	return pos
 
+# P3-05 legacy isolation: LEGACY SANDBOX save/load. Writes/reads `user://saves/slot_N.json`
+# only (see `_save_path`) and (de)serializes only the local sandbox managers + local sandbox
+# gameplay state. It never writes `full_save.json` and never touches formal `/root/*Manager`
+# autoloads. Formal progress uses FullSaveOrchestrator (`full_save.json`); training uses
+# TrainingManager (`training_progress.json`); those are separate namespaces from `slot_N.json`.
 func _save_game() -> void:
 	if is_instance_valid(save_manager) and save_manager.has_method("ensure_save_dir"):
 		save_manager.call("ensure_save_dir")
@@ -4518,6 +4531,10 @@ func _continue_mission() -> void:
 	if _training_has_progress(progress) or _application_has_progress():
 		get_tree().change_scene_to_file(TrainingManagerScript.continue_scene_path())
 		return
+	# P3-05 legacy isolation: last-resort LEGACY SANDBOX continue. Only reached when there is
+	# NO formal Full Save, NO training progress, and NO application profile -- i.e. the formal
+	# continue flow does not depend on this. It restores an old `slot_N.json` sandbox save into
+	# the local sandbox state (never Full Save / formal managers).
 	var latest_slot := _latest_save_slot()
 	if latest_slot > 0:
 		current_save_slot = latest_slot

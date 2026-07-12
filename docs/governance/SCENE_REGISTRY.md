@@ -63,5 +63,14 @@
 ## C. DEPRECATED_CANDIDATE / UNKNOWN 场景（须证据，不删）
 
 - `scenes/base/BaseInterior_Test.tscn` + `scripts/arrival/base_interior_test.gd`(25)：命名含 "Test"，引用 `game_state_manager`/`time_manager`（遗留基座）。**未在 main.gd Dev 菜单或正式路由中找到入口**。→ DEPRECATED_CANDIDATE，须确认是否有其他入口后再处置（Phase 3）。
-- `scenes/arrival/ArrivalLandingScene.tscn`：正式流程走 Cinematic，Landing 是否仍为正式/Dev 专用**证据不足** → UNKNOWN。
+- `scenes/arrival/ArrivalLandingScene.tscn`：~~UNKNOWN~~ → **P3-05 已核实：DEV_ONLY / LEGACY_PROTOTYPE**。唯一入口是 `main.gd:3751`「Dev Only: Arrival Landing」按钮；正式抵达走 `ArrivalCinematicScene`。不在正式可达路径。保留（Dev 可运行），不删。
 - `scenes/props/*` 中是否有未被任何场景 instance 的孤儿道具场景：**本阶段未逐一核实**，标记为 Phase 1 待查。
+
+## D. P3-05 Legacy 运行路径隔离（2026-07-12）
+
+- **正式路径场景**（formal）：`ApplicationStartScene`（正式新局入口）、`scenes/base/*`（sprint06 正式段，Full Save 域）、正式续档经 `FullSaveOrchestrator.continue_scene_path()`。
+- **训练场景**（training）：`TrainingStartScene`/`TrainingBaseMap`/训练模块/`MissionAssignmentNoticeScene`/`AssignmentBlackScreenScene`（Training Checkpoint 域，经 `TrainingManager`）。
+- **Legacy sandbox**：`scenes/main.tscn` 内联沙盒（`_start_new_game`，沙盒 save_panel + Dev 菜单）。存档 `slot_N.json`，局部管理器节点已重命名 `Sandbox…`。DEV/LEGACY_PLAYABLE。
+- **Arrival prototype**：`ArrivalLandingScene.tscn`（`main.gd:3751` Dev 按钮）。存档 `arrival_prototype_save.json`，局部节点已重命名 `ArrivalPrototype…`。DEV_ONLY / LEGACY_PROTOTYPE。
+- **可达性**：sandbox / arrival 均**不可从正式 Continue/New Game 主流程进入**（仅 Dev/沙盒面板）。正式与 legacy 入口在脚本层已分离并加注释标识；本轮不改菜单 UI。
+- 详见 `LEGACY_REGISTRY.md` §D。

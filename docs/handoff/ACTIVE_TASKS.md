@@ -9,7 +9,7 @@ This file is the current coordination board for active task ownership, file lock
 - **Locked files**: `0`
 - **Pending handoffs**: `0`
 - **Branch**: `main`
-- **Board baseline**: `be363f2`
+- **Board baseline**: `0a1c1af`
 - **Last updated**: `2026-07-12`
 
 ## Active Tasks
@@ -25,6 +25,16 @@ No file locks.
 No pending handoffs.
 
 ## Recently Closed
+
+### P3-05 - Legacy runtime isolation
+
+- Status: `COMPLETED`
+- Owner: `Claude Code`
+- Reviewer: `User`
+- Base commit: `0a1c1af`
+- Result: sandbox (`main.gd`) and arrival prototype (`arrival_landing_scene.gd`) runtime paths isolated from formal autoloads / Full Save / formal continue. Local manager node names renamed `Sandbox…` / `ArrivalPrototype…` (only true collision was local `TimeManager` vs `/root/TimeManager`; safe — member-var access only). Legacy save namespaces (`slot_N.json` / `arrival_prototype_save.json`) confirmed separate from `full_save.json`; `FullSaveOrchestrator` rejects legacy and never reads legacy files. Adapted GPT spec: no new mode-framework/guards, no `main.gd` logic rewrite, no legacy deletion, no schema/`project.godot` change.
+- Verification: Godot editor/smoke EXIT 0; P3-05 32/32; P3-03a 39/39; P3-03b 50/50; P3-03c 33/33; P3-03d 25/25; P3-04 33/33; real saves SHA-256 identical before/after.
+- Follow-up: P3-06 Phase 3 regression sweep + closure.
 
 ### P3-04 - Manager responsibility overlap cleanup
 

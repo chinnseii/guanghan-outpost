@@ -105,4 +105,10 @@
 - DoorState status is unchanged: training map is connected; formal old-base scripts are not connected. Do not treat `DoorStateManager` as formal-base navigation authority until a later feature task explicitly integrates it.
 
 - 本阶段**无**可安全标为 DEPRECATED_CANDIDATE 的 Manager。所有遗留脚本都仍被 `main.gd` 或 `arrival/*` 引用（有调用证据），只能标 LEGACY_PLAYABLE。
-- 唯一"疑似废弃但需确认"的是 `scripts/game_state_manager.gd` 是否被 `arrival` 真正调用还是仅 preload 未用——证据不足，标 UNKNOWN，留待 Phase 3。
+- ~~`scripts/game_state_manager.gd` 是否被 `arrival` 真正调用~~ → **P3-05 已核实：真调用**（`arrival_landing_scene.gd:53/333/440/465` change_state/serialize/deserialize）。RESOLVED，非孤儿。
+
+# P3-05 Registry Update (2026-07-12)
+
+- **Legacy 局部 Manager ≠ 正式 Autoload**：`scripts/main.gd`（沙盒）与 `scripts/arrival/arrival_landing_scene.gd`（原型）用 `.new()` 创建的局部管理器节点（含小写 `scripts/time_manager.gd`、`scripts/game_state_manager.gd`），**不是**本表 A 段登记的正式 `/root/*Manager` autoload，**不得**当正式系统看待。
+- 唯一与正式 autoload 撞名的是局部 `TimeManager` 节点；P3-05 已将 main.gd/arrival 的局部节点重命名为 `Sandbox…` / `ArrivalPrototype…` 前缀以消歧义（局部节点仅经成员变量访问，无名字路径依赖）。正式行动制时钟仍是 `/root/TimeManager`（`scripts/managers/TimeManager.gd`）。
+- 详见 `LEGACY_REGISTRY.md` §D、`SCENE_REGISTRY.md` §D。

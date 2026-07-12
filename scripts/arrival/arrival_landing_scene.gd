@@ -78,11 +78,16 @@ func _add_key_action(action_name: String, keys: Array[int]) -> void:
 			InputMap.action_add_event(action_name, input_event)
 
 func _setup_managers() -> void:
+	# P3-05 legacy isolation: ARRIVAL PROTOTYPE-local child nodes, NOT the formal `/root/*`
+	# autoloads. This scene is a self-contained prototype: it reaches these only through the
+	# member variables below and never accesses any formal autoload or Full Save. Node names
+	# are prefixed "ArrivalPrototype…" so the local real-time clock (`scripts/time_manager.gd`)
+	# is not mistaken for the formal `/root/TimeManager` (`scripts/managers/TimeManager.gd`).
 	game_state_manager = GameStateManagerScript.new()
-	game_state_manager.name = "GameStateManager"
+	game_state_manager.name = "ArrivalPrototypeGameStateManager"
 	add_child(game_state_manager)
 	time_manager = TimeManagerScript.new()
-	time_manager.name = "TimeManager"
+	time_manager.name = "ArrivalPrototypeTimeManager"
 	add_child(time_manager)
 	time_manager.call("set_time", 1, 7, 42)
 	camera_manager = CameraManagerScript.new()
@@ -432,6 +437,10 @@ func _draw_light_markers() -> void:
 	draw_circle(Vector2(1810, 525), 86, Color("#e7b85d", 0.08))
 	draw_circle(Vector2(430, 1165), 90, Color("#f0a44f", 0.08))
 
+## P3-05 legacy isolation: ARRIVAL PROTOTYPE save/load. Writes/reads its own
+## `user://arrival_prototype_save.json` only, serializing only this scene's local prototype
+## managers/state. It never writes `full_save.json` and never touches formal `/root/*Manager`
+## autoloads; FullSaveOrchestrator likewise never reads this file.
 func _save_arrival() -> void:
 	var data := {
 		"current_scene": "res://scenes/arrival/ArrivalLandingScene.tscn",

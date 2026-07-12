@@ -156,3 +156,12 @@ Phase 0 →（1 与 2 可并行，均低风险）→ 3（逐系统）→ 4（逐
 - Door: training map remains connected to `DoorStateManager`; formal old-base Door integration remains out of scope and should be handled by a later feature task, not by P3-04 cleanup.
 - Verification: Godot editor parse EXIT 0; Godot headless smoke EXIT 0; P3-03a 39/39; P3-03b 50/50; P3-03c 33/33; P3-03d 25/25; P3-04 33/33; real saves SHA unchanged from pre-test baseline.
 - Remaining Phase 3 order: P3-05 legacy isolation is ready to schedule next.
+
+# P3-05 Completion Note (2026-07-12)
+
+- P3-05 is complete: legacy sandbox (`main.gd`) and arrival prototype (`arrival_landing_scene.gd`) runtime paths are isolated from formal autoloads, Full Save, and the formal continue flow — without deleting legacy, integrating formal-base Door, or changing any schema/gameplay/`project.godot`.
+- Same-name isolation: the one real collision (local `TimeManager` node vs `/root/TimeManager`) is resolved by renaming local sandbox/arrival manager nodes to `Sandbox…` / `ArrivalPrototype…`; safe because they are accessed only via member variables (zero node-name path lookups). Adapted from the GPT spec: no new `is_legacy_runtime` mode framework was added — isolation already holds structurally, so only naming + scope comments + a focused test were needed.
+- Legacy save isolation verified and documented: distinct file namespaces; `FullSaveOrchestrator` never reads arrival/sandbox files and rejects legacy sprint06 sources; legacy saves never write `full_save.json`. Formal continue depends only on Full Save / Training; the legacy sandbox-slot fallback is a commented last resort.
+- Reachability resolved: `ArrivalLandingScene` = DEV_ONLY (`main.gd:3751`); arrival genuinely calls `game_state_manager` (prior UNKNOWN resolved). sandbox/arrival not reachable from the formal Continue/New-Game path.
+- Verification: Godot editor parse EXIT 0; Godot headless smoke EXIT 0; P3-05 32/32; P3-03a 39/39; P3-03b 50/50; P3-03c 33/33; P3-03d 25/25; P3-04 33/33; real saves SHA unchanged.
+- Remaining Phase 3 order: **P3-06 (Phase 3 regression sweep + closure)** is ready to schedule next. Phase 3 is NOT closed yet. Deferred beyond Phase 3: legacy file deletion, DoorState formal-base integration, `main.gd` large-script split (Phase 4).

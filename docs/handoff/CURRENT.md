@@ -15,10 +15,24 @@ Completed:
 - P3-03c Manager self-save authority downgrade and P3-03cV lifecycle verification.
 - P3-03d checkpoint scope trimming.
 - P3-04 Manager responsibility overlap cleanup.
+- P3-05 legacy runtime isolation.
 
 Not started:
-- P3-05 legacy isolation.
-- P3-06 closure/regression sweep.
+- P3-06 Phase 3 regression sweep + closure (Phase 3 not yet closed).
+
+## P3-05 Summary
+
+Goal: isolate legacy sandbox (`main.gd`) and arrival prototype (`arrival_landing_scene.gd`) runtime paths from formal autoloads, Full Save, and the formal continue flow — without deleting legacy, integrating formal-base Door, or changing schema/gameplay/`project.godot`.
+
+Implemented:
+- Renamed the legacy-local manager node names to remove the one real collision (local `TimeManager` vs `/root/TimeManager`): sandbox nodes → `SandboxTimeManager` / `SandboxGameStateManager`; arrival nodes → `ArrivalPrototypeTimeManager` / `ArrivalPrototypeGameStateManager`. Safe because these are accessed only via member variables (zero node-name path lookups); formal autoload access stays on `/root/…`.
+- Added scope-clarifying comments marking legacy sandbox/arrival save-load (`slot_N.json` / `arrival_prototype_save.json`) and the last-resort legacy sandbox-slot continue fallback as legacy-only, never touching Full Save or `/root/*Manager`.
+- Verified (already structurally true from P3-03b/c/d) that `FullSaveOrchestrator` never reads legacy sandbox/arrival files and rejects legacy sprint06 sources; formal continue depends only on Full Save / Training.
+- Adapted the GPT spec: did NOT add a new `is_legacy_runtime` mode framework (isolation already holds structurally); did NOT rewrite `main.gd` logic.
+- Resolved prior UNKNOWNs: `ArrivalLandingScene` = DEV_ONLY (`main.gd:3751`); arrival genuinely uses `game_state_manager`.
+- Added `tests/p3_05_legacy_runtime_isolation_test.gd` (32/32).
+
+Next: P3-06 Phase 3 regression sweep + closure. Manager self-save files and the multi-source risk are addressed within P3-03 scope; legacy is isolated but retained. Deferred beyond Phase 3: legacy deletion, DoorState formal-base integration, `main.gd` split (Phase 4).
 
 ## P3-04 Summary
 
