@@ -9,7 +9,7 @@ This file is the current coordination board for active task ownership, file lock
 - **Locked files**: `0`
 - **Pending handoffs**: `0`
 - **Branch**: `main`
-- **Board baseline**: `f5c55fc`
+- **Board baseline**: `592b602`
 - **Last updated**: `2026-07-12`
 
 ## Active Tasks
@@ -25,6 +25,16 @@ No file locks.
 No pending handoffs.
 
 ## Recently Closed
+
+### P4-07A - Audit training large scripts and UI extraction candidates
+
+- Status: `DONE`
+- Owner: `Claude Code`
+- Reviewer: `User`
+- Base commit: `592b602`
+- Result: read-only audit + characterization of `training_module_scene.gd` (3417) and `training_base_map.gd` (2255) → `docs/governance/P4_07A_TRAINING_LARGE_SCRIPT_AUDIT.md`. **No production code moved.** Both build UI dynamically (`add_child`, no `$` hardcoded paths, no tween) → presenter extraction needs no `.tscn` change; UI is flow-wired (buttons→checkpoint/step); no P0/P1 (training progress canonical in `training_progress.json`, not a scene double-hold). **Unique conclusion: A — EXTRACT_TRAINING_MODULE_UI** (`TrainingModuleScreenPresenter`, ~300-400 line reduction, CHARACTERIZE_FIRST); after P4-07B, close Phase 4 (remaining training bulk is scene-tree/flow-coupled).
+- Verification: Godot editor/smoke EXIT 0 (no training/base-scene boot); P4-07A 30/30 (source-analysis); P4-06B 41/41; P4-06A 28/28; P4-05 30/30; P4-04 35/35; P4-03 27/27; P4-02 22/22; P3-03a 40/40; P3-03b 50/50; P3-03c 34/34; P3-03d 25/25; P3-04 33/33; P3-05 37/37; real `user://saves/` SHA-256 unchanged.
+- Follow-up: P4-07B `TrainingModuleScreenPresenter` extraction — do not start automatically.
 
 ### P4-06B - Extract Sprint06ScheduleEvaluator
 
@@ -66,14 +76,5 @@ No pending handoffs.
 - Verification: Godot editor/smoke EXIT 0; base scene boots clean; P4-04 35/35; P4-03 27/27; P4-02 22/22; P3-03a 40/40; P3-03b 50/50; P3-03c 34/34; P3-03d 25/25; P3-04 33/33; P3-05 37/37; real `user://saves/` SHA-256 restored to baseline.
 - Follow-up: P4-05 sprint06 navigation / daily-flow controller — do not start automatically.
 
-### P4-03 - Extract FormalFlowRouter from main.gd
-
-- Status: `DONE`
-- Owner: `Claude Code`
-- Reviewer: `User`
-- Base commit: `4f2baf7`
-- Result: formal new-game/continue/route-selection extracted from `main.gd` into `scripts/controllers/formal_flow_router.gd` (133 lines, `class_name`/RefCounted, non-Autoload). Continue priority preserved exactly (Full Save → Training Checkpoint → legacy sandbox slot → notice); read-only predicates use `read_progress()`, router never calls `load_progress()`. Injected callbacks (no state duplication), 0 wrappers (5 call sites rewired). `main.gd` 4346 → 4302. DevToolsController unaffected. No scene/`project.godot`/schema change.
-- Verification: Godot editor/smoke EXIT 0; P4-03 27/27; P4-02 22/22; P3-03a 40/40; P3-03b 50/50; P3-03c 34/34; P3-03d 25/25; P3-04 33/33; P3-05 37/37; real `user://saves/` SHA-256 unchanged. Migrated the "routing in main.gd" assertions in p3_05/p4_02/p3_03c/p3_03a to the router (per §11; extends §14's file list).
-- Follow-up: P4-04 sandbox slot-save aggregation — do not start automatically.
 
 
