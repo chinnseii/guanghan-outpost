@@ -4,21 +4,24 @@ Updated: 2026-07-13
 
 ## Phase
 
-Current Phase: Phase 6 — Agent Collaboration and Skill Field Validation (P6-01 complete).
+Current Phase: Phase 6 — Agent Collaboration and Skill Field Validation (P6-01 verified after governance correction).
 Next Phase: Continue Phase 6 field validation only when User assigns the next task; P6-02 has not started.
 
 Phase 3 system-boundary cleanup is COMPLETE and tagged `system-boundary-cleanup-complete-2026-07-12`.
 Phase 4 large-script decomposition is COMPLETE and tagged `large-script-decomposition-complete-2026-07-12`.
-Phase 5 Skill suite is COMPLETE, `main` is pushed, and tag `skill-suite-complete-2026-07-13` exists at `4de284f`. Codex and Claude Code new-session bootstrap validations have passed. Phase 6 has started; P6-01 is complete and P6-02 has not started.
+Phase 5 Skill suite is COMPLETE, `main` is pushed, and tag `skill-suite-complete-2026-07-13` exists at `4de284f`. Codex and Claude Code new-session bootstrap validations have passed. Phase 6 is IN_PROGRESS; P6-01 is `VERIFIED_AFTER_GOVERNANCE_CORRECTION` and P6-02 is READY, not started.
 
 ## Recent Completion
 
-P6-01 — Agent Collaboration Bootstrap and First Field Validation is complete.
+P6-01 — Agent Collaboration Bootstrap and First Field Validation is verified after governance correction.
 
-- Owner: Codex; Reviewer: Claude Code (read-only PASS).
+- Owner: Codex.
+- Reviewer: Claude Code — read-only committed-range review.
+- Reviewer verdict: `PASS_WITH_REQUIRED_GOVERNANCE_CORRECTION`.
+- Correction status: Owner corrective close-out completed after the real Reviewer verdict. Commit `6c0dff9` is preserved as the premature close-out commit; the follow-up corrective commit corrects the governance record without rewriting history.
 - Scope: validate fresh-session Bootstrap, task ownership, locks, reviewer boundary, blocker continuity, and close-out using real Phase 5-to-Phase 6 evidence.
 - Formal Skill count remains 5; all maturity remains `TRIAL`. No Skill upgrade is authorized.
-- Verification: documentation/Git scope checks, Godot 4.7 editor parse, and Godot 4.7 smoke all passed; no Skill was upgraded and no P6-02 work occurred.
+- Verification: documentation/Git scope checks, Godot 4.7 editor parse, and Godot 4.7 smoke passed; committed-range review returned the stated governance-correction verdict; no Skill was upgraded and no P6-02 work occurred.
 
 P5-07 - Phase 5 Skill Suite Validation and Closure.
 
@@ -113,6 +116,6 @@ P5-07 is docs-only (plus new closure/bootstrap docs; no Skill business content c
 
 ## Next Step
 
-Phase 6 — Agent Collaboration and Skill Field Validation is in progress; P6-01 is complete and P6-02 has not started.
+Phase 6 — Agent Collaboration and Skill Field Validation is IN_PROGRESS; P6-01 is `VERIFIED_AFTER_GOVERNANCE_CORRECTION` and P6-02 is READY, not started.
 
-Phase 5 remote freeze is complete: `main` is pushed, completion tag `skill-suite-complete-2026-07-13` exists, and Codex/Claude Code bootstrap acceptance has passed. P6-01 completed the first authorized Phase 6 field validation; do not start P6-02 automatically.
+Phase 5 remote freeze is complete: `main` is pushed, completion tag `skill-suite-complete-2026-07-13` exists, and Codex/Claude Code bootstrap acceptance has passed. P6-01 completed its first authorized Phase 6 field validation only after governance correction; do not start P6-02 automatically.

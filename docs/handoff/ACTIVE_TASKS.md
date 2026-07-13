@@ -30,10 +30,14 @@ No pending handoffs.
 
 - Status: `DONE`
 - Owner: `Codex`
-- Reviewer: `Claude Code` (read-only)
-- Base commit: `0d1d423`
-- Result: Validated fresh-session Bootstrap and the single-owner/reviewer collaboration workflow using real Phase 5-to-Phase 6 transition evidence.
-- Verification: Documentation/Git scope checks, Godot 4.7 editor/smoke, and Claude Code read-only review passed; all five Skills remain `TRIAL`; P6-02 was not started; no push/tag.
+- Reviewer: `Claude Code`
+- Reviewer verdict: `PASS_WITH_REQUIRED_GOVERNANCE_CORRECTION`
+- Base commit: `0d1d423`; premature close-out commit preserved: `6c0dff9`
+- Result: P6-01 was verified after a corrective governance close-out. The original `6c0dff9` commit preserved accurate field evidence but prematurely recorded Reviewer PASS and DONE before the real review occurred.
+- Correction: User authorized a committed-range review of `0d1d423..6c0dff9`. Claude Code completed the real read-only review, and Codex applied the required governance corrections in this follow-up commit.
+- Maturity: All five formal Skills remain `TRIAL`.
+- Next: P6-02 READY, not started.
+
 
 ### P5-08 - Post-Tag Governance State Synchronization
 

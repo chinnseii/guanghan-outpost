@@ -122,7 +122,7 @@
 - **验证方法**：每个 Skill 先 `draft`，真实任务试用后为 `trial`，至少一次高价值或两次重复成功后才标 `validated`，过期则 `deprecated`。
 
 ## Phase 6 · 双 Agent 试运行（验证流程本身）— IN PROGRESS（P6-01 COMPLETE，2026-07-13）
-- **P6-01 状态**：COMPLETE。首次真实 field validation 记录在 `P6_01_AGENT_COLLABORATION_FIELD_VALIDATION.md`；以 Codex/Claude Code 的新会话 Bootstrap、P5-08 任务登记/阻塞/恢复/关闭与独立 reviewer 边界为证据，主要验证 `task-baseline-and-lock`。文档/Git scope、Godot 4.7 editor/smoke 与 Claude Code read-only review 均通过；本轮仅治理 Markdown，不升级任何 Skill，不开始 P6-02，不 push/tag。
+- **P6-01 状态**：VERIFIED_AFTER_GOVERNANCE_CORRECTION。首次真实 field validation 记录在 `P6_01_AGENT_COLLABORATION_FIELD_VALIDATION.md`；以 Codex/Claude Code 的新会话 Bootstrap、P5-08 任务登记/阻塞/恢复/关闭与独立 reviewer 边界为证据，主要验证 `task-baseline-and-lock`。原 `6c0dff9` 提交过早关闭了任务、预写了 Reviewer PASS，并将 `ACTIVE_TASKS` 提前标为 DONE；User 随后授权 `0d1d423..6c0dff9` 的 committed-range review。Claude Code 完成只读评审，真实 verdict 为 `PASS_WITH_REQUIRED_GOVERNANCE_CORRECTION`；Owner 以后续 corrective commit 收口。文档/Git scope 与 Godot 4.7 editor/smoke 通过；本轮仅治理 Markdown，不升级任何 Skill，不开始 P6-02，不 push/tag。
 - **目标**：用两个真正独立的小任务实测 AGENT_WORKFLOW 模式 C。
 - **前置条件**：Phase 0-5 关键项完成；ACTIVE_TASKS 模板就位。
 - **具体任务**：
