@@ -26,6 +26,15 @@ No pending handoffs.
 
 ## Recently Closed
 
+### P6-01 - Agent Collaboration Bootstrap and First Field Validation
+
+- Status: `DONE`
+- Owner: `Codex`
+- Reviewer: `Claude Code` (read-only)
+- Base commit: `0d1d423`
+- Result: Validated fresh-session Bootstrap and the single-owner/reviewer collaboration workflow using real Phase 5-to-Phase 6 transition evidence.
+- Verification: Documentation/Git scope checks, Godot 4.7 editor/smoke, and Claude Code read-only review passed; all five Skills remain `TRIAL`; P6-02 was not started; no push/tag.
+
 ### P5-08 - Post-Tag Governance State Synchronization
 
 - Status: `DONE`
@@ -71,17 +80,3 @@ No pending handoffs.
 - Result: a project-specific art design and modular asset-production Skill (`skills/guanghan/guanghan-art-design-and-production/SKILL.md`) was created and trialed, with **ChatGPT as primary creative agent**, **Codex/Claude Code as implementation consumers**, and **User as final approver**. Claude Code completed the takeover by adding the explicit `Agent Responsibilities` section (+ agents-metadata clarification) and one missing cable/pipe asset row in the dry run; forbids using a full concept image as the shipped interactive map; modular breakdown for the spacesuit preparation room.
 - Verification: Skill + dry-run checks passed; formal SKILL.md count = 4; only Markdown changed (no images/code/scenes/assets/JSON/`project.godot`/saves); Godot editor/smoke EXIT 0; maturity remains `TRIAL`.
 - Follow-up: P5-06 Guanghan Art Review and Godot Handoff Skill — do not start automatically.
-
-### P5-04 - Build Task Baseline and Lock Skill
-
-- Status: `DONE`
-- Owner: `Codex`
-- Reviewer: `User`
-- Base commit: `ee6732b`
-- Result: A reusable task-baseline and locking Skill was created, registered, and exercised against clean-start and parallel-conflict scenarios.
-- Skill: `skills/core/task-baseline-and-lock/SKILL.md`
-- Registry: `skills/SKILL_REGISTRY.md`
-- Trial: `docs/governance/P5_04_TASK_BASELINE_LOCK_SKILL_TRIAL.md`
-- Verification: Skill checks and dry run passed; Godot editor/smoke EXIT 0; diff limited to allowed Markdown docs; no production code/tests/scenes/assets/project/JSON/saves changed; maturity remains `TRIAL`.
-- Decision: Dry run rejected the overlapping-lock scenario with `HARD_STOP_PARALLEL_CONFLICT` and allowed the clean single-owner scenario with `TASK_START_ALLOWED`.
-- Next: P5-05 - Guanghan Art Design and Production Skill. P5-05 was not started.
