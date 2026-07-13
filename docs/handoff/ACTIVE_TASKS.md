@@ -6,10 +6,10 @@ This file is the current coordination board for active task ownership, file lock
 
 - **Status**: `IDLE`
 - **Active tasks**: `0`
-- **Locked files**: `none`
+- **Locked files**: `0`
 - **Pending handoffs**: `0`
 - **Branch**: `main`
-- **Board baseline**: `9e6e166`
+- **Board baseline**: `4de284f`
 - **Last updated**: `2026-07-13`
 
 ## Active Tasks
@@ -25,6 +25,15 @@ No file locks.
 No pending handoffs.
 
 ## Recently Closed
+
+### P5-08 - Post-Tag Governance State Synchronization
+
+- Status: `DONE`
+- Owner: `Codex`
+- Reviewer: `User`
+- Base commit: `4de284f`
+- Result: Governance documents synchronized with the completed Phase 5 push, completion tag, and successful Agent bootstrap validations.
+- Verification: Documentation-only diff; Godot editor/smoke passed using `C:\Users\csw83\Documents\Codex\tools\Godot_v4.7-stable_win64_console.exe` (4.7.stable.official.5b4e0cb0f); user-data integrity remained stable; Phase 6 remains READY and not started.
 
 ### P5-07 - Phase 5 Skill Suite Validation and Closure
 
@@ -76,18 +85,3 @@ No pending handoffs.
 - Verification: Skill checks and dry run passed; Godot editor/smoke EXIT 0; diff limited to allowed Markdown docs; no production code/tests/scenes/assets/project/JSON/saves changed; maturity remains `TRIAL`.
 - Decision: Dry run rejected the overlapping-lock scenario with `HARD_STOP_PARALLEL_CONFLICT` and allowed the clean single-owner scenario with `TASK_START_ALLOWED`.
 - Next: P5-05 - Guanghan Art Design and Production Skill. P5-05 was not started.
-
-### P5-03 - Build Save Integrity Guard Skill
-
-- Status: `DONE`
-- Owner: `Codex`
-- Reviewer: `User`
-- Base commit: `e33ea48`
-- Result: The second formal repository Skill was created, registered, and exercised through a controlled dry run without production-code or real-save changes.
-- Skill: `skills/core/save-integrity-guard/SKILL.md`
-- Registry: `skills/SKILL_REGISTRY.md`
-- Trial: `docs/governance/P5_03_SAVE_INTEGRITY_SKILL_TRIAL.md`
-- Verification: Skill structure and content checks passed; Godot editor/smoke EXIT 0; diff limited to allowed Markdown docs; no production code/tests/scenes/assets/project/JSON/saves changed; maturity remains `TRIAL`.
-- Decision: Dry run concluded `SAVE_BASELINE_STABLE_WITH_EXPECTED_REFRESH`; older backups are analysis-only and must not overwrite newer current progress.
-- Next: P5-04 - Task Baseline and Lock Skill. P5-04 was not started.
-
