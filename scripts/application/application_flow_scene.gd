@@ -50,6 +50,7 @@ var name_initials_edit: LineEdit
 var appearance_options: Dictionary = {}
 var confirmation_checks: Array[CheckBox] = []
 var submit_button: Button
+var step_bar_entries: Dictionary = {}
 
 func _ready() -> void:
 	profile = PlayerProfileDataScript.new()
@@ -167,10 +168,45 @@ func _add_step_bar(root: VBoxContainer) -> void:
 		sub.modulate = Color("#6f8493")
 		sub.add_theme_font_size_override("font_size", 12)
 		box.add_child(sub)
+		var indicator := ColorRect.new()
+		indicator.custom_minimum_size = Vector2(0, 2)
+		box.add_child(indicator)
+		step_bar_entries[key] = {
+			"panel": panel,
+			"main": main,
+			"sub": sub,
+			"indicator": indicator,
+		}
+	_refresh_step_bar()
+
+static func is_step_active(current_step: String, candidate_step: String) -> bool:
+	return current_step == candidate_step
+
+func _refresh_step_bar() -> void:
+	for key in step_bar_entries.keys():
+		var entry: Dictionary = step_bar_entries[key]
+		var is_active := is_step_active(step, String(key))
+		var panel: PanelContainer = entry["panel"]
+		var main: Label = entry["main"]
+		var sub: Label = entry["sub"]
+		var indicator: ColorRect = entry["indicator"]
+		var style := StyleBoxFlat.new()
+		style.bg_color = Color("#102b3d") if is_active else Color("#0a1823")
+		style.border_color = Color("#6f93a8") if is_active else Color("#29465a")
+		style.set_border_width_all(1)
+		style.corner_radius_top_left = 2
+		style.corner_radius_top_right = 2
+		style.corner_radius_bottom_right = 2
+		style.corner_radius_bottom_left = 2
+		panel.add_theme_stylebox_override("panel", style)
+		main.modulate = Color("#edf7ff") if is_active else Color("#d8e7f2")
+		sub.modulate = Color("#a7c2d3") if is_active else Color("#6f8493")
+		indicator.color = Color("#6f9bb3") if is_active else Color(0, 0, 0, 0)
 
 func _show_step(next_step: String) -> void:
 	step = next_step
 	profile.set("current_application_step", step)
+	_refresh_step_bar()
 	_clear_container(page_body)
 	_clear_container(footer)
 	match step:

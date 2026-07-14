@@ -5,11 +5,13 @@ Updated: 2026-07-13
 ## Phase
 
 Current Phase: Phase 6 — Agent Collaboration and Skill Field Validation (P6-01 verified after governance correction).
-Next Phase: Continue Phase 6 field validation only when User assigns the next task; P6-02 has not started.
+Next Phase: Continue Phase 6 field validation only when User assigns the next task; P6-02 is verified and P6-03 has not started.
 
 Phase 3 system-boundary cleanup is COMPLETE and tagged `system-boundary-cleanup-complete-2026-07-12`.
 Phase 4 large-script decomposition is COMPLETE and tagged `large-script-decomposition-complete-2026-07-12`.
-Phase 5 Skill suite is COMPLETE, `main` is pushed, and tag `skill-suite-complete-2026-07-13` exists at `4de284f`. Codex and Claude Code new-session bootstrap validations have passed. Phase 6 is IN_PROGRESS; P6-01 is `VERIFIED_AFTER_GOVERNANCE_CORRECTION` and P6-02 is READY, not started.
+Phase 5 Skill suite is COMPLETE, `main` is pushed, and tag `skill-suite-complete-2026-07-13` exists at `4de284f`. Codex and Claude Code new-session bootstrap validations have passed. Phase 6 is IN_PROGRESS; P6-01 is `VERIFIED_AFTER_GOVERNANCE_CORRECTION` and P6-02 is `VERIFIED`.
+
+P6-02 implementation adds only the four-step application Active-state highlight. Claude Code's engineering verdict is `PASS` for that scope only; the PASS does not validate the full application UI or historical save-file provenance. User approved the Active-state visual scope only. `application_profile.json` remains an expected page-entry write, while the earlier temporary-state-file disappearance remains source-unknown. Validation ran only in the dedicated sandbox after real user-data was frozen. P6-03 has not started, and all five formal Skills remain `TRIAL`.
 
 ## Recent Completion
 
@@ -116,6 +118,6 @@ P5-07 is docs-only (plus new closure/bootstrap docs; no Skill business content c
 
 ## Next Step
 
-Phase 6 — Agent Collaboration and Skill Field Validation is IN_PROGRESS; P6-01 is `VERIFIED_AFTER_GOVERNANCE_CORRECTION` and P6-02 is READY, not started.
+Phase 6 — Agent Collaboration and Skill Field Validation is IN_PROGRESS; P6-01 is `VERIFIED_AFTER_GOVERNANCE_CORRECTION`, P6-02 is `VERIFIED`, and P6-03 has not started.
 
-Phase 5 remote freeze is complete: `main` is pushed, completion tag `skill-suite-complete-2026-07-13` exists, and Codex/Claude Code bootstrap acceptance has passed. P6-01 completed its first authorized Phase 6 field validation only after governance correction; do not start P6-02 automatically.
+Phase 5 remote freeze is complete: `main` is pushed, completion tag `skill-suite-complete-2026-07-13` exists, and Codex/Claude Code bootstrap acceptance has passed. P6-01 and P6-02 are verified Phase 6 field validations; do not start P6-03 automatically.

@@ -123,6 +123,7 @@
 
 ## Phase 6 · 双 Agent 试运行（验证流程本身）— IN PROGRESS（P6-01 COMPLETE，2026-07-13）
 - **P6-01 状态**：VERIFIED_AFTER_GOVERNANCE_CORRECTION。首次真实 field validation 记录在 `P6_01_AGENT_COLLABORATION_FIELD_VALIDATION.md`；以 Codex/Claude Code 的新会话 Bootstrap、P5-08 任务登记/阻塞/恢复/关闭与独立 reviewer 边界为证据，主要验证 `task-baseline-and-lock`。原 `6c0dff9` 提交过早关闭了任务、预写了 Reviewer PASS，并将 `ACTIVE_TASKS` 提前标为 DONE；User 随后授权 `0d1d423..6c0dff9` 的 committed-range review。Claude Code 完成只读评审，真实 verdict 为 `PASS_WITH_REQUIRED_GOVERNANCE_CORRECTION`；Owner 以后续 corrective commit 收口。文档/Git scope 与 Godot 4.7 editor/smoke 通过；本轮仅治理 Markdown，不升级任何 Skill，不开始 P6-02，不 push/tag。
+- **P6-02 状态**：`VERIFIED`。这是一次真实 UI field-validation：Codex 使用 `task-baseline-and-lock`、`characterization-first-refactor` 与 `save-integrity-guard`，只实现顶部申请步骤的 Active-state highlight。Claude Code 工程评审 verdict 为 `PASS`，严格限于该 Active-state scope，不验证完整申请 UI 或历史 save-file provenance；User 也只接受该视觉范围。Focused 16-check test、Godot 4.7 editor parse 与 smoke 均在隔离 sandbox 通过；未修改保存逻辑。已知 manager-local save provenance 限制保持诚实记录，所有五个 Skill 仍为 `TRIAL`，P6-03 未开始，未 push/tag。
 - **目标**：用两个真正独立的小任务实测 AGENT_WORKFLOW 模式 C。
 - **前置条件**：Phase 0-5 关键项完成；ACTIVE_TASKS 模板就位。
 - **具体任务**：
