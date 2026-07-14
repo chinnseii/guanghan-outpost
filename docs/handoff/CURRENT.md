@@ -13,6 +13,8 @@ Phase 5 Skill suite is COMPLETE, `main` is pushed, and tag `skill-suite-complete
 
 P6-02 implementation adds only the four-step application Active-state highlight. Claude Code's engineering verdict is `PASS` for that scope only; the PASS does not validate the full application UI or historical save-file provenance. User approved the Active-state visual scope only. `application_profile.json` remains an expected page-entry write, while the earlier temporary-state-file disappearance remains source-unknown. Validation ran only in the dedicated sandbox after real user-data was frozen. P6-03 has not started, and all five formal Skills remain `TRIAL`.
 
+AUI visual-modernization preparation has begun with the approved AUI-03-01 Basic Information high-fidelity reference and specification registered as documentation. AUI-03-01 implementation has not started; the next action is to assign that implementation task after this reference registration is complete.
+
 ## Recent Completion
 
 P6-01 — Agent Collaboration Bootstrap and First Field Validation is verified after governance correction.

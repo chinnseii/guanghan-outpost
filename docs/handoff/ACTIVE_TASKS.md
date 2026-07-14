@@ -18,6 +18,16 @@ No active tasks.
 
 ## Recently Closed
 
+### AUI-DOC-01 - Register Basic Information Visual Reference
+
+- Status: `DONE`
+- Owner: `Codex`
+- Reviewer: `User`
+- Base commit: `1a50d69`
+- Result: Registered the approved AUI-03-01 Basic Information high-fidelity visual reference and written specification as tracked repository documentation before implementation.
+- Verification: Reference PNG is readable; specification is non-empty and documents the approved fields, progress behavior, next-step states, visual-reference-only boundary, no-full-image-background rule, and 01-page-only scope.
+- Next: AUI-03-01 not started.
+
 ### P6-02 - Application Step Active-State Highlight
 
 - Owner: `Codex`
