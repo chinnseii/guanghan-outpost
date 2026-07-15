@@ -22,6 +22,108 @@ The goal is not to prevent every write. The goal is to preserve current user pro
 
 The task prompt still provides current scope, owner, allowed files, forbidden files, tests, commit message, and push/tag permission. This Skill provides the save-protection method.
 
+## Mode Selection
+
+`Strict / Sandbox Mode` is the default and remains the required mode unless every enablement condition for `Manual Visual Test Mode` below is met. Manual Visual Test Mode is a narrow, user-authorized exception for a person to inspect UI in the official repository; it does not weaken the strict process for automated or data-risk work.
+
+| 场景 | 模式 |
+|---|---|
+| 用户查看 UI、人工截图、普通交互 | `Manual Visual Test Mode`（仅在明确授权后） |
+| 自动化测试 | `Strict / Sandbox Mode` |
+| 修改保存或加载逻辑 | `Strict / Sandbox Mode` |
+| 修改 schema 或迁移 | `Strict / Sandbox Mode` |
+| 发布前验收 | `Strict / Sandbox Mode` |
+| 用户未明确授权正式运行 | `Strict / Sandbox Mode` |
+
+## Manual Visual Test Mode
+
+### 人工视觉测试模式
+
+Manual Visual Test Mode 仅用于用户本人直接从正式仓库启动游戏，查看 UI 修改、进行视觉检查、截取运行截图或确认普通页面交互体验。它不用于存档结构、迁移或数据正确性任务，也不是默认模式。
+
+### 启用条件
+
+只有以下条件全部满足时才能启用：
+
+1. 用户明确要求直接从正式仓库运行游戏；
+2. 当前任务主要是 UI、视觉、布局或普通交互检查；
+3. 当前任务不修改存档 schema；
+4. 当前任务不修改存档生成、加载、迁移或恢复逻辑；
+5. 用户已知正式运行可能正常改写现有存档；
+6. Owner 在任务记录或运行说明中明确写出：`save-integrity-guard: Manual Visual Test Mode`。
+
+Codex、Claude Code 或其他代理不得自行默认启用此模式。任一条件缺失时，使用 Strict / Sandbox Mode。
+
+### 允许的行为
+
+启用后允许：
+
+- 直接从正式仓库启动 Godot；
+- 不创建仓库外 sandbox；
+- 不要求每次运行前后都计算完整 manifest 与 SHA-256；
+- 允许现有游戏逻辑正常修改已有实现依据的已知存档文件；
+- 将已知文件的正常内容变化记录为 `INFO`，不因此阻塞 UI 开发；
+- 用户在正式游戏环境中进行普通页面操作；
+- 不要求自动恢复测试前状态。
+
+已知文件必须已有现存实现依据，不能因为本次测试出现新文件就自动变成已知文件。示例可以包括 `user://saves/application_profile.json`，以及当前项目已经确认由既有游戏流程维护的其他存档文件。
+
+### 仍然禁止
+
+即使启用 Manual Visual Test Mode，仍然禁止：
+
+- 修改存档 schema、存档版本号或未经批准的 JSON key；
+- 修改存档生成、加载、迁移或恢复逻辑；
+- 执行数据迁移；
+- 删除存档文件、清空 `saves/` 目录，或自动恢复、覆盖、替换用户存档；
+- 将测试数据写入未知位置；
+- 把正常存档变化描述为“完全无风险”；
+- 将此模式用于自动化测试或发布前验收；
+- 将此模式设为默认模式。
+
+### 必须阻塞的异常
+
+出现任一项时立即停止并汇报；不得以人工视觉测试模式忽略：
+
+- 新增来源不明的存档文件；
+- 已有存档文件意外消失；
+- 文件被截断或变成空文件；
+- JSON 无法解析、JSON 结构变化，或出现未经批准的新字段；
+- schema 或版本号变化；
+- 任务范围之外的用户数据变化，或非存档目录出现异常用户数据写入；
+- 运行导致崩溃并伴随存档损坏迹象。
+
+### 轻量记录
+
+Manual Visual Test Mode 不要求完整 manifest + SHA 流程，但 Owner 至少记录：
+
+- 启动的是正式仓库还是 sandbox；
+- 启用模式的用户授权；
+- 本次允许正常变化的已知存档文件；
+- 是否出现未知文件新增、文件删除、JSON 损坏或 schema 变化；
+- 最终结果之一：`NORMAL_KNOWN_SAVE_ACTIVITY`、`NO_SAVE_ACTIVITY`、`BLOCKED_UNKNOWN_MUTATION`、`BLOCKED_SAVE_CORRUPTION`。
+
+不得使用“完全没有存档风险”或等价表述。
+
+### 示例：人工 UI 检查
+
+用户明确要求直接从正式仓库运行游戏查看 UI。运行说明记录：
+
+```text
+Mode: Manual Visual Test Mode
+Repository: official repository
+Allowed known save activity:
+  - user://saves/application_profile.json
+Sandbox: not required
+Full SHA comparison: not required
+Unknown file creation: still blocking
+Schema change: still blocking
+```
+
+### 示例：自动化测试
+
+即使任务内容只是 UI，只要由代理自动运行测试，仍使用 `Strict / Sandbox Mode`。
+
 ## When to Use
 
 Use when any of these are true:
