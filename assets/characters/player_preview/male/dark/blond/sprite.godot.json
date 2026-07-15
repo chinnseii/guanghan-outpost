@@ -1,0 +1,31 @@
+{
+  "resource_type": "Godot AtlasTexture JSON",
+  "image": "sprite.png",
+  "atlas_size": {
+    "w": 2048,
+    "h": 2048
+  },
+  "regions": {
+    "long": {
+      "x": 5,
+      "y": 5,
+      "w": 599,
+      "h": 1648,
+      "rotated": false
+    },
+    "buzz": {
+      "x": 614,
+      "y": 5,
+      "w": 598,
+      "h": 1642,
+      "rotated": false
+    },
+    "short": {
+      "x": 1222,
+      "y": 5,
+      "w": 594,
+      "h": 1650,
+      "rotated": false
+    }
+  }
+}

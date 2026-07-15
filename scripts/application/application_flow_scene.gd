@@ -2,7 +2,6 @@ extends Control
 
 const PROFILE_PATH := "user://saves/application_profile.json"
 const PlayerProfileDataScript := preload("res://scripts/data/player_profile_data.gd")
-const SuitPreviewControlScript := preload("res://scripts/application/suit_preview_control.gd")
 const IconInstitution := preload("res://assets/ui/common/icons/atlas/icon_institution.tres")
 const IconAssistant := preload("res://assets/ui/common/icons/atlas/icon_assistant.tres")
 const IconEarth := preload("res://assets/ui/common/icons/atlas/icon_earth.tres")
@@ -157,6 +156,37 @@ const PROFESSION_ACCENT_COLORS := {
 	"medicine": Color("#7fd3d9"),
 }
 
+## AUI-03-03: button-based appearance/marking option sets. `id` matches the
+## real asset directory/region-name vocabulary under assets/characters/
+## (player_preview/<gender>/<skin>/<hair_color>/sprite.png, region=<hair_style>;
+## suits/sprite.png, region=suit_level_01_<suit_color>) so selection state
+## maps directly to a real asset path with no separate lookup table.
+const SKIN_TONE_OPTIONS := [
+	{"id": "light", "label": "浅色", "swatch": Color("#e3c3a0")},
+	{"id": "medium", "label": "中等暖色", "swatch": Color("#c3875a")},
+	{"id": "dark", "label": "深色", "swatch": Color("#7a4a30")},
+]
+const HAIR_COLOR_OPTIONS := [
+	{"id": "black", "label": "黑色", "swatch": Color("#1c1c1e")},
+	{"id": "blond", "label": "金色", "swatch": Color("#d8b563")},
+	{"id": "auburn", "label": "红棕色", "swatch": Color("#7a3b23")},
+]
+const SUIT_COLOR_OPTIONS := [
+	{"id": "red", "label": "红色", "swatch": Color("#b5332b")},
+	{"id": "yellow", "label": "黄色", "swatch": Color("#d9a52c")},
+	{"id": "blue", "label": "蓝色", "swatch": Color("#2560a8")},
+]
+const HAIR_STYLE_OPTIONS_MALE := [
+	{"id": "buzz", "label": "寸头"},
+	{"id": "short", "label": "短发"},
+	{"id": "long", "label": "长发"},
+]
+const HAIR_STYLE_OPTIONS_FEMALE := [
+	{"id": "short", "label": "短发"},
+	{"id": "ponytail", "label": "马尾"},
+	{"id": "long", "label": "长发"},
+]
+
 const STEP_LABELS := {
 	"identity": ["01 基础信息", "BASIC INFORMATION"],
 	"education": ["02 候选人学术背景", "ACADEMIC BACKGROUND"],
@@ -193,9 +223,20 @@ var profession_domain_body: Label
 var profession_hint_body: Label
 var profession_coverage_row: HBoxContainer
 var profession_profile_empty_note: Label
-var suit_marking_edit: LineEdit
-var name_initials_edit: LineEdit
-var appearance_options: Dictionary = {}
+var pending_skin_id := ""
+var pending_hair_style_id := ""
+var pending_hair_color_id := ""
+var pending_suit_color_id := ""
+var appearance_choice_buttons: Dictionary = {}
+var appearance_portrait_rect: TextureRect
+var appearance_suit_rect: TextureRect
+var appearance_portrait_summary: Label
+var appearance_suit_summary: Label
+var appearance_next_button: Button
+var appearance_status_icon: TextureRect
+var appearance_ratio_label: Label
+var appearance_progress_label: Label
+var appearance_validation_label: Label
 var confirmation_checks: Array[CheckBox] = []
 var submit_button: Button
 var step_bar_entries: Dictionary = {}
@@ -1113,6 +1154,7 @@ func _make_step_back_button(text: String, callback: Callable) -> Button:
 	var button := Button.new()
 	button.text = text
 	button.custom_minimum_size = STEP_BUTTON_SIZE
+	button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	button.pressed.connect(callback)
 	return button
 
@@ -1125,6 +1167,7 @@ func _make_step_next_button(text: String, callback: Callable) -> Button:
 	button.add_theme_constant_override("icon_max_width", 22)
 	button.add_theme_constant_override("h_separation", 18)
 	button.custom_minimum_size = STEP_BUTTON_SIZE
+	button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	button.pressed.connect(callback)
 	_style_identity_next_button(button, 20)
 	return button
@@ -1624,57 +1667,474 @@ func _refresh_profession_next_button() -> void:
 
 func _show_appearance() -> void:
 	_add_page_title("03 外观与标识", "APPEARANCE & MARKING")
-	_add_body("外观仅用于角色显示与任务档案，不影响能力。")
-	appearance_options.clear()
-	var columns := _add_columns(0.48)
+	_add_body("设置你的个人档案外观与任务身份标识。这些信息仅用于档案展示与任务识别，不影响角色属性。")
+	var columns := _add_columns(0.42)
 	var left: VBoxContainer = columns[0]
 	var right: VBoxContainer = columns[1]
-	_add_panel_title(left, "外观记录")
-	appearance_options["appearance_preset"] = _add_options_to(left, "身形预设", _body_options_for_gender(), String(profile.get("appearance_preset")))
-	appearance_options["skin_preset"] = _add_options_to(left, "肤色预设", ["预设 A", "预设 B", "预设 C", "预设 D"], String(profile.get("skin_preset")))
-	appearance_options["hair_preset"] = _add_options_to(left, "发型预设", ["短发", "束发", "寸发", "头盔内衬"], String(profile.get("hair_preset")))
-	appearance_options["hair_color_preset"] = _add_options_to(left, "发色预设", ["黑色", "棕色", "深棕色", "灰色"], String(profile.get("hair_color_preset")))
-	appearance_options["suit_marking_color"] = _add_options_to(left, "宇航服标识色", ["蓝色", "白色", "琥珀", "红色", "绿色"], String(profile.get("suit_marking_color")))
-	suit_marking_edit = _add_line_edit_to(left, "臂章编号", String(profile.get("suit_marking")))
-	name_initials_edit = _add_line_edit_to(left, "姓名缩写", _name_initials())
-	_add_note_to(left, "性别只影响视觉体型预设，不影响属性、能力或玩法加成。")
+	_style_identity_panel(left.get_parent() as PanelContainer)
+	_style_identity_panel(right.get_parent() as PanelContainer)
 
-	_add_panel_title(right, "开拓者预览")
+	appearance_choice_buttons.clear()
+	_normalize_appearance_selection()
+	_build_appearance_left_panel(left)
+	_build_appearance_preview_panel(right)
+	_refresh_appearance_preview()
+	_build_appearance_footer()
+	_refresh_appearance_state()
+
+func _normalize_appearance_selection() -> void:
+	pending_skin_id = _match_option_id(String(profile.get("skin_preset")), SKIN_TONE_OPTIONS)
+	pending_hair_style_id = _match_option_id(String(profile.get("hair_preset")), _hair_style_options())
+	pending_hair_color_id = _match_option_id(String(profile.get("hair_color_preset")), HAIR_COLOR_OPTIONS)
+	pending_suit_color_id = _match_option_id(String(profile.get("suit_marking_color")), SUIT_COLOR_OPTIONS)
+
+func _match_option_id(stored_value: String, options: Array) -> String:
+	var normalized := stored_value.strip_edges().to_lower()
+	for option in options:
+		if String(option["id"]) == normalized:
+			return normalized
+	return ""
+
+func _gender_asset_id() -> String:
+	return "female" if String(profile.get("gender_display")) == "女" else "male"
+
+func _hair_style_options() -> Array:
+	return HAIR_STYLE_OPTIONS_FEMALE if _gender_asset_id() == "female" else HAIR_STYLE_OPTIONS_MALE
+
+func _option_label(options: Array, id: String) -> String:
+	for option in options:
+		if String(option["id"]) == id:
+			return String(option["label"])
+	return "—"
+
+func _build_appearance_left_panel(left: VBoxContainer) -> void:
+	_add_identity_panel_heading(left, "个人外观记录", "PERSONAL APPEARANCE")
+	_add_identity_readonly(left, "性别 GENDER", "男性" if _gender_asset_id() == "male" else "女性")
+
+	_build_swatch_group(left, "肤色", "SKIN TONE", SKIN_TONE_OPTIONS, "skin", pending_skin_id)
+	_build_style_button_group(left, "发型", "HAIR STYLE", _hair_style_options(), "hair_style", pending_hair_style_id)
+	_build_swatch_group(left, "发色", "HAIR COLOR", HAIR_COLOR_OPTIONS, "hair_color", pending_hair_color_id)
+
+	_add_identity_section_heading(left, "任务身份信息", "MISSION IDENTIFICATION")
+	_build_swatch_group(left, "宇航服标识色", "SUIT ID COLOR", SUIT_COLOR_OPTIONS, "suit_color", pending_suit_color_id)
+
+	var level_row := HBoxContainer.new()
+	level_row.add_theme_constant_override("separation", 12)
+	left.add_child(level_row)
+	var level_label := Label.new()
+	level_label.text = "宇航服等级"
+	level_label.custom_minimum_size = Vector2(150, 0)
+	level_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	level_label.modulate = AUI_COLOR_TEXT_SECONDARY
+	level_label.add_theme_font_size_override("font_size", 15)
+	level_row.add_child(level_label)
+	var level_value := Label.new()
+	level_value.text = "一级任务宇航服   LEVEL 01"
+	level_value.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	level_value.modulate = AUI_COLOR_TEXT_PRIMARY
+	level_value.add_theme_font_size_override("font_size", 15)
+	level_row.add_child(level_value)
+
+	var left_spacer := Control.new()
+	left_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	left.add_child(left_spacer)
+
+	left.add_child(HSeparator.new())
+	var note_box := VBoxContainer.new()
+	note_box.add_theme_constant_override("separation", 4)
+	left.add_child(note_box)
+	_add_note_to_styled(note_box, "任务宇航服将使用以上识别信息。", Color("#7a8792"), 14)
+	_add_note_to_styled(note_box, "个人外观仅用于档案展示，不影响角色属性。", Color("#7a8792"), 14)
+
+func _build_swatch_group(parent: VBoxContainer, label_cn: String, label_en: String, options: Array, group_key: String, current_id: String) -> void:
+	var wrap := VBoxContainer.new()
+	wrap.add_theme_constant_override("separation", 8)
+	parent.add_child(wrap)
+	_add_choice_group_heading(wrap, label_cn, label_en)
+
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	wrap.add_child(row)
+	var entries: Array = []
+	for option in options:
+		var id: String = option["id"]
+		var button := Button.new()
+		button.custom_minimum_size = Vector2(0, 52)
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.focus_mode = Control.FOCUS_NONE
+		button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		row.add_child(button)
+
+		var content := HBoxContainer.new()
+		content.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		content.add_theme_constant_override("separation", 8)
+		content.set_anchors_preset(Control.PRESET_FULL_RECT)
+		content.offset_left = 12
+		content.offset_right = -10
+		button.add_child(content)
+
+		var swatch := PanelContainer.new()
+		swatch.custom_minimum_size = Vector2(18, 18)
+		swatch.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		swatch.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var swatch_style := StyleBoxFlat.new()
+		swatch_style.bg_color = option["swatch"]
+		swatch_style.border_color = Color(0, 0, 0, 0.35)
+		swatch_style.set_border_width_all(1)
+		swatch_style.corner_radius_top_left = 9
+		swatch_style.corner_radius_top_right = 9
+		swatch_style.corner_radius_bottom_left = 9
+		swatch_style.corner_radius_bottom_right = 9
+		swatch.add_theme_stylebox_override("panel", swatch_style)
+		content.add_child(swatch)
+
+		var label := Label.new()
+		label.text = String(option["label"])
+		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		label.add_theme_font_size_override("font_size", 13)
+		content.add_child(label)
+
+		var check_slot := Control.new()
+		check_slot.custom_minimum_size = Vector2(16, 16)
+		check_slot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		check_slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		content.add_child(check_slot)
+		var check_icon := TextureRect.new()
+		check_icon.set_anchors_preset(Control.PRESET_FULL_RECT)
+		check_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		check_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		check_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		check_slot.add_child(check_icon)
+
+		button.pressed.connect(_select_appearance_choice.bind(group_key, id))
+		entries.append({"id": id, "button": button, "check": check_icon, "label": label})
+	appearance_choice_buttons[group_key] = entries
+	_refresh_choice_group(group_key, current_id)
+
+func _build_style_button_group(parent: VBoxContainer, label_cn: String, label_en: String, options: Array, group_key: String, current_id: String) -> void:
+	var wrap := VBoxContainer.new()
+	wrap.add_theme_constant_override("separation", 8)
+	parent.add_child(wrap)
+	_add_choice_group_heading(wrap, label_cn, label_en)
+
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	wrap.add_child(row)
+	var entries: Array = []
+	for option in options:
+		var id: String = option["id"]
+		var button := Button.new()
+		button.text = String(option["label"])
+		button.custom_minimum_size = Vector2(0, 52)
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.focus_mode = Control.FOCUS_NONE
+		button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		button.add_theme_font_size_override("font_size", 14)
+		button.pressed.connect(_select_appearance_choice.bind(group_key, id))
+		row.add_child(button)
+		entries.append({"id": id, "button": button, "check": null, "label": null})
+	appearance_choice_buttons[group_key] = entries
+	_refresh_choice_group(group_key, current_id)
+
+func _add_choice_group_heading(parent: VBoxContainer, label_cn: String, label_en: String) -> void:
+	var heading := HBoxContainer.new()
+	heading.add_theme_constant_override("separation", 8)
+	parent.add_child(heading)
+	var title := Label.new()
+	title.text = label_cn
+	title.modulate = AUI_COLOR_TEXT_SECONDARY
+	title.add_theme_font_size_override("font_size", 15)
+	heading.add_child(title)
 	var subtitle := Label.new()
-	subtitle.text = "任务装备显示"
-	subtitle.modulate = Color("#8fa3b2")
-	subtitle.add_theme_font_size_override("font_size", 15)
-	right.add_child(subtitle)
+	subtitle.text = label_en
+	subtitle.modulate = AUI_COLOR_TEXT_MUTED
+	subtitle.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	subtitle.add_theme_font_size_override("font_size", 11)
+	heading.add_child(subtitle)
+
+func _select_appearance_choice(group_key: String, id: String) -> void:
+	match group_key:
+		"skin":
+			pending_skin_id = id
+		"hair_style":
+			pending_hair_style_id = id
+		"hair_color":
+			pending_hair_color_id = id
+		"suit_color":
+			pending_suit_color_id = id
+	_refresh_choice_group(group_key, id)
+	_refresh_appearance_preview()
+	_refresh_appearance_state()
+
+func _refresh_choice_group(group_key: String, current_id: String) -> void:
+	var entries: Array = appearance_choice_buttons.get(group_key, [])
+	for entry in entries:
+		var selected: bool = String(entry["id"]) == current_id and not current_id.is_empty()
+		_style_appearance_choice_button(entry["button"], selected)
+		if entry["check"] != null:
+			(entry["check"] as TextureRect).texture = _make_checkbox_icon(true) if selected else null
+		if entry["label"] != null:
+			(entry["label"] as Label).modulate = Color("#ffffff") if selected else AUI_COLOR_TEXT_PRIMARY
+		else:
+			(entry["button"] as Button).add_theme_color_override("font_color", Color("#ffffff") if selected else AUI_COLOR_TEXT_PRIMARY)
+
+func _style_appearance_choice_button(button: Button, selected: bool) -> void:
+	var normal := StyleBoxFlat.new()
+	normal.corner_radius_top_left = AUI_INPUT_RADIUS
+	normal.corner_radius_top_right = AUI_INPUT_RADIUS
+	normal.corner_radius_bottom_left = AUI_INPUT_RADIUS
+	normal.corner_radius_bottom_right = AUI_INPUT_RADIUS
+	if selected:
+		normal.bg_color = Color("#152a38")
+		normal.border_color = AUI_COLOR_ACTIVE_ACCENT
+		normal.set_border_width_all(AUI_FOCUS_BORDER_WIDTH)
+	else:
+		normal.bg_color = AUI_COLOR_FIELD_BG
+		normal.border_color = AUI_COLOR_FIELD_BORDER
+		normal.set_border_width_all(AUI_BORDER_WIDTH)
+	var hover := normal.duplicate()
+	if not selected:
+		hover.border_color = Color("#638196")
+	var disabled := normal.duplicate()
+	disabled.bg_color = Color("#0f141b")
+	disabled.border_color = Color("#1b222c")
+	button.add_theme_stylebox_override("normal", normal)
+	button.add_theme_stylebox_override("pressed", normal)
+	button.add_theme_stylebox_override("hover", hover)
+	button.add_theme_stylebox_override("focus", normal.duplicate())
+	button.add_theme_stylebox_override("disabled", disabled)
+
+func _build_appearance_preview_panel(right: VBoxContainer) -> void:
+	_add_identity_panel_heading(right, "外观与任务预览", "APPEARANCE & MISSION PREVIEW")
 	var preview_row := HBoxContainer.new()
-	preview_row.add_theme_constant_override("separation", 20)
+	preview_row.add_theme_constant_override("separation", 16)
+	preview_row.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	right.add_child(preview_row)
-	var plain := SuitPreviewControlScript.new()
-	plain.suited = false
-	plain.marking_color = _marking_color()
-	plain.patch_id = String(profile.get("suit_marking"))
-	plain.suit_id = _suit_id()
-	preview_row.add_child(plain)
-	var suited := SuitPreviewControlScript.new()
-	suited.suited = true
-	suited.marking_color = _marking_color()
-	suited.patch_id = String(profile.get("suit_marking"))
-	suited.suit_id = _suit_id()
-	preview_row.add_child(suited)
-	_add_body_to(right, "宇航服编号：%s\n臂章编号：%s\n姓名缩写：%s\n标识色：%s" % [
-		_suit_id(),
+
+	var portrait_panel := _build_preview_frame(preview_row, "个人档案影像", "PERSONNEL PORTRAIT")
+	appearance_portrait_rect = TextureRect.new()
+	appearance_portrait_rect.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	appearance_portrait_rect.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	appearance_portrait_rect.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+	appearance_portrait_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	(portrait_panel["body"] as VBoxContainer).add_child(appearance_portrait_rect)
+	appearance_portrait_summary = Label.new()
+	appearance_portrait_summary.modulate = AUI_COLOR_TEXT_SECONDARY
+	appearance_portrait_summary.add_theme_font_size_override("font_size", 13)
+	(portrait_panel["body"] as VBoxContainer).add_child(appearance_portrait_summary)
+
+	var suit_panel := _build_preview_frame(preview_row, "一级任务宇航服", "LEVEL 01 MISSION SUIT")
+	appearance_suit_rect = TextureRect.new()
+	appearance_suit_rect.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	appearance_suit_rect.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	appearance_suit_rect.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+	appearance_suit_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	(suit_panel["body"] as VBoxContainer).add_child(appearance_suit_rect)
+	appearance_suit_summary = Label.new()
+	appearance_suit_summary.modulate = AUI_COLOR_TEXT_SECONDARY
+	appearance_suit_summary.add_theme_font_size_override("font_size", 13)
+	(suit_panel["body"] as VBoxContainer).add_child(appearance_suit_summary)
+
+func _build_preview_frame(parent: HBoxContainer, title_text: String, subtitle_text: String) -> Dictionary:
+	var frame := PanelContainer.new()
+	frame.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	frame.size_flags_stretch_ratio = 1.0
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color("#0a141c")
+	style.border_color = AUI_COLOR_PANEL_BORDER
+	style.set_border_width_all(AUI_BORDER_WIDTH)
+	style.corner_radius_top_left = AUI_PANEL_RADIUS
+	style.corner_radius_top_right = AUI_PANEL_RADIUS
+	style.corner_radius_bottom_left = AUI_PANEL_RADIUS
+	style.corner_radius_bottom_right = AUI_PANEL_RADIUS
+	style.content_margin_left = 16
+	style.content_margin_right = 16
+	style.content_margin_top = 16
+	style.content_margin_bottom = 16
+	frame.add_theme_stylebox_override("panel", style)
+	parent.add_child(frame)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 8)
+	frame.add_child(box)
+	var title := Label.new()
+	title.text = title_text
+	title.modulate = AUI_COLOR_TEXT_PRIMARY
+	title.add_theme_font_size_override("font_size", 14)
+	box.add_child(title)
+	var subtitle := Label.new()
+	subtitle.text = subtitle_text
+	subtitle.modulate = AUI_COLOR_TEXT_MUTED
+	subtitle.add_theme_font_size_override("font_size", 11)
+	box.add_child(subtitle)
+	return {"frame": frame, "body": box}
+
+func _refresh_appearance_preview() -> void:
+	if appearance_portrait_rect == null:
+		return
+	var gender_id := _gender_asset_id()
+	var skin_id := pending_skin_id if not pending_skin_id.is_empty() else "medium"
+	var hair_color_id := pending_hair_color_id if not pending_hair_color_id.is_empty() else "black"
+	var style_options := _hair_style_options()
+	var hair_style_id := pending_hair_style_id if not pending_hair_style_id.is_empty() else String(style_options[0]["id"])
+	var suit_color_id := pending_suit_color_id if not pending_suit_color_id.is_empty() else "blue"
+
+	appearance_portrait_rect.texture = _load_portrait_texture(gender_id, skin_id, hair_color_id, hair_style_id)
+	appearance_suit_rect.texture = _load_suit_texture(suit_color_id)
+
+	var gender_cn := "男性" if gender_id == "male" else "女性"
+	appearance_portrait_summary.text = "性别：%s\n肤色：%s\n发型：%s\n发色：%s" % [
+		gender_cn,
+		_option_label(SKIN_TONE_OPTIONS, skin_id),
+		_option_label(style_options, hair_style_id),
+		_option_label(HAIR_COLOR_OPTIONS, hair_color_id),
+	]
+	appearance_suit_summary.text = "等级：一级（LEVEL 01）\n标识色：%s\n臂章编号：%s\n姓名缩写：%s" % [
+		_option_label(SUIT_COLOR_OPTIONS, suit_color_id),
 		String(profile.get("suit_marking")),
 		_name_initials(),
-		String(profile.get("suit_marking_color")),
-	])
-	_add_note_to(right, "外观仅用于角色显示与任务档案，不影响能力。")
-	_add_footer_button("返回", func():
+	]
+
+func _load_portrait_texture(gender_id: String, skin_id: String, hair_color_id: String, hair_style_id: String) -> Texture2D:
+	var dir := "res://assets/characters/player_preview/%s/%s/%s/" % [gender_id, skin_id, hair_color_id]
+	return _load_atlas_region(dir + "sprite.png", dir + "sprite.godot.json", dir + "sprite.json", hair_style_id)
+
+func _load_suit_texture(suit_color_id: String) -> Texture2D:
+	var dir := "res://assets/characters/suits/"
+	return _load_atlas_region(dir + "sprite.png", dir + "sprite.godot.json", "", "suit_level_01_%s" % suit_color_id)
+
+func _load_atlas_region(sprite_path: String, godot_json_path: String, fallback_json_path: String, region_name: String) -> Texture2D:
+	if not FileAccess.file_exists(sprite_path):
+		return null
+	var base := load(sprite_path) as Texture2D
+	if base == null:
+		return null
+	var json_path := godot_json_path
+	if not FileAccess.file_exists(json_path) and not fallback_json_path.is_empty():
+		json_path = fallback_json_path
+	if not FileAccess.file_exists(json_path):
+		return null
+	var json_text := FileAccess.get_file_as_string(json_path)
+	var data = JSON.parse_string(json_text)
+	if typeof(data) != TYPE_DICTIONARY:
+		return null
+	var rect: Rect2
+	if data.has("regions"):
+		var region: Dictionary = (data["regions"] as Dictionary).get(region_name, {})
+		if region.is_empty():
+			return null
+		rect = Rect2(float(region.get("x", 0)), float(region.get("y", 0)), float(region.get("w", 0)), float(region.get("h", 0)))
+	elif data.has("frames"):
+		var frame_entry: Dictionary = (data["frames"] as Dictionary).get(region_name + ".png", {})
+		var frame_rect: Dictionary = frame_entry.get("frame", {})
+		if frame_rect.is_empty():
+			return null
+		rect = Rect2(float(frame_rect.get("x", 0)), float(frame_rect.get("y", 0)), float(frame_rect.get("w", 0)), float(frame_rect.get("h", 0)))
+	else:
+		return null
+	var atlas := AtlasTexture.new()
+	atlas.atlas = base
+	atlas.region = rect
+	atlas.filter_clip = true
+	return atlas
+
+func _build_appearance_footer() -> void:
+	var frame := PanelContainer.new()
+	frame.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	var style := StyleBoxFlat.new()
+	style.bg_color = AUI_COLOR_PANEL_BG
+	style.border_color = AUI_COLOR_PANEL_BORDER
+	style.set_border_width_all(AUI_BORDER_WIDTH)
+	style.corner_radius_top_left = AUI_PANEL_RADIUS
+	style.corner_radius_top_right = AUI_PANEL_RADIUS
+	style.corner_radius_bottom_left = AUI_PANEL_RADIUS
+	style.corner_radius_bottom_right = AUI_PANEL_RADIUS
+	style.content_margin_left = AUI_PANEL_PADDING
+	style.content_margin_right = AUI_PANEL_PADDING
+	style.content_margin_top = 16
+	style.content_margin_bottom = 16
+	frame.add_theme_stylebox_override("panel", style)
+	footer.add_child(frame)
+
+	var row := HBoxContainer.new()
+	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	row.add_theme_constant_override("separation", 16)
+	frame.add_child(row)
+
+	var back_button := _make_step_back_button("返回上一步", func():
 		_capture_appearance()
 		_show_step("education")
 	)
-	_add_footer_button("提交预览", func():
+	row.add_child(back_button)
+
+	var info_cluster := HBoxContainer.new()
+	info_cluster.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	info_cluster.alignment = BoxContainer.ALIGNMENT_CENTER
+	info_cluster.add_theme_constant_override("separation", 24)
+	row.add_child(info_cluster)
+
+	var progress_cluster := HBoxContainer.new()
+	progress_cluster.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	progress_cluster.add_theme_constant_override("separation", 10)
+	info_cluster.add_child(progress_cluster)
+	var badge := Control.new()
+	badge.custom_minimum_size = Vector2(32, 32)
+	badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	progress_cluster.add_child(badge)
+	appearance_status_icon = TextureRect.new()
+	appearance_status_icon.set_anchors_preset(Control.PRESET_FULL_RECT)
+	appearance_status_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	appearance_status_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	badge.add_child(appearance_status_icon)
+	var progress_text := VBoxContainer.new()
+	progress_text.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	progress_text.add_theme_constant_override("separation", 2)
+	progress_cluster.add_child(progress_text)
+	appearance_progress_label = Label.new()
+	appearance_progress_label.modulate = AUI_COLOR_TEXT_INPUT
+	appearance_progress_label.add_theme_font_size_override("font_size", 14)
+	progress_text.add_child(appearance_progress_label)
+	appearance_ratio_label = Label.new()
+	appearance_ratio_label.modulate = AUI_COLOR_TEXT_MUTED
+	appearance_ratio_label.add_theme_font_size_override("font_size", 12)
+	progress_text.add_child(appearance_ratio_label)
+
+	info_cluster.add_child(VSeparator.new())
+
+	appearance_validation_label = Label.new()
+	appearance_validation_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	appearance_validation_label.modulate = AUI_COLOR_TEXT_SECONDARY
+	appearance_validation_label.add_theme_font_size_override("font_size", 14)
+	info_cluster.add_child(appearance_validation_label)
+
+	appearance_next_button = _make_step_next_button("下一步", func():
 		_capture_appearance()
 		_show_step("review")
 	)
+	row.add_child(appearance_next_button)
+
+func _refresh_appearance_state() -> void:
+	if appearance_next_button == null:
+		return
+	var completed := 0
+	if not pending_skin_id.is_empty():
+		completed += 1
+	if not pending_hair_style_id.is_empty():
+		completed += 1
+	if not pending_hair_color_id.is_empty():
+		completed += 1
+	if not pending_suit_color_id.is_empty():
+		completed += 1
+	var valid := completed == 4
+	appearance_progress_label.text = "本页必填完成度"
+	appearance_ratio_label.text = "%d / 4" % completed
+	appearance_status_icon.texture = IconStatusComplete if valid else IconStatusIncomplete
+	appearance_validation_label.text = "资料校验状态：%s" % ("通过" if valid else "未完成")
+	appearance_next_button.disabled = not valid
+	_style_identity_next_button(appearance_next_button, 20)
 
 func _show_review() -> void:
 	_add_page_title("04 提交申请", "SUBMIT APPLICATION")
@@ -1796,13 +2256,14 @@ func _capture_identity() -> void:
 	_save_profile()
 
 func _capture_appearance() -> void:
-	for key: String in appearance_options.keys():
-		var options: OptionButton = appearance_options[key]
-		profile.set(key, options.get_item_text(options.selected))
-	if suit_marking_edit != null:
-		profile.set("suit_marking", suit_marking_edit.text.strip_edges())
-	if name_initials_edit != null:
-		profile.set("name_initials", name_initials_edit.text.strip_edges())
+	if not pending_skin_id.is_empty():
+		profile.set("skin_preset", pending_skin_id)
+	if not pending_hair_style_id.is_empty():
+		profile.set("hair_preset", pending_hair_style_id)
+	if not pending_hair_color_id.is_empty():
+		profile.set("hair_color_preset", pending_hair_color_id)
+	if not pending_suit_color_id.is_empty():
+		profile.set("suit_marking_color", pending_suit_color_id)
 	_save_profile()
 
 func _apply_academic_background_selection(background_id: String) -> void:
@@ -1894,24 +2355,6 @@ func _name_initials() -> String:
 func _suit_id() -> String:
 	return String(profile.get("application_id")).replace("GHO-APP-", "GH-")
 
-func _body_options_for_gender() -> Array[String]:
-	if String(profile.get("gender_display")) == "女":
-		return ["女 / 标准", "女 / 紧凑", "女 / 高挑"]
-	return ["男 / 标准", "男 / 紧凑", "男 / 高挑"]
-
-func _marking_color() -> Color:
-	match String(profile.get("suit_marking_color")):
-		"白色":
-			return Color("#dfe8ef")
-		"琥珀":
-			return Color("#d6a83e")
-		"红色":
-			return Color("#b84a3d")
-		"绿色":
-			return Color("#4f8a62")
-		_:
-			return Color("#236fa8")
-
 func _add_page_title(title: String, subtitle: String) -> void:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 2)
@@ -1976,37 +2419,6 @@ func _add_note_to(parent: VBoxContainer, text: String) -> void:
 	label.modulate = Color("#8fa3b2")
 	label.add_theme_font_size_override("font_size", 14)
 	parent.add_child(label)
-
-func _add_field_to(parent: VBoxContainer, label_text: String, control: Control) -> void:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
-	parent.add_child(row)
-	var label := Label.new()
-	label.text = label_text
-	label.custom_minimum_size = Vector2(190, 36)
-	label.modulate = Color("#d8e7f2")
-	label.add_theme_font_size_override("font_size", 16)
-	row.add_child(label)
-	control.custom_minimum_size = Vector2(360, 36)
-	row.add_child(control)
-
-func _add_line_edit_to(parent: VBoxContainer, label_text: String, value: String) -> LineEdit:
-	var edit := LineEdit.new()
-	edit.text = value
-	_add_field_to(parent, label_text, edit)
-	return edit
-
-func _add_options_to(parent: VBoxContainer, label_text: String, options: Array, selected_value: String) -> OptionButton:
-	var button := OptionButton.new()
-	var selected_index := 0
-	for i in range(options.size()):
-		var option_text := String(options[i])
-		button.add_item(option_text)
-		if option_text == selected_value:
-			selected_index = i
-	button.select(selected_index)
-	_add_field_to(parent, label_text, button)
-	return button
 
 func _add_footer_button(text: String, callback: Callable) -> void:
 	var button := Button.new()

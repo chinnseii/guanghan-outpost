@@ -1,0 +1,98 @@
+{
+  "meta": {
+    "app": "Smart Sprite Sheet Packer",
+    "version": "1.0.0",
+    "image": "sprite.png",
+    "size": {
+      "w": 2048,
+      "h": 2048
+    },
+    "layout": {
+      "algorithm": "BALANCED_TARGET_AREA_MAX_RECTS",
+      "virtualWidth": 2048,
+      "virtualHeight": 2048,
+      "occupiedWidth": 1815,
+      "occupiedHeight": 1664,
+      "sortStrategy": "UI_FIRST_THEN_AREA",
+      "heuristic": "BEST_SHORT_SIDE_FIT",
+      "contentUtilization": 0.7030518054962158,
+      "packedUtilization": 0.7191951274871826,
+      "occupiedUtilization": 0.9987957591650773
+    },
+    "scale": 1
+  },
+  "frames": {
+    "long.png": {
+      "frame": {
+        "x": 5,
+        "y": 5,
+        "w": 597,
+        "h": 1653
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 8,
+        "y": 8,
+        "w": 597,
+        "h": 1653
+      },
+      "sourceSize": {
+        "w": 614,
+        "h": 1670
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "buzz.png": {
+      "frame": {
+        "x": 612,
+        "y": 5,
+        "w": 596,
+        "h": 1649
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 8,
+        "y": 8,
+        "w": 596,
+        "h": 1649
+      },
+      "sourceSize": {
+        "w": 613,
+        "h": 1666
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "short.png": {
+      "frame": {
+        "x": 1218,
+        "y": 5,
+        "w": 592,
+        "h": 1654
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 8,
+        "y": 8,
+        "w": 592,
+        "h": 1654
+      },
+      "sourceSize": {
+        "w": 609,
+        "h": 1671
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    }
+  }
+}
