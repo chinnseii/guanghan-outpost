@@ -237,8 +237,13 @@ var appearance_status_icon: TextureRect
 var appearance_ratio_label: Label
 var appearance_progress_label: Label
 var appearance_validation_label: Label
-var confirmation_checks: Array[CheckBox] = []
+var confirmation_checks: Array[Button] = []
 var submit_button: Button
+var review_status_icon: TextureRect
+var review_ratio_label: Label
+var review_progress_label: Label
+var review_validation_label: Label
+var review_ready_badge: PanelContainer
 var step_bar_entries: Dictionary = {}
 var identity_progress_label: Label
 var identity_validation_label: Label
@@ -2140,30 +2145,231 @@ func _show_review() -> void:
 	_add_page_title("04 提交申请", "SUBMIT APPLICATION")
 	confirmation_checks.clear()
 	submit_button = null
-	# Candidate summary on the LEFT, submit confirmation on the RIGHT (user
-	# request). The confirmation side carries the body text + 确认事项
-	# checkboxes, so it stays the wider column -- hence left_ratio 0.48.
+	# Candidate summary on the LEFT, submit confirmation on the RIGHT --
+	# right stays the wider column since it carries the confirmation rows.
 	var columns := _add_columns(0.48)
 	var left: VBoxContainer = columns[0]
 	var right: VBoxContainer = columns[1]
-	_add_panel_title(left, "候选人摘要")
-	_add_body_to(left, _profile_summary())
-	_add_panel_title(right, "提交确认")
-	_add_body_to(right, "你即将提交广寒计划常驻开拓者申请。\n\n一旦通过审核，你将进入国家深空生命科学中心训练序列。\n\n训练完成并通过最终考核后，\n你可能被派往月球广寒前哨，\n执行长期驻留与生命支持建设任务。")
-	_add_panel_title(right, "确认事项")
-	_add_confirmation_check(right, "我理解这是一项长期任务。")
-	_add_confirmation_check(right, "我理解任务地点位于月球。")
-	_add_confirmation_check(right, "我理解广寒前哨仍处于早期建设阶段。")
-	_add_footer_button("返回修改", func(): _show_step("identity"))
-	submit_button = Button.new()
-	submit_button.text = "提交申请"
-	submit_button.custom_minimum_size = Vector2(200, 42)
-	submit_button.disabled = true
-	submit_button.pressed.connect(func():
+	_style_identity_panel(left.get_parent() as PanelContainer)
+	_style_identity_panel(right.get_parent() as PanelContainer)
+
+	_build_review_summary_panel(left)
+	_build_review_confirmation_panel(right)
+	_build_review_footer()
+	_refresh_review_state()
+
+func _build_review_summary_panel(left: VBoxContainer) -> void:
+	_add_identity_panel_heading(left, "候选人摘要", "CANDIDATE SUMMARY")
+
+	_add_identity_section_heading(left, "基础档案", "BASIC ARCHIVE")
+	_add_summary_row(left, "姓名", _display_name())
+	_add_summary_row(left, "候选人编号", derive_candidate_display_id(String(profile.get("application_id"))))
+	_add_summary_row(left, "出生年份", str(int(profile.get("birth_year"))))
+	_add_summary_row(left, "性别", String(profile.get("gender_display")))
+
+	left.add_child(_make_fixed_spacer(4))
+	_add_identity_section_heading(left, "任务身份", "MISSION IDENTITY")
+	_add_summary_row(left, "当前身份", String(profile.get("mission_identity")))
+	_add_summary_row(left, "专业背景", _academic_background_display_name())
+	_add_summary_row(left, "宇航服标识", "%s / %s" % [String(profile.get("suit_marking")), String(profile.get("suit_marking_color"))])
+	_add_summary_status_row(left, "档案状态", String(profile.get("candidate_file_status")))
+
+	var left_spacer := Control.new()
+	left_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	left.add_child(left_spacer)
+
+func _add_summary_row(parent: VBoxContainer, label_text: String, value_text: String) -> void:
+	var row := HBoxContainer.new()
+	row.custom_minimum_size = Vector2(0, 30)
+	row.add_theme_constant_override("separation", 12)
+	parent.add_child(row)
+	var label := Label.new()
+	label.text = label_text
+	label.custom_minimum_size = Vector2(120, 0)
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.modulate = AUI_COLOR_TEXT_SECONDARY
+	label.add_theme_font_size_override("font_size", 14)
+	row.add_child(label)
+	var value := Label.new()
+	value.text = value_text
+	value.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	value.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	value.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	value.modulate = AUI_COLOR_TEXT_PRIMARY
+	value.add_theme_font_size_override("font_size", 15)
+	row.add_child(value)
+
+func _add_summary_status_row(parent: VBoxContainer, label_text: String, status_text: String) -> void:
+	var row := HBoxContainer.new()
+	row.custom_minimum_size = Vector2(0, 30)
+	row.add_theme_constant_override("separation", 12)
+	parent.add_child(row)
+	var label := Label.new()
+	label.text = label_text
+	label.custom_minimum_size = Vector2(120, 0)
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.modulate = AUI_COLOR_TEXT_SECONDARY
+	label.add_theme_font_size_override("font_size", 14)
+	row.add_child(label)
+	row.add_child(_build_status_badge(status_text, Color("#1c2e3a"), Color("#4d7086"), Color("#a9c8d6")))
+
+func _build_status_badge(text: String, bg: Color, border: Color, text_color: Color) -> PanelContainer:
+	var badge := PanelContainer.new()
+	badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var style := StyleBoxFlat.new()
+	style.bg_color = bg
+	style.border_color = border
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(10)
+	style.content_margin_left = 10
+	style.content_margin_right = 10
+	style.content_margin_top = 3
+	style.content_margin_bottom = 3
+	badge.add_theme_stylebox_override("panel", style)
+	var label := Label.new()
+	label.text = text
+	label.modulate = text_color
+	label.add_theme_font_size_override("font_size", 12)
+	badge.add_child(label)
+	return badge
+
+func _build_review_confirmation_panel(right: VBoxContainer) -> void:
+	_add_identity_panel_heading(right, "提交确认", "SUBMISSION CONFIRMATION")
+
+	_add_identity_section_heading(right, "提交说明", "SUBMISSION NOTICE")
+	_add_body_to(right, "你即将提交广寒计划常驻开拓者申请，这将开始正式资格审核流程。")
+
+	right.add_child(_make_fixed_spacer(4))
+	_add_identity_section_heading(right, "审核流程", "REVIEW PROCESS")
+	var process_box := VBoxContainer.new()
+	process_box.add_theme_constant_override("separation", 6)
+	right.add_child(process_box)
+	_add_review_process_step(process_box, "资料归档")
+	_add_review_process_step(process_box, "身份校验")
+	_add_review_process_step(process_box, "学术背景匹配")
+	_add_review_process_step(process_box, "训练序列分配")
+
+	right.add_child(_make_fixed_spacer(4))
+	var confirm_heading_row := HBoxContainer.new()
+	confirm_heading_row.add_theme_constant_override("separation", 10)
+	right.add_child(confirm_heading_row)
+	_add_icon(confirm_heading_row, IconSectionMarker, Vector2(16, 20))
+	var confirm_title := Label.new()
+	confirm_title.text = "确认事项"
+	confirm_title.modulate = AUI_COLOR_TEXT_PRIMARY
+	confirm_title.add_theme_font_size_override("font_size", 15)
+	confirm_heading_row.add_child(confirm_title)
+	var confirm_subtitle := Label.new()
+	confirm_subtitle.text = "CONFIRMATION ITEMS"
+	confirm_subtitle.modulate = AUI_COLOR_TEXT_MUTED
+	confirm_subtitle.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	confirm_subtitle.add_theme_font_size_override("font_size", 12)
+	confirm_heading_row.add_child(confirm_subtitle)
+	var confirm_heading_spacer := Control.new()
+	confirm_heading_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	confirm_heading_row.add_child(confirm_heading_spacer)
+	review_ready_badge = _build_status_badge("READY FOR SUBMISSION", Color("#1a2e20"), Color("#4d8b61"), Color("#7fc998"))
+	review_ready_badge.visible = false
+	confirm_heading_row.add_child(review_ready_badge)
+	right.add_child(HSeparator.new())
+
+	var confirm_list := VBoxContainer.new()
+	confirm_list.add_theme_constant_override("separation", 11)
+	right.add_child(confirm_list)
+	_add_confirmation_row(confirm_list, "我理解这是一项长期任务。")
+	_add_confirmation_row(confirm_list, "我理解任务地点位于月球。")
+	_add_confirmation_row(confirm_list, "我理解广寒前哨仍处于早期建设阶段。")
+
+	var right_spacer := Control.new()
+	right_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	right.add_child(right_spacer)
+
+func _add_review_process_step(parent: VBoxContainer, text: String) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	parent.add_child(row)
+	var dot := Label.new()
+	dot.text = "○"
+	dot.modulate = AUI_COLOR_TEXT_MUTED
+	dot.add_theme_font_size_override("font_size", 13)
+	row.add_child(dot)
+	var label := Label.new()
+	label.text = text
+	label.modulate = AUI_COLOR_TEXT_SECONDARY
+	label.add_theme_font_size_override("font_size", 14)
+	row.add_child(label)
+
+func _build_review_footer() -> void:
+	var frame := PanelContainer.new()
+	frame.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	var style := StyleBoxFlat.new()
+	style.bg_color = AUI_COLOR_PANEL_BG
+	style.border_color = AUI_COLOR_PANEL_BORDER
+	style.set_border_width_all(AUI_BORDER_WIDTH)
+	style.set_corner_radius_all(AUI_PANEL_RADIUS)
+	style.content_margin_left = AUI_PANEL_PADDING
+	style.content_margin_right = AUI_PANEL_PADDING
+	style.content_margin_top = 16
+	style.content_margin_bottom = 16
+	frame.add_theme_stylebox_override("panel", style)
+	footer.add_child(frame)
+
+	var row := HBoxContainer.new()
+	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	row.add_theme_constant_override("separation", 16)
+	frame.add_child(row)
+
+	review_validation_label = Label.new()
+	review_validation_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	review_validation_label.modulate = AUI_COLOR_TEXT_SECONDARY
+	review_validation_label.add_theme_font_size_override("font_size", 14)
+	row.add_child(review_validation_label)
+
+	row.add_child(VSeparator.new())
+
+	var progress_cluster := HBoxContainer.new()
+	progress_cluster.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	progress_cluster.add_theme_constant_override("separation", 10)
+	row.add_child(progress_cluster)
+	var badge := Control.new()
+	badge.custom_minimum_size = Vector2(32, 32)
+	badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	progress_cluster.add_child(badge)
+	review_status_icon = TextureRect.new()
+	review_status_icon.set_anchors_preset(Control.PRESET_FULL_RECT)
+	review_status_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	review_status_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	badge.add_child(review_status_icon)
+	var progress_text := VBoxContainer.new()
+	progress_text.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	progress_text.add_theme_constant_override("separation", 2)
+	progress_cluster.add_child(progress_text)
+	review_progress_label = Label.new()
+	review_progress_label.modulate = AUI_COLOR_TEXT_INPUT
+	review_progress_label.add_theme_font_size_override("font_size", 14)
+	progress_text.add_child(review_progress_label)
+	review_ratio_label = Label.new()
+	review_ratio_label.modulate = AUI_COLOR_TEXT_MUTED
+	review_ratio_label.add_theme_font_size_override("font_size", 12)
+	progress_text.add_child(review_ratio_label)
+
+	var spacer := Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(spacer)
+
+	var right_cluster := HBoxContainer.new()
+	right_cluster.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	right_cluster.add_theme_constant_override("separation", 12)
+	row.add_child(right_cluster)
+
+	var back_button := _make_step_back_button("返回修改", func(): _show_step("identity"))
+	right_cluster.add_child(back_button)
+
+	submit_button = _make_step_next_button("提交申请", func():
 		_start_review_sequence()
 	)
-	footer.add_child(submit_button)
-	_update_submit_enabled()
+	right_cluster.add_child(submit_button)
 
 func _start_review_sequence() -> void:
 	profile.set("application_submitted", true)
@@ -2276,19 +2482,6 @@ func _apply_academic_background_selection(background_id: String) -> void:
 	profile.set("selected_academic_background_id", background_id)
 	profile.set("education_background", background_name)
 	_save_profile()
-
-func _profile_summary() -> String:
-	return "姓名：%s\n申请编号：%s\n候选人档案状态：%s\n任务身份：%s\n出生年份：%d\n性别：%s\n候选人学术背景：%s\n宇航服标识：%s / %s" % [
-		_display_name(),
-		String(profile.get("application_id")),
-		String(profile.get("candidate_file_status")),
-		String(profile.get("mission_identity")),
-		int(profile.get("birth_year")),
-		String(profile.get("gender_display")),
-		_academic_background_display_name(),
-		String(profile.get("suit_marking")),
-		String(profile.get("suit_marking_color")),
-	]
 
 func _academic_background_display_name() -> String:
 	var name := String(profile.get("education_background"))
@@ -2427,43 +2620,79 @@ func _add_footer_button(text: String, callback: Callable) -> void:
 	button.pressed.connect(callback)
 	footer.add_child(button)
 
-func _add_confirmation_check(parent: VBoxContainer, text: String) -> void:
-	var check := CheckBox.new()
-	check.text = text
-	check.custom_minimum_size = Vector2(0, 40)
-	check.add_theme_icon_override("unchecked", _make_checkbox_icon(false))
-	check.add_theme_icon_override("checked", _make_checkbox_icon(true))
-	check.add_theme_font_size_override("font_size", 16)
-	check.add_theme_color_override("font_color", Color("#d8e7f2"))
-	check.add_theme_color_override("font_hover_color", Color("#eaf4ff"))
-	check.add_theme_color_override("font_pressed_color", Color("#eaf4ff"))
-	check.add_theme_color_override("font_focus_color", Color("#eaf4ff"))
-	_style_confirmation_check(check)
-	check.toggled.connect(func(_pressed: bool):
-		_style_confirmation_check(check)
-		_update_submit_enabled()
-	)
-	parent.add_child(check)
-	confirmation_checks.append(check)
+## Confirmation rows on the review page are Buttons (not CheckBox) so the
+## Default/Hover/Selected states can match the rest of AUI-03-0x exactly
+## (left accent-style border on selected, faint hover tint, no native
+## CheckBox styling quirks). Selection state lives in node meta rather than
+## a parallel array.
+func _add_confirmation_row(parent: VBoxContainer, text: String) -> void:
+	var row := Button.new()
+	row.text = ""
+	row.custom_minimum_size = Vector2(0, 60)
+	row.focus_mode = Control.FOCUS_ALL
+	row.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	row.set_meta("selected", false)
+	parent.add_child(row)
 
-func _style_confirmation_check(check: CheckBox) -> void:
-	var box := StyleBoxFlat.new()
-	box.bg_color = Color("#12324a") if check.button_pressed else Color("#0a1823")
-	box.border_color = Color("#5fb8ff") if check.button_pressed else Color("#5d829a")
-	box.set_border_width_all(1)
-	box.corner_radius_top_left = 4
-	box.corner_radius_top_right = 4
-	box.corner_radius_bottom_left = 4
-	box.corner_radius_bottom_right = 4
-	box.content_margin_left = 10
-	box.content_margin_right = 10
-	box.content_margin_top = 6
-	box.content_margin_bottom = 6
-	check.add_theme_stylebox_override("normal", box)
-	check.add_theme_stylebox_override("hover", box)
-	check.add_theme_stylebox_override("pressed", box)
-	check.add_theme_stylebox_override("hover_pressed", box)
-	check.add_theme_stylebox_override("focus", box)
+	var content := HBoxContainer.new()
+	content.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	content.set_anchors_preset(Control.PRESET_FULL_RECT)
+	content.offset_left = 18
+	content.offset_right = -18
+	content.add_theme_constant_override("separation", 12)
+	row.add_child(content)
+
+	var check_icon := TextureRect.new()
+	check_icon.custom_minimum_size = Vector2(21, 21)
+	check_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	check_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	check_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	check_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	check_icon.texture = _make_checkbox_icon(false)
+	content.add_child(check_icon)
+	row.set_meta("check_icon", check_icon)
+
+	var label := Label.new()
+	label.text = text
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.add_theme_font_size_override("font_size", 15)
+	label.modulate = AUI_COLOR_TEXT_PRIMARY
+	content.add_child(label)
+	row.set_meta("label", label)
+
+	_style_confirmation_row(row)
+	row.pressed.connect(func():
+		row.set_meta("selected", not bool(row.get_meta("selected")))
+		_style_confirmation_row(row)
+		_refresh_review_state()
+	)
+	confirmation_checks.append(row)
+
+func _style_confirmation_row(row: Button) -> void:
+	var selected: bool = row.get_meta("selected")
+	(row.get_meta("check_icon") as TextureRect).texture = _make_checkbox_icon(selected)
+	(row.get_meta("label") as Label).modulate = Color("#ffffff") if selected else AUI_COLOR_TEXT_PRIMARY
+
+	var style := StyleBoxFlat.new()
+	style.set_corner_radius_all(AUI_INPUT_RADIUS)
+	if selected:
+		style.bg_color = Color("#122334")
+		style.border_color = AUI_COLOR_ACTIVE_ACCENT
+		style.set_border_width_all(AUI_FOCUS_BORDER_WIDTH)
+	else:
+		style.bg_color = Color("#0d151c")
+		style.border_color = Color("#22323e")
+		style.set_border_width_all(AUI_BORDER_WIDTH)
+	var hover := style.duplicate()
+	if not selected:
+		hover.bg_color = Color("#121c24")
+	row.add_theme_stylebox_override("normal", style)
+	row.add_theme_stylebox_override("pressed", style)
+	row.add_theme_stylebox_override("hover", hover)
+	row.add_theme_stylebox_override("focus", style)
 
 func _make_checkbox_icon(checked: bool) -> Texture2D:
 	var image := Image.create(24, 24, false, Image.FORMAT_RGBA8)
@@ -2488,14 +2717,23 @@ func _make_checkbox_icon(checked: bool) -> Texture2D:
 			image.set_pixel(point.x, point.y + 1, mark)
 	return ImageTexture.create_from_image(image)
 
-func _update_submit_enabled() -> void:
+func _refresh_review_state() -> void:
 	if submit_button == null:
 		return
-	for check in confirmation_checks:
-		if not check.button_pressed:
-			submit_button.disabled = true
-			return
-	submit_button.disabled = false
+	var completed := 0
+	for row in confirmation_checks:
+		if bool((row as Button).get_meta("selected")):
+			completed += 1
+	var valid: bool = completed == confirmation_checks.size()
+	submit_button.disabled = not valid
+	_style_identity_next_button(submit_button, 20)
+	if review_progress_label != null:
+		review_progress_label.text = "确认事项完成度"
+		review_ratio_label.text = "%d / %d" % [completed, confirmation_checks.size()]
+		review_status_icon.texture = IconStatusComplete if valid else IconStatusIncomplete
+		review_validation_label.text = "资料校验状态：%s" % ("通过" if valid else "未完成")
+	if review_ready_badge != null:
+		review_ready_badge.visible = valid
 
 func _clear_container(node: Node) -> void:
 	for child in node.get_children():

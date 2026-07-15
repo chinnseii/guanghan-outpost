@@ -9,10 +9,38 @@ This file is the current coordination board for active task ownership, file lock
 - **Locked files**: `1`
 - **Pending handoffs**: `0`
 - **Branch**: `main`
-- **Board baseline**: `0cd1293` (AUI-03-03 close-out, pushed to `main`)
+- **Board baseline**: `53b4ba8` (MAIN-MENU-01 close-out, pushed to `main`)
 - **Last updated**: `2026-07-15`
 
 ## Active Tasks
+
+### AUI-03-04 - Submit Application Page Layout (提交申请)
+
+- Owner: `Claude Code`
+- Reviewer: `User` (visual, direct)
+- Final Approval: `User` — approved: "可以通过，提交并推送".
+- Mode: `single owner`
+- Status: `DONE`
+- Branch: `main`
+- Worktree: repository root
+- Base commit: post-MAIN-MENU-01 close-out (this session)
+- Objective: Rebuild `_show_review()`'s internal layout (page 04, 提交申请/SUBMIT APPLICATION) to match AUI-03-02/03's Panel/Section visual grammar, per User's 9-item spec. Header/step-nav/page-title/fonts/colors/1920x1080 frame explicitly out of scope (untouched).
+- Implemented:
+  1. Both columns restyled via the shared `_style_identity_panel()` (same border/radius/padding as AUI-03-02/03), keeping the existing `_add_columns(0.48)` 48/52 split unchanged ("继续保持" — User asked to keep it, not flip it).
+  2. Left panel: `_add_identity_panel_heading(left, "候选人摘要", "CANDIDATE SUMMARY")`, restructured from one continuous text blob into two `_add_identity_section_heading()` groups — "基础档案/BASIC ARCHIVE" (姓名/候选人编号/出生年份/性别) and "任务身份/MISSION IDENTITY" (当前身份/专业背景/宇航服标识/档案状态) — via a new `_add_summary_row()` helper (fixed-width left-aligned label + right-flowing value, no colon-stacking).
+  3. 候选人编号 now reuses the existing static `derive_candidate_display_id()` (same helper/value already shown on page 01), not a new field.
+  4. Right panel: `_add_identity_panel_heading(right, "提交确认", "SUBMISSION CONFIRMATION")`, split into three `_add_identity_section_heading()` tiers — "提交说明/SUBMISSION NOTICE" (shortened to one line), "审核流程/REVIEW PROCESS" (4 steps: 资料归档/身份校验/学术背景匹配/训练序列分配 — reused verbatim from the existing `_start_review_sequence()` review-status copy, not invented), and "确认事项/CONFIRMATION ITEMS".
+  5. The 3 confirmation checkboxes were rebuilt as interactive `Button`-based rows (`_add_confirmation_row()`/`_style_confirmation_row()`) instead of native `CheckBox`: 60px row height, 21px check icon (reusing the existing `_make_checkbox_icon()`), 18px left/right padding, 11px row spacing, Default/Hover/Selected states (cool-blue border + tint on Selected, faint tint on Hover, no glow), matching AUI-03-03's swatch-button pattern. Selection state stored in each Button's own metadata (`set_meta("selected", ...)`) rather than a new parallel array.
+  6. Bottom Action Bar rebuilt (`_build_review_footer()`) matching the AUI-03-02-style layout explicitly requested this round (left: 资料校验状态 label; middle: 确认事项完成度 badge+ratio, identity-page-style; spacer; right: 返回修改 + 提交申请 clustered together, both built from the shared `_make_step_back_button`/`_make_step_next_button` so sizing is identical to every other page's footer buttons) — replacing the previous bare `_add_footer_button()`/loose `Button.new()` pair that floated at the bottom-left with no frame.
+  7. Submit gating unchanged in spirit (`_refresh_review_state()`, replacing `_update_submit_enabled()`): disabled until all 3 rows selected, enabled once complete; button text stays "提交申请" (single-line, matching the shared button builder's convention used on every other page — the spec's "SUBMIT APPLICATION"/"BACK TO EDIT" glosses are treated as intent documentation, not additional bilingual sub-text, for consistency with pages 01-03's buttons).
+  8. Both columns get an `EXPAND_FILL` spacer at the bottom (same technique as AUI-03-02/03) so left/right panels render equal height with no dead space, instead of adding decorative filler.
+  9. No business logic, data field meanings, save schema, Header, step bar, Logo, or shared Theme touched. `_start_review_sequence()`/`_show_notice()`/`_show_withdrawn()` (the post-submit screens) are unchanged.
+- Suggested-optimization items (User's "建议优化", partially implemented): (a) done — 档案状态 now shows as a low-saturation blue-gray status badge instead of plain text; (b) done — a green "READY FOR SUBMISSION" badge appears next to the 确认事项 section heading once all 3 rows are selected; (c) **not implemented** — routing the final submit through the new unified confirmation-dialog style would add a new interaction gate (an extra confirm-before-submit step), which reads as a behavior/flow change beyond this round's explicitly visual-only scope; flagged for a future round if wanted.
+- Dead code removed: `_profile_summary()` (superseded by the structured summary rows, zero remaining callers).
+- Verification: Godot 4.7 headless parse EXIT 0; existing 29-check `tests/aui_03_01_basic_information_test.gd` passed unmodified (unrelated page, sanity-checked). New `tools/capture_aui_03_04_review.gd` run in the isolated sandbox — captured both the `0/3` (submit disabled) and `3/3` (submit enabled, READY badge visible) states. Real project save file SHA-256 checked before/after this round's sandbox work; baseline differs from the prior round's recorded hash because the User has continued testing directly against the real (uncommitted) project between rounds, per the established pattern — not agent-caused.
+- Deliverables: `docs/screenshots/aui_03_04_review/01_review_default_0_of_3.png`, `02_review_all_confirmed_3_of_3.png`.
+- Push/tag: `yes / no` — User approved and authorized commit + push this round.
+- Next: AUI-03-05 (if any) not started.
 
 ### MAIN-MENU-01 - Title Screen Redesign (背景/导航/弹窗)
 
