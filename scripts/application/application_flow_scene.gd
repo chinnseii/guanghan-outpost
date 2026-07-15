@@ -2,7 +2,6 @@ extends Control
 
 const PROFILE_PATH := "user://saves/application_profile.json"
 const PlayerProfileDataScript := preload("res://scripts/data/player_profile_data.gd")
-const ApplicationArtPanelScript := preload("res://scripts/application/application_art_panel.gd")
 const SuitPreviewControlScript := preload("res://scripts/application/suit_preview_control.gd")
 const IconInstitution := preload("res://assets/ui/common/icons/atlas/icon_institution.tres")
 const IconAssistant := preload("res://assets/ui/common/icons/atlas/icon_assistant.tres")
@@ -16,6 +15,13 @@ const IconStatusIncomplete := preload("res://assets/ui/common/icons/atlas/icon_s
 const IconStatusComplete := preload("res://assets/ui/common/icons/atlas/icon_status_complete.tres")
 const IconSectionMarker := preload("res://assets/ui/common/icons/atlas/icon_section_marker.tres")
 
+## AUI-03-02: real pre-placed profession icons (square variants only this
+## round; circle variants are reserved for a later right-side "专业档案" task).
+const IconProfessionPlantScience := preload("res://assets/ui/common/icons/professions/atlas/icon_profession_plant_science_square.tres")
+const IconProfessionMechanicalEngineering := preload("res://assets/ui/common/icons/professions/atlas/icon_profession_mechanical_engineering_square.tres")
+const IconProfessionMaterialsScience := preload("res://assets/ui/common/icons/professions/atlas/icon_profession_materials_science_square.tres")
+const IconProfessionMedicine := preload("res://assets/ui/common/icons/professions/atlas/icon_profession_medicine_square.tres")
+
 ## AUI-03-01 approved layout constants (basic_information_hifi_spec).
 const AUI_PAGE_MARGIN := 24
 const AUI_HEADER_HEIGHT := 96
@@ -28,7 +34,6 @@ const AUI_COLUMN_GAP := 20
 const AUI_PANEL_PADDING := 24
 const AUI_FIELD_ROW_HEIGHT := 48
 const AUI_FIELD_ROW_GAP := 12
-const AUI_BUTTON_HEIGHT := 50
 const AUI_PANEL_RADIUS := 4
 const AUI_INPUT_RADIUS := 3
 const AUI_BORDER_WIDTH := 1
@@ -58,11 +63,98 @@ const EDUCATION_OPTIONS := [
 	"医学",
 ]
 
-const EDUCATION_DESCRIPTIONS := {
-	"植物科学": "核心风险：生命会不会生长\n\n熟悉植物状态、水 / 光 / 温度对植物的影响、温室环境风险、植物恢复周期与作物生长问题。\n\n信息优势：在植物诊断、旧温室、作物生长、水循环与植物供水、补光与温度判断中获得额外专业提示。",
-	"机械工程": "核心风险：系统会不会运转\n\n熟悉电力系统、太阳能阵列、制氧模块、温控设备、水泵与设备故障链。\n\n信息优势：在太阳能板维修、供电恢复、制氧模块维修、温控系统维修、水循环设备维修中获得额外专业提示。",
-	"材料科学": "核心风险：基地会不会漏\n\n熟悉舱压、密封材料、结构老化、舱体接缝、气闸 / 对接口微漏、月尘磨蚀、辐射与温差损伤。\n\n信息优势：在气闸密封、飞船对接口检查、旧基地舱压异常、密封圈老化、结构裂纹判断中获得额外专业提示。",
-	"医学": "核心风险：人会不会撑不住\n\n熟悉精力、饱腹、营养、心理、氧气不足对人体的影响、低温 / 高温风险与长期单人驻留风险。\n\n信息优势：在健康状态判断、恢复顺序建议、低氧 / 低温环境风险、高强度维修前提醒、睡眠恢复效率判断中获得额外专业提示。",
+## AUI-03-02: right-side "专业档案" content per profession id. focus_highlight/
+## focus_body/domain_body are derived directly from the existing
+## EDUCATION_DESCRIPTIONS copy (核心风险 -> focus, 信息优势 list -> domain) so
+## the lore stays consistent instead of inventing new copy. hint_body is the
+## shared generic sentence already used in the approved reference mockup.
+const PROFESSION_PROFILE_CONTENT := {
+	"plant_science": {
+		"focus_highlight": "作物生长异常与生态循环失衡",
+		"focus_body": "熟悉植物状态、水 / 光 / 温度对植物的影响、温室环境风险、植物恢复周期与作物生长问题。",
+		"domain_body": "植物诊断、旧温室、作物生长、水循环与植物供水、补光与温度判断。",
+	},
+	"mechanical_engineering": {
+		"focus_highlight": "设备故障链与系统运转风险",
+		"focus_body": "熟悉电力系统、太阳能阵列、制氧模块、温控设备、水泵与设备故障链。",
+		"domain_body": "太阳能板维修、供电恢复、制氧模块维修、温控系统维修、水循环设备维修。",
+	},
+	"materials_science": {
+		"focus_highlight": "结构老化与舱体密封失效",
+		"focus_body": "熟悉舱压、密封材料、结构老化、舱体接缝、气闸 / 对接口微漏、月尘磨蚀、辐射与温差损伤。",
+		"domain_body": "气闸密封、飞船对接口检查、旧基地舱压异常、密封圈老化、结构裂纹判断。",
+	},
+	"medicine": {
+		"focus_highlight": "生命支持与健康承受风险",
+		"focus_body": "熟悉精力、饱腹、营养、心理、氧气不足对人体的影响、低温 / 高温风险与长期单人驻留风险。",
+		"domain_body": "健康状态判断、恢复顺序建议、低氧 / 低温环境风险、高强度维修前提醒、睡眠恢复效率判断。",
+	},
+}
+const PROFESSION_PROFILE_HINT_BODY := "在相关任务中，可获得额外的专业判断提示与线索，帮助你识别异常、定位问题并做出更准确决策。"
+
+## Real region names read directly from each detail atlas's own JSON metadata
+## (professions/details/<id>/sprite.godot.json or sprite.json) -- not guessed.
+const PROFESSION_PROFILE_COVERAGE := {
+	"plant_science": [
+		{"icon": "res://assets/ui/common/icons/professions/details/plant_science/atlas/icon_domain_plant_growth.tres", "label": "作物生长"},
+		{"icon": "res://assets/ui/common/icons/professions/details/plant_science/atlas/icon_domain_plant_light.tres", "label": "光照与补光"},
+		{"icon": "res://assets/ui/common/icons/professions/details/plant_science/atlas/icon_domain_plant_water.tres", "label": "水循环与供水"},
+		{"icon": "res://assets/ui/common/icons/professions/details/plant_science/atlas/icon_domain_plant_greenhouse.tres", "label": "旧温室诊断"},
+		{"icon": "res://assets/ui/common/icons/professions/details/plant_science/atlas/icon_domain_plant_ecology_risk.tres", "label": "环境风险预判"},
+	],
+	"mechanical_engineering": [
+		{"icon": "res://assets/ui/common/icons/professions/details/mechanical_engineering/atlas/icon_domain_mechanical_repair.tres", "label": "设备维修"},
+		{"icon": "res://assets/ui/common/icons/professions/details/mechanical_engineering/atlas/icon_domain_mechanical_fault.tres", "label": "故障分析"},
+		{"icon": "res://assets/ui/common/icons/professions/details/mechanical_engineering/atlas/icon_domain_mechanical_structure.tres", "label": "机械结构"},
+		{"icon": "res://assets/ui/common/icons/professions/details/mechanical_engineering/atlas/icon_domain_mechanical_maintenance.tres", "label": "维护风险"},
+		{"icon": "res://assets/ui/common/icons/professions/details/mechanical_engineering/atlas/icon_domain_mechanical_hatch.tres", "label": "舱体机构"},
+	],
+	"materials_science": [
+		{"icon": "res://assets/ui/common/icons/professions/details/materials_science/atlas/icon_domain_material_fatigue.tres", "label": "材料疲劳"},
+		{"icon": "res://assets/ui/common/icons/professions/details/materials_science/atlas/icon_domain_material_corrosion.tres", "label": "腐蚀风险"},
+		{"icon": "res://assets/ui/common/icons/professions/details/materials_science/atlas/icon_domain_material_seal.tres", "label": "密封状态"},
+		{"icon": "res://assets/ui/common/icons/professions/details/materials_science/atlas/icon_domain_material_durability.tres", "label": "结构耐久"},
+		{"icon": "res://assets/ui/common/icons/professions/details/materials_science/atlas/icon_domain_material_extreme_environment.tres", "label": "极端环境影响"},
+	],
+	"medicine": [
+		{"icon": "res://assets/ui/common/icons/professions/details/medicine/atlas/icon_domain_medicine_monitoring.tres", "label": "健康监测"},
+		{"icon": "res://assets/ui/common/icons/professions/details/medicine/atlas/icon_domain_medicine_trauma.tres", "label": "创伤处理"},
+		{"icon": "res://assets/ui/common/icons/professions/details/medicine/atlas/icon_domain_medicine_exposure.tres", "label": "环境暴露"},
+		{"icon": "res://assets/ui/common/icons/professions/details/medicine/atlas/icon_domain_medicine_life_support.tres", "label": "生命支持"},
+		{"icon": "res://assets/ui/common/icons/professions/details/medicine/atlas/icon_domain_medicine_risk.tres", "label": "健康风险判断"},
+	],
+}
+
+const PROFESSION_PROFILE_CIRCLE_ICON_PATHS := {
+	"plant_science": "res://assets/ui/common/icons/professions/atlas/icon_profession_plant_science_circle.tres",
+	"mechanical_engineering": "res://assets/ui/common/icons/professions/atlas/icon_profession_mechanical_engineering_circle.tres",
+	"materials_science": "res://assets/ui/common/icons/professions/atlas/icon_profession_materials_science_circle.tres",
+	"medicine": "res://assets/ui/common/icons/professions/atlas/icon_profession_medicine_circle.tres",
+}
+
+const ICON_PROFILE_FOCUS_PATH := "res://assets/ui/common/icons/professions/details/common/atlas/icon_profile_focus.tres"
+const ICON_PROFILE_DOMAIN_PATH := "res://assets/ui/common/icons/professions/details/common/atlas/icon_profile_domain.tres"
+const ICON_PROFILE_HINT_PATH := "res://assets/ui/common/icons/professions/details/common/atlas/icon_profile_hint.tres"
+
+## AUI-03-02: profession selection card data (left side of the 02 Academic
+## Background page). `id` matches the existing academic-background id scheme
+## used by _academic_background_id_from_name()/AcademicBackgroundManager.
+const PROFESSION_CARD_DATA := [
+	{"id": "plant_science", "name": "植物科学", "name_en": "PLANT SCIENCE", "keywords": ["作物诊断", "温室维护", "水循环"], "recommended": true},
+	{"id": "mechanical_engineering", "name": "机械工程", "name_en": "MECHANICAL ENGINEERING", "keywords": ["设备维修", "故障分析", "机械维护"], "recommended": false},
+	{"id": "materials_science", "name": "材料科学", "name_en": "MATERIALS SCIENCE", "keywords": ["材料检测", "结构老化", "密封可靠"], "recommended": false},
+	{"id": "medicine", "name": "医学", "name_en": "MEDICINE", "keywords": ["健康监测", "创伤处理", "生命支持"], "recommended": false},
+]
+
+## Per-profession identity accent color, used on the left card list's keyword
+## row so each profession reads at a glance (art-director round: "专业关键词
+## 使用职业识别色"). Plant=green, mechanical=blue-gray, materials=silver-gray,
+## medicine=cyan-blue.
+const PROFESSION_ACCENT_COLORS := {
+	"plant_science": Color("#7fc998"),
+	"mechanical_engineering": Color("#8ea3b8"),
+	"materials_science": Color("#b7c0c7"),
+	"medicine": Color("#7fd3d9"),
 }
 
 const STEP_LABELS := {
@@ -89,9 +181,18 @@ var name_edit: LineEdit
 var birth_options: OptionButton
 var gender_options: OptionButton
 var pending_academic_background_id := ""
-var education_buttons: Dictionary = {}
-var education_detail_title: Label
-var education_detail_body: Label
+var profession_cards: Dictionary = {}
+var profession_next_button: Button
+var profession_locked_ids: Array[String] = []
+var profession_profile_icon: TextureRect
+var profession_profile_name: Label
+var profession_profile_name_en: Label
+var profession_focus_highlight: Label
+var profession_focus_body: Label
+var profession_domain_body: Label
+var profession_hint_body: Label
+var profession_coverage_row: HBoxContainer
+var profession_profile_empty_note: Label
 var suit_marking_edit: LineEdit
 var name_initials_edit: LineEdit
 var appearance_options: Dictionary = {}
@@ -372,7 +473,7 @@ func _refresh_identity_state() -> void:
 	identity_progress_label.text = "必填项完成情况：%d / 3" % completed
 	identity_validation_label.text = "资料校验状态：%s" % String(state["validation"])
 	identity_next_button.disabled = not valid
-	_style_identity_next_button(identity_next_button)
+	_style_identity_next_button(identity_next_button, 20)
 	if identity_status_icon != null:
 		identity_status_icon.texture = IconStatusComplete if completed == 3 else IconStatusIncomplete
 	if identity_ratio_label != null:
@@ -569,7 +670,7 @@ func _add_identity_panel_heading(parent: VBoxContainer, title_text: String, subt
 	row.add_child(sub)
 	parent.add_child(HSeparator.new())
 
-func _add_identity_section_heading(parent: VBoxContainer, title_text: String, subtitle_text: String) -> void:
+func _add_identity_section_heading(parent: VBoxContainer, title_text: String, subtitle_text: String, with_divider: bool = true) -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
 	_add_icon(row, IconSectionMarker, Vector2(16, 20))
@@ -585,7 +686,8 @@ func _add_identity_section_heading(parent: VBoxContainer, title_text: String, su
 	sub.add_theme_font_size_override("font_size", 12)
 	row.add_child(sub)
 	parent.add_child(row)
-	parent.add_child(HSeparator.new())
+	if with_divider:
+		parent.add_child(HSeparator.new())
 
 func _add_identity_line_edit(parent: VBoxContainer, label_text: String, value: String, placeholder: String) -> LineEdit:
 	var row := HBoxContainer.new()
@@ -903,19 +1005,9 @@ func _build_identity_footer() -> void:
 	right_cluster.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	right_cluster.add_theme_constant_override("separation", 12)
 	row.add_child(right_cluster)
-	identity_back_button = Button.new()
-	identity_back_button.text = "返回"
-	identity_back_button.custom_minimum_size = Vector2(150, AUI_BUTTON_HEIGHT)
-	identity_back_button.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/main.tscn"))
+	identity_back_button = _make_step_back_button("返回", func(): get_tree().change_scene_to_file("res://scenes/main.tscn"))
 	right_cluster.add_child(identity_back_button)
-	identity_next_button = Button.new()
-	identity_next_button.text = "下一步"
-	identity_next_button.icon = IconArrowRight
-	identity_next_button.icon_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	identity_next_button.expand_icon = true
-	identity_next_button.add_theme_constant_override("icon_max_width", 16)
-	identity_next_button.custom_minimum_size = Vector2(220, AUI_BUTTON_HEIGHT)
-	identity_next_button.pressed.connect(func():
+	identity_next_button = _make_step_next_button("下一步", func():
 		_capture_identity()
 		_show_step("education")
 	)
@@ -984,7 +1076,7 @@ func _style_identity_option(option: OptionButton) -> void:
 	popup.add_theme_constant_override("item_end_padding", 16)
 	popup.add_theme_color_override("font_selected_color", Color("#b8c68a"))
 
-func _style_identity_next_button(button: Button) -> void:
+func _style_identity_next_button(button: Button, icon_right_inset: int = 0) -> void:
 	var enabled := StyleBoxFlat.new()
 	enabled.bg_color = Color("#213b50")
 	enabled.border_color = Color("#607f93")
@@ -993,6 +1085,8 @@ func _style_identity_next_button(button: Button) -> void:
 	enabled.corner_radius_top_right = AUI_INPUT_RADIUS
 	enabled.corner_radius_bottom_left = AUI_INPUT_RADIUS
 	enabled.corner_radius_bottom_right = AUI_INPUT_RADIUS
+	if icon_right_inset > 0:
+		enabled.content_margin_right = icon_right_inset
 	var enabled_hover := enabled.duplicate()
 	enabled_hover.bg_color = Color("#2b4b62")
 	var disabled := enabled.duplicate()
@@ -1003,44 +1097,530 @@ func _style_identity_next_button(button: Button) -> void:
 	button.add_theme_stylebox_override("disabled", disabled)
 	button.add_theme_color_override("font_color", AUI_COLOR_TEXT_PRIMARY)
 	button.add_theme_color_override("font_disabled_color", Color("#57646d"))
+	if icon_right_inset > 0:
+		button.add_theme_color_override("icon_normal_color", AUI_COLOR_TEXT_PRIMARY)
+		button.add_theme_color_override("icon_hover_color", AUI_COLOR_TEXT_PRIMARY)
+		button.add_theme_color_override("icon_pressed_color", AUI_COLOR_TEXT_PRIMARY)
+		button.add_theme_color_override("icon_disabled_color", Color("#57646d"))
+
+## Shared step-navigation button component: every application-flow page's
+## "返回"/"下一步" pair is built through these two so they can never drift
+## apart in size or style again (previously page 01 and page 02 independently
+## grew 150x50/220x50 vs 210x56).
+const STEP_BUTTON_SIZE := Vector2(210, 56)
+
+func _make_step_back_button(text: String, callback: Callable) -> Button:
+	var button := Button.new()
+	button.text = text
+	button.custom_minimum_size = STEP_BUTTON_SIZE
+	button.pressed.connect(callback)
+	return button
+
+func _make_step_next_button(text: String, callback: Callable) -> Button:
+	var button := Button.new()
+	button.text = text
+	button.icon = IconArrowRight
+	button.icon_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	button.expand_icon = true
+	button.add_theme_constant_override("icon_max_width", 22)
+	button.add_theme_constant_override("h_separation", 18)
+	button.custom_minimum_size = STEP_BUTTON_SIZE
+	button.pressed.connect(callback)
+	_style_identity_next_button(button, 20)
+	return button
 
 func _show_education() -> void:
-	_add_page_title("选择候选人学术背景", "ACADEMIC BACKGROUND")
-	_add_body("学术背景不会提供数值加成，但会影响你能看懂哪些专业线索。\n\n不同学术背景会在训练、维修、温室、生命支持和基地结构判断中提供额外专业提示。\n这些提示不会减少耗时、材料消耗或风险，只会帮助你做出更准确的判断。")
-	var columns := _add_columns(0.38)
+	_add_page_title("选择专业背景", "SELECT PROFESSIONAL BACKGROUND")
+	_add_body("选择你的专业背景，它将影响你在任务中获得的专业判断与信息提示。")
+	var columns := _add_columns(0.5)
 	var left: VBoxContainer = columns[0]
 	var right: VBoxContainer = columns[1]
-	_add_panel_title(left, "选择候选人学术背景")
-	education_buttons.clear()
-	for option in EDUCATION_OPTIONS:
-		var button := Button.new()
-		button.text = option
-		button.custom_minimum_size = Vector2(0, 44)
-		button.pressed.connect(_select_education.bind(String(option)))
-		left.add_child(button)
-		education_buttons[option] = button
-	_add_panel_title(right, "背景说明")
-	education_detail_title = Label.new()
-	education_detail_title.modulate = Color("#eaf4ff")
-	education_detail_title.add_theme_font_size_override("font_size", 24)
-	right.add_child(education_detail_title)
-	education_detail_body = Label.new()
-	education_detail_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	education_detail_body.modulate = Color("#d8e7f2")
-	education_detail_body.add_theme_font_size_override("font_size", 18)
-	right.add_child(education_detail_body)
-	_add_body_to(right, "第一版作用：只影响专业提示，不改变移动速度、维修耗时、材料消耗、负重上限、精力消耗、睡眠恢复或健康状态。")
-	var art := ApplicationArtPanelScript.new()
-	art.panel_kind = "education"
-	right.add_child(art)
+	_style_identity_panel(left.get_parent() as PanelContainer)
+	_style_identity_panel(right.get_parent() as PanelContainer)
 	pending_academic_background_id = _selected_academic_background_id()
-	_update_education_detail()
-	_add_footer_button("返回", func():
-		_show_step("identity")
+
+	_add_identity_panel_heading(left, "候选人专业选择", "PROFESSIONAL SELECTION")
+	_add_profession_card_list(left)
+
+	var left_spacer := Control.new()
+	left_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	left.add_child(left_spacer)
+
+	left.add_child(HSeparator.new())
+	var shared_note := VBoxContainer.new()
+	shared_note.add_theme_constant_override("separation", 4)
+	left.add_child(shared_note)
+	_add_note_to_styled(shared_note, "专业背景仅影响任务中的专业提示与判断线索，不直接改变角色属性、行动耗时或资源消耗。", Color("#7a8792"), 14)
+	_add_note_to_styled(shared_note, "该背景将在本次申请提交后锁定，请谨慎选择。", Color("#7a8792"), 14)
+
+	_build_profession_profile_panel(right)
+	_refresh_profession_profile()
+
+	_build_education_footer()
+	_refresh_profession_next_button()
+
+func _build_education_footer() -> void:
+	var frame := PanelContainer.new()
+	frame.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	var style := StyleBoxFlat.new()
+	style.bg_color = AUI_COLOR_PANEL_BG
+	style.border_color = AUI_COLOR_PANEL_BORDER
+	style.set_border_width_all(AUI_BORDER_WIDTH)
+	style.corner_radius_top_left = AUI_PANEL_RADIUS
+	style.corner_radius_top_right = AUI_PANEL_RADIUS
+	style.corner_radius_bottom_left = AUI_PANEL_RADIUS
+	style.corner_radius_bottom_right = AUI_PANEL_RADIUS
+	style.content_margin_left = AUI_PANEL_PADDING
+	style.content_margin_right = AUI_PANEL_PADDING
+	style.content_margin_top = 16
+	style.content_margin_bottom = 16
+	frame.add_theme_stylebox_override("panel", style)
+	footer.add_child(frame)
+
+	var row := HBoxContainer.new()
+	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	row.add_theme_constant_override("separation", 12)
+	frame.add_child(row)
+
+	# Right-clustered action bar, matching page 01's footer exactly: a leading
+	# spacer pushes a tight back+next cluster to the right edge, instead of
+	# pinning the two buttons to opposite ends of the bar (that spread-out
+	# layout read as much larger/more prominent than page 01's compact
+	# cluster once the two pages were compared side by side).
+	var footer_spacer := Control.new()
+	footer_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(footer_spacer)
+
+	var right_cluster := HBoxContainer.new()
+	right_cluster.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	right_cluster.add_theme_constant_override("separation", 12)
+	row.add_child(right_cluster)
+
+	var education_back_button := _make_step_back_button("返回", func(): _show_step("identity"))
+	right_cluster.add_child(education_back_button)
+
+	profession_next_button = _make_step_next_button("下一步", func():
+		_show_step("appearance")
 	)
-	_add_footer_button("确认选择", func():
-		_confirm_academic_background_selection()
-	)
+	right_cluster.add_child(profession_next_button)
+
+func _add_note_to_styled(parent: VBoxContainer, text: String, color: Color, font_size: int) -> void:
+	var label := Label.new()
+	label.text = text
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.modulate = color
+	label.add_theme_font_size_override("font_size", font_size)
+	parent.add_child(label)
+
+func _profession_icon(id: String) -> Texture2D:
+	match id:
+		"plant_science":
+			return IconProfessionPlantScience
+		"mechanical_engineering":
+			return IconProfessionMechanicalEngineering
+		"materials_science":
+			return IconProfessionMaterialsScience
+		"medicine":
+			return IconProfessionMedicine
+	return null
+
+func _load_icon(path: String) -> Texture2D:
+	if path.is_empty():
+		return null
+	return load(path) as Texture2D
+
+func _profession_card_data(id: String) -> Dictionary:
+	for data in PROFESSION_CARD_DATA:
+		if String(data["id"]) == id:
+			return data
+	return {}
+
+func _build_profession_profile_panel(parent: VBoxContainer) -> void:
+	_add_identity_panel_heading(parent, "专业档案", "PROFESSIONAL PROFILE")
+
+	# Only two "main" dividers on this panel: the panel heading's own divider
+	# above, and the one added later between the info block and coverage.
+	# The 职业信息/重点关注/专业领域/任务提示 sub-headers below use vertical
+	# whitespace instead of a line each, per the art-director round asking to
+	# reduce this panel's line count.
+	_add_identity_section_heading(parent, "职业信息", "PROFESSION OVERVIEW", false)
+	var header_row := HBoxContainer.new()
+	header_row.add_theme_constant_override("separation", 12)
+	parent.add_child(header_row)
+	profession_profile_icon = TextureRect.new()
+	profession_profile_icon.custom_minimum_size = Vector2(48, 48)
+	profession_profile_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	profession_profile_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	profession_profile_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	profession_profile_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	header_row.add_child(profession_profile_icon)
+	var name_box := VBoxContainer.new()
+	name_box.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	name_box.add_theme_constant_override("separation", 1)
+	header_row.add_child(name_box)
+	profession_profile_name = Label.new()
+	profession_profile_name.modulate = AUI_COLOR_TEXT_PRIMARY
+	profession_profile_name.add_theme_font_size_override("font_size", 32)
+	name_box.add_child(profession_profile_name)
+	profession_profile_name_en = Label.new()
+	profession_profile_name_en.modulate = AUI_COLOR_TEXT_SECONDARY
+	profession_profile_name_en.add_theme_font_size_override("font_size", 16)
+	name_box.add_child(profession_profile_name_en)
+
+	profession_profile_empty_note = Label.new()
+	profession_profile_empty_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	profession_profile_empty_note.modulate = AUI_COLOR_TEXT_MUTED
+	profession_profile_empty_note.add_theme_font_size_override("font_size", 14)
+	parent.add_child(profession_profile_empty_note)
+
+	var focus_refs := _build_profile_section(parent, ICON_PROFILE_FOCUS_PATH, "重点关注", "KEY FOCUS")
+	profession_focus_highlight = Label.new()
+	profession_focus_highlight.modulate = Color("#6fb4ff")
+	profession_focus_highlight.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	profession_focus_highlight.add_theme_font_size_override("font_size", 15)
+	(focus_refs["section"] as VBoxContainer).add_child(profession_focus_highlight)
+	(focus_refs["section"] as VBoxContainer).move_child(profession_focus_highlight, 1)
+	profession_focus_body = focus_refs["body"]
+
+	parent.add_child(_make_fixed_spacer(20))
+	var domain_refs := _build_profile_section(parent, ICON_PROFILE_DOMAIN_PATH, "专业领域", "DOMAIN EXPERTISE")
+	profession_domain_body = domain_refs["body"]
+
+	parent.add_child(_make_fixed_spacer(20))
+	var hint_refs := _build_profile_section(parent, ICON_PROFILE_HINT_PATH, "任务提示", "MISSION HINT")
+	profession_hint_body = hint_refs["body"]
+
+	var profile_spacer := Control.new()
+	profile_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	parent.add_child(profile_spacer)
+
+	# The one other "main" divider on this panel: marks the boundary between
+	# the info block above and the coverage block below.
+	parent.add_child(HSeparator.new())
+	_add_identity_section_heading(parent, "专业判断覆盖领域", "COVERAGE AREAS", false)
+	profession_coverage_row = HBoxContainer.new()
+	profession_coverage_row.add_theme_constant_override("separation", 8)
+	parent.add_child(profession_coverage_row)
+	var coverage_bottom_pad := Control.new()
+	coverage_bottom_pad.custom_minimum_size = Vector2(0, 28)
+	parent.add_child(coverage_bottom_pad)
+
+func _make_fixed_spacer(height: int) -> Control:
+	var spacer := Control.new()
+	spacer.custom_minimum_size = Vector2(0, height)
+	return spacer
+
+func _build_profile_section(parent: VBoxContainer, icon_path: String, title_text: String, subtitle_text: String) -> Dictionary:
+	var section := VBoxContainer.new()
+	section.add_theme_constant_override("separation", 4)
+	parent.add_child(section)
+	var header := HBoxContainer.new()
+	header.add_theme_constant_override("separation", 10)
+	section.add_child(header)
+	var icon := TextureRect.new()
+	icon.texture = _load_icon(icon_path)
+	icon.custom_minimum_size = Vector2(28, 28)
+	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	header.add_child(icon)
+	var title := Label.new()
+	title.text = title_text
+	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	title.modulate = AUI_COLOR_TEXT_PRIMARY
+	title.add_theme_font_size_override("font_size", 15)
+	header.add_child(title)
+	var subtitle := Label.new()
+	subtitle.text = subtitle_text
+	subtitle.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	subtitle.modulate = AUI_COLOR_TEXT_MUTED
+	subtitle.add_theme_font_size_override("font_size", 12)
+	header.add_child(subtitle)
+	var body := Label.new()
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.modulate = AUI_COLOR_TEXT_SECONDARY
+	body.add_theme_font_size_override("font_size", 16)
+	section.add_child(body)
+	return {"section": section, "body": body}
+
+func _build_coverage_item(icon_path: String, label_text: String) -> VBoxContainer:
+	var item := VBoxContainer.new()
+	item.custom_minimum_size = Vector2(150, 0)
+	item.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	item.add_theme_constant_override("separation", 12)
+	var icon := TextureRect.new()
+	icon.texture = _load_icon(icon_path)
+	icon.custom_minimum_size = Vector2(40, 40)
+	icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	item.add_child(icon)
+	var label := Label.new()
+	label.text = label_text
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.modulate = AUI_COLOR_TEXT_SECONDARY
+	label.add_theme_font_size_override("font_size", 12)
+	item.add_child(label)
+	return item
+
+func _refresh_profession_profile() -> void:
+	if profession_profile_name == null:
+		return
+	var id := pending_academic_background_id
+	var content: Dictionary = PROFESSION_PROFILE_CONTENT.get(id, {})
+	var card_data := _profession_card_data(id)
+	var has_selection := not content.is_empty() and not card_data.is_empty()
+
+	profession_profile_empty_note.visible = not has_selection
+	if not has_selection:
+		profession_profile_empty_note.text = "请选择左侧的专业背景，右侧将显示对应的重点关注、专业领域、任务提示与专业判断覆盖领域。"
+		profession_profile_icon.texture = null
+		profession_profile_name.text = "未选择专业背景"
+		profession_profile_name_en.text = ""
+		profession_focus_highlight.text = ""
+		profession_focus_body.text = ""
+		profession_domain_body.text = ""
+		profession_hint_body.text = ""
+		_clear_container(profession_coverage_row)
+		return
+
+	profession_profile_icon.texture = _load_icon(String(PROFESSION_PROFILE_CIRCLE_ICON_PATHS.get(id, "")))
+	profession_profile_name.text = String(card_data["name"])
+	profession_profile_name_en.text = String(card_data["name_en"])
+	profession_focus_highlight.text = String(content["focus_highlight"])
+	profession_focus_body.text = String(content["focus_body"])
+	profession_domain_body.text = String(content["domain_body"])
+	profession_hint_body.text = PROFESSION_PROFILE_HINT_BODY
+
+	_clear_container(profession_coverage_row)
+	var coverage: Array = PROFESSION_PROFILE_COVERAGE.get(id, [])
+	for entry in coverage:
+		profession_coverage_row.add_child(_build_coverage_item(String(entry["icon"]), String(entry["label"])))
+
+func _add_profession_card_list(parent: VBoxContainer) -> void:
+	profession_cards.clear()
+	var list := VBoxContainer.new()
+	list.add_theme_constant_override("separation", 14)
+	parent.add_child(list)
+	for i in range(PROFESSION_CARD_DATA.size()):
+		var data: Dictionary = PROFESSION_CARD_DATA[i]
+		if i > 0:
+			list.add_child(HSeparator.new())
+		var id: String = data["id"]
+		var locked := id in profession_locked_ids
+		var card := Button.new()
+		card.custom_minimum_size = Vector2(0, 98)
+		card.focus_mode = Control.FOCUS_NONE
+		card.disabled = locked
+		card.mouse_default_cursor_shape = Control.CURSOR_ARROW if locked else Control.CURSOR_POINTING_HAND
+		card.pressed.connect(_select_profession.bind(id))
+		list.add_child(card)
+
+		var row := HBoxContainer.new()
+		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_theme_constant_override("separation", 16)
+		row.set_anchors_preset(Control.PRESET_FULL_RECT)
+		row.offset_left = 24
+		row.offset_right = -24
+		row.offset_top = 21
+		row.offset_bottom = -21
+		card.add_child(row)
+
+		# Icon sits in its own square frame (thicker border) so it reads as a
+		# distinct visual anchor rather than a bare floating glyph.
+		var icon_frame := PanelContainer.new()
+		icon_frame.custom_minimum_size = Vector2(52, 52)
+		icon_frame.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		icon_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var icon_frame_style := StyleBoxFlat.new()
+		icon_frame_style.bg_color = Color("#0d1821")
+		icon_frame_style.border_color = Color("#324a5c")
+		icon_frame_style.set_border_width_all(2)
+		icon_frame_style.corner_radius_top_left = AUI_INPUT_RADIUS
+		icon_frame_style.corner_radius_top_right = AUI_INPUT_RADIUS
+		icon_frame_style.corner_radius_bottom_left = AUI_INPUT_RADIUS
+		icon_frame_style.corner_radius_bottom_right = AUI_INPUT_RADIUS
+		icon_frame.add_theme_stylebox_override("panel", icon_frame_style)
+		row.add_child(icon_frame)
+		var icon := TextureRect.new()
+		icon.texture = _profession_icon(id)
+		icon.custom_minimum_size = Vector2(44, 44)
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		icon_frame.add_child(icon)
+
+		var text_box := VBoxContainer.new()
+		text_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		text_box.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		text_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		text_box.add_theme_constant_override("separation", 5)
+		row.add_child(text_box)
+
+		var title_row := HBoxContainer.new()
+		title_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		title_row.add_theme_constant_override("separation", 8)
+		text_box.add_child(title_row)
+		var title := Label.new()
+		title.text = String(data["name"])
+		title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		title.add_theme_font_size_override("font_size", 18)
+		title_row.add_child(title)
+		if bool(data["recommended"]):
+			title_row.add_child(_build_recommended_tag())
+
+		var keyword_row := HBoxContainer.new()
+		keyword_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		keyword_row.add_theme_constant_override("separation", 10)
+		text_box.add_child(keyword_row)
+		var keyword_labels: Array[Label] = []
+		var keywords: Array = data["keywords"]
+		for k in range(keywords.size()):
+			if k > 0:
+				var dot := Label.new()
+				dot.text = "·"
+				dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				dot.add_theme_font_size_override("font_size", 13)
+				keyword_row.add_child(dot)
+			var keyword_label := Label.new()
+			keyword_label.text = String(keywords[k])
+			keyword_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			keyword_label.add_theme_font_size_override("font_size", 13)
+			keyword_row.add_child(keyword_label)
+			keyword_labels.append(keyword_label)
+
+		# Trailing selector sits in its own fixed-width slot so it reliably
+		# ends up 24px from the card's right edge regardless of text width.
+		var trailing_slot := Control.new()
+		trailing_slot.custom_minimum_size = Vector2(22, 22)
+		trailing_slot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		trailing_slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(trailing_slot)
+		var trailing := TextureRect.new()
+		trailing.set_anchors_preset(Control.PRESET_FULL_RECT)
+		trailing.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		trailing.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		trailing.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		if locked:
+			trailing.texture = IconLock
+			trailing.modulate = Color(0.5, 0.55, 0.6)
+		trailing_slot.add_child(trailing)
+
+		profession_cards[id] = {
+			"card": card,
+			"title": title,
+			"keyword_labels": keyword_labels,
+			"trailing": trailing,
+			"locked": locked,
+		}
+	_refresh_profession_cards()
+
+func _build_recommended_tag() -> PanelContainer:
+	var tag := PanelContainer.new()
+	tag.custom_minimum_size = Vector2(56, 21)
+	tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color("#1a2e20")
+	style.border_color = Color("#4d8b61")
+	style.set_border_width_all(1)
+	style.corner_radius_top_left = 10
+	style.corner_radius_top_right = 10
+	style.corner_radius_bottom_left = 10
+	style.corner_radius_bottom_right = 10
+	style.content_margin_left = 9
+	style.content_margin_right = 9
+	tag.add_theme_stylebox_override("panel", style)
+	var label := Label.new()
+	label.text = "推荐"
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.modulate = Color("#7fc998")
+	label.add_theme_font_size_override("font_size", 11)
+	tag.add_child(label)
+	return tag
+
+func _select_profession(id: String) -> void:
+	if id in profession_locked_ids:
+		return
+	pending_academic_background_id = id
+	_apply_academic_background_selection(id)
+	_refresh_profession_cards()
+	_refresh_profession_profile()
+	_refresh_profession_next_button()
+
+func _refresh_profession_cards() -> void:
+	for id in profession_cards.keys():
+		var entry: Dictionary = profession_cards[id]
+		var card: Button = entry["card"]
+		var locked: bool = entry["locked"]
+		var selected: bool = not locked and String(id) == pending_academic_background_id
+		var title: Label = entry["title"]
+		var keyword_labels: Array = entry["keyword_labels"]
+		var trailing: TextureRect = entry["trailing"]
+		_style_profession_card(card, "locked" if locked else ("selected" if selected else "default"))
+		var keyword_color: Color
+		if locked:
+			title.modulate = Color("#7a8a96")
+			keyword_color = Color("#5f6c76")
+		else:
+			title.modulate = Color("#ffffff") if selected else AUI_COLOR_TEXT_PRIMARY
+			keyword_color = Color(PROFESSION_ACCENT_COLORS.get(String(id), AUI_COLOR_TEXT_SECONDARY))
+			trailing.texture = _make_profession_selector_icon(selected)
+		for keyword_label in keyword_labels:
+			(keyword_label as Label).modulate = keyword_color
+
+func _style_profession_card(card: Button, state: String) -> void:
+	# Flat divided-list row (no floating box border/bg): rows are separated by
+	# HSeparator lines, not by per-row panel boxes. Selected state reads via a
+	# left accent bar + faint bg tint; hover via a faint bg tint only.
+	var normal := StyleBoxFlat.new()
+	normal.bg_color = Color(0, 0, 0, 0)
+	var hover := StyleBoxFlat.new()
+	hover.bg_color = Color("#132029")
+	match state:
+		"selected":
+			normal.bg_color = Color("#152a38")
+			normal.border_width_left = 3
+			normal.border_color = AUI_COLOR_ACTIVE_ACCENT
+			hover = normal.duplicate()
+		"locked":
+			hover = normal.duplicate()
+	card.add_theme_stylebox_override("normal", normal)
+	card.add_theme_stylebox_override("pressed", normal)
+	card.add_theme_stylebox_override("hover", hover)
+	card.add_theme_stylebox_override("disabled", normal)
+
+func _make_profession_selector_icon(selected: bool) -> Texture2D:
+	var image := Image.create(24, 24, false, Image.FORMAT_RGBA8)
+	image.fill(Color(0, 0, 0, 0))
+	var ring := Color("#3a86df") if selected else Color("#5a6472")
+	for y in range(24):
+		for x in range(24):
+			var dx := float(x) - 11.5
+			var dy := float(y) - 11.5
+			var dist := sqrt(dx * dx + dy * dy)
+			if dist <= 11.0 and dist >= 9.0:
+				image.set_pixel(x, y, ring)
+			elif selected and dist < 9.0:
+				image.set_pixel(x, y, ring)
+	if selected:
+		var mark := Color("#ffffff")
+		var points := [Vector2i(7, 12), Vector2i(9, 14), Vector2i(11, 16), Vector2i(13, 14), Vector2i(15, 10), Vector2i(16, 9)]
+		for point in points:
+			image.set_pixelv(point, mark)
+	return ImageTexture.create_from_image(image)
+
+func _refresh_profession_next_button() -> void:
+	if profession_next_button == null:
+		return
+	profession_next_button.disabled = pending_academic_background_id.is_empty()
+	_style_identity_next_button(profession_next_button, 20)
 
 func _show_appearance() -> void:
 	_add_page_title("03 外观与标识", "APPEARANCE & MARKING")
@@ -1224,41 +1804,6 @@ func _capture_appearance() -> void:
 	if name_initials_edit != null:
 		profile.set("name_initials", name_initials_edit.text.strip_edges())
 	_save_profile()
-
-func _update_education_detail() -> void:
-	var selected := _academic_background_name_from_id(pending_academic_background_id)
-	if education_detail_title != null:
-		education_detail_title.text = selected if not selected.is_empty() else "请选择一个候选人学术背景"
-	if education_detail_body != null:
-		if selected.is_empty():
-			education_detail_body.text = "未选择学术背景。\n\n请选择一个候选人学术背景后再确认。学术背景不会提供数值加成，只会影响专业提示。"
-		else:
-			education_detail_body.text = String(EDUCATION_DESCRIPTIONS.get(selected, ""))
-	for option in education_buttons.keys():
-		var button: Button = education_buttons[option]
-		button.modulate = Color("#9ac7e8") if String(option) == selected else Color.WHITE
-
-func _select_education(selected: String) -> void:
-	pending_academic_background_id = _academic_background_id_from_name(selected)
-	_update_education_detail()
-
-func _confirm_academic_background_selection() -> void:
-	if pending_academic_background_id.is_empty():
-		_add_note_to(page_body, "请先选择一个候选人学术背景。")
-		return
-	var dialog := ConfirmationDialog.new()
-	dialog.title = "确认候选人学术背景"
-	dialog.dialog_text = "确认候选人学术背景？\n\n该背景将在训练和基地系统中提供专业提示。\n第一版不会提供数值加成。\n\n是否确认？"
-	add_child(dialog)
-	dialog.confirmed.connect(func():
-		_apply_academic_background_selection(pending_academic_background_id)
-		dialog.queue_free()
-		_show_step("appearance")
-	)
-	dialog.canceled.connect(func():
-		dialog.queue_free()
-	)
-	dialog.popup_centered(Vector2i(520, 300))
 
 func _apply_academic_background_selection(background_id: String) -> void:
 	var manager := _academic_background_manager()

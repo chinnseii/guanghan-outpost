@@ -1,0 +1,45 @@
+{
+  "resource_type": "Godot AtlasTexture JSON",
+  "image": "sprite.png",
+  "atlas_size": {
+    "w": 2048,
+    "h": 2048
+  },
+  "regions": {
+    "icon_domain_medicine_monitoring": {
+      "x": 7,
+      "y": 7,
+      "w": 553,
+      "h": 839,
+      "rotated": false
+    },
+    "icon_domain_medicine_risk": {
+      "x": 574,
+      "y": 7,
+      "w": 603,
+      "h": 839,
+      "rotated": false
+    },
+    "icon_domain_medicine_exposure": {
+      "x": 1191,
+      "y": 7,
+      "w": 591,
+      "h": 792,
+      "rotated": false
+    },
+    "icon_domain_medicine_trauma": {
+      "x": 7,
+      "y": 860,
+      "w": 630,
+      "h": 834,
+      "rotated": false
+    },
+    "icon_domain_medicine_life_support": {
+      "x": 651,
+      "y": 860,
+      "w": 638,
+      "h": 766,
+      "rotated": false
+    }
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "resource_type": "Godot AtlasTexture JSON",
+  "image": "sprite.png",
+  "atlas_size": {
+    "w": 2048,
+    "h": 2048
+  },
+  "regions": {
+    "icon_domain_material_seal": {
+      "x": 8,
+      "y": 8,
+      "w": 657,
+      "h": 668,
+      "rotated": false
+    },
+    "icon_domain_material_durability": {
+      "x": 8,
+      "y": 692,
+      "w": 571,
+      "h": 658,
+      "rotated": false
+    },
+    "icon_domain_material_corrosion": {
+      "x": 681,
+      "y": 8,
+      "w": 655,
+      "h": 649,
+      "rotated": false
+    },
+    "icon_domain_material_extreme_environment": {
+      "x": 1352,
+      "y": 8,
+      "w": 652,
+      "h": 645,
+      "rotated": false
+    },
+    "icon_domain_material_fatigue": {
+      "x": 8,
+      "y": 1366,
+      "w": 654,
+      "h": 617,
+      "rotated": false
+    }
+  }
+}

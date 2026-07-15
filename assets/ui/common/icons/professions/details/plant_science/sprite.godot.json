@@ -1,0 +1,45 @@
+{
+  "resource_type": "Godot AtlasTexture JSON",
+  "image": "sprite.png",
+  "atlas_size": {
+    "w": 2048,
+    "h": 2048
+  },
+  "regions": {
+    "icon_domain_plant_greenhouse": {
+      "x": 9,
+      "y": 9,
+      "w": 678,
+      "h": 732,
+      "rotated": false
+    },
+    "icon_domain_plant_water": {
+      "x": 9,
+      "y": 759,
+      "w": 670,
+      "h": 739,
+      "rotated": false
+    },
+    "icon_domain_plant_light": {
+      "x": 697,
+      "y": 759,
+      "w": 658,
+      "h": 750,
+      "rotated": false
+    },
+    "icon_domain_plant_ecology_risk": {
+      "x": 705,
+      "y": 9,
+      "w": 680,
+      "h": 722,
+      "rotated": false
+    },
+    "icon_domain_plant_growth": {
+      "x": 1373,
+      "y": 749,
+      "w": 658,
+      "h": 703,
+      "rotated": false
+    }
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "resource_type": "Godot AtlasTexture JSON",
+  "image": "sprite.png",
+  "atlas_size": {
+    "w": 2048,
+    "h": 2048
+  },
+  "regions": {
+    "icon_profession_materials_science_square": {
+      "x": 11,
+      "y": 11,
+      "w": 596,
+      "h": 649,
+      "rotated": false
+    },
+    "icon_profession_medicine_square": {
+      "x": 629,
+      "y": 11,
+      "w": 580,
+      "h": 649,
+      "rotated": false
+    },
+    "icon_profession_mechanical_engineering_square": {
+      "x": 1231,
+      "y": 11,
+      "w": 627,
+      "h": 647,
+      "rotated": false
+    },
+    "icon_profession_plant_science_square": {
+      "x": 1231,
+      "y": 680,
+      "w": 576,
+      "h": 647,
+      "rotated": false
+    },
+    "icon_profession_mechanical_engineering_circle": {
+      "x": 11,
+      "y": 682,
+      "w": 585,
+      "h": 547,
+      "rotated": false
+    },
+    "icon_profession_materials_science_circle": {
+      "x": 11,
+      "y": 1251,
+      "w": 578,
+      "h": 549,
+      "rotated": false
+    },
+    "icon_profession_medicine_circle": {
+      "x": 611,
+      "y": 1251,
+      "w": 576,
+      "h": 547,
+      "rotated": false
+    },
+    "icon_profession_plant_science_circle": {
+      "x": 618,
+      "y": 682,
+      "w": 569,
+      "h": 547,
+      "rotated": false
+    }
+  }
+}

@@ -1,0 +1,146 @@
+{
+  "meta": {
+    "app": "Smart Sprite Sheet Packer",
+    "version": "1.0.0",
+    "image": "sprite.png",
+    "size": {
+      "w": 2048,
+      "h": 2048
+    },
+    "layout": {
+      "algorithm": "BALANCED_TARGET_AREA_MAX_RECTS",
+      "virtualWidth": 2048,
+      "virtualHeight": 2048,
+      "occupiedWidth": 1910,
+      "occupiedHeight": 1596,
+      "sortStrategy": "LONG_SHAPE_FIRST",
+      "heuristic": "BEST_LONG_SIDE_FIT",
+      "contentUtilization": 0.585066556930542,
+      "packedUtilization": 0.6088154315948486,
+      "occupiedUtilization": 0.837682229133042
+    },
+    "scale": 1
+  },
+  "frames": {
+    "icon_domain_mechanical_hatch.png": {
+      "frame": {
+        "x": 7,
+        "y": 7,
+        "w": 601,
+        "h": 769
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 44,
+        "y": 23,
+        "w": 601,
+        "h": 769
+      },
+      "sourceSize": {
+        "w": 715,
+        "h": 837
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "icon_domain_mechanical_maintenance.png": {
+      "frame": {
+        "x": 622,
+        "y": 7,
+        "w": 629,
+        "h": 778
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 33,
+        "y": 20,
+        "w": 629,
+        "h": 778
+      },
+      "sourceSize": {
+        "w": 681,
+        "h": 824
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "icon_domain_mechanical_structure.png": {
+      "frame": {
+        "x": 1265,
+        "y": 7,
+        "w": 638,
+        "h": 789
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 13,
+        "y": 1,
+        "w": 638,
+        "h": 789
+      },
+      "sourceSize": {
+        "w": 668,
+        "h": 831
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "icon_domain_mechanical_repair.png": {
+      "frame": {
+        "x": 7,
+        "y": 799,
+        "w": 638,
+        "h": 782
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 29,
+        "y": 13,
+        "w": 638,
+        "h": 782
+      },
+      "sourceSize": {
+        "w": 675,
+        "h": 817
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "icon_domain_mechanical_fault.png": {
+      "frame": {
+        "x": 659,
+        "y": 810,
+        "w": 642,
+        "h": 779
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 6,
+        "y": 36,
+        "w": 642,
+        "h": 779
+      },
+      "sourceSize": {
+        "w": 666,
+        "h": 837
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    }
+  }
+}
