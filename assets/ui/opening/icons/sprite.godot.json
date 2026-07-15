@@ -1,0 +1,38 @@
+{
+  "resource_type": "Godot AtlasTexture JSON",
+  "image": "sprite.png",
+  "atlas_size": {
+    "w": 2048,
+    "h": 2048
+  },
+  "regions": {
+    "icon_menu_new_expedition": {
+      "x": 12,
+      "y": 12,
+      "w": 997,
+      "h": 858,
+      "rotated": false
+    },
+    "icon_menu_exit": {
+      "x": 1033,
+      "y": 12,
+      "w": 812,
+      "h": 932,
+      "rotated": false
+    },
+    "icon_menu_developer": {
+      "x": 12,
+      "y": 894,
+      "w": 872,
+      "h": 826,
+      "rotated": false
+    },
+    "icon_menu_continue": {
+      "x": 908,
+      "y": 968,
+      "w": 627,
+      "h": 834,
+      "rotated": false
+    }
+  }
+}

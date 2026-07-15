@@ -9,10 +9,38 @@ This file is the current coordination board for active task ownership, file lock
 - **Locked files**: `1`
 - **Pending handoffs**: `0`
 - **Branch**: `main`
-- **Board baseline**: `76e66d5` (AUI-03-02 close-out, pushed to `main`)
+- **Board baseline**: `0cd1293` (AUI-03-03 close-out, pushed to `main`)
 - **Last updated**: `2026-07-15`
 
 ## Active Tasks
+
+### MAIN-MENU-01 - Title Screen Redesign (背景/导航/弹窗)
+
+- Owner: `Claude Code`
+- Reviewer: `User` (visual, direct)
+- Final Approval: `User` — approved: "验收通过，提交推送，另外我用正式仓库做过测试" (also confirming testing was done directly against the real, uncommitted project — explains save-hash churn across this round, not agent-caused).
+- Mode: `single owner`
+- Status: `DONE`
+- Branch: `main`
+- Worktree: repository root
+- Base commit: post-AUI-03-03-close-out (`0cd1293`, this session)
+- Objective: Redesign the title/main-menu scene (`scripts/main.gd`, `_setup_main_menu()` and related helpers) per several rounds of User instruction:
+  1. Replaced the hand-drawn `_draw()`-based starfield/earth/mountain-silhouette placeholder background with the User's real background art (`assets/ui/opening/backgrounds/opening_background.png`), aspect-fill (cover) scaled/centered via a small `TitleScreenBackground` Control.
+  2. Rebuilt the 4 main-menu nav rows (开始新驻留/继续驻留/开发入口/退出) as icon+label+shortcut-hint components with a full Default/Hover/Focus/Pressed/Disabled state system (single parallel `Tween` per item driving background alpha, left accent-bar alpha, text/icon alpha, and a small hover shift — no glow/blink/bounce), using real icons from `assets/ui/opening/icons/` (`icon_menu_new_expedition`/`icon_menu_continue`/`icon_menu_developer`/`icon_menu_exit`).
+  3. Added the shared institution icon (`assets/ui/common/icons/atlas/icon_institution.tres`) above the "国家深空生命科学中心" text (resized down after an initial property-order bug caused it to render oversized — see Errors below), and replaced the plain "广寒前哨" title Label with the User's real wordmark logo art (`assets/ui/opening/logos/`).
+  4. Replaced the static background with a real video background: User's source MP4 (H.264, not natively playable in Godot 4 — no built-in MP4 decoder) was converted to Ogg Theora (`assets/ui/opening/backgrounds/opening_background.ogv`, the only natively-supported Godot 4 video format) via `ffmpeg` (installed this round with User's explicit permission, `winget install Gyan.FFmpeg`), played through a real `VideoStreamPlayer` (looping, muted, aspect-fill cover-scaled, same technique as the static image), with automatic fallback to the static PNG if the video resource fails to load.
+  5. Redesigned the "开始新的驻留档案？/START NEW OUTPOST FILE?" confirmation dialog (`_show_new_game_confirmation()`) to match a User-supplied reference mockup: added a dimmed modal scrim, warning icon + bilingual title + close button header, a bordered info box with a document icon, and bilingual (CN+EN) Cancel/Confirm buttons — using 3 new icons the User cut and placed at `assets/ui/common/icons/add/` (`icon_dialog_warning`/`icon_dialog_document`/`icon_dialog_close`). Final adjustment: Cancel pinned to the far left of the footer (was clustered next to Confirm on the right), matching the established two-button-bookend pattern used elsewhere in the app.
+- Real asset directories read directly (not guessed): `assets/ui/opening/backgrounds/`, `assets/ui/opening/icons/` (region names confirmed via `sprite.godot.json`), `assets/ui/opening/logos/`, `assets/ui/common/icons/add/` (region names confirmed via `sprite.godot.json`). New `.tres` AtlasTexture resources generated for the 3 dialog icons in `assets/ui/common/icons/add/atlas/`, following the same pattern as the existing `assets/ui/common/icons/atlas/` set.
+- Errors found and fixed along the way (all disclosed to User in-round):
+  - Property-assignment order bug: setting `TextureRect.size` before `expand_mode`/`stretch_mode` on a freely-positioned (non-Container) Control caused Godot to clamp the size up to the texture's native (large) minimum size at assignment time; fixed by reordering (`expand_mode`/`stretch_mode` set first).
+  - The taller wordmark logo (vs. the plain text title it replaced) pushed `box`'s auto-computed height enough to make the last child (`InputHint`) collide with the separately-fixed-position footer/dev-hint labels at y=856; fixed by trimming the logo's `custom_minimum_size` and tightening `box`'s separation, re-verified via a temporary layout-diagnostic script (sandbox-only, deleted after use) until a clean ~12px gap was confirmed.
+  - A screenshot-capture-only "snow"/block-artifact glitch during video-background verification was root-caused to the capture script reading `root.get_texture()` before the video decode thread finished writing a frame (not a real encoding or playback defect) — confirmed by obtaining a clean capture after adding more `process_frame` waits before capture, and by the User's own real-project playback test.
+  - Also fixed the shared `_make_step_back_button`/`_make_step_next_button` component (used by AUI-03-01/02/03) in a related round: the two builders never set `size_flags_vertical`, so a button placed directly in an `EXPAND_FILL` row (as this dialog's/AUI-03-03's footer does) stretched to fill the row's full height instead of staying at the intended button height — fixed by adding `size_flags_vertical = Control.SIZE_SHRINK_CENTER` in the shared builders themselves so the fix travels with the component.
+- New dependency added this round (with User's explicit permission before installing): `ffmpeg` (via `winget install Gyan.FFmpeg`), used only as a one-time local conversion tool for the background video; not a project/runtime dependency (no ffmpeg invocation happens at game runtime or in any committed script).
+- Verification: Godot 4.7 headless parse EXIT 0 after every change; existing 29-check `tests/aui_03_01_basic_information_test.gd` passed unmodified throughout (unrelated system, sanity-checked each round). All new binary/media assets required a `--headless --editor --quit` import pass before they could be `load()`ed (new pattern for `.ogv`/PNG dialog icons, not previously needed for GDScript-only changes). Screenshot verification ran in the same isolated sandbox project copy used throughout this session (copied project + unique `project.godot` `config/name`); real project save file SHA-256 was checked before/after every sandbox round and stayed consistent with whatever the User's own concurrent manual testing against the real (uncommitted) project produced — never altered by any agent-run script.
+- Deliverables: `docs/screenshots/main_menu/01-07*.png` (background, nav default/focus states, video-background frames, confirmation dialog).
+- Push/tag authorization: `yes / no` — User said "提交推送" this round. Not tagged.
+- Next: no follow-up started automatically.
 
 ### AUI-03-03 - Appearance & Marking Page (外观与标识)
 

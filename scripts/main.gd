@@ -41,40 +41,66 @@ const AudioManagerScript := preload("res://scripts/audio_manager.gd")
 class TitleScreenBackground:
 	extends Control
 
+	const BackgroundTexture := preload("res://assets/ui/opening/backgrounds/opening_background.png")
+
 	func _draw() -> void:
-		var rect: Rect2 = Rect2(Vector2.ZERO, size)
-		draw_rect(rect, Color("#020711"), true)
-		for i in range(86):
-			var x: float = fposmod(float(i * 197), max(size.x, 1.0))
-			var y: float = fposmod(float(i * 89), max(size.y * 0.7, 1.0))
-			var alpha: float = 0.22 + float(i % 5) * 0.08
-			draw_circle(Vector2(x, y), 1.0 + float(i % 3) * 0.45, Color("#d8e7f2", alpha))
-		var earth_center: Vector2 = Vector2(size.x * 0.73, size.y * 0.28)
-		var earth_radius: float = min(size.x, size.y) * 0.095
-		draw_circle(earth_center, earth_radius * 1.2, Color("#73b7ff", 0.06))
-		draw_circle(earth_center, earth_radius, Color("#214c75"))
-		draw_circle(earth_center + Vector2(-earth_radius * 0.22, -earth_radius * 0.1), earth_radius * 0.55, Color("#8ec7ff", 0.68))
-		draw_arc(earth_center + Vector2(-earth_radius * 0.15, earth_radius * 0.08), earth_radius * 0.72, 3.4, 6.0, 48, Color("#e8f3ff", 0.62), 5.0)
-		draw_circle(earth_center + Vector2(earth_radius * 0.38, -earth_radius * 0.22), earth_radius * 0.28, Color("#02101c", 0.28))
-		draw_circle(earth_center + Vector2(earth_radius * 0.26, -earth_radius * 0.12), earth_radius * 0.16, Color("#cfe9ff", 0.28))
-		var horizon_y: float = size.y * 0.7
-		var points := PackedVector2Array()
-		points.append(Vector2(0, size.y))
-		for i in range(17):
-			var x: float = size.x * float(i) / 16.0
-			var ridge: float = sin(float(i) * 1.17) * 24.0 + sin(float(i) * 2.31) * 10.0
-			points.append(Vector2(x, horizon_y + ridge))
-		points.append(Vector2(size.x, size.y))
-		draw_colored_polygon(points, Color("#151c24"))
-		for i in range(11):
-			var x: float = size.x * (0.52 + float(i) * 0.035)
-			var base_y: float = horizon_y + 18.0 + sin(float(i)) * 10.0
-			draw_rect(Rect2(Vector2(x, base_y - 28.0), Vector2(18.0, 28.0)), Color("#2b333b"), true)
-			draw_rect(Rect2(Vector2(x + 5.0, base_y - 16.0), Vector2(7.0, 6.0)), Color("#f0c766", 0.72), true)
-			draw_line(Vector2(x + 9.0, base_y - 30.0), Vector2(x + 9.0, base_y - 58.0), Color("#5d6f7d", 0.6), 1.0)
-			draw_circle(Vector2(x + 9.0, base_y - 58.0), 2.0, Color("#d66a4f", 0.75))
-		draw_rect(Rect2(Vector2.ZERO, size), Color("#00050c", 0.28), true)
-		draw_rect(rect.grow(-22), Color("#31414d", 0.35), false, 1.0)
+		var tex_size: Vector2 = BackgroundTexture.get_size()
+		if tex_size.x <= 0.0 or tex_size.y <= 0.0 or size.x <= 0.0 or size.y <= 0.0:
+			return
+		# Aspect-fill (cover): scale so the image fully covers this control,
+		# cropping overflow on whichever axis doesn't match, centered.
+		var fill_scale: float = max(size.x / tex_size.x, size.y / tex_size.y)
+		var draw_size: Vector2 = tex_size * fill_scale
+		var draw_pos: Vector2 = (size - draw_size) * 0.5
+		draw_texture_rect(BackgroundTexture, Rect2(draw_pos, draw_size), false)
+
+## Title-screen background video (converted from the User's source MP4 to
+## Ogg Theora -- Godot 4 has no built-in MP4/H.264 decoder, .ogv is the only
+## natively-supported video format). Falls back to the static
+## TitleScreenBackground image if the video can't be loaded for any reason.
+## Native source resolution is 720x1280 (portrait, 24fps, ~8s) per ffprobe;
+## hard-coded here since VideoStreamPlayer.get_size() isn't reliably
+## available before the first frame decodes.
+const TITLE_BACKGROUND_VIDEO := "res://assets/ui/opening/backgrounds/opening_background.ogv"
+const TITLE_BACKGROUND_VIDEO_SIZE := Vector2(720.0, 1280.0)
+
+func _build_title_background(menu: Control) -> Control:
+	var wrapper := Control.new()
+	wrapper.name = "TitleBackground"
+	wrapper.set_anchors_preset(Control.PRESET_FULL_RECT)
+	wrapper.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	menu.add_child(wrapper)
+
+	var video_stream: VideoStream = load(TITLE_BACKGROUND_VIDEO) as VideoStream if ResourceLoader.exists(TITLE_BACKGROUND_VIDEO) else null
+	if video_stream == null:
+		var fallback := TitleScreenBackground.new()
+		fallback.name = "TitleBackgroundImage"
+		fallback.set_anchors_preset(Control.PRESET_FULL_RECT)
+		wrapper.add_child(fallback)
+		return wrapper
+
+	var player := VideoStreamPlayer.new()
+	player.name = "BackgroundVideo"
+	player.stream = video_stream
+	player.autoplay = false
+	player.expand = true
+	player.volume_db = -80.0
+	player.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	wrapper.add_child(player)
+	player.finished.connect(func(): player.play())
+
+	var resize_video := func():
+		var avail: Vector2 = wrapper.size
+		if avail.x <= 0.0 or avail.y <= 0.0:
+			return
+		var fill_scale: float = max(avail.x / TITLE_BACKGROUND_VIDEO_SIZE.x, avail.y / TITLE_BACKGROUND_VIDEO_SIZE.y)
+		var draw_size: Vector2 = TITLE_BACKGROUND_VIDEO_SIZE * fill_scale
+		player.size = draw_size
+		player.position = (avail - draw_size) * 0.5
+	wrapper.resized.connect(resize_video)
+	resize_video.call()
+	player.play()
+	return wrapper
 
 var day := 1
 var is_moon_night := false
@@ -3559,14 +3585,20 @@ func _setup_main_menu() -> void:
 	menu.set_anchors_preset(Control.PRESET_FULL_RECT)
 	$UI/Root.add_child(menu)
 
-	var background := TitleScreenBackground.new()
-	background.name = "TitleBackground"
-	background.set_anchors_preset(Control.PRESET_FULL_RECT)
-	menu.add_child(background)
+	_build_title_background(menu)
+
+	var agency_icon := TextureRect.new()
+	agency_icon.texture = preload("res://assets/ui/common/icons/atlas/icon_institution.tres")
+	agency_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	agency_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	agency_icon.position = Vector2(86, 20)
+	agency_icon.size = Vector2(26, 26)
+	agency_icon.modulate = Color("#9fb4c4", 0.86)
+	menu.add_child(agency_icon)
 
 	var agency := Label.new()
 	agency.text = "国家深空生命科学中心\nNATIONAL DEEP SPACE\nLIFE SCIENCE CENTER"
-	agency.position = Vector2(86, 42)
+	agency.position = Vector2(86, 54)
 	agency.size = Vector2(360, 86)
 	agency.modulate = Color("#9fb4c4", 0.86)
 	agency.add_theme_font_size_override("font_size", 15)
@@ -3585,14 +3617,16 @@ func _setup_main_menu() -> void:
 	box.name = "Box"
 	box.position = Vector2(132, 176)
 	box.size = Vector2(590, 570)
-	box.add_theme_constant_override("separation", 10)
+	box.add_theme_constant_override("separation", 7)
 	menu.add_child(box)
 
-	var title := Label.new()
-	title.text = "广寒前哨"
-	title.modulate = Color("#eef5fb")
-	title.add_theme_font_size_override("font_size", 76)
-	box.add_child(title)
+	var title_logo := TextureRect.new()
+	title_logo.texture = _load_opening_atlas_region(TITLE_LOGO_SPRITE, TITLE_LOGO_JSON, "icon_001")
+	title_logo.custom_minimum_size = Vector2(328, 88)
+	title_logo.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+	title_logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	title_logo.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	box.add_child(title_logo)
 
 	var english_title := Label.new()
 	english_title.text = "GUANGHAN OUTPOST"
@@ -3608,18 +3642,18 @@ func _setup_main_menu() -> void:
 	subtitle.add_theme_font_size_override("font_size", 22)
 	box.add_child(subtitle)
 
-	box.add_child(_make_title_button("开始新驻留", Callable(_formal_flow_router, "start_application_flow"), true))
-	var continue_button := _make_title_button("继续驻留", Callable(_formal_flow_router, "continue_mission"), _formal_flow_router.has_continue_mission())
+	var start_button := _make_title_button("开始新驻留", Callable(_formal_flow_router, "start_application_flow"), true, "icon_menu_new_expedition", "E / Enter")
+	start_button.name = "StartButton"
+	box.add_child(start_button)
+	box.add_child(_make_title_menu_divider())
+	var continue_button := _make_title_button("继续驻留", Callable(_formal_flow_router, "continue_mission"), _formal_flow_router.has_continue_mission(), "icon_menu_continue", "R")
 	continue_button.name = "ContinueButton"
 	box.add_child(continue_button)
-	var dev_separator := HSeparator.new()
-	dev_separator.modulate = Color("#3d5060", 0.38)
-	box.add_child(dev_separator)
-	var dev_entry := _make_title_button("开发入口 / Debug", _toggle_dev_menu, true)
-	dev_entry.custom_minimum_size = Vector2(0, 48)
-	dev_entry.modulate = Color("#7f98aa", 0.72)
+	box.add_child(_make_title_menu_divider())
+	var dev_entry := _make_title_button("开发入口 / Debug", _toggle_dev_menu, true, "icon_menu_developer", "F12")
 	box.add_child(dev_entry)
-	box.add_child(_make_title_button("退出", func(): get_tree().quit(), true))
+	box.add_child(_make_title_menu_divider())
+	box.add_child(_make_title_button("退出", func(): get_tree().quit(), true, "icon_menu_exit", "Esc"))
 
 	var menu_notice := Label.new()
 	menu_notice.name = "MenuNotice"
@@ -3662,15 +3696,189 @@ func _setup_main_menu() -> void:
 	_set_gameplay_hud_visible(false)
 	_refresh_main_menu()
 
-func _make_title_button(text: String, callback: Callable, enabled: bool) -> Button:
+## Title-menu item component: icon + label + shortcut hint, with a left
+## accent bar and Default/Hover/Focus/Pressed/Disabled states driven by a
+## single Tween (per the art-director state table -- background/accent/
+## text/icon opacity and a small hover shift, no glow/blink/bounce).
+const TITLE_MENU_ICON_SPRITE := "res://assets/ui/opening/icons/sprite.png"
+const TITLE_MENU_ICON_JSON := "res://assets/ui/opening/icons/sprite.godot.json"
+const TITLE_LOGO_SPRITE := "res://assets/ui/opening/logos/sprite.png"
+const TITLE_LOGO_JSON := "res://assets/ui/opening/logos/sprite.godot.json"
+const TITLE_MENU_ACCENT_COLOR := Color("#e0a542")
+const TITLE_MENU_BG_COLOR := Color("#0b1622")
+
+func _make_title_button(text: String, callback: Callable, enabled: bool, icon_region: String, shortcut_text: String) -> Button:
 	var button := Button.new()
-	button.text = text
-	button.custom_minimum_size = Vector2(0, 62)
+	button.text = ""
+	button.custom_minimum_size = Vector2(0, 74)
 	button.disabled = not enabled
-	button.add_theme_font_size_override("font_size", 24)
-	if enabled:
-		button.pressed.connect(callback)
+	button.flat = true
+	button.focus_mode = Control.FOCUS_ALL
+	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+
+	var bg_style := StyleBoxFlat.new()
+	bg_style.bg_color = Color(TITLE_MENU_BG_COLOR, 0.0)
+	bg_style.set_corner_radius_all(0)
+	for theme_state in ["normal", "hover", "pressed", "focus", "disabled"]:
+		button.add_theme_stylebox_override(theme_state, bg_style)
+
+	var accent := ColorRect.new()
+	accent.name = "Accent"
+	accent.color = Color(TITLE_MENU_ACCENT_COLOR, 0.0)
+	accent.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	accent.set_anchors_preset(Control.PRESET_LEFT_WIDE)
+	accent.offset_right = 2
+	accent.offset_top = 16
+	accent.offset_bottom = -16
+	button.add_child(accent)
+
+	var row := HBoxContainer.new()
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.set_anchors_preset(Control.PRESET_FULL_RECT)
+	row.offset_left = 24
+	row.offset_right = -24
+	row.add_theme_constant_override("separation", 16)
+	button.add_child(row)
+
+	var icon := TextureRect.new()
+	icon.texture = _load_title_menu_icon(icon_region)
+	icon.custom_minimum_size = Vector2(42, 42)
+	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(icon)
+
+	var label := Label.new()
+	label.text = text
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.add_theme_font_size_override("font_size", 24)
+	row.add_child(label)
+
+	var shortcut := Label.new()
+	shortcut.text = shortcut_text
+	shortcut.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	shortcut.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	shortcut.add_theme_font_size_override("font_size", 15)
+	row.add_child(shortcut)
+
+	var state := {
+		"button": button, "bg": bg_style, "accent": accent,
+		"icon": icon, "label": label, "shortcut": shortcut, "row": row,
+		"tween": null,
+	}
+	button.set_meta("title_menu_state", state)
+
+	button.pressed.connect(callback)
+	button.mouse_entered.connect(_on_title_menu_signal.bind(state, "hover"))
+	button.mouse_exited.connect(_on_title_menu_signal.bind(state, "default"))
+	button.focus_entered.connect(_on_title_menu_signal.bind(state, "focus"))
+	button.focus_exited.connect(_on_title_menu_signal.bind(state, "default"))
+	button.button_down.connect(_on_title_menu_signal.bind(state, "pressed"))
+	button.button_up.connect(_on_title_menu_signal.bind(state, "hover"))
+
+	_apply_title_menu_visual(state, "default" if enabled else "disabled", 0.0)
 	return button
+
+func _make_title_menu_divider() -> HSeparator:
+	var divider := HSeparator.new()
+	divider.modulate = Color("#3d5060", 0.32)
+	return divider
+
+func _load_title_menu_icon(region_name: String) -> Texture2D:
+	return _load_opening_atlas_region(TITLE_MENU_ICON_SPRITE, TITLE_MENU_ICON_JSON, region_name)
+
+func _load_opening_atlas_region(sprite_path: String, json_path: String, region_name: String) -> Texture2D:
+	if region_name.is_empty():
+		return null
+	var base := load(sprite_path) as Texture2D
+	if base == null:
+		return null
+	var json_text := FileAccess.get_file_as_string(json_path)
+	var data = JSON.parse_string(json_text)
+	if typeof(data) != TYPE_DICTIONARY or not data.has("regions"):
+		return null
+	var region: Dictionary = (data["regions"] as Dictionary).get(region_name, {})
+	if region.is_empty():
+		return null
+	var atlas := AtlasTexture.new()
+	atlas.atlas = base
+	atlas.region = Rect2(float(region.get("x", 0)), float(region.get("y", 0)), float(region.get("w", 0)), float(region.get("h", 0)))
+	atlas.filter_clip = true
+	return atlas
+
+func _on_title_menu_signal(state: Dictionary, mode: String) -> void:
+	var button: Button = state["button"]
+	if button.disabled:
+		_apply_title_menu_visual(state, "disabled", 0.16)
+		return
+	var duration := 0.12
+	match mode:
+		"default":
+			duration = 0.16
+		"pressed":
+			duration = 0.06
+	_apply_title_menu_visual(state, mode, duration)
+
+func _set_title_button_enabled(button: Button, enabled: bool) -> void:
+	button.disabled = not enabled
+	var state: Dictionary = button.get_meta("title_menu_state", {})
+	if not state.is_empty():
+		_apply_title_menu_visual(state, "default" if enabled else "disabled", 0.16)
+
+## Applies one of Default/Hover/Focus/Pressed/Disabled per the state table:
+## cool blue-gray default, low-opacity dark backing + short orange accent on
+## hover/focus, brief press-dim, and a flat dim (no highlight, unresponsive)
+## when disabled. A single parallel Tween drives every property so no two
+## properties can desync mid-transition.
+func _apply_title_menu_visual(state: Dictionary, mode: String, duration: float) -> void:
+	var bg: StyleBoxFlat = state["bg"]
+	var accent: ColorRect = state["accent"]
+	var icon: TextureRect = state["icon"]
+	var label: Label = state["label"]
+	var shortcut: Label = state["shortcut"]
+	var row: HBoxContainer = state["row"]
+
+	var bg_alpha := 0.0
+	var accent_alpha := 0.0
+	var text_alpha := 0.6
+	var offset_x := 0.0
+	match mode:
+		"hover", "focus":
+			bg_alpha = 0.08
+			accent_alpha = 0.9
+			text_alpha = 0.88
+			offset_x = 4.0
+		"pressed":
+			bg_alpha = 0.14
+			accent_alpha = 0.55
+			text_alpha = 0.7
+			offset_x = 4.0
+		"disabled":
+			bg_alpha = 0.0
+			accent_alpha = 0.0
+			text_alpha = 0.38
+			offset_x = 0.0
+		_:
+			bg_alpha = 0.0
+			accent_alpha = 0.0
+			text_alpha = 0.6
+			offset_x = 0.0
+
+	var existing_tween: Tween = state.get("tween")
+	if existing_tween != null and existing_tween.is_valid():
+		existing_tween.kill()
+	var tween := create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(bg, "bg_color", Color(TITLE_MENU_BG_COLOR, bg_alpha), duration)
+	tween.tween_property(accent, "color", Color(TITLE_MENU_ACCENT_COLOR, accent_alpha), duration)
+	tween.tween_property(label, "modulate", Color(1, 1, 1, text_alpha), duration)
+	tween.tween_property(icon, "modulate", Color(1, 1, 1, text_alpha), duration)
+	tween.tween_property(shortcut, "modulate", Color(1, 1, 1, text_alpha * 0.85), duration)
+	tween.tween_property(row, "position:x", offset_x, duration)
+	state["tween"] = tween
 
 func _debug_reset_time() -> void:
 	var manager := get_node_or_null("/root/TimeManager")
@@ -3730,46 +3938,197 @@ func _reset_demo_progress_from_dev() -> void:
 	add_log("Dev: demo progress reset.")
 	_set_title_menu_notice("试玩进度已清除。可以从“开始新驻留”重新开始。")
 
+const IconDialogWarning := preload("res://assets/ui/common/icons/add/atlas/icon_dialog_warning.tres")
+const IconDialogDocument := preload("res://assets/ui/common/icons/add/atlas/icon_dialog_document.tres")
+const IconDialogClose := preload("res://assets/ui/common/icons/add/atlas/icon_dialog_close.tres")
+
 func _show_new_game_confirmation() -> void:
+	if has_node("UI/Root/NewGameConfirmScrim"):
+		$UI/Root/NewGameConfirmScrim.queue_free()
 	if has_node("UI/Root/NewGameConfirm"):
 		$UI/Root/NewGameConfirm.queue_free()
+
+	var scrim := ColorRect.new()
+	scrim.name = "NewGameConfirmScrim"
+	scrim.color = Color(0.02, 0.04, 0.06, 0.62)
+	scrim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	scrim.mouse_filter = Control.MOUSE_FILTER_STOP
+	$UI/Root.add_child(scrim)
+
 	var panel := PanelContainer.new()
 	panel.name = "NewGameConfirm"
-	panel.position = Vector2(520, 260)
-	panel.size = Vector2(560, 300)
+	panel.position = Vector2(520, 220)
+	panel.custom_minimum_size = Vector2(560, 0)
+	var panel_style := StyleBoxFlat.new()
+	panel_style.bg_color = Color("#0c1720")
+	panel_style.border_color = Color("#33495a")
+	panel_style.set_border_width_all(1)
+	panel_style.set_corner_radius_all(4)
+	panel_style.content_margin_left = 28
+	panel_style.content_margin_right = 28
+	panel_style.content_margin_top = 24
+	panel_style.content_margin_bottom = 24
+	panel.add_theme_stylebox_override("panel", panel_style)
 	$UI/Root.add_child(panel)
+
+	var close_all := func():
+		scrim.queue_free()
+		panel.queue_free()
+
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 16)
 	panel.add_child(box)
+
+	var header_row := HBoxContainer.new()
+	header_row.add_theme_constant_override("separation", 14)
+	box.add_child(header_row)
+
+	var warning_icon := TextureRect.new()
+	warning_icon.texture = IconDialogWarning
+	warning_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	warning_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	warning_icon.custom_minimum_size = Vector2(44, 44)
+	warning_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	header_row.add_child(warning_icon)
+
+	var title_box := VBoxContainer.new()
+	title_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title_box.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	title_box.add_theme_constant_override("separation", 2)
+	header_row.add_child(title_box)
 	var title := Label.new()
 	title.text = "开始新的驻留档案？"
 	title.modulate = Color("#eaf4ff")
-	title.add_theme_font_size_override("font_size", 28)
-	box.add_child(title)
+	title.add_theme_font_size_override("font_size", 24)
+	title_box.add_child(title)
+	var title_en := Label.new()
+	title_en.text = "START NEW OUTPOST FILE?"
+	title_en.modulate = Color("#7d909a")
+	title_en.add_theme_font_size_override("font_size", 13)
+	title_box.add_child(title_en)
+
+	var close_button := Button.new()
+	close_button.custom_minimum_size = Vector2(32, 32)
+	close_button.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	close_button.flat = true
+	close_button.focus_mode = Control.FOCUS_NONE
+	close_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	var close_icon := TextureRect.new()
+	close_icon.texture = IconDialogClose
+	close_icon.set_anchors_preset(Control.PRESET_FULL_RECT)
+	close_icon.offset_left = 6
+	close_icon.offset_top = 6
+	close_icon.offset_right = -6
+	close_icon.offset_bottom = -6
+	close_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	close_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	close_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	close_icon.modulate = Color("#7d909a")
+	close_button.add_child(close_icon)
+	close_button.pressed.connect(close_all)
+	header_row.add_child(close_button)
+
+	box.add_child(HSeparator.new())
+
+	var info_panel := PanelContainer.new()
+	var info_style := StyleBoxFlat.new()
+	info_style.bg_color = Color("#0a141c")
+	info_style.border_color = Color("#243646")
+	info_style.set_border_width_all(1)
+	info_style.set_corner_radius_all(3)
+	info_style.content_margin_left = 16
+	info_style.content_margin_right = 16
+	info_style.content_margin_top = 14
+	info_style.content_margin_bottom = 14
+	info_panel.add_theme_stylebox_override("panel", info_style)
+	box.add_child(info_panel)
+
+	var info_row := HBoxContainer.new()
+	info_row.add_theme_constant_override("separation", 14)
+	info_panel.add_child(info_row)
+
+	var doc_icon := TextureRect.new()
+	doc_icon.texture = IconDialogDocument
+	doc_icon.custom_minimum_size = Vector2(36, 36)
+	doc_icon.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	doc_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	doc_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	info_row.add_child(doc_icon)
+
 	var body := Label.new()
-	body.text = "检测到已有试玩进度。\n\n开始新的驻留将清除申请、训练、旧基地和第一周进度。\n此操作仅影响本地编辑器试玩存档。"
+	body.text = "检测到已有试玩进度。\n开始新的驻留将清除申请、训练、旧基地和第一周进度。\n此操作仅影响本地存档，云端进度将保留。"
 	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	body.modulate = Color("#d8e7f2")
-	body.add_theme_font_size_override("font_size", 18)
-	box.add_child(body)
+	body.add_theme_font_size_override("font_size", 16)
+	info_row.add_child(body)
+
 	var footer := HBoxContainer.new()
-	footer.alignment = BoxContainer.ALIGNMENT_END
 	footer.add_theme_constant_override("separation", 12)
 	box.add_child(footer)
-	var cancel := Button.new()
-	cancel.text = "取消"
-	cancel.custom_minimum_size = Vector2(160, 44)
-	cancel.pressed.connect(func(): panel.queue_free())
+
+	var cancel := _build_confirm_dialog_button("取消", "CANCEL", false)
+	cancel.pressed.connect(close_all)
 	footer.add_child(cancel)
-	var confirm := Button.new()
-	confirm.text = "清除进度并开始"
-	confirm.custom_minimum_size = Vector2(220, 44)
-	confirm.modulate = Color("#9ac7e8")
+
+	var footer_spacer := Control.new()
+	footer_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	footer.add_child(footer_spacer)
+
+	var confirm := _build_confirm_dialog_button("清除进度并开始", "CLEAR PROGRESS & START", true)
 	confirm.pressed.connect(func():
-		panel.queue_free()
+		close_all.call()
 		_formal_flow_router.start_clean_new_stay()
 	)
 	footer.add_child(confirm)
+
+func _build_confirm_dialog_button(cn_text: String, en_text: String, primary: bool) -> Button:
+	var button := Button.new()
+	button.text = ""
+	button.custom_minimum_size = Vector2(160 if not primary else 220, 52)
+	button.focus_mode = Control.FOCUS_ALL
+	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+
+	var style := StyleBoxFlat.new()
+	if primary:
+		style.bg_color = Color("#152a3c")
+		style.border_color = Color("#4f8fc4")
+	else:
+		style.bg_color = Color("#131b22")
+		style.border_color = Color("#33454f")
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(3)
+	var hover := style.duplicate()
+	hover.bg_color = style.bg_color.lightened(0.08)
+	button.add_theme_stylebox_override("normal", style)
+	button.add_theme_stylebox_override("hover", hover)
+	button.add_theme_stylebox_override("pressed", style)
+	button.add_theme_stylebox_override("focus", style)
+
+	var content := VBoxContainer.new()
+	content.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	content.set_anchors_preset(Control.PRESET_FULL_RECT)
+	content.alignment = BoxContainer.ALIGNMENT_CENTER
+	content.add_theme_constant_override("separation", 2)
+	button.add_child(content)
+
+	var cn := Label.new()
+	cn.text = cn_text
+	cn.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	cn.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cn.modulate = Color("#eaf4ff") if primary else Color("#c3d2db")
+	cn.add_theme_font_size_override("font_size", 17)
+	content.add_child(cn)
+
+	var en := Label.new()
+	en.text = en_text
+	en.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	en.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	en.modulate = Color("#8fb4d6") if primary else Color("#6f8493")
+	en.add_theme_font_size_override("font_size", 11)
+	content.add_child(en)
+
+	return button
 
 func _start_day07_report_test() -> void:
 	var state := {
@@ -4263,7 +4622,7 @@ func _refresh_main_menu() -> void:
 		return
 	if has_node("UI/Root/MainMenu/Box/ContinueButton"):
 		var button: Button = $UI/Root/MainMenu/Box/ContinueButton
-		button.disabled = not (_formal_flow_router != null and _formal_flow_router.has_continue_mission())
+		_set_title_button_enabled(button, _formal_flow_router != null and _formal_flow_router.has_continue_mission())
 
 func _tech_button_text(tech_id: String) -> String:
 	var tech: Dictionary = tech_defs[tech_id]
