@@ -39,7 +39,7 @@ const AUI_COLOR_PANEL_BG := Color("#0e181f")
 const AUI_COLOR_PANEL_BORDER := Color("#223c4d")
 const AUI_COLOR_FIELD_BG := Color("#0a1823")
 const AUI_COLOR_FIELD_BORDER := Color("#405d70")
-const AUI_COLOR_FIELD_FOCUS_BORDER := Color("#8aaabd")
+const AUI_COLOR_FIELD_FOCUS_BORDER := Color("#7f97a3")
 const AUI_COLOR_READONLY_BG := Color("#101c25")
 const AUI_COLOR_READONLY_BORDER := Color("#2e4555")
 const AUI_COLOR_ACTIVE_ACCENT := Color("#6f9bae")
@@ -81,8 +81,9 @@ var review_complete_hold := 0.0
 var is_reviewing := false
 
 var page_body: VBoxContainer
-var content_scroll: ScrollContainer
 var footer: HBoxContainer
+var aui_canvas: Control
+var _aui_canvas_last_available := Vector2(-1, -1)
 var status_label: Label
 var name_edit: LineEdit
 var birth_options: OptionButton
@@ -115,6 +116,7 @@ func _ready() -> void:
 	_show_step(step)
 
 func _process(delta: float) -> void:
+	_update_aui_canvas_scale()
 	if not is_reviewing:
 		return
 	if review_index >= review_lines.size():
@@ -146,10 +148,23 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _build_shell() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
+	mouse_filter = Control.MOUSE_FILTER_PASS
 	var background := ColorRect.new()
 	background.color = AUI_COLOR_PAGE_BG
 	background.set_anchors_preset(Control.PRESET_FULL_RECT)
+	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(background)
+
+	# Single authoritative scaling: the whole application UI lives on one fixed
+	# 1920x1080 logical canvas, uniformly scaled + letterboxed/pillarboxed to
+	# fit the actual viewport. Nothing inside the canvas re-measures itself
+	# against the real window size, and nothing else in this scene rescales
+	# independently -- this is the only place scale is computed.
+	aui_canvas = Control.new()
+	aui_canvas.name = "AUICanvas"
+	aui_canvas.size = Vector2(1920, 1080)
+	aui_canvas.pivot_offset = Vector2.ZERO
+	add_child(aui_canvas)
 
 	var root := VBoxContainer.new()
 	root.name = "ApplicationShell"
@@ -159,57 +174,73 @@ func _build_shell() -> void:
 	root.offset_right = -AUI_PAGE_MARGIN
 	root.offset_bottom = -AUI_PAGE_MARGIN
 	root.add_theme_constant_override("separation", AUI_SECTION_GAP)
-	add_child(root)
+	aui_canvas.add_child(root)
 
 	var header := HBoxContainer.new()
 	header.custom_minimum_size = Vector2(0, AUI_HEADER_HEIGHT)
 	header.add_theme_constant_override("separation", 18)
 	root.add_child(header)
-	_add_icon(header, IconInstitution, Vector2(64, 64))
-	_add_header_label(header, "国家深空生命科学中心", Vector2(210, 0), 16, AUI_COLOR_TEXT_INPUT)
-	_add_header_label(header, "NATIONAL DEEP SPACE\nLIFE SCIENCE CENTER", Vector2(170, 0), 11, AUI_COLOR_TEXT_SECONDARY)
+
+	# Left zone: institution logo + bilingual name. Fixed, does not drift with title length.
+	var left_zone := HBoxContainer.new()
+	left_zone.add_theme_constant_override("separation", 18)
+	left_zone.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	header.add_child(left_zone)
+	var institution_icon := _add_icon(left_zone, IconInstitution, Vector2(64, 64))
+	institution_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_add_header_label(left_zone, "国家深空生命科学中心", Vector2(210, 0), 16, AUI_COLOR_TEXT_INPUT)
+	_add_header_label(left_zone, "NATIONAL DEEP SPACE\nLIFE SCIENCE CENTER", Vector2(170, 0), 12, AUI_COLOR_TEXT_SECONDARY)
+
+	# Center zone: system title. Expands to fill remaining space, stays centered.
 	var title_box := VBoxContainer.new()
 	title_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title_box.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	title_box.alignment = BoxContainer.ALIGNMENT_CENTER
 	header.add_child(title_box)
 	var title := Label.new()
 	title.text = "广寒计划常驻开拓者申请系统"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.modulate = Color("#e0e7eb")
 	title.add_theme_font_size_override("font_size", 22)
 	title_box.add_child(title)
 	var title_sub := Label.new()
 	title_sub.text = "PROJECT GUANGHAN · PERMANENT PIONEER APPLICATION SYSTEM"
+	title_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title_sub.modulate = Color("#9baab3")
 	title_sub.add_theme_font_size_override("font_size", 14)
 	title_box.add_child(title_sub)
+
+	# Right zone: system code, time, assistant icon. Fixed, kept clear of the page edge.
+	var right_zone := MarginContainer.new()
+	right_zone.add_theme_constant_override("margin_right", 6)
+	header.add_child(right_zone)
 	var meta_cluster := HBoxContainer.new()
-	meta_cluster.add_theme_constant_override("separation", 10)
+	meta_cluster.add_theme_constant_override("separation", 12)
 	meta_cluster.alignment = BoxContainer.ALIGNMENT_CENTER
 	meta_cluster.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	header.add_child(meta_cluster)
+	right_zone.add_child(meta_cluster)
 	var meta_box := VBoxContainer.new()
 	meta_box.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	meta_cluster.add_child(meta_box)
 	_add_meta_row(meta_box, "系统编号", "GHO-AS-2068-0421")
 	_add_meta_row(meta_box, "当前时间", "2068-04-12  07:15:32")
-	var assistant_icon := _add_icon(meta_cluster, IconAssistant, Vector2(48, 48))
+	var assistant_icon := _add_icon(meta_cluster, IconAssistant, Vector2(53, 53))
 	assistant_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	assistant_icon.modulate = Color(0.82, 0.85, 0.88)
 
 	_add_step_bar(root)
 
-	content_scroll = ScrollContainer.new()
-	content_scroll.name = "ContentArea"
-	content_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	content_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	content_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	root.add_child(content_scroll)
-
+	# The whole 1920x1080 canvas is what gets scaled to fit the window -- page
+	# content is never wrapped in a ScrollContainer. At the 1920x1080 design
+	# resolution, and at any smaller uniformly-scaled size, the fixed-height
+	# chrome (header/step-nav/footer) plus the body's own budget always sum to
+	# exactly 1080, so nothing overflows the canvas by construction.
 	page_body = VBoxContainer.new()
 	page_body.name = "PageBody"
 	page_body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	page_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	page_body.add_theme_constant_override("separation", AUI_SECTION_GAP)
-	content_scroll.add_child(page_body)
+	page_body.add_theme_constant_override("separation", 4)
+	root.add_child(page_body)
 
 	footer = HBoxContainer.new()
 	footer.name = "Footer"
@@ -218,20 +249,38 @@ func _build_shell() -> void:
 	footer.add_theme_constant_override("separation", 12)
 	root.add_child(footer)
 
+	_update_aui_canvas_scale()
+	if not resized.is_connected(_update_aui_canvas_scale):
+		resized.connect(_update_aui_canvas_scale)
+
+func _update_aui_canvas_scale() -> void:
+	if aui_canvas == null:
+		return
+	var available := size
+	if available.x <= 0.0 or available.y <= 0.0:
+		return
+	if available == _aui_canvas_last_available:
+		return
+	_aui_canvas_last_available = available
+	var scale_factor: float = min(available.x / 1920.0, available.y / 1080.0)
+	aui_canvas.scale = Vector2(scale_factor, scale_factor)
+	var scaled_size := Vector2(1920.0, 1080.0) * scale_factor
+	aui_canvas.position = ((available - scaled_size) / 2.0).round()
+
 func _add_meta_row(parent: VBoxContainer, label_text: String, value_text: String) -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
 	parent.add_child(row)
 	var label := Label.new()
 	label.text = label_text
-	label.custom_minimum_size = Vector2(64, 0)
+	label.custom_minimum_size = Vector2(70, 0)
 	label.modulate = Color("#8898a2")
-	label.add_theme_font_size_override("font_size", 12)
+	label.add_theme_font_size_override("font_size", 13)
 	row.add_child(label)
 	var value := Label.new()
 	value.text = value_text
 	value.modulate = Color("#c5d0d6")
-	value.add_theme_font_size_override("font_size", 12)
+	value.add_theme_font_size_override("font_size", 13)
 	row.add_child(value)
 
 func _add_header_label(parent: HBoxContainer, text: String, min_size: Vector2, font_size: int, color: Color) -> void:
@@ -368,7 +417,6 @@ func _show_step(next_step: String) -> void:
 	_refresh_step_bar()
 	_clear_container(page_body)
 	_clear_container(footer)
-	content_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	match step:
 		"identity":
 			_show_identity()
@@ -387,7 +435,6 @@ func _show_step(next_step: String) -> void:
 	_save_profile()
 
 func _show_identity() -> void:
-	content_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_add_identity_page_heading()
 	var columns := _add_identity_columns()
 	var left: VBoxContainer = columns[0]
@@ -426,17 +473,20 @@ func _show_identity() -> void:
 	_refresh_identity_state()
 
 func _add_identity_page_heading() -> void:
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_top", 12)
+	page_body.add_child(margin)
 	var row := HBoxContainer.new()
-	row.custom_minimum_size = Vector2(0, AUI_PAGE_HEADING_HEIGHT)
+	row.custom_minimum_size = Vector2(0, AUI_PAGE_HEADING_HEIGHT - 12)
 	row.add_theme_constant_override("separation", 14)
-	page_body.add_child(row)
+	margin.add_child(row)
 	var index := Label.new()
 	index.text = "01"
 	index.modulate = AUI_COLOR_ACTIVE_ACCENT
 	index.add_theme_font_size_override("font_size", 28)
 	row.add_child(index)
 	var labels := VBoxContainer.new()
-	labels.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	labels.add_theme_constant_override("separation", 1)
 	var title := Label.new()
 	title.text = "基础信息"
 	title.modulate = AUI_COLOR_TEXT_PRIMARY
@@ -450,12 +500,17 @@ func _add_identity_page_heading() -> void:
 	row.add_child(labels)
 	var description := Label.new()
 	description.text = "填写候选人任务档案显示信息，用于建立你的申请记录。"
-	description.modulate = AUI_COLOR_TEXT_MUTED
+	description.modulate = AUI_COLOR_TEXT_SECONDARY
 	description.add_theme_font_size_override("font_size", 14)
 	description.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	description.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	description.custom_minimum_size = Vector2(480, 0)
+	description.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	description.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	description.custom_minimum_size = Vector2(360, 0)
 	row.add_child(description)
+	var heading_spacer := Control.new()
+	heading_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(heading_spacer)
 
 func _add_identity_columns() -> Array[VBoxContainer]:
 	var row := HBoxContainer.new()
@@ -510,7 +565,7 @@ func _add_identity_panel_heading(parent: VBoxContainer, title_text: String, subt
 	sub.text = subtitle_text
 	sub.modulate = Color("#7d909a")
 	sub.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	sub.add_theme_font_size_override("font_size", 11)
+	sub.add_theme_font_size_override("font_size", 12)
 	row.add_child(sub)
 	parent.add_child(HSeparator.new())
 
@@ -527,7 +582,7 @@ func _add_identity_section_heading(parent: VBoxContainer, title_text: String, su
 	sub.text = subtitle_text
 	sub.modulate = AUI_COLOR_TEXT_MUTED
 	sub.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	sub.add_theme_font_size_override("font_size", 11)
+	sub.add_theme_font_size_override("font_size", 12)
 	row.add_child(sub)
 	parent.add_child(row)
 	parent.add_child(HSeparator.new())
@@ -615,7 +670,8 @@ func _add_identity_readonly(parent: VBoxContainer, label_text: String, value: St
 	text.modulate = AUI_COLOR_TEXT_READONLY
 	text.add_theme_font_size_override("font_size", 15)
 	field_row.add_child(text)
-	_add_icon(field_row, IconLock, Vector2(20, 20))
+	var lock_icon := _add_icon(field_row, IconLock, Vector2(20, 20))
+	lock_icon.modulate = Color(0.45, 0.5, 0.55)
 	field.add_child(field_row)
 	row.add_child(field)
 	parent.add_child(row)
@@ -626,17 +682,17 @@ func _add_identity_mission_info(parent: VBoxContainer) -> void:
 	parent.add_child(info_box)
 	for item in [["任务名称", "广寒计划"], ["任务类型", "长期驻留 / 生命支持建设"], ["派驻地点", "月球 · 广寒前哨"], ["地月距离", "384,400 km"], ["单程通信延迟", "约 1.3 s"], ["任务周期", "长期派驻，训练后确认"], ["当前身份", String(profile.get("mission_identity"))]]:
 		var row := HBoxContainer.new()
-		row.custom_minimum_size = Vector2(0, 22)
+		row.custom_minimum_size = Vector2(0, 24)
 		var label := Label.new()
 		label.text = String(item[0])
 		label.custom_minimum_size = Vector2(150, 0)
 		label.modulate = AUI_COLOR_TEXT_SECONDARY
-		label.add_theme_font_size_override("font_size", 13)
+		label.add_theme_font_size_override("font_size", 14)
 		row.add_child(label)
 		var value := Label.new()
 		value.text = String(item[1])
 		value.modulate = AUI_COLOR_TEXT_INPUT
-		value.add_theme_font_size_override("font_size", 13)
+		value.add_theme_font_size_override("font_size", 14)
 		row.add_child(value)
 		info_box.add_child(row)
 
@@ -647,7 +703,7 @@ func _add_mission_link_diagram(parent: VBoxContainer) -> void:
 	heading.add_theme_font_size_override("font_size", 13)
 	parent.add_child(heading)
 	var frame := PanelContainer.new()
-	frame.custom_minimum_size = Vector2(0, 150)
+	frame.custom_minimum_size = Vector2(0, 190)
 	var frame_style := StyleBoxFlat.new()
 	frame_style.bg_color = Color("#0a1620")
 	frame_style.border_color = Color("#1e394b")
@@ -658,8 +714,8 @@ func _add_mission_link_diagram(parent: VBoxContainer) -> void:
 	frame_style.corner_radius_bottom_right = AUI_INPUT_RADIUS
 	frame_style.content_margin_left = 16
 	frame_style.content_margin_right = 16
-	frame_style.content_margin_top = 10
-	frame_style.content_margin_bottom = 10
+	frame_style.content_margin_top = 18
+	frame_style.content_margin_bottom = 18
 	frame.add_theme_stylebox_override("panel", frame_style)
 	parent.add_child(frame)
 
@@ -678,7 +734,7 @@ func _add_mission_link_diagram(parent: VBoxContainer) -> void:
 	terminal_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	terminal_row.add_theme_constant_override("separation", 4)
 	_add_icon(terminal_row, IconTerminal, Vector2(16, 16))
-	_add_diagram_label(terminal_row, "当前申请终端", AUI_COLOR_SUCCESS, 11)
+	_add_diagram_label(terminal_row, "当前申请终端", AUI_COLOR_SUCCESS, 13)
 	earth_stop.add_child(terminal_row)
 	route.add_child(earth_stop)
 
@@ -686,9 +742,9 @@ func _add_mission_link_diagram(parent: VBoxContainer) -> void:
 	link_a.custom_minimum_size = Vector2(170, 0)
 	link_a.alignment = BoxContainer.ALIGNMENT_CENTER
 	link_a.add_theme_constant_override("separation", 4)
-	_add_diagram_label(link_a, "384,400 km", AUI_COLOR_TEXT_SECONDARY, 13)
+	_add_diagram_label(link_a, "384,400 km", AUI_COLOR_TEXT_SECONDARY, 14)
 	_add_solid_double_arrow(link_a, 130, Color("#5fb0e0"))
-	_add_diagram_label(link_a, "单程约 1.3 s", AUI_COLOR_TEXT_SECONDARY, 12)
+	_add_diagram_label(link_a, "单程约 1.3 s", AUI_COLOR_TEXT_SECONDARY, 14)
 	route.add_child(link_a)
 
 	var moon_stop := VBoxContainer.new()
@@ -812,7 +868,7 @@ func _build_identity_footer() -> void:
 	middle_cluster.add_child(identity_validation_label)
 	identity_validation_hint_label = Label.new()
 	identity_validation_hint_label.modulate = AUI_COLOR_TEXT_MUTED
-	identity_validation_hint_label.add_theme_font_size_override("font_size", 12)
+	identity_validation_hint_label.add_theme_font_size_override("font_size", 13)
 	middle_cluster.add_child(identity_validation_hint_label)
 
 	row.add_child(VSeparator.new())
@@ -856,6 +912,8 @@ func _build_identity_footer() -> void:
 	identity_next_button.text = "下一步"
 	identity_next_button.icon = IconArrowRight
 	identity_next_button.icon_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	identity_next_button.expand_icon = true
+	identity_next_button.add_theme_constant_override("icon_max_width", 16)
 	identity_next_button.custom_minimum_size = Vector2(220, AUI_BUTTON_HEIGHT)
 	identity_next_button.pressed.connect(func():
 		_capture_identity()
@@ -895,6 +953,8 @@ func _style_identity_option(option: OptionButton) -> void:
 	normal.bg_color = AUI_COLOR_FIELD_BG
 	normal.border_color = AUI_COLOR_FIELD_BORDER
 	normal.set_border_width_all(AUI_BORDER_WIDTH)
+	normal.content_margin_left = 16
+	normal.content_margin_right = 16
 	normal.corner_radius_top_left = AUI_INPUT_RADIUS
 	normal.corner_radius_top_right = AUI_INPUT_RADIUS
 	normal.corner_radius_bottom_left = AUI_INPUT_RADIUS
@@ -909,6 +969,7 @@ func _style_identity_option(option: OptionButton) -> void:
 	option.add_theme_stylebox_override("focus", focus)
 	option.add_theme_color_override("font_color", AUI_COLOR_TEXT_INPUT)
 	option.add_theme_font_size_override("font_size", 16)
+	option.add_theme_constant_override("arrow_margin", 16)
 	var popup := option.get_popup()
 	var popup_panel := StyleBoxFlat.new()
 	popup_panel.bg_color = AUI_COLOR_FIELD_BG
@@ -917,6 +978,10 @@ func _style_identity_option(option: OptionButton) -> void:
 	popup.add_theme_stylebox_override("panel", popup_panel)
 	popup.add_theme_color_override("font_color", AUI_COLOR_TEXT_SECONDARY)
 	popup.add_theme_color_override("font_hover_color", AUI_COLOR_TEXT_INPUT)
+	popup.add_theme_font_size_override("font_size", 16)
+	popup.add_theme_constant_override("v_separation", 14)
+	popup.add_theme_constant_override("item_start_padding", 16)
+	popup.add_theme_constant_override("item_end_padding", 16)
 	popup.add_theme_color_override("font_selected_color", Color("#b8c68a"))
 
 func _style_identity_next_button(button: Button) -> void:
