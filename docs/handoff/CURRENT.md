@@ -1,6 +1,6 @@
 # Current Project Status
 
-Updated: 2026-07-13
+Updated: 2026-07-15
 
 ## Phase
 
@@ -13,9 +13,20 @@ Phase 5 Skill suite is COMPLETE, `main` is pushed, and tag `skill-suite-complete
 
 P6-02 implementation adds only the four-step application Active-state highlight. Claude Code's engineering verdict is `PASS` for that scope only; the PASS does not validate the full application UI or historical save-file provenance. User approved the Active-state visual scope only. `application_profile.json` remains an expected page-entry write, while the earlier temporary-state-file disappearance remains source-unknown. Validation ran only in the dedicated sandbox after real user-data was frozen. P6-03 has not started, and all five formal Skills remain `TRIAL`.
 
-AUI visual-modernization preparation has begun with the approved AUI-03-01 Basic Information high-fidelity reference and specification registered as documentation. AUI-03-01 implementation has not started; the next action is to assign that implementation task after this reference registration is complete.
+AUI-03-01 (Basic Information page visual sample) is DONE. Codex implemented the underlying business logic, pure-function tests, and the approved icon atlas; the running result did not meet the approved visual standard, so User directed an owner transfer to Claude Code to rebuild `_show_identity()`'s visual node tree against the approved reference and spec, preserving all business logic, bindings, and save behavior unchanged. User reviewed four iterative rounds of real 1920x1080 screenshots (bottom-action-bar four-cluster structure and status-ring badge, real solid/dashed connector lines in the Mission Brief diagram in place of text glyphs, header icon/text vertical alignment, and Next-button icon-after-text ordering) and gave final acceptance covering both visual match and engineering correctness. Formal Skills remain `TRIAL`; no maturity change. Not pushed, not tagged.
 
 ## Recent Completion
+
+AUI-03-01 — Basic Information Page Visual Sample Implementation is DONE.
+
+- Owner: Claude Code (transferred from Codex mid-task; User directed the takeover because the running screenshot did not meet the approved visual standard).
+- Reviewer: none independent of Owner — User's final acceptance explicitly covers both visual match and engineering correctness for this task, resolving the Owner/Reviewer role conflict flagged at transfer.
+- Preserved unchanged: `basic_information_state()`, `derive_candidate_display_id()` (the `GHC-` prefix rule), the 0/3–3/3 completion and validation-status logic, Next enabled/disabled gating, the existing 29-check `tests/aui_03_01_basic_information_test.gd`, and the application/education/save flow. No save-schema, `PlayerProfileData`, or other-page change.
+- Rebuilt: `_show_identity()`'s full visual node tree — Header (96px, real institution/assistant icons, vertically centered metadata), StepNavigation (64px), PageHeading (80px), 52/48 dual-column body (636px, 24px panel padding, 20px gap) with real lock icons on system-generated fields and a real-Control Mission Brief diagram (Earth/Moon/Outpost/Terminal icons, solid double-arrow and dashed single-arrow connector lines in place of text glyphs), and a four-cluster BottomActionBar (124px: status-ring badge that swaps `icon_status_incomplete`/`icon_status_complete`, validation status, required-field completion detail with per-field radio dots, and Back/Next with the arrow icon after the button text). Page 01's vertical scrolling is fully disabled (other steps' scroll behavior is unaffected — reset explicitly in `_show_step()`).
+- Verification: Godot 4.7 headless parse EXIT 0; existing 29-check test PASS unmodified; four rounds of real 1920x1080 screenshots captured in an isolated sandbox project copy (separate `config/name` for genuine `user://` isolation, per Codex's own precedent) — real project save data was verified byte-identical (SHA-256) before and after every capture round.
+- Known limitation: an early screenshot attempt mistakenly ran against the real save directory (`--user-data-dir` did not isolate as expected) before the correct sandbox recipe was obtained from Codex; no data loss resulted (hash unchanged throughout) and this is recorded for future sessions to avoid repeating.
+- Deliverables: `docs/screenshots/aui_03_01_basic_information/` (3 screenshots), `tools/capture_aui_03_01_basic_information.gd` (reusable capture script).
+- Formal Skills remain `TRIAL`; no maturity change. Not pushed, not tagged.
 
 P6-01 — Agent Collaboration Bootstrap and First Field Validation is verified after governance correction.
 

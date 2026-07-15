@@ -10,13 +10,34 @@ This file is the current coordination board for active task ownership, file lock
 - **Pending handoffs**: `0`
 - **Branch**: `main`
 - **Board baseline**: `4de284f`
-- **Last updated**: `2026-07-14`
+- **Last updated**: `2026-07-15`
 
 ## Active Tasks
 
 No active tasks.
 
 ## Recently Closed
+
+### AUI-03-01 - Basic Information Page Visual Sample Implementation
+
+- Status: `DONE`
+- Owner: `Claude Code`
+- Previous owner: `Codex`
+- Reviewer: none independent of Owner — role conflict flagged at transfer (Claude Code had been this task's Reviewer before becoming Owner); resolved by User's final acceptance, which User confirmed explicitly covers both visual match and engineering correctness for this task.
+- Visual review: User reviewed real 1920x1080 screenshots directly across four iterative rounds (not routed through the registered `ChatGPT` Visual Reviewer for this particular task instance).
+- Final Approval: `User` — approved.
+- Base commit: `2671b23`
+- Owner Transfer: Codex → Claude Code. Reason: Codex's implementation (business logic, pure-function tests, icon atlas) was complete, but the running screenshot did not meet the approved visual standard; User directed a full rebuild of `_show_identity()`'s visual node tree rather than incremental styling, preserving all business logic, bindings, and save behavior unchanged. Transfer accepted the then-current non-clean working tree as in-scope task changes; no duplicate task was created.
+- Preserved unchanged (per transfer scope): `basic_information_state()`, `derive_candidate_display_id()` (`GHC-` prefix rule), name/gender/birth-year bindings, the existing next-step gating, `user://saves/application_profile.json` schema and save timing, and the existing 29-check `tests/aui_03_01_basic_information_test.gd`.
+- Rebuilt by Claude Code: full `_show_identity()` visual node tree — Header (96px, real institution/assistant icons, vertically centered metadata block), StepNavigation (64px), PageHeading (80px), 52/48 dual-column body (636px; 24px panel padding; 20px column gap) with real `icon_lock` on system-generated fields and a real-Control Mission Brief diagram (real `icon_earth`/`icon_moon`/`icon_outpost`/`icon_terminal`, solid double-arrow and dashed single-arrow line connectors built from `ColorRect`/`Label` primitives, replacing the prior unicode-text placeholders), and a four-cluster BottomActionBar (124px: circular status badge using `icon_status_incomplete`/`icon_status_complete` with the `X/3` ratio overlaid, validation status + hint, a separate "必填项完成情况" block with per-field `○`/`●` radio-style indicators, and Back/Next with the arrow icon ordered after the button text). Page 01's `ScrollContainer` vertical scrolling is explicitly disabled only for this step; `_show_step()` resets it to `AUTO` before the step match so education/appearance/review/notice/withdrawn keep their prior scroll behavior unchanged. Removed dead code `_add_readonly_field_to()` (zero callers; contained a literal "锁定" string that would have violated the icon-only requirement had it ever been wired in).
+- Iterative correction rounds (each verified against the approved reference/spec and against real save-file SHA-256 before/after): (1) canvas was rendering at the project's default 1600x900 instead of 1920x1080 — `root.size`/`content_scale_size` explicitly set in the capture tool, which pushed the BottomActionBar off-screen; (2) BottomActionBar restructured from 3 merged clusters to the approved 4-cluster layout with a real circular status badge and `○`/`●` radio-style field indicators; (3) Mission Brief Earth–Moon and Moon–Outpost connectors rebuilt as real solid/dashed line primitives instead of text-glyph dashes; (4) header metadata block and assistant icon vertically centered relative to each other; (5) Next-button arrow icon reordered to appear after (not before) the button text via `icon_alignment`.
+- Verification: Godot 4.7 headless parse EXIT 0 after every change; the existing 29-check test passed unmodified throughout. Screenshot capture ran in an isolated sandbox project copy (full project copy excluding `.git`/`.godot`, with the sandbox's `project.godot` `config/name` changed to a unique value) — isolation is keyed by `config/name`, not by folder path or `--user-data-dir`, per the working recipe Codex provided. Real project save data (`application_profile.json`) was hashed (SHA-256) before the first capture attempt and re-checked after every subsequent round; it was byte-identical throughout every round reported here.
+- Known incident (fully disclosed, no data loss): an early screenshot attempt assumed `--user-data-dir` would isolate `user://`; it did not, and two capture runs briefly wrote to the real save directory before this was caught. SHA-256 comparison confirmed both writes were no-op re-saves (same profile state reloaded and rewritten unchanged); no content was altered or lost. The correct sandbox recipe (copied project + renamed `config/name`) was then obtained from Codex and used for all screenshots delivered in this closure.
+- Deliverables: `docs/screenshots/aui_03_01_basic_information/01_initial_0_of_3.png`, `02_gender_dropdown_expanded.png`, `03_complete_3_of_3_next_enabled.png`; reusable capture tool `tools/capture_aui_03_01_basic_information.gd`.
+- Scope discipline: no change to `scenes/application/ApplicationStartScene.tscn`, `02`/`03`/`04` page bodies, save schema, `PlayerProfileData`, global Theme, or unrelated systems.
+- Skills: `task-baseline-and-lock`, `characterization-first-refactor`, `save-integrity-guard` (real field evidence via the save-hash checks above); all formal Skills remain `TRIAL`, no maturity upgrade.
+- Push/tag permission: `no / no` — not pushed, not tagged in this task.
+- Next: no follow-up task started automatically.
 
 ### AUI-DOC-01 - Register Basic Information Visual Reference
 

@@ -1,0 +1,87 @@
+{
+  "resource_type": "Godot AtlasTexture JSON",
+  "image": "sprite.png",
+  "atlas_size": {
+    "w": 512,
+    "h": 512
+  },
+  "regions": {
+    "icon_section_marker": {
+      "x": 16,
+      "y": 16,
+      "w": 26,
+      "h": 53,
+      "rotated": false
+    },
+    "icon_outpost": {
+      "x": 16,
+      "y": 101,
+      "w": 86,
+      "h": 63,
+      "rotated": false
+    },
+    "icon_terminal": {
+      "x": 74,
+      "y": 16,
+      "w": 73,
+      "h": 53,
+      "rotated": false
+    },
+    "icon_arrow_right": {
+      "x": 16,
+      "y": 196,
+      "w": 50,
+      "h": 36,
+      "rotated": false
+    },
+    "icon_lock": {
+      "x": 16,
+      "y": 264,
+      "w": 40,
+      "h": 50,
+      "rotated": false
+    },
+    "icon_assistant": {
+      "x": 16,
+      "y": 346,
+      "w": 113,
+      "h": 129,
+      "rotated": false
+    },
+    "icon_institution": {
+      "x": 134,
+      "y": 101,
+      "w": 179,
+      "h": 169,
+      "rotated": false
+    },
+    "icon_moon": {
+      "x": 345,
+      "y": 16,
+      "w": 132,
+      "h": 126,
+      "rotated": false
+    },
+    "icon_status_complete": {
+      "x": 179,
+      "y": 16,
+      "w": 53,
+      "h": 50,
+      "rotated": false
+    },
+    "icon_earth": {
+      "x": 161,
+      "y": 302,
+      "w": 179,
+      "h": 175,
+      "rotated": false
+    },
+    "icon_status_incomplete": {
+      "x": 345,
+      "y": 174,
+      "w": 53,
+      "h": 53,
+      "rotated": false
+    }
+  }
+}

@@ -4,6 +4,52 @@ const PROFILE_PATH := "user://saves/application_profile.json"
 const PlayerProfileDataScript := preload("res://scripts/data/player_profile_data.gd")
 const ApplicationArtPanelScript := preload("res://scripts/application/application_art_panel.gd")
 const SuitPreviewControlScript := preload("res://scripts/application/suit_preview_control.gd")
+const IconInstitution := preload("res://assets/ui/common/icons/atlas/icon_institution.tres")
+const IconAssistant := preload("res://assets/ui/common/icons/atlas/icon_assistant.tres")
+const IconEarth := preload("res://assets/ui/common/icons/atlas/icon_earth.tres")
+const IconMoon := preload("res://assets/ui/common/icons/atlas/icon_moon.tres")
+const IconOutpost := preload("res://assets/ui/common/icons/atlas/icon_outpost.tres")
+const IconTerminal := preload("res://assets/ui/common/icons/atlas/icon_terminal.tres")
+const IconLock := preload("res://assets/ui/common/icons/atlas/icon_lock.tres")
+const IconArrowRight := preload("res://assets/ui/common/icons/atlas/icon_arrow_right.tres")
+const IconStatusIncomplete := preload("res://assets/ui/common/icons/atlas/icon_status_incomplete.tres")
+const IconStatusComplete := preload("res://assets/ui/common/icons/atlas/icon_status_complete.tres")
+const IconSectionMarker := preload("res://assets/ui/common/icons/atlas/icon_section_marker.tres")
+
+## AUI-03-01 approved layout constants (basic_information_hifi_spec).
+const AUI_PAGE_MARGIN := 24
+const AUI_HEADER_HEIGHT := 96
+const AUI_STEP_NAV_HEIGHT := 64
+const AUI_PAGE_HEADING_HEIGHT := 80
+const AUI_BODY_HEIGHT := 636
+const AUI_FOOTER_HEIGHT := 124
+const AUI_SECTION_GAP := 8
+const AUI_COLUMN_GAP := 20
+const AUI_PANEL_PADDING := 24
+const AUI_FIELD_ROW_HEIGHT := 48
+const AUI_FIELD_ROW_GAP := 12
+const AUI_BUTTON_HEIGHT := 50
+const AUI_PANEL_RADIUS := 4
+const AUI_INPUT_RADIUS := 3
+const AUI_BORDER_WIDTH := 1
+const AUI_FOCUS_BORDER_WIDTH := 2
+
+const AUI_COLOR_PAGE_BG := Color("#06121a")
+const AUI_COLOR_PANEL_BG := Color("#0e181f")
+const AUI_COLOR_PANEL_BORDER := Color("#223c4d")
+const AUI_COLOR_FIELD_BG := Color("#0a1823")
+const AUI_COLOR_FIELD_BORDER := Color("#405d70")
+const AUI_COLOR_FIELD_FOCUS_BORDER := Color("#8aaabd")
+const AUI_COLOR_READONLY_BG := Color("#101c25")
+const AUI_COLOR_READONLY_BORDER := Color("#2e4555")
+const AUI_COLOR_ACTIVE_ACCENT := Color("#6f9bae")
+const AUI_COLOR_TEXT_PRIMARY := Color("#e6edf2")
+const AUI_COLOR_TEXT_INPUT := Color("#dce4e8")
+const AUI_COLOR_TEXT_SECONDARY := Color("#8fa1aa")
+const AUI_COLOR_TEXT_MUTED := Color("#637681")
+const AUI_COLOR_TEXT_READONLY := Color("#8fa2ac")
+const AUI_COLOR_SUCCESS := Color("#659578")
+const AUI_COLOR_WARNING := Color("#bd8b3d")
 
 const EDUCATION_OPTIONS := [
 	"植物科学",
@@ -39,7 +85,7 @@ var content_scroll: ScrollContainer
 var footer: HBoxContainer
 var status_label: Label
 var name_edit: LineEdit
-var birth_spin: SpinBox
+var birth_options: OptionButton
 var gender_options: OptionButton
 var pending_academic_background_id := ""
 var education_buttons: Dictionary = {}
@@ -51,6 +97,14 @@ var appearance_options: Dictionary = {}
 var confirmation_checks: Array[CheckBox] = []
 var submit_button: Button
 var step_bar_entries: Dictionary = {}
+var identity_progress_label: Label
+var identity_validation_label: Label
+var identity_validation_hint_label: Label
+var identity_next_button: Button
+var identity_status_icon: TextureRect
+var identity_ratio_label: Label
+var identity_back_button: Button
+var identity_field_dots: Dictionary = {}
 
 func _ready() -> void:
 	profile = PlayerProfileDataScript.new()
@@ -93,33 +147,60 @@ func _unhandled_input(event: InputEvent) -> void:
 func _build_shell() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	var background := ColorRect.new()
-	background.color = Color("#06101a")
+	background.color = AUI_COLOR_PAGE_BG
 	background.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(background)
 
 	var root := VBoxContainer.new()
 	root.name = "ApplicationShell"
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root.offset_left = 36
-	root.offset_top = 24
-	root.offset_right = -36
-	root.offset_bottom = -32
-	root.add_theme_constant_override("separation", 12)
+	root.offset_left = AUI_PAGE_MARGIN
+	root.offset_top = AUI_PAGE_MARGIN
+	root.offset_right = -AUI_PAGE_MARGIN
+	root.offset_bottom = -AUI_PAGE_MARGIN
+	root.add_theme_constant_override("separation", AUI_SECTION_GAP)
 	add_child(root)
 
 	var header := HBoxContainer.new()
-	header.add_theme_constant_override("separation", 24)
+	header.custom_minimum_size = Vector2(0, AUI_HEADER_HEIGHT)
+	header.add_theme_constant_override("separation", 18)
 	root.add_child(header)
-	_add_header_label(header, "国家深空生命科学中心\nNATIONAL DEEP SPACE LIFE SCIENCE CENTER", Vector2(280, 58), 15, Color("#d8e7f2"))
-	_add_header_label(header, "广寒计划常驻开拓者申请系统\nPROJECT GUANGHAN · PERMANENT PIONEER APPLICATION SYSTEM", Vector2(520, 58), 22, Color("#edf7ff"))
-	_add_header_label(header, "系统编号  GHO-AS-2068-0421\n当前时间  2068-04-12   07:15:32", Vector2(240, 58), 14, Color("#8fa3b2"))
+	_add_icon(header, IconInstitution, Vector2(64, 64))
+	_add_header_label(header, "国家深空生命科学中心", Vector2(210, 0), 16, AUI_COLOR_TEXT_INPUT)
+	_add_header_label(header, "NATIONAL DEEP SPACE\nLIFE SCIENCE CENTER", Vector2(170, 0), 11, AUI_COLOR_TEXT_SECONDARY)
+	var title_box := VBoxContainer.new()
+	title_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	header.add_child(title_box)
+	var title := Label.new()
+	title.text = "广寒计划常驻开拓者申请系统"
+	title.modulate = Color("#e0e7eb")
+	title.add_theme_font_size_override("font_size", 22)
+	title_box.add_child(title)
+	var title_sub := Label.new()
+	title_sub.text = "PROJECT GUANGHAN · PERMANENT PIONEER APPLICATION SYSTEM"
+	title_sub.modulate = Color("#9baab3")
+	title_sub.add_theme_font_size_override("font_size", 14)
+	title_box.add_child(title_sub)
+	var meta_cluster := HBoxContainer.new()
+	meta_cluster.add_theme_constant_override("separation", 10)
+	meta_cluster.alignment = BoxContainer.ALIGNMENT_CENTER
+	meta_cluster.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	header.add_child(meta_cluster)
+	var meta_box := VBoxContainer.new()
+	meta_box.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	meta_cluster.add_child(meta_box)
+	_add_meta_row(meta_box, "系统编号", "GHO-AS-2068-0421")
+	_add_meta_row(meta_box, "当前时间", "2068-04-12  07:15:32")
+	var assistant_icon := _add_icon(meta_cluster, IconAssistant, Vector2(48, 48))
+	assistant_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 
-	root.add_child(HSeparator.new())
 	_add_step_bar(root)
 
 	content_scroll = ScrollContainer.new()
 	content_scroll.name = "ContentArea"
 	content_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	content_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	content_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	root.add_child(content_scroll)
 
@@ -127,16 +208,31 @@ func _build_shell() -> void:
 	page_body.name = "PageBody"
 	page_body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	page_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	page_body.add_theme_constant_override("separation", 12)
+	page_body.add_theme_constant_override("separation", AUI_SECTION_GAP)
 	content_scroll.add_child(page_body)
 
 	footer = HBoxContainer.new()
 	footer.name = "Footer"
-	footer.alignment = BoxContainer.ALIGNMENT_END
-	footer.custom_minimum_size = Vector2(0, 48)
+	footer.custom_minimum_size = Vector2(0, AUI_FOOTER_HEIGHT)
 	footer.size_flags_vertical = Control.SIZE_SHRINK_END
 	footer.add_theme_constant_override("separation", 12)
 	root.add_child(footer)
+
+func _add_meta_row(parent: VBoxContainer, label_text: String, value_text: String) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	parent.add_child(row)
+	var label := Label.new()
+	label.text = label_text
+	label.custom_minimum_size = Vector2(64, 0)
+	label.modulate = Color("#8898a2")
+	label.add_theme_font_size_override("font_size", 12)
+	row.add_child(label)
+	var value := Label.new()
+	value.text = value_text
+	value.modulate = Color("#c5d0d6")
+	value.add_theme_font_size_override("font_size", 12)
+	row.add_child(value)
 
 func _add_header_label(parent: HBoxContainer, text: String, min_size: Vector2, font_size: int, color: Color) -> void:
 	var label := Label.new()
@@ -146,22 +242,38 @@ func _add_header_label(parent: HBoxContainer, text: String, min_size: Vector2, f
 	label.add_theme_font_size_override("font_size", font_size)
 	parent.add_child(label)
 
+func _add_icon(parent: Node, texture: Texture2D, size: Vector2) -> TextureRect:
+	var icon := TextureRect.new()
+	icon.texture = texture
+	icon.custom_minimum_size = size
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	parent.add_child(icon)
+	return icon
+
 func _add_step_bar(root: VBoxContainer) -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 12)
 	root.add_child(row)
 	for key in ["identity", "education", "appearance", "review"]:
 		var panel := PanelContainer.new()
-		panel.custom_minimum_size = Vector2(270, 58)
+		panel.custom_minimum_size = Vector2(0, AUI_STEP_NAV_HEIGHT)
 		panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(panel)
+		var margin := MarginContainer.new()
+		margin.add_theme_constant_override("margin_left", 14)
+		margin.add_theme_constant_override("margin_right", 14)
+		margin.add_theme_constant_override("margin_top", 4)
+		margin.add_theme_constant_override("margin_bottom", 4)
+		panel.add_child(margin)
 		var box := VBoxContainer.new()
-		panel.add_child(box)
+		margin.add_child(box)
 		var labels: Array = STEP_LABELS[key]
 		var main := Label.new()
 		main.text = String(labels[0])
 		main.modulate = Color("#d8e7f2")
-		main.add_theme_font_size_override("font_size", 18)
+		main.add_theme_font_size_override("font_size", 17)
 		box.add_child(main)
 		var sub := Label.new()
 		sub.text = String(labels[1])
@@ -169,7 +281,7 @@ func _add_step_bar(root: VBoxContainer) -> void:
 		sub.add_theme_font_size_override("font_size", 12)
 		box.add_child(sub)
 		var indicator := ColorRect.new()
-		indicator.custom_minimum_size = Vector2(0, 2)
+		indicator.custom_minimum_size = Vector2(0, 3)
 		box.add_child(indicator)
 		step_bar_entries[key] = {
 			"panel": panel,
@@ -181,6 +293,53 @@ func _add_step_bar(root: VBoxContainer) -> void:
 
 static func is_step_active(current_step: String, candidate_step: String) -> bool:
 	return current_step == candidate_step
+
+static func derive_candidate_display_id(application_id: String) -> String:
+	var normalized := ""
+	for character in application_id:
+		if character.unicode_at(0) >= 48 and character.unicode_at(0) <= 57 or character.to_upper() != character.to_lower():
+			normalized += character.to_upper()
+	if normalized.is_empty():
+		return "待生成"
+	return "GHC-" + normalized.right(6)
+
+static func basic_information_state(player_name: String, gender: String, birth_year: int) -> Dictionary:
+	var name_valid := not player_name.strip_edges().is_empty()
+	var gender_valid := gender in ["男", "女"]
+	var birth_valid := birth_year >= 1960 and birth_year <= 2030
+	var completed := int(name_valid) + int(gender_valid) + int(birth_valid)
+	var all_fields_populated := not player_name.strip_edges().is_empty() and not gender.strip_edges().is_empty() and birth_year != 0
+	var validation := "已完成" if name_valid and gender_valid and birth_valid else ("需检查" if all_fields_populated else "待完成")
+	return {"completed": completed, "valid": name_valid and gender_valid and birth_valid, "validation": validation}
+
+func _refresh_identity_state() -> void:
+	if identity_progress_label == null or identity_validation_label == null or identity_next_button == null:
+		return
+	var gender := "" if gender_options.selected <= 0 else gender_options.get_item_text(gender_options.selected)
+	var birth_year := 0 if birth_options.selected <= 0 else int(birth_options.get_item_text(birth_options.selected))
+	var state := basic_information_state(name_edit.text, gender, birth_year)
+	var completed := int(state["completed"])
+	var valid := bool(state["valid"])
+	identity_progress_label.text = "必填项完成情况：%d / 3" % completed
+	identity_validation_label.text = "资料校验状态：%s" % String(state["validation"])
+	identity_next_button.disabled = not valid
+	_style_identity_next_button(identity_next_button)
+	if identity_status_icon != null:
+		identity_status_icon.texture = IconStatusComplete if completed == 3 else IconStatusIncomplete
+	if identity_ratio_label != null:
+		identity_ratio_label.text = "%d/3" % completed
+	if identity_validation_hint_label != null:
+		identity_validation_hint_label.text = "已完成，可点击下一步继续。" if valid else "请完成所有必填项后进入下一步。"
+	if identity_field_dots.has("姓名"):
+		_set_identity_field_dot(identity_field_dots["姓名"], not name_edit.text.strip_edges().is_empty(), "姓名")
+	if identity_field_dots.has("性别"):
+		_set_identity_field_dot(identity_field_dots["性别"], gender in ["男", "女"], "性别")
+	if identity_field_dots.has("出生年份"):
+		_set_identity_field_dot(identity_field_dots["出生年份"], birth_year >= 1960 and birth_year <= 2030, "出生年份")
+
+func _set_identity_field_dot(dot_label: Label, filled: bool, field_name: String) -> void:
+	dot_label.text = ("● " if filled else "○ ") + field_name
+	dot_label.modulate = AUI_COLOR_SUCCESS if filled else AUI_COLOR_TEXT_SECONDARY
 
 func _refresh_step_bar() -> void:
 	for key in step_bar_entries.keys():
@@ -209,6 +368,7 @@ func _show_step(next_step: String) -> void:
 	_refresh_step_bar()
 	_clear_container(page_body)
 	_clear_container(footer)
+	content_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	match step:
 		"identity":
 			_show_identity()
@@ -227,40 +387,557 @@ func _show_step(next_step: String) -> void:
 	_save_profile()
 
 func _show_identity() -> void:
-	_add_page_title("01 基础信息", "BASIC INFORMATION")
-	var columns := _add_columns(0.47)
+	content_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_add_identity_page_heading()
+	var columns := _add_identity_columns()
 	var left: VBoxContainer = columns[0]
 	var right: VBoxContainer = columns[1]
-	_add_panel_title(left, "基础信息填写")
-	_add_body_to(left, "请填写任务档案显示信息。无需填写真实证件信息。")
-	name_edit = _add_line_edit_to(left, "姓名", String(profile.get("player_name")))
-	birth_spin = SpinBox.new()
-	birth_spin.min_value = 1960
-	birth_spin.max_value = 2030
-	birth_spin.value = int(profile.get("birth_year"))
-	_add_field_to(left, "出生年份", birth_spin)
-	gender_options = _add_options_to(left, "性别", ["男", "女"], String(profile.get("gender_display")))
-	_add_panel_title(left, "系统生成信息")
-	_add_readonly_field_to(left, "申请编号", String(profile.get("application_id")))
-	_add_readonly_field_to(left, "候选人档案状态", String(profile.get("candidate_file_status")))
-	_add_readonly_field_to(left, "任务身份", String(profile.get("mission_identity")))
-	_add_note_to(left, "性别仅影响视觉体型预设，不影响数值、能力或玩法加成。")
+	_add_identity_panel_heading(left, "候选人基础资料", "CANDIDATE RECORD")
 
-	_add_panel_title(right, "广寒计划任务信息")
-	_add_project_info(right)
-	var art := ApplicationArtPanelScript.new()
-	art.panel_kind = "project"
-	right.add_child(art)
-	_add_note_to(right, "广寒计划是人类迈向深空常驻的第一步。")
+	var section_a := VBoxContainer.new()
+	section_a.add_theme_constant_override("separation", AUI_FIELD_ROW_GAP)
+	left.add_child(section_a)
+	_add_identity_section_heading(section_a, "A. 候选人填写信息", "CANDIDATE INPUT")
+	name_edit = _add_identity_line_edit(section_a, "姓名 *", String(profile.get("player_name")), "请输入姓名")
+	_style_identity_editable(name_edit)
+	var saved_gender := String(profile.get("gender_display")) if not String(profile.get("player_name")).strip_edges().is_empty() else ""
+	gender_options = _add_identity_dropdown(section_a, "性别 *", ["未选择", "男", "女"], saved_gender)
+	birth_options = _add_identity_year_dropdown(section_a, String(profile.get("player_name")))
+	_style_identity_option(gender_options)
+	_style_identity_option(birth_options)
+	name_edit.text_changed.connect(func(_value: String): _refresh_identity_state())
+	birth_options.item_selected.connect(func(_index: int): _refresh_identity_state())
+	gender_options.item_selected.connect(func(_index: int): _refresh_identity_state())
 
-	_add_footer_button("返回", func(): get_tree().change_scene_to_file("res://scenes/main.tscn"))
-	_add_footer_button("下一步", func():
+	var section_b := VBoxContainer.new()
+	section_b.add_theme_constant_override("separation", 8)
+	left.add_child(section_b)
+	_add_identity_section_heading(section_b, "B. 系统生成信息", "由系统自动生成，不可编辑  ·  SYSTEM GENERATED (READ ONLY)")
+	_add_identity_readonly(section_b, "申请编号", String(profile.get("application_id")))
+	_add_identity_readonly(section_b, "候选人编号", derive_candidate_display_id(String(profile.get("application_id"))))
+	_add_identity_readonly(section_b, "档案状态", String(profile.get("candidate_file_status")))
+	_add_identity_readonly(section_b, "任务身份", String(profile.get("mission_identity")))
+
+	_add_identity_panel_heading(right, "广寒计划任务档案", "MISSION BRIEF")
+	_add_identity_mission_info(right)
+	_add_mission_link_diagram(right)
+	_add_note_to(right, "广寒前哨将建立可持续生命支持系统，推动月球长期有人驻留。")
+	_build_identity_footer()
+	_refresh_identity_state()
+
+func _add_identity_page_heading() -> void:
+	var row := HBoxContainer.new()
+	row.custom_minimum_size = Vector2(0, AUI_PAGE_HEADING_HEIGHT)
+	row.add_theme_constant_override("separation", 14)
+	page_body.add_child(row)
+	var index := Label.new()
+	index.text = "01"
+	index.modulate = AUI_COLOR_ACTIVE_ACCENT
+	index.add_theme_font_size_override("font_size", 28)
+	row.add_child(index)
+	var labels := VBoxContainer.new()
+	labels.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var title := Label.new()
+	title.text = "基础信息"
+	title.modulate = AUI_COLOR_TEXT_PRIMARY
+	title.add_theme_font_size_override("font_size", 28)
+	labels.add_child(title)
+	var subtitle := Label.new()
+	subtitle.text = "BASIC INFORMATION"
+	subtitle.modulate = AUI_COLOR_TEXT_SECONDARY
+	subtitle.add_theme_font_size_override("font_size", 12)
+	labels.add_child(subtitle)
+	row.add_child(labels)
+	var description := Label.new()
+	description.text = "填写候选人任务档案显示信息，用于建立你的申请记录。"
+	description.modulate = AUI_COLOR_TEXT_MUTED
+	description.add_theme_font_size_override("font_size", 14)
+	description.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	description.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	description.custom_minimum_size = Vector2(480, 0)
+	row.add_child(description)
+
+func _add_identity_columns() -> Array[VBoxContainer]:
+	var row := HBoxContainer.new()
+	row.custom_minimum_size = Vector2(0, AUI_BODY_HEIGHT)
+	row.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	row.add_theme_constant_override("separation", AUI_COLUMN_GAP)
+	page_body.add_child(row)
+	var left_panel := PanelContainer.new()
+	left_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left_panel.size_flags_stretch_ratio = 0.52
+	_style_identity_panel(left_panel)
+	row.add_child(left_panel)
+	var left := VBoxContainer.new()
+	left.add_theme_constant_override("separation", 14)
+	left_panel.add_child(left)
+	var right_panel := PanelContainer.new()
+	right_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right_panel.size_flags_stretch_ratio = 0.48
+	_style_identity_panel(right_panel)
+	row.add_child(right_panel)
+	var right := VBoxContainer.new()
+	right.add_theme_constant_override("separation", 10)
+	right_panel.add_child(right)
+	var result: Array[VBoxContainer] = [left, right]
+	return result
+
+func _style_identity_panel(panel: PanelContainer) -> void:
+	var style := StyleBoxFlat.new()
+	style.bg_color = AUI_COLOR_PANEL_BG
+	style.border_color = AUI_COLOR_PANEL_BORDER
+	style.set_border_width_all(AUI_BORDER_WIDTH)
+	style.corner_radius_top_left = AUI_PANEL_RADIUS
+	style.corner_radius_top_right = AUI_PANEL_RADIUS
+	style.corner_radius_bottom_left = AUI_PANEL_RADIUS
+	style.corner_radius_bottom_right = AUI_PANEL_RADIUS
+	style.content_margin_left = AUI_PANEL_PADDING
+	style.content_margin_right = AUI_PANEL_PADDING
+	style.content_margin_top = AUI_PANEL_PADDING
+	style.content_margin_bottom = AUI_PANEL_PADDING
+	panel.add_theme_stylebox_override("panel", style)
+
+func _add_identity_panel_heading(parent: VBoxContainer, title_text: String, subtitle_text: String) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	parent.add_child(row)
+	var title := Label.new()
+	title.text = title_text
+	title.modulate = Color("#cad5db")
+	title.add_theme_font_size_override("font_size", 16)
+	row.add_child(title)
+	var sub := Label.new()
+	sub.text = subtitle_text
+	sub.modulate = Color("#7d909a")
+	sub.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	sub.add_theme_font_size_override("font_size", 11)
+	row.add_child(sub)
+	parent.add_child(HSeparator.new())
+
+func _add_identity_section_heading(parent: VBoxContainer, title_text: String, subtitle_text: String) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	_add_icon(row, IconSectionMarker, Vector2(16, 20))
+	var title := Label.new()
+	title.text = title_text
+	title.modulate = AUI_COLOR_TEXT_PRIMARY
+	title.add_theme_font_size_override("font_size", 15)
+	row.add_child(title)
+	var sub := Label.new()
+	sub.text = subtitle_text
+	sub.modulate = AUI_COLOR_TEXT_MUTED
+	sub.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	sub.add_theme_font_size_override("font_size", 11)
+	row.add_child(sub)
+	parent.add_child(row)
+	parent.add_child(HSeparator.new())
+
+func _add_identity_line_edit(parent: VBoxContainer, label_text: String, value: String, placeholder: String) -> LineEdit:
+	var row := HBoxContainer.new()
+	row.custom_minimum_size = Vector2(0, AUI_FIELD_ROW_HEIGHT)
+	row.add_theme_constant_override("separation", 12)
+	var label := Label.new()
+	label.text = label_text
+	label.custom_minimum_size = Vector2(150, 0)
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.modulate = AUI_COLOR_TEXT_SECONDARY
+	label.add_theme_font_size_override("font_size", 15)
+	row.add_child(label)
+	var edit := LineEdit.new()
+	edit.text = value
+	edit.placeholder_text = placeholder
+	edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	edit.custom_minimum_size = Vector2(0, AUI_FIELD_ROW_HEIGHT)
+	row.add_child(edit)
+	parent.add_child(row)
+	return edit
+
+func _add_identity_dropdown(parent: VBoxContainer, label_text: String, options: Array, selected_value: String) -> OptionButton:
+	var row := HBoxContainer.new()
+	row.custom_minimum_size = Vector2(0, AUI_FIELD_ROW_HEIGHT)
+	row.add_theme_constant_override("separation", 12)
+	var label := Label.new()
+	label.text = label_text
+	label.custom_minimum_size = Vector2(150, 0)
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.modulate = AUI_COLOR_TEXT_SECONDARY
+	label.add_theme_font_size_override("font_size", 15)
+	row.add_child(label)
+	var option := OptionButton.new()
+	option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	option.custom_minimum_size = Vector2(0, AUI_FIELD_ROW_HEIGHT)
+	for item in options:
+		option.add_item(String(item))
+	var selected_index := options.find(selected_value)
+	option.select(selected_index if selected_index > 0 else 0)
+	row.add_child(option)
+	parent.add_child(row)
+	return option
+
+func _add_identity_year_dropdown(parent: VBoxContainer, profile_name: String) -> OptionButton:
+	var years: Array = ["请选择出生年份"]
+	for year in range(2030, 1959, -1):
+		years.append(str(year))
+	var selected_year := str(int(profile.get("birth_year"))) if not profile_name.strip_edges().is_empty() else ""
+	return _add_identity_dropdown(parent, "出生年份 *", years, selected_year)
+
+func _add_identity_readonly(parent: VBoxContainer, label_text: String, value: String) -> void:
+	var row := HBoxContainer.new()
+	row.custom_minimum_size = Vector2(0, 40)
+	row.add_theme_constant_override("separation", 12)
+	var label := Label.new()
+	label.text = label_text
+	label.custom_minimum_size = Vector2(150, 0)
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.modulate = AUI_COLOR_TEXT_SECONDARY
+	label.add_theme_font_size_override("font_size", 15)
+	row.add_child(label)
+	var field := PanelContainer.new()
+	field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	field.mouse_default_cursor_shape = Control.CURSOR_ARROW
+	field.focus_mode = Control.FOCUS_NONE
+	var field_style := StyleBoxFlat.new()
+	field_style.bg_color = AUI_COLOR_READONLY_BG
+	field_style.border_color = AUI_COLOR_READONLY_BORDER
+	field_style.set_border_width_all(AUI_BORDER_WIDTH)
+	field_style.corner_radius_top_left = AUI_INPUT_RADIUS
+	field_style.corner_radius_top_right = AUI_INPUT_RADIUS
+	field_style.corner_radius_bottom_left = AUI_INPUT_RADIUS
+	field_style.corner_radius_bottom_right = AUI_INPUT_RADIUS
+	field_style.content_margin_left = 12
+	field_style.content_margin_right = 10
+	field.add_theme_stylebox_override("panel", field_style)
+	var field_row := HBoxContainer.new()
+	var text := Label.new()
+	text.text = value
+	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	text.modulate = AUI_COLOR_TEXT_READONLY
+	text.add_theme_font_size_override("font_size", 15)
+	field_row.add_child(text)
+	_add_icon(field_row, IconLock, Vector2(20, 20))
+	field.add_child(field_row)
+	row.add_child(field)
+	parent.add_child(row)
+
+func _add_identity_mission_info(parent: VBoxContainer) -> void:
+	var info_box := VBoxContainer.new()
+	info_box.add_theme_constant_override("separation", 4)
+	parent.add_child(info_box)
+	for item in [["任务名称", "广寒计划"], ["任务类型", "长期驻留 / 生命支持建设"], ["派驻地点", "月球 · 广寒前哨"], ["地月距离", "384,400 km"], ["单程通信延迟", "约 1.3 s"], ["任务周期", "长期派驻，训练后确认"], ["当前身份", String(profile.get("mission_identity"))]]:
+		var row := HBoxContainer.new()
+		row.custom_minimum_size = Vector2(0, 22)
+		var label := Label.new()
+		label.text = String(item[0])
+		label.custom_minimum_size = Vector2(150, 0)
+		label.modulate = AUI_COLOR_TEXT_SECONDARY
+		label.add_theme_font_size_override("font_size", 13)
+		row.add_child(label)
+		var value := Label.new()
+		value.text = String(item[1])
+		value.modulate = AUI_COLOR_TEXT_INPUT
+		value.add_theme_font_size_override("font_size", 13)
+		row.add_child(value)
+		info_box.add_child(row)
+
+func _add_mission_link_diagram(parent: VBoxContainer) -> void:
+	var heading := Label.new()
+	heading.text = "地球通信与派驻示意图"
+	heading.modulate = AUI_COLOR_TEXT_SECONDARY
+	heading.add_theme_font_size_override("font_size", 13)
+	parent.add_child(heading)
+	var frame := PanelContainer.new()
+	frame.custom_minimum_size = Vector2(0, 150)
+	var frame_style := StyleBoxFlat.new()
+	frame_style.bg_color = Color("#0a1620")
+	frame_style.border_color = Color("#1e394b")
+	frame_style.set_border_width_all(AUI_BORDER_WIDTH)
+	frame_style.corner_radius_top_left = AUI_INPUT_RADIUS
+	frame_style.corner_radius_top_right = AUI_INPUT_RADIUS
+	frame_style.corner_radius_bottom_left = AUI_INPUT_RADIUS
+	frame_style.corner_radius_bottom_right = AUI_INPUT_RADIUS
+	frame_style.content_margin_left = 16
+	frame_style.content_margin_right = 16
+	frame_style.content_margin_top = 10
+	frame_style.content_margin_bottom = 10
+	frame.add_theme_stylebox_override("panel", frame_style)
+	parent.add_child(frame)
+
+	var route := HBoxContainer.new()
+	route.alignment = BoxContainer.ALIGNMENT_CENTER
+	route.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	route.add_theme_constant_override("separation", 14)
+	frame.add_child(route)
+
+	var earth_stop := VBoxContainer.new()
+	earth_stop.alignment = BoxContainer.ALIGNMENT_CENTER
+	earth_stop.add_theme_constant_override("separation", 4)
+	_add_icon(earth_stop, IconEarth, Vector2(64, 64))
+	_add_diagram_label(earth_stop, "地球", AUI_COLOR_TEXT_INPUT, 14)
+	var terminal_row := HBoxContainer.new()
+	terminal_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	terminal_row.add_theme_constant_override("separation", 4)
+	_add_icon(terminal_row, IconTerminal, Vector2(16, 16))
+	_add_diagram_label(terminal_row, "当前申请终端", AUI_COLOR_SUCCESS, 11)
+	earth_stop.add_child(terminal_row)
+	route.add_child(earth_stop)
+
+	var link_a := VBoxContainer.new()
+	link_a.custom_minimum_size = Vector2(170, 0)
+	link_a.alignment = BoxContainer.ALIGNMENT_CENTER
+	link_a.add_theme_constant_override("separation", 4)
+	_add_diagram_label(link_a, "384,400 km", AUI_COLOR_TEXT_SECONDARY, 13)
+	_add_solid_double_arrow(link_a, 130, Color("#5fb0e0"))
+	_add_diagram_label(link_a, "单程约 1.3 s", AUI_COLOR_TEXT_SECONDARY, 12)
+	route.add_child(link_a)
+
+	var moon_stop := VBoxContainer.new()
+	moon_stop.alignment = BoxContainer.ALIGNMENT_CENTER
+	moon_stop.add_theme_constant_override("separation", 4)
+	_add_icon(moon_stop, IconMoon, Vector2(48, 48))
+	_add_diagram_label(moon_stop, "月球", AUI_COLOR_TEXT_INPUT, 14)
+	route.add_child(moon_stop)
+
+	var link_b := VBoxContainer.new()
+	link_b.custom_minimum_size = Vector2(50, 0)
+	link_b.alignment = BoxContainer.ALIGNMENT_CENTER
+	_add_dashed_single_arrow(link_b, 44, AUI_COLOR_TEXT_MUTED)
+	route.add_child(link_b)
+
+	var outpost_stop := VBoxContainer.new()
+	outpost_stop.alignment = BoxContainer.ALIGNMENT_CENTER
+	outpost_stop.add_theme_constant_override("separation", 4)
+	_add_icon(outpost_stop, IconOutpost, Vector2(32, 32))
+	_add_diagram_label(outpost_stop, "广寒前哨", AUI_COLOR_TEXT_INPUT, 14)
+	route.add_child(outpost_stop)
+
+func _add_diagram_label(parent: Container, text: String, color: Color, font_size: int) -> void:
+	var label := Label.new()
+	label.text = text
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.modulate = color
+	label.add_theme_font_size_override("font_size", font_size)
+	parent.add_child(label)
+
+func _make_arrow_glyph(glyph: String, color: Color) -> Label:
+	var label := Label.new()
+	label.text = glyph
+	label.modulate = color
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.add_theme_font_size_override("font_size", 12)
+	return label
+
+func _add_solid_double_arrow(parent: Container, width: int, color: Color) -> void:
+	var row := HBoxContainer.new()
+	row.custom_minimum_size = Vector2(width, 14)
+	row.add_theme_constant_override("separation", 2)
+	row.add_child(_make_arrow_glyph("◀", color))
+	var line := ColorRect.new()
+	line.custom_minimum_size = Vector2(0, 2)
+	line.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	line.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	line.color = color
+	row.add_child(line)
+	row.add_child(_make_arrow_glyph("▶", color))
+	parent.add_child(row)
+
+func _add_dashed_single_arrow(parent: Container, width: int, color: Color) -> void:
+	var row := HBoxContainer.new()
+	row.custom_minimum_size = Vector2(width, 14)
+	row.add_theme_constant_override("separation", 4)
+	for i in range(4):
+		var dash := ColorRect.new()
+		dash.custom_minimum_size = Vector2(7, 2)
+		dash.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		dash.color = color
+		row.add_child(dash)
+	row.add_child(_make_arrow_glyph("▶", color))
+	parent.add_child(row)
+
+func _build_identity_footer() -> void:
+	var frame := PanelContainer.new()
+	frame.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	var style := StyleBoxFlat.new()
+	style.bg_color = AUI_COLOR_PANEL_BG
+	style.border_color = AUI_COLOR_PANEL_BORDER
+	style.set_border_width_all(AUI_BORDER_WIDTH)
+	style.corner_radius_top_left = AUI_PANEL_RADIUS
+	style.corner_radius_top_right = AUI_PANEL_RADIUS
+	style.corner_radius_bottom_left = AUI_PANEL_RADIUS
+	style.corner_radius_bottom_right = AUI_PANEL_RADIUS
+	style.content_margin_left = AUI_PANEL_PADDING
+	style.content_margin_right = AUI_PANEL_PADDING
+	style.content_margin_top = 16
+	style.content_margin_bottom = 16
+	frame.add_theme_stylebox_override("panel", style)
+	footer.add_child(frame)
+
+	var row := HBoxContainer.new()
+	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	row.add_theme_constant_override("separation", 24)
+	frame.add_child(row)
+
+	# Cluster 1: circular status badge (icon_status_incomplete/complete, swaps) with the X/3 ratio overlaid.
+	var badge := Control.new()
+	badge.custom_minimum_size = Vector2(44, 44)
+	badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(badge)
+	identity_status_icon = TextureRect.new()
+	identity_status_icon.texture = IconStatusIncomplete
+	identity_status_icon.set_anchors_preset(Control.PRESET_FULL_RECT)
+	identity_status_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	identity_status_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	identity_status_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	badge.add_child(identity_status_icon)
+	identity_ratio_label = Label.new()
+	identity_ratio_label.set_anchors_preset(Control.PRESET_FULL_RECT)
+	identity_ratio_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	identity_ratio_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	identity_ratio_label.modulate = AUI_COLOR_TEXT_INPUT
+	identity_ratio_label.add_theme_font_size_override("font_size", 14)
+	badge.add_child(identity_ratio_label)
+
+	row.add_child(VSeparator.new())
+
+	# Cluster 2: validation status + hint.
+	var middle_cluster := VBoxContainer.new()
+	middle_cluster.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	middle_cluster.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	middle_cluster.add_theme_constant_override("separation", 4)
+	row.add_child(middle_cluster)
+	identity_validation_label = Label.new()
+	identity_validation_label.modulate = Color("#b9cad6")
+	identity_validation_label.add_theme_font_size_override("font_size", 16)
+	middle_cluster.add_child(identity_validation_label)
+	identity_validation_hint_label = Label.new()
+	identity_validation_hint_label.modulate = AUI_COLOR_TEXT_MUTED
+	identity_validation_hint_label.add_theme_font_size_override("font_size", 12)
+	middle_cluster.add_child(identity_validation_hint_label)
+
+	row.add_child(VSeparator.new())
+
+	# Cluster 3: required-field completion detail with per-field radio dots.
+	var completion_cluster := VBoxContainer.new()
+	completion_cluster.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	completion_cluster.add_theme_constant_override("separation", 6)
+	row.add_child(completion_cluster)
+	identity_progress_label = Label.new()
+	identity_progress_label.modulate = AUI_COLOR_TEXT_INPUT
+	identity_progress_label.add_theme_font_size_override("font_size", 15)
+	completion_cluster.add_child(identity_progress_label)
+	var dots_row := HBoxContainer.new()
+	dots_row.add_theme_constant_override("separation", 16)
+	completion_cluster.add_child(dots_row)
+	identity_field_dots.clear()
+	for field_key in ["姓名", "性别", "出生年份"]:
+		var dot_label := Label.new()
+		dot_label.text = "○ " + field_key
+		dot_label.modulate = AUI_COLOR_TEXT_SECONDARY
+		dot_label.add_theme_font_size_override("font_size", 13)
+		dots_row.add_child(dot_label)
+		identity_field_dots[field_key] = dot_label
+
+	var footer_spacer := Control.new()
+	footer_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(footer_spacer)
+
+	# Cluster 4: back, next (return is never placed at the page's far left).
+	var right_cluster := HBoxContainer.new()
+	right_cluster.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	right_cluster.add_theme_constant_override("separation", 12)
+	row.add_child(right_cluster)
+	identity_back_button = Button.new()
+	identity_back_button.text = "返回"
+	identity_back_button.custom_minimum_size = Vector2(150, AUI_BUTTON_HEIGHT)
+	identity_back_button.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/main.tscn"))
+	right_cluster.add_child(identity_back_button)
+	identity_next_button = Button.new()
+	identity_next_button.text = "下一步"
+	identity_next_button.icon = IconArrowRight
+	identity_next_button.icon_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	identity_next_button.custom_minimum_size = Vector2(220, AUI_BUTTON_HEIGHT)
+	identity_next_button.pressed.connect(func():
 		_capture_identity()
-		if String(profile.get("player_name")).strip_edges().is_empty():
-			_add_note_to(left, "姓名不能为空。")
-			return
 		_show_step("education")
 	)
+	right_cluster.add_child(identity_next_button)
+
+func _style_identity_editable(edit: LineEdit) -> void:
+	var normal := StyleBoxFlat.new()
+	normal.bg_color = AUI_COLOR_FIELD_BG
+	normal.border_color = AUI_COLOR_FIELD_BORDER
+	normal.set_border_width_all(AUI_BORDER_WIDTH)
+	normal.content_margin_left = 16
+	normal.content_margin_right = 16
+	normal.corner_radius_top_left = AUI_INPUT_RADIUS
+	normal.corner_radius_top_right = AUI_INPUT_RADIUS
+	normal.corner_radius_bottom_left = AUI_INPUT_RADIUS
+	normal.corner_radius_bottom_right = AUI_INPUT_RADIUS
+	var hover := normal.duplicate()
+	hover.border_color = Color("#638196")
+	var focus := normal.duplicate()
+	focus.border_color = AUI_COLOR_FIELD_FOCUS_BORDER
+	focus.set_border_width_all(AUI_FOCUS_BORDER_WIDTH)
+	var read_only := normal.duplicate()
+	read_only.bg_color = AUI_COLOR_READONLY_BG
+	read_only.border_color = AUI_COLOR_READONLY_BORDER
+	edit.add_theme_stylebox_override("normal", normal)
+	edit.add_theme_stylebox_override("hover", hover)
+	edit.add_theme_stylebox_override("focus", focus)
+	edit.add_theme_stylebox_override("read_only", read_only)
+	edit.add_theme_color_override("font_color", AUI_COLOR_TEXT_INPUT)
+	edit.add_theme_color_override("font_placeholder_color", AUI_COLOR_TEXT_MUTED)
+	edit.add_theme_font_size_override("font_size", 16)
+
+func _style_identity_option(option: OptionButton) -> void:
+	var normal := StyleBoxFlat.new()
+	normal.bg_color = AUI_COLOR_FIELD_BG
+	normal.border_color = AUI_COLOR_FIELD_BORDER
+	normal.set_border_width_all(AUI_BORDER_WIDTH)
+	normal.corner_radius_top_left = AUI_INPUT_RADIUS
+	normal.corner_radius_top_right = AUI_INPUT_RADIUS
+	normal.corner_radius_bottom_left = AUI_INPUT_RADIUS
+	normal.corner_radius_bottom_right = AUI_INPUT_RADIUS
+	var hover := normal.duplicate()
+	hover.border_color = Color("#638196")
+	var focus := normal.duplicate()
+	focus.border_color = AUI_COLOR_FIELD_FOCUS_BORDER
+	focus.set_border_width_all(AUI_FOCUS_BORDER_WIDTH)
+	option.add_theme_stylebox_override("normal", normal)
+	option.add_theme_stylebox_override("hover", hover)
+	option.add_theme_stylebox_override("focus", focus)
+	option.add_theme_color_override("font_color", AUI_COLOR_TEXT_INPUT)
+	option.add_theme_font_size_override("font_size", 16)
+	var popup := option.get_popup()
+	var popup_panel := StyleBoxFlat.new()
+	popup_panel.bg_color = AUI_COLOR_FIELD_BG
+	popup_panel.border_color = AUI_COLOR_FIELD_BORDER
+	popup_panel.set_border_width_all(AUI_BORDER_WIDTH)
+	popup.add_theme_stylebox_override("panel", popup_panel)
+	popup.add_theme_color_override("font_color", AUI_COLOR_TEXT_SECONDARY)
+	popup.add_theme_color_override("font_hover_color", AUI_COLOR_TEXT_INPUT)
+	popup.add_theme_color_override("font_selected_color", Color("#b8c68a"))
+
+func _style_identity_next_button(button: Button) -> void:
+	var enabled := StyleBoxFlat.new()
+	enabled.bg_color = Color("#213b50")
+	enabled.border_color = Color("#607f93")
+	enabled.set_border_width_all(AUI_BORDER_WIDTH)
+	enabled.corner_radius_top_left = AUI_INPUT_RADIUS
+	enabled.corner_radius_top_right = AUI_INPUT_RADIUS
+	enabled.corner_radius_bottom_left = AUI_INPUT_RADIUS
+	enabled.corner_radius_bottom_right = AUI_INPUT_RADIUS
+	var enabled_hover := enabled.duplicate()
+	enabled_hover.bg_color = Color("#2b4b62")
+	var disabled := enabled.duplicate()
+	disabled.bg_color = Color("#151f26")
+	disabled.border_color = Color("#26333c")
+	button.add_theme_stylebox_override("normal", enabled)
+	button.add_theme_stylebox_override("hover", enabled_hover)
+	button.add_theme_stylebox_override("disabled", disabled)
+	button.add_theme_color_override("font_color", AUI_COLOR_TEXT_PRIMARY)
+	button.add_theme_color_override("font_disabled_color", Color("#57646d"))
 
 func _show_education() -> void:
 	_add_page_title("选择候选人学术背景", "ACADEMIC BACKGROUND")
@@ -467,9 +1144,9 @@ func _capture_current_fields() -> void:
 func _capture_identity() -> void:
 	if name_edit != null:
 		profile.set("player_name", name_edit.text.strip_edges())
-	if birth_spin != null:
-		profile.set("birth_year", int(birth_spin.value))
-	if gender_options != null:
+	if birth_options != null and birth_options.selected > 0:
+		profile.set("birth_year", int(birth_options.get_item_text(birth_options.selected)))
+	if gender_options != null and gender_options.selected > 0:
 		profile.set("gender_display", gender_options.get_item_text(gender_options.selected))
 	_save_profile()
 
@@ -708,12 +1385,6 @@ func _add_line_edit_to(parent: VBoxContainer, label_text: String, value: String)
 	edit.text = value
 	_add_field_to(parent, label_text, edit)
 	return edit
-
-func _add_readonly_field_to(parent: VBoxContainer, label_text: String, value: String) -> void:
-	var edit := LineEdit.new()
-	edit.text = value
-	edit.editable = false
-	_add_field_to(parent, label_text, edit)
 
 func _add_options_to(parent: VBoxContainer, label_text: String, options: Array, selected_value: String) -> OptionButton:
 	var button := OptionButton.new()
