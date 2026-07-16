@@ -1,0 +1,66 @@
+{
+  "character": "female_light_black_longhair",
+  "action": "walk_4dir",
+  "sprite_sheet": "female_light_black_longhair_walk_4dir_6x4.png",
+  "grid": {
+    "columns": 6,
+    "rows": 4,
+    "row_order": [
+      "down",
+      "left",
+      "right",
+      "up"
+    ]
+  },
+  "frame_size": [
+    512,
+    512
+  ],
+  "frames_per_direction": 6,
+  "frame_order": [
+    "00",
+    "01",
+    "02",
+    "03",
+    "04",
+    "05"
+  ],
+  "animations": {
+    "walk_down": [
+      "female_light_black_longhair_walk_down_00.png",
+      "female_light_black_longhair_walk_down_01.png",
+      "female_light_black_longhair_walk_down_02.png",
+      "female_light_black_longhair_walk_down_03.png",
+      "female_light_black_longhair_walk_down_04.png",
+      "female_light_black_longhair_walk_down_05.png"
+    ],
+    "walk_left": [
+      "female_light_black_longhair_walk_left_00.png",
+      "female_light_black_longhair_walk_left_01.png",
+      "female_light_black_longhair_walk_left_02.png",
+      "female_light_black_longhair_walk_left_03.png",
+      "female_light_black_longhair_walk_left_04.png",
+      "female_light_black_longhair_walk_left_05.png"
+    ],
+    "walk_right": [
+      "female_light_black_longhair_walk_right_00.png",
+      "female_light_black_longhair_walk_right_01.png",
+      "female_light_black_longhair_walk_right_02.png",
+      "female_light_black_longhair_walk_right_03.png",
+      "female_light_black_longhair_walk_right_04.png",
+      "female_light_black_longhair_walk_right_05.png"
+    ],
+    "walk_up": [
+      "female_light_black_longhair_walk_up_00.png",
+      "female_light_black_longhair_walk_up_01.png",
+      "female_light_black_longhair_walk_up_02.png",
+      "female_light_black_longhair_walk_up_03.png",
+      "female_light_black_longhair_walk_up_04.png",
+      "female_light_black_longhair_walk_up_05.png"
+    ]
+  },
+  "suggested_fps": 8,
+  "loop": true,
+  "background": "transparent",
+  "pivot": "feet_center"
+}

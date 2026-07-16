@@ -1,0 +1,46 @@
+{
+  "id": "female_light_black_ponytail_walk",
+  "format": "PNG RGBA",
+  "sheet": "female_light_black_ponytail_walk_4dir_6x4.png",
+  "columns": 6,
+  "rows": [
+    "down",
+    "left",
+    "right",
+    "up"
+  ],
+  "frame_size": [
+    256,
+    256
+  ],
+  "frames_per_direction": 6,
+  "recommended_fps": 8,
+  "anchor": "feet_center",
+  "frames": [
+    "frames/female_light_black_ponytail_walk_down_00.png",
+    "frames/female_light_black_ponytail_walk_down_01.png",
+    "frames/female_light_black_ponytail_walk_down_02.png",
+    "frames/female_light_black_ponytail_walk_down_03.png",
+    "frames/female_light_black_ponytail_walk_down_04.png",
+    "frames/female_light_black_ponytail_walk_down_05.png",
+    "frames/female_light_black_ponytail_walk_left_00.png",
+    "frames/female_light_black_ponytail_walk_left_01.png",
+    "frames/female_light_black_ponytail_walk_left_02.png",
+    "frames/female_light_black_ponytail_walk_left_03.png",
+    "frames/female_light_black_ponytail_walk_left_04.png",
+    "frames/female_light_black_ponytail_walk_left_05.png",
+    "frames/female_light_black_ponytail_walk_right_00.png",
+    "frames/female_light_black_ponytail_walk_right_01.png",
+    "frames/female_light_black_ponytail_walk_right_02.png",
+    "frames/female_light_black_ponytail_walk_right_03.png",
+    "frames/female_light_black_ponytail_walk_right_04.png",
+    "frames/female_light_black_ponytail_walk_right_05.png",
+    "frames/female_light_black_ponytail_walk_up_00.png",
+    "frames/female_light_black_ponytail_walk_up_01.png",
+    "frames/female_light_black_ponytail_walk_up_02.png",
+    "frames/female_light_black_ponytail_walk_up_03.png",
+    "frames/female_light_black_ponytail_walk_up_04.png",
+    "frames/female_light_black_ponytail_walk_up_05.png"
+  ],
+  "note": "Use as a complete visual variant. Do not combine this complete sheet with another complete body sheet."
+}

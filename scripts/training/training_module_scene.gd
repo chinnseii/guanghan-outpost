@@ -5,6 +5,7 @@ const PlayerControllerScript := preload("res://scripts/controllers/player_contro
 const InteractionAreaScript := preload("res://scripts/controllers/interaction_area_2d.gd")
 const FaultDatabaseScript := preload("res://scripts/data/FaultDatabase.gd")
 const TrainingModuleScreenPresenterScript := preload("res://scripts/controllers/training_module_screen_presenter.gd")
+const PlayerSceneScript := preload("res://scenes/player.tscn")
 
 const TRAINING_03_CONTAINER_ID := "training_03_parts"
 
@@ -889,6 +890,16 @@ class TraineeVisual:
 var module_data: Dictionary = {}
 var step_index := 0
 var player: Control
+## PLAYER-VISUAL-01 training integration (2026-07-17): `player` stays a plain
+## hit-testing Control (position/size read by player_controller_2d.gd and the
+## interaction-area checks below, unchanged) -- the walk-cycle sprite itself
+## is a separate `scenes/player.tscn` instance synced to it every frame, since
+## player_visual.gd's setup()/_draw() assume a feet-center Node2D origin, not
+## a top-left Control rect.
+var player_visual: Node2D
+var player_facing := Vector2.DOWN
+var player_moving := false
+var walk_phase := 0.0
 var training_area: Control
 var floor_node: Control
 var screen_presenter: TrainingModuleScreenPresenter
@@ -1233,8 +1244,10 @@ func _build_training_area() -> void:
 		training_area.add_child(exit_visual)
 		target_nodes["exit"] = exit_visual
 
-	if module_id == "suit_control" or module_id == "airlock_procedure" or module_id == "power_repair" or module_id == "power_distribution" or module_id == "life_support" or module_id == "plant_diagnosis" or module_id == "final_assessment":
-		player = TraineeVisual.new()
+	var use_walk_cycle_sprite := module_id == "suit_control" or module_id == "airlock_procedure" or module_id == "power_repair" or module_id == "power_distribution" or module_id == "life_support" or module_id == "plant_diagnosis" or module_id == "final_assessment"
+	if use_walk_cycle_sprite:
+		player = Control.new()
+		player.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	else:
 		var player_block := ColorRect.new()
 		player_block.color = Color("#d8e7f2")
@@ -1243,6 +1256,13 @@ func _build_training_area() -> void:
 	player.position = module_data.get("player_start", Vector2(62, 420))
 	player.size = module_data.get("player_size", Vector2(26, 34))
 	training_area.add_child(player)
+
+	if use_walk_cycle_sprite:
+		player_visual = (PlayerSceneScript as PackedScene).instantiate()
+		training_area.add_child(player_visual)
+		_sync_player_visual()
+	else:
+		player_visual = null
 
 	prompt_label = Label.new()
 	prompt_label.modulate = Color("#f0c766")
@@ -1540,11 +1560,32 @@ func _move_player(delta: float) -> void:
 	player_controller.sync_position(player.position)
 	var result: Dictionary = player_controller.move_with_actions(delta, "ui_left", "ui_right", "ui_up", "ui_down")
 	player.position = result.get("position", player.position)
+	var direction: Vector2 = result.get("direction", Vector2.ZERO)
+	player_moving = bool(result.get("moved", false))
+	if direction != Vector2.ZERO:
+		player_facing = direction.normalized()
+	if player_moving:
+		walk_phase += delta * 10.0
 	if module_id == "airlock_procedure":
 		var state: Dictionary = module_data.get("state", {})
 		if bool(state.get("Module02Completed", false)) or completed:
 			player.position.x = max(player.position.x, 540.0)
 			player_controller.sync_position(player.position)
+	_sync_player_visual()
+
+## Keeps the walk-cycle sprite (player_visual) aligned to the invisible
+## hit-testing `player` Control every frame: player_visual.gd draws upward
+## from a feet-center origin, so it's positioned at the hitbox's
+## bottom-center (not player.position, which is the box's top-left corner).
+## Unlike training_base_map.gd's rooms, these module rooms lay out content in
+## direct screen pixels with no dynamic rescale helper, so no scale factor is
+## needed here.
+func _sync_player_visual() -> void:
+	if player_visual == null or not is_instance_valid(player_visual):
+		return
+	player_visual.position = player.position + Vector2(player.size.x * 0.5, player.size.y)
+	if player_visual.has_method("setup"):
+		player_visual.call("setup", player_facing, true, 100.0, player_moving, walk_phase)
 
 func _ensure_player_controller(movement_bounds: Rect2) -> void:
 	if player_controller != null:

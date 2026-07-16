@@ -9,6 +9,13 @@ extends Node
 
 const TrainingManagerScript := preload("res://scripts/training/training_manager.gd")
 
+const APPEARANCE_CYCLE := [
+	"female_light_black_longhair",
+	"female_light_black_ponytail",
+	"female_light_black_shorthair",
+]
+var _appearance_cycle_index := 0
+
 var _host: Node = null
 var _menu_parent: Node = null
 var _panel: PanelContainer = null
@@ -322,6 +329,7 @@ func build_menu() -> void:
 	_dev_add(_make_dev_button("Movement Debug: Simulate 30 Tiles (lunar_rough)", func(): _debug_movement_simulate(30, "lunar_rough", "mission")))
 	_dev_add(_make_dev_button("Movement Debug: Reset", _debug_movement_reset))
 	_dev_add(_make_dev_button("Dev Only: Clear Save", Callable(_host, "_clear_current_save")))
+	_dev_add(_make_dev_button("Dev Only: Cycle Player Appearance", _debug_cycle_player_appearance))
 
 func _make_dev_button(text: String, callback: Callable) -> Button:
 	var button := Button.new()
@@ -868,6 +876,18 @@ func _debug_movement_simulate(tile_count: int, terrain_type: String, context: St
 		return
 	manager.call("debug_simulate_move", tile_count, terrain_type, context)
 	add_log("Movement debug: simulated %d tiles on %s (%s).\n%s" % [tile_count, terrain_type, context, String(manager.call("debug_values_text"))])
+
+func _debug_cycle_player_appearance() -> void:
+	var player_node: Node = null
+	if _host != null:
+		player_node = _host.get("player_node")
+	if player_node == null or not is_instance_valid(player_node) or not player_node.has_method("set_appearance"):
+		add_log("Appearance debug: no active player_node (start the sandbox first).")
+		return
+	_appearance_cycle_index = (_appearance_cycle_index + 1) % APPEARANCE_CYCLE.size()
+	var appearance_id: String = APPEARANCE_CYCLE[_appearance_cycle_index]
+	player_node.call("set_appearance", appearance_id)
+	add_log("Player appearance -> %s" % appearance_id)
 
 func _debug_movement_reset() -> void:
 	var manager := get_node_or_null("/root/MovementTimeManager")

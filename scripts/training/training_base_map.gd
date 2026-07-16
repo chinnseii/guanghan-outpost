@@ -49,6 +49,7 @@ const MAP_OVERVIEW_NODES := [
 const PlayerControllerScript := preload("res://scripts/controllers/player_controller_2d.gd")
 const InteractionAreaScript := preload("res://scripts/controllers/interaction_area_2d.gd")
 const TrainingModuleSceneScript := preload("res://scripts/training/training_module_scene.gd")
+const PlayerSceneScript := preload("res://scenes/player.tscn")
 
 const LOCKED_HINT := "该训练区尚未解锁。请先完成当前训练目标。"
 const SUIT_REQUIRED_HINT := "该区域需要穿戴宇航服。"
@@ -111,6 +112,16 @@ var footer_buttons: HBoxContainer
 var training_area: Control
 var floor_node: Control
 var player: Control
+## PLAYER-VISUAL-01 training integration (2026-07-17): `player` stays a plain
+## hit-testing Control (position/size read by player_controller_2d.gd and the
+## interaction-area checks below, unchanged) -- the walk-cycle sprite itself
+## is a separate `scenes/player.tscn` instance synced to it every frame, since
+## player_visual.gd's setup()/_draw() assume a feet-center Node2D origin, not
+## a top-left Control rect.
+var player_visual: Node2D
+var player_facing := Vector2.DOWN
+var player_moving := false
+var walk_phase := 0.0
 var target_nodes: Dictionary = {}
 var prompt_label: Label
 
@@ -685,6 +696,7 @@ func _load_area(area_id: String, spawn_point: Vector2) -> void:
 	_build_training_area()
 	if player != null:
 		player.position = _room_point(spawn_point)
+		_sync_player_visual()
 	if player_controller != null:
 		player_controller.sync_position(player.position)
 	_push_player_state_area()
@@ -825,6 +837,29 @@ func _move_player(delta: float) -> void:
 	player_controller.sync_position(player.position)
 	var result: Dictionary = player_controller.move_with_actions(delta, "ui_left", "ui_right", "ui_up", "ui_down")
 	player.position = result.get("position", player.position)
+	var direction: Vector2 = result.get("direction", Vector2.ZERO)
+	player_moving = bool(result.get("moved", false))
+	if direction != Vector2.ZERO:
+		player_facing = direction.normalized()
+	if player_moving:
+		walk_phase += delta * 10.0
+	_sync_player_visual()
+
+## Keeps the walk-cycle sprite (player_visual) aligned to the invisible
+## hit-testing `player` Control every frame: player_visual.gd draws upward
+## from a feet-center origin, so it's positioned at the hitbox's
+## bottom-center (not player.position, which is the box's top-left corner),
+## and uniformly scaled to match this room's current _room_scale() since
+## player_visual's DISPLAY_SIZE is a fixed ~56px tuned for the overworld's
+## TILE constant, not this room's dynamic rescaling.
+func _sync_player_visual() -> void:
+	if player_visual == null or not is_instance_valid(player_visual):
+		return
+	var uniform_scale: float = min(_room_scale().x, _room_scale().y)
+	player_visual.scale = Vector2.ONE * uniform_scale
+	player_visual.position = player.position + Vector2(player.size.x * 0.5, player.size.y)
+	if player_visual.has_method("setup"):
+		player_visual.call("setup", player_facing, true, 100.0, player_moving, walk_phase)
 
 func _ensure_player_controller(movement_bounds: Rect2) -> void:
 	if player_controller != null:
@@ -2397,10 +2432,16 @@ func _build_training_area() -> void:
 		training_area.add_child(visual)
 		target_nodes[String(target["id"])] = visual
 
-	player = TrainingModuleSceneScript.TraineeVisual.new()
+	player = Control.new()
+	player.name = "PlayerHitbox"
+	player.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	player.size = _room_size(Vector2(42, 54))
 	player.position = _room_point(module_data.get("player_start", Vector2(350, 320)))
 	training_area.add_child(player)
+
+	player_visual = (PlayerSceneScript as PackedScene).instantiate()
+	training_area.add_child(player_visual)
+	_sync_player_visual()
 
 	prompt_label = Label.new()
 	prompt_label.modulate = Color("#f0c766")
@@ -2446,6 +2487,7 @@ func _rebuild_room_if_resized() -> void:
 	_build_training_area()
 	if player != null:
 		player.position = _room_point(design_player_position)
+		_sync_player_visual()
 	if player_controller != null:
 		player_controller.sync_position(player.position)
 

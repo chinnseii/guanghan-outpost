@@ -4,6 +4,25 @@ const PLAYER_TEXTURE_PATHS := {
 	"astronaut_walk": "res://assets/sprites/player/astronaut_walk.png",
 }
 
+## Character appearance registry (2026-07-17): each appearance_id is a
+## COMPLETE character walk-cycle sheet (not a hair-only overlay -- per the
+## designer's own handoff, different appearances' bodies/hair must never be
+## mixed). All three share the same contract: 6 cols (frames 00-05) x 4 rows
+## (down/left/right/up), 8 FPS -- only native frame_size differs per pack, so
+## player_visual.gd derives its on-screen DISPLAY_SIZE from whichever
+## frame_size this returns rather than assuming a fixed constant.
+const DEFAULT_PLAYER_APPEARANCE := "female_light_black_longhair"
+const PLAYER_APPEARANCE_TEXTURE_PATHS := {
+	"female_light_black_longhair": "res://assets/sprites/player/astronaut_walk.png",
+	"female_light_black_ponytail": "res://assets/characters/player_preview/female/light/black/walk_cycle_ponytail.png",
+	"female_light_black_shorthair": "res://assets/characters/player_preview/female/light/black/walk_cycle_shorthair.png",
+}
+const PLAYER_APPEARANCE_FRAME_SIZE := {
+	"female_light_black_longhair": Vector2(128, 128),
+	"female_light_black_ponytail": Vector2(256, 256),
+	"female_light_black_shorthair": Vector2(256, 256),
+}
+
 const FACILITY_TEXTURE_PATHS := {
 	"bed": "res://assets/sprites/facilities/bed.png",
 	"storage": "res://assets/sprites/facilities/storage.png",
@@ -44,6 +63,16 @@ const STATUS_COLORS := {
 
 static func player_texture_path(name: String) -> String:
 	return String(PLAYER_TEXTURE_PATHS.get(name, ""))
+
+static func player_appearance_texture_path(appearance_id: String) -> String:
+	if PLAYER_APPEARANCE_TEXTURE_PATHS.has(appearance_id):
+		return String(PLAYER_APPEARANCE_TEXTURE_PATHS[appearance_id])
+	return String(PLAYER_APPEARANCE_TEXTURE_PATHS[DEFAULT_PLAYER_APPEARANCE])
+
+static func player_appearance_frame_size(appearance_id: String) -> Vector2:
+	if PLAYER_APPEARANCE_FRAME_SIZE.has(appearance_id):
+		return PLAYER_APPEARANCE_FRAME_SIZE[appearance_id]
+	return PLAYER_APPEARANCE_FRAME_SIZE[DEFAULT_PLAYER_APPEARANCE]
 
 static func facility_texture_path(name: String) -> String:
 	return String(FACILITY_TEXTURE_PATHS.get(name, ""))
