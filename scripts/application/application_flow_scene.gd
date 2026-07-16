@@ -168,7 +168,7 @@ const SKIN_TONE_OPTIONS := [
 ]
 const HAIR_COLOR_OPTIONS := [
 	{"id": "black", "label": "黑色", "swatch": Color("#1c1c1e")},
-	{"id": "blond", "label": "金色", "swatch": Color("#d8b563")},
+	{"id": "blonde", "label": "金色", "swatch": Color("#d8b563")},
 	{"id": "auburn", "label": "红棕色", "swatch": Color("#7a3b23")},
 ]
 const SUIT_COLOR_OPTIONS := [
@@ -1749,7 +1749,13 @@ func _show_appearance() -> void:
 func _normalize_appearance_selection() -> void:
 	pending_skin_id = _match_option_id(String(profile.get("skin_preset")), SKIN_TONE_OPTIONS)
 	pending_hair_style_id = _match_option_id(String(profile.get("hair_preset")), _hair_style_options())
-	pending_hair_color_id = _match_option_id(String(profile.get("hair_color_preset")), HAIR_COLOR_OPTIONS)
+	# "blond" was this option's id before the "blonde" naming unification
+	# (2026-07-17, matching user/FEMALE_HAIR_AND_SKIN_HANDOFF.md) -- remap so
+	# profiles saved before the rename still show the right swatch selected.
+	var stored_hair_color := String(profile.get("hair_color_preset"))
+	if stored_hair_color.strip_edges().to_lower() == "blond":
+		stored_hair_color = "blonde"
+	pending_hair_color_id = _match_option_id(stored_hair_color, HAIR_COLOR_OPTIONS)
 	pending_suit_color_id = _match_option_id(String(profile.get("suit_marking_color")), SUIT_COLOR_OPTIONS)
 
 func _match_option_id(stored_value: String, options: Array) -> String:

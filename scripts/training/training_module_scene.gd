@@ -6,6 +6,7 @@ const InteractionAreaScript := preload("res://scripts/controllers/interaction_ar
 const FaultDatabaseScript := preload("res://scripts/data/FaultDatabase.gd")
 const TrainingModuleScreenPresenterScript := preload("res://scripts/controllers/training_module_screen_presenter.gd")
 const PlayerSceneScript := preload("res://scenes/player.tscn")
+const CharacterAppearanceCatalogScript := preload("res://scripts/data/character_appearance_catalog.gd")
 
 const TRAINING_03_CONTAINER_ID := "training_03_parts"
 
@@ -1260,6 +1261,9 @@ func _build_training_area() -> void:
 	if use_walk_cycle_sprite:
 		player_visual = (PlayerSceneScript as PackedScene).instantiate()
 		training_area.add_child(player_visual)
+		if player_visual.has_method("set_character_appearance"):
+			var appearance: Dictionary = CharacterAppearanceCatalogScript.load_selected_appearance()
+			player_visual.call("set_character_appearance", appearance["gender"], appearance["skin_tone"], appearance["hair_color"], appearance["hairstyle"])
 		_sync_player_visual()
 	else:
 		player_visual = null

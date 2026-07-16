@@ -1,0 +1,66 @@
+{
+  "character": "male_medium_black_buzzcut",
+  "action": "walk_4dir",
+  "sprite_sheet": "male_medium_black_buzzcut_walk_4dir_6x4.png",
+  "grid": {
+    "columns": 6,
+    "rows": 4,
+    "row_order": [
+      "down",
+      "left",
+      "right",
+      "up"
+    ]
+  },
+  "frame_size": [
+    256,
+    256
+  ],
+  "frames_per_direction": 6,
+  "frame_order": [
+    "00",
+    "01",
+    "02",
+    "03",
+    "04",
+    "05"
+  ],
+  "animations": {
+    "down": [
+      "male_medium_black_buzzcut_walk_down_00.png",
+      "male_medium_black_buzzcut_walk_down_01.png",
+      "male_medium_black_buzzcut_walk_down_02.png",
+      "male_medium_black_buzzcut_walk_down_03.png",
+      "male_medium_black_buzzcut_walk_down_04.png",
+      "male_medium_black_buzzcut_walk_down_05.png"
+    ],
+    "left": [
+      "male_medium_black_buzzcut_walk_left_00.png",
+      "male_medium_black_buzzcut_walk_left_01.png",
+      "male_medium_black_buzzcut_walk_left_02.png",
+      "male_medium_black_buzzcut_walk_left_03.png",
+      "male_medium_black_buzzcut_walk_left_04.png",
+      "male_medium_black_buzzcut_walk_left_05.png"
+    ],
+    "right": [
+      "male_medium_black_buzzcut_walk_right_00.png",
+      "male_medium_black_buzzcut_walk_right_01.png",
+      "male_medium_black_buzzcut_walk_right_02.png",
+      "male_medium_black_buzzcut_walk_right_03.png",
+      "male_medium_black_buzzcut_walk_right_04.png",
+      "male_medium_black_buzzcut_walk_right_05.png"
+    ],
+    "up": [
+      "male_medium_black_buzzcut_walk_up_00.png",
+      "male_medium_black_buzzcut_walk_up_01.png",
+      "male_medium_black_buzzcut_walk_up_02.png",
+      "male_medium_black_buzzcut_walk_up_03.png",
+      "male_medium_black_buzzcut_walk_up_04.png",
+      "male_medium_black_buzzcut_walk_up_05.png"
+    ]
+  },
+  "suggested_fps": 8,
+  "loop": true,
+  "background": "transparent",
+  "pivot": "feet_center"
+}

@@ -37,6 +37,7 @@ const CameraManagerScript := preload("res://scripts/camera_manager.gd")
 const UIManagerScript := preload("res://scripts/ui_manager.gd")
 const EventManagerScript := preload("res://scripts/event_manager.gd")
 const AudioManagerScript := preload("res://scripts/audio_manager.gd")
+const CharacterAppearanceCatalogScript := preload("res://scripts/data/character_appearance_catalog.gd")
 
 class TitleScreenBackground:
 	extends Control
@@ -945,6 +946,13 @@ func _setup_entity_root() -> void:
 	player_node.name = "Player"
 	player_node.z_index = 30
 	entity_root.add_child(player_node)
+	# Apply whatever appearance the player actually picked during character
+	# creation (AUI-03-03) -- falls back to sensible defaults if no profile
+	# exists yet (e.g. entering the Survival Sandbox directly via the Dev
+	# Menu, skipping character creation entirely).
+	if player_node.has_method("set_character_appearance"):
+		var appearance: Dictionary = CharacterAppearanceCatalogScript.load_selected_appearance()
+		player_node.call("set_character_appearance", appearance["gender"], appearance["skin_tone"], appearance["hair_color"], appearance["hairstyle"])
 	robot_node = ROBOT_SCENE.instantiate()
 	robot_node.name = "Robot"
 	robot_node.z_index = 24

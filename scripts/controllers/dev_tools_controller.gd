@@ -8,12 +8,8 @@ extends Node
 ## inherently operate on the live autoloads). It owns NO canonical game/save/training state.
 
 const TrainingManagerScript := preload("res://scripts/training/training_manager.gd")
+const CharacterAppearanceCatalogScript := preload("res://scripts/data/character_appearance_catalog.gd")
 
-const APPEARANCE_CYCLE := [
-	"female_light_black_longhair",
-	"female_light_black_ponytail",
-	"female_light_black_shorthair",
-]
 var _appearance_cycle_index := 0
 
 var _host: Node = null
@@ -881,12 +877,17 @@ func _debug_cycle_player_appearance() -> void:
 	var player_node: Node = null
 	if _host != null:
 		player_node = _host.get("player_node")
-	if player_node == null or not is_instance_valid(player_node) or not player_node.has_method("set_appearance"):
+	if player_node == null or not is_instance_valid(player_node) or not player_node.has_method("set_appearance_by_key"):
 		add_log("Appearance debug: no active player_node (start the sandbox first).")
 		return
-	_appearance_cycle_index = (_appearance_cycle_index + 1) % APPEARANCE_CYCLE.size()
-	var appearance_id: String = APPEARANCE_CYCLE[_appearance_cycle_index]
-	player_node.call("set_appearance", appearance_id)
+	# Reads the live registry instead of a hand-maintained list, so newly
+	# registered combos show up here automatically with no code change.
+	var keys: Array = CharacterAppearanceCatalogScript.all_registered_keys()
+	if keys.is_empty():
+		return
+	_appearance_cycle_index = (_appearance_cycle_index + 1) % keys.size()
+	var appearance_id: String = keys[_appearance_cycle_index]
+	player_node.call("set_appearance_by_key", appearance_id)
 	add_log("Player appearance -> %s" % appearance_id)
 
 func _debug_movement_reset() -> void:

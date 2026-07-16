@@ -1,0 +1,25 @@
+{
+  "appearance_id": "female_light_blonde_longhair",
+  "action": "walk",
+  "sprite_sheet": "female_light_blonde_longhair_walk_4dir_6x4.png",
+  "grid": {
+    "columns": 6,
+    "rows": 4,
+    "row_order": [
+      "down",
+      "left",
+      "right",
+      "up"
+    ]
+  },
+  "frame_size": [
+    256,
+    256
+  ],
+  "frame_count": 24,
+  "suggested_fps": 8,
+  "loop": true,
+  "background": "transparent",
+  "pivot": "feet_center",
+  "skin_tone_baked": "light"
+}

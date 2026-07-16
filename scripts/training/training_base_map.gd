@@ -50,6 +50,7 @@ const PlayerControllerScript := preload("res://scripts/controllers/player_contro
 const InteractionAreaScript := preload("res://scripts/controllers/interaction_area_2d.gd")
 const TrainingModuleSceneScript := preload("res://scripts/training/training_module_scene.gd")
 const PlayerSceneScript := preload("res://scenes/player.tscn")
+const CharacterAppearanceCatalogScript := preload("res://scripts/data/character_appearance_catalog.gd")
 
 const LOCKED_HINT := "该训练区尚未解锁。请先完成当前训练目标。"
 const SUIT_REQUIRED_HINT := "该区域需要穿戴宇航服。"
@@ -2441,6 +2442,9 @@ func _build_training_area() -> void:
 
 	player_visual = (PlayerSceneScript as PackedScene).instantiate()
 	training_area.add_child(player_visual)
+	if player_visual.has_method("set_character_appearance"):
+		var appearance: Dictionary = CharacterAppearanceCatalogScript.load_selected_appearance()
+		player_visual.call("set_character_appearance", appearance["gender"], appearance["skin_tone"], appearance["hair_color"], appearance["hairstyle"])
 	_sync_player_visual()
 
 	prompt_label = Label.new()
