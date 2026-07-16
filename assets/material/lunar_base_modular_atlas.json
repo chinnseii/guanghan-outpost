@@ -1,0 +1,2810 @@
+{
+  "meta": {
+    "app": "Smart Sprite Sheet Packer",
+    "version": "1.0.0",
+    "image": "lunar_base_modular_atlas.png",
+    "size": {
+      "w": 2048,
+      "h": 2048
+    },
+    "layout": {
+      "algorithm": "BALANCED_TARGET_AREA_MAX_RECTS",
+      "virtualWidth": 1888,
+      "virtualHeight": 1888,
+      "occupiedWidth": 1871,
+      "occupiedHeight": 1877,
+      "sortStrategy": "WIDTH_DESC",
+      "heuristic": "BEST_SHORT_SIDE_FIT",
+      "contentUtilization": 0.5423866278547831,
+      "packedUtilization": 0.7187345702563919,
+      "occupiedUtilization": 0.7295153831281196
+    },
+    "scale": 1
+  },
+  "frames": {
+    "prop_utility_crate_set.png": {
+      "frame": {
+        "x": 10,
+        "y": 10,
+        "w": 347,
+        "h": 87
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 347,
+        "h": 87
+      },
+      "sourceSize": {
+        "w": 378,
+        "h": 119
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "prop_workbench_maintenance.png": {
+      "frame": {
+        "x": 377,
+        "y": 10,
+        "w": 311,
+        "h": 176
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 311,
+        "h": 176
+      },
+      "sourceSize": {
+        "w": 343,
+        "h": 208
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "monitor_power_output.png": {
+      "frame": {
+        "x": 10,
+        "y": 117,
+        "w": 303,
+        "h": 139
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 303,
+        "h": 139
+      },
+      "sourceSize": {
+        "w": 335,
+        "h": 170
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "monitor_greenhouse_critical.png": {
+      "frame": {
+        "x": 708,
+        "y": 10,
+        "w": 293,
+        "h": 137
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 293,
+        "h": 137
+      },
+      "sourceSize": {
+        "w": 325,
+        "h": 168
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "monitor_greenhouse_stable.png": {
+      "frame": {
+        "x": 1021,
+        "y": 10,
+        "w": 291,
+        "h": 137
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 291,
+        "h": 137
+      },
+      "sourceSize": {
+        "w": 323,
+        "h": 168
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "monitor_oxygen_system.png": {
+      "frame": {
+        "x": 1332,
+        "y": 10,
+        "w": 279,
+        "h": 139
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 279,
+        "h": 139
+      },
+      "sourceSize": {
+        "w": 311,
+        "h": 170
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "monitor_water_cycle.png": {
+      "frame": {
+        "x": 708,
+        "y": 167,
+        "w": 277,
+        "h": 137
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 277,
+        "h": 137
+      },
+      "sourceSize": {
+        "w": 309,
+        "h": 168
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "console_navigation_radar.png": {
+      "frame": {
+        "x": 1005,
+        "y": 167,
+        "w": 265,
+        "h": 143
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 265,
+        "h": 143
+      },
+      "sourceSize": {
+        "w": 297,
+        "h": 174
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "console_command_center.png": {
+      "frame": {
+        "x": 1631,
+        "y": 10,
+        "w": 220,
+        "h": 164
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 220,
+        "h": 164
+      },
+      "sourceSize": {
+        "w": 251,
+        "h": 196
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "solar_panel_array_wide.png": {
+      "frame": {
+        "x": 1290,
+        "y": 169,
+        "w": 208,
+        "h": 115
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 208,
+        "h": 115
+      },
+      "sourceSize": {
+        "w": 240,
+        "h": 147
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "plant_chamber_tall_lit.png": {
+      "frame": {
+        "x": 333,
+        "y": 206,
+        "w": 206,
+        "h": 267
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 206,
+        "h": 267
+      },
+      "sourceSize": {
+        "w": 238,
+        "h": 299
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "monitor_log_day12.png": {
+      "frame": {
+        "x": 10,
+        "y": 276,
+        "w": 200,
+        "h": 137
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 200,
+        "h": 137
+      },
+      "sourceSize": {
+        "w": 232,
+        "h": 168
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "pipe_corner_large.png": {
+      "frame": {
+        "x": 10,
+        "y": 433,
+        "w": 184,
+        "h": 125
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 16,
+        "w": 184,
+        "h": 125
+      },
+      "sourceSize": {
+        "w": 200,
+        "h": 156
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "console_terminal_compact.png": {
+      "frame": {
+        "x": 1518,
+        "y": 194,
+        "w": 178,
+        "h": 158
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 178,
+        "h": 158
+      },
+      "sourceSize": {
+        "w": 210,
+        "h": 190
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "pipe_straight_long.png": {
+      "frame": {
+        "x": 1290,
+        "y": 304,
+        "w": 178,
+        "h": 125
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 178,
+        "h": 125
+      },
+      "sourceSize": {
+        "w": 210,
+        "h": 156
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "hydroponic_rack_empty.png": {
+      "frame": {
+        "x": 1488,
+        "y": 372,
+        "w": 176,
+        "h": 188
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 176,
+        "h": 188
+      },
+      "sourceSize": {
+        "w": 208,
+        "h": 220
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "monitor_alert_critical.png": {
+      "frame": {
+        "x": 1684,
+        "y": 372,
+        "w": 176,
+        "h": 149
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 176,
+        "h": 149
+      },
+      "sourceSize": {
+        "w": 208,
+        "h": 180
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "solar_panel_array_tilted.png": {
+      "frame": {
+        "x": 1684,
+        "y": 541,
+        "w": 176,
+        "h": 115
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 176,
+        "h": 115
+      },
+      "sourceSize": {
+        "w": 208,
+        "h": 147
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "pipe_elbow_short.png": {
+      "frame": {
+        "x": 559,
+        "y": 324,
+        "w": 176,
+        "h": 57
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 176,
+        "h": 57
+      },
+      "sourceSize": {
+        "w": 208,
+        "h": 89
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "plant_chamber_tall_dim.png": {
+      "frame": {
+        "x": 755,
+        "y": 324,
+        "w": 166,
+        "h": 283
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 166,
+        "h": 283
+      },
+      "sourceSize": {
+        "w": 198,
+        "h": 315
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "door_standard_center.png": {
+      "frame": {
+        "x": 559,
+        "y": 401,
+        "w": 166,
+        "h": 206
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 166,
+        "h": 206
+      },
+      "sourceSize": {
+        "w": 198,
+        "h": 238
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "monitor_greenhouse_status.png": {
+      "frame": {
+        "x": 214,
+        "y": 493,
+        "w": 166,
+        "h": 149
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 166,
+        "h": 149
+      },
+      "sourceSize": {
+        "w": 198,
+        "h": 180
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "monitor_status_narrow.png": {
+      "frame": {
+        "x": 10,
+        "y": 578,
+        "w": 166,
+        "h": 85
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 166,
+        "h": 85
+      },
+      "sourceSize": {
+        "w": 198,
+        "h": 117
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "grow_light_dual.png": {
+      "frame": {
+        "x": 941,
+        "y": 330,
+        "w": 166,
+        "h": 42
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 166,
+        "h": 42
+      },
+      "sourceSize": {
+        "w": 198,
+        "h": 73
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "hydroponic_rack_dual.png": {
+      "frame": {
+        "x": 941,
+        "y": 392,
+        "w": 164,
+        "h": 182
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 164,
+        "h": 182
+      },
+      "sourceSize": {
+        "w": 196,
+        "h": 214
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "prop_notice_board.png": {
+      "frame": {
+        "x": 1125,
+        "y": 449,
+        "w": 164,
+        "h": 109
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 164,
+        "h": 109
+      },
+      "sourceSize": {
+        "w": 196,
+        "h": 141
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "console_cabinet_compact.png": {
+      "frame": {
+        "x": 1125,
+        "y": 578,
+        "w": 164,
+        "h": 91
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 164,
+        "h": 91
+      },
+      "sourceSize": {
+        "w": 196,
+        "h": 123
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "grow_light_pair.png": {
+      "frame": {
+        "x": 941,
+        "y": 594,
+        "w": 164,
+        "h": 44
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 164,
+        "h": 44
+      },
+      "sourceSize": {
+        "w": 196,
+        "h": 75
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "door_airlock_plain.png": {
+      "frame": {
+        "x": 1309,
+        "y": 449,
+        "w": 158,
+        "h": 206
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 158,
+        "h": 206
+      },
+      "sourceSize": {
+        "w": 190,
+        "h": 238
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "hydroponic_rack_withered.png": {
+      "frame": {
+        "x": 1487,
+        "y": 580,
+        "w": 158,
+        "h": 182
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 158,
+        "h": 182
+      },
+      "sourceSize": {
+        "w": 190,
+        "h": 214
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "plant_chamber_tall_warning.png": {
+      "frame": {
+        "x": 1309,
+        "y": 675,
+        "w": 156,
+        "h": 279
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 156,
+        "h": 279
+      },
+      "sourceSize": {
+        "w": 188,
+        "h": 311
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "door_airlock_status.png": {
+      "frame": {
+        "x": 1665,
+        "y": 676,
+        "w": 154,
+        "h": 206
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 154,
+        "h": 206
+      },
+      "sourceSize": {
+        "w": 186,
+        "h": 238
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "plant_pot_large.png": {
+      "frame": {
+        "x": 1485,
+        "y": 782,
+        "w": 154,
+        "h": 164
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 154,
+        "h": 164
+      },
+      "sourceSize": {
+        "w": 186,
+        "h": 196
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "door_airlock_a01.png": {
+      "frame": {
+        "x": 1659,
+        "y": 902,
+        "w": 151,
+        "h": 206
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 151,
+        "h": 206
+      },
+      "sourceSize": {
+        "w": 182,
+        "h": 238
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "plant_pot_medium.png": {
+      "frame": {
+        "x": 1485,
+        "y": 966,
+        "w": 151,
+        "h": 160
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 151,
+        "h": 160
+      },
+      "sourceSize": {
+        "w": 182,
+        "h": 192
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equipment_power_cabinet.png": {
+      "frame": {
+        "x": 1656,
+        "y": 1128,
+        "w": 151,
+        "h": 160
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 151,
+        "h": 160
+      },
+      "sourceSize": {
+        "w": 182,
+        "h": 192
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "door_airlock_vertical.png": {
+      "frame": {
+        "x": 10,
+        "y": 1308,
+        "w": 147,
+        "h": 206
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 147,
+        "h": 206
+      },
+      "sourceSize": {
+        "w": 178,
+        "h": 238
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "vent_floor_horizontal.png": {
+      "frame": {
+        "x": 1716,
+        "y": 194,
+        "w": 145,
+        "h": 71
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 145,
+        "h": 71
+      },
+      "sourceSize": {
+        "w": 176,
+        "h": 103
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "solar_panel_array_compact.png": {
+      "frame": {
+        "x": 10,
+        "y": 1146,
+        "w": 143,
+        "h": 115
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 143,
+        "h": 115
+      },
+      "sourceSize": {
+        "w": 174,
+        "h": 147
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "moon_rock_large.png": {
+      "frame": {
+        "x": 1127,
+        "y": 330,
+        "w": 143,
+        "h": 71
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 143,
+        "h": 71
+      },
+      "sourceSize": {
+        "w": 174,
+        "h": 103
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "solar_panel_array_damaged.png": {
+      "frame": {
+        "x": 400,
+        "y": 493,
+        "w": 139,
+        "h": 115
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 139,
+        "h": 115
+      },
+      "sourceSize": {
+        "w": 170,
+        "h": 147
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equipment_life_support.png": {
+      "frame": {
+        "x": 173,
+        "y": 1146,
+        "w": 137,
+        "h": 131
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 137,
+        "h": 131
+      },
+      "sourceSize": {
+        "w": 168,
+        "h": 162
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "console_service_horizontal.png": {
+      "frame": {
+        "x": 10,
+        "y": 974,
+        "w": 135,
+        "h": 119
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 135,
+        "h": 119
+      },
+      "sourceSize": {
+        "w": 166,
+        "h": 151
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "moon_rock_cluster.png": {
+      "frame": {
+        "x": 1716,
+        "y": 285,
+        "w": 135,
+        "h": 67
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 135,
+        "h": 67
+      },
+      "sourceSize": {
+        "w": 166,
+        "h": 99
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "pipe_elbow_long.png": {
+      "frame": {
+        "x": 559,
+        "y": 206,
+        "w": 125,
+        "h": 69
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 125,
+        "h": 69
+      },
+      "sourceSize": {
+        "w": 156,
+        "h": 101
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "plant_chamber_narrow.png": {
+      "frame": {
+        "x": 10,
+        "y": 1534,
+        "w": 123,
+        "h": 283
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 123,
+        "h": 283
+      },
+      "sourceSize": {
+        "w": 154,
+        "h": 315
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "wall_corner_outer_left.png": {
+      "frame": {
+        "x": 165,
+        "y": 974,
+        "w": 123,
+        "h": 85
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 123,
+        "h": 85
+      },
+      "sourceSize": {
+        "w": 154,
+        "h": 117
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "prop_storage_crate_medium.png": {
+      "frame": {
+        "x": 308,
+        "y": 974,
+        "w": 123,
+        "h": 81
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 123,
+        "h": 81
+      },
+      "sourceSize": {
+        "w": 154,
+        "h": 113
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "floor_plate_hazard_corner.png": {
+      "frame": {
+        "x": 10,
+        "y": 689,
+        "w": 115,
+        "h": 119
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 115,
+        "h": 119
+      },
+      "sourceSize": {
+        "w": 147,
+        "h": 151
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "floor_plate_diamond.png": {
+      "frame": {
+        "x": 10,
+        "y": 828,
+        "w": 115,
+        "h": 117
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 115,
+        "h": 117
+      },
+      "sourceSize": {
+        "w": 147,
+        "h": 149
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "floor_plate_seamed.png": {
+      "frame": {
+        "x": 145,
+        "y": 689,
+        "w": 115,
+        "h": 115
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 115,
+        "h": 115
+      },
+      "sourceSize": {
+        "w": 147,
+        "h": 147
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "floor_plate_plain.png": {
+      "frame": {
+        "x": 145,
+        "y": 824,
+        "w": 115,
+        "h": 115
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 115,
+        "h": 115
+      },
+      "sourceSize": {
+        "w": 147,
+        "h": 147
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "decal_maintenance_papers.png": {
+      "frame": {
+        "x": 280,
+        "y": 689,
+        "w": 115,
+        "h": 77
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 115,
+        "h": 77
+      },
+      "sourceSize": {
+        "w": 147,
+        "h": 109
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "wall_corner_inner_top_left.png": {
+      "frame": {
+        "x": 280,
+        "y": 786,
+        "w": 115,
+        "h": 67
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 115,
+        "h": 67
+      },
+      "sourceSize": {
+        "w": 147,
+        "h": 99
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "floor_plate_worn_hazard.png": {
+      "frame": {
+        "x": 415,
+        "y": 689,
+        "w": 113,
+        "h": 119
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 113,
+        "h": 119
+      },
+      "sourceSize": {
+        "w": 145,
+        "h": 151
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "floor_grate_square.png": {
+      "frame": {
+        "x": 415,
+        "y": 828,
+        "w": 113,
+        "h": 117
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 113,
+        "h": 117
+      },
+      "sourceSize": {
+        "w": 145,
+        "h": 149
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "floor_plate_cracked.png": {
+      "frame": {
+        "x": 153,
+        "y": 1534,
+        "w": 113,
+        "h": 117
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 113,
+        "h": 117
+      },
+      "sourceSize": {
+        "w": 145,
+        "h": 149
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "prop_storage_locker.png": {
+      "frame": {
+        "x": 177,
+        "y": 1308,
+        "w": 113,
+        "h": 115
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 113,
+        "h": 115
+      },
+      "sourceSize": {
+        "w": 145,
+        "h": 147
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "floor_vent_rectangular.png": {
+      "frame": {
+        "x": 153,
+        "y": 1671,
+        "w": 113,
+        "h": 115
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 113,
+        "h": 115
+      },
+      "sourceSize": {
+        "w": 145,
+        "h": 147
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "decal_hazard_stripe_diagonal.png": {
+      "frame": {
+        "x": 559,
+        "y": 627,
+        "w": 113,
+        "h": 115
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 113,
+        "h": 115
+      },
+      "sourceSize": {
+        "w": 145,
+        "h": 147
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "ui_icon_health.png": {
+      "frame": {
+        "x": 692,
+        "y": 627,
+        "w": 113,
+        "h": 105
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 113,
+        "h": 105
+      },
+      "sourceSize": {
+        "w": 145,
+        "h": 137
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "wall_corner_inner_top_right.png": {
+      "frame": {
+        "x": 825,
+        "y": 658,
+        "w": 113,
+        "h": 99
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 113,
+        "h": 99
+      },
+      "sourceSize": {
+        "w": 145,
+        "h": 131
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "wall_corner_outer_top_right.png": {
+      "frame": {
+        "x": 692,
+        "y": 752,
+        "w": 113,
+        "h": 89
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 113,
+        "h": 89
+      },
+      "sourceSize": {
+        "w": 145,
+        "h": 121
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "ui_icon_temperature.png": {
+      "frame": {
+        "x": 548,
+        "y": 762,
+        "w": 111,
+        "h": 107
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 111,
+        "h": 107
+      },
+      "sourceSize": {
+        "w": 143,
+        "h": 139
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "ui_icon_habitat_status.png": {
+      "frame": {
+        "x": 958,
+        "y": 658,
+        "w": 111,
+        "h": 107
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 111,
+        "h": 107
+      },
+      "sourceSize": {
+        "w": 143,
+        "h": 139
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "console_status_panel.png": {
+      "frame": {
+        "x": 825,
+        "y": 777,
+        "w": 109,
+        "h": 168
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 109,
+        "h": 168
+      },
+      "sourceSize": {
+        "w": 141,
+        "h": 200
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equipment_control_panel.png": {
+      "frame": {
+        "x": 679,
+        "y": 861,
+        "w": 109,
+        "h": 162
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 109,
+        "h": 162
+      },
+      "sourceSize": {
+        "w": 141,
+        "h": 194
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "floor_plate_center_seam.png": {
+      "frame": {
+        "x": 548,
+        "y": 889,
+        "w": 109,
+        "h": 117
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 109,
+        "h": 117
+      },
+      "sourceSize": {
+        "w": 141,
+        "h": 149
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "prop_storage_locker_small.png": {
+      "frame": {
+        "x": 1089,
+        "y": 689,
+        "w": 109,
+        "h": 115
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 109,
+        "h": 115
+      },
+      "sourceSize": {
+        "w": 141,
+        "h": 147
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "ui_icon_water.png": {
+      "frame": {
+        "x": 954,
+        "y": 785,
+        "w": 109,
+        "h": 107
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 109,
+        "h": 107
+      },
+      "sourceSize": {
+        "w": 141,
+        "h": 139
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "ui_icon_system_offline.png": {
+      "frame": {
+        "x": 1083,
+        "y": 824,
+        "w": 109,
+        "h": 107
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 109,
+        "h": 107
+      },
+      "sourceSize": {
+        "w": 141,
+        "h": 139
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "floor_plate_cross_seam.png": {
+      "frame": {
+        "x": 954,
+        "y": 912,
+        "w": 107,
+        "h": 117
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 107,
+        "h": 117
+      },
+      "sourceSize": {
+        "w": 139,
+        "h": 149
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "floor_plate_quad.png": {
+      "frame": {
+        "x": 808,
+        "y": 965,
+        "w": 107,
+        "h": 115
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 107,
+        "h": 115
+      },
+      "sourceSize": {
+        "w": 139,
+        "h": 147
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "ui_icon_oxygen.png": {
+      "frame": {
+        "x": 451,
+        "y": 1026,
+        "w": 107,
+        "h": 109
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 107,
+        "h": 109
+      },
+      "sourceSize": {
+        "w": 139,
+        "h": 141
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "ui_icon_power.png": {
+      "frame": {
+        "x": 1081,
+        "y": 951,
+        "w": 107,
+        "h": 107
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 107,
+        "h": 107
+      },
+      "sourceSize": {
+        "w": 139,
+        "h": 139
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "ui_icon_greenhouse_status.png": {
+      "frame": {
+        "x": 935,
+        "y": 1049,
+        "w": 107,
+        "h": 107
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 107,
+        "h": 107
+      },
+      "sourceSize": {
+        "w": 139,
+        "h": 139
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "ui_icon_signal.png": {
+      "frame": {
+        "x": 578,
+        "y": 1043,
+        "w": 107,
+        "h": 107
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 107,
+        "h": 107
+      },
+      "sourceSize": {
+        "w": 139,
+        "h": 139
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "ui_icon_warning.png": {
+      "frame": {
+        "x": 705,
+        "y": 1100,
+        "w": 107,
+        "h": 107
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 107,
+        "h": 107
+      },
+      "sourceSize": {
+        "w": 139,
+        "h": 139
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "ui_icon_plant.png": {
+      "frame": {
+        "x": 330,
+        "y": 1155,
+        "w": 107,
+        "h": 105
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 107,
+        "h": 105
+      },
+      "sourceSize": {
+        "w": 139,
+        "h": 137
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "ui_icon_habitat_outline.png": {
+      "frame": {
+        "x": 457,
+        "y": 1170,
+        "w": 107,
+        "h": 105
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 107,
+        "h": 105
+      },
+      "sourceSize": {
+        "w": 139,
+        "h": 137
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "moon_rock_medium.png": {
+      "frame": {
+        "x": 330,
+        "y": 1280,
+        "w": 107,
+        "h": 65
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 107,
+        "h": 65
+      },
+      "sourceSize": {
+        "w": 139,
+        "h": 97
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "ui_icon_confirm.png": {
+      "frame": {
+        "x": 1208,
+        "y": 974,
+        "w": 105,
+        "h": 107
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 105,
+        "h": 107
+      },
+      "sourceSize": {
+        "w": 137,
+        "h": 139
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "wall_corner_inner_bottom_right.png": {
+      "frame": {
+        "x": 1062,
+        "y": 1078,
+        "w": 105,
+        "h": 89
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 105,
+        "h": 89
+      },
+      "sourceSize": {
+        "w": 137,
+        "h": 121
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "wall_segment_short.png": {
+      "frame": {
+        "x": 308,
+        "y": 1075,
+        "w": 105,
+        "h": 51
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 105,
+        "h": 51
+      },
+      "sourceSize": {
+        "w": 137,
+        "h": 83
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "ui_icon_wrench.png": {
+      "frame": {
+        "x": 1333,
+        "y": 974,
+        "w": 103,
+        "h": 107
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 103,
+        "h": 107
+      },
+      "sourceSize": {
+        "w": 135,
+        "h": 139
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "prop_tool_crate.png": {
+      "frame": {
+        "x": 280,
+        "y": 873,
+        "w": 103,
+        "h": 77
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 103,
+        "h": 77
+      },
+      "sourceSize": {
+        "w": 135,
+        "h": 109
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "wall_connector_t.png": {
+      "frame": {
+        "x": 584,
+        "y": 1170,
+        "w": 101,
+        "h": 71
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 101,
+        "h": 71
+      },
+      "sourceSize": {
+        "w": 133,
+        "h": 103
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "wall_segment_horizontal.png": {
+      "frame": {
+        "x": 177,
+        "y": 1443,
+        "w": 101,
+        "h": 55
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 101,
+        "h": 55
+      },
+      "sourceSize": {
+        "w": 133,
+        "h": 87
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equipment_pipe_valve.png": {
+      "frame": {
+        "x": 832,
+        "y": 1176,
+        "w": 99,
+        "h": 154
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 99,
+        "h": 154
+      },
+      "sourceSize": {
+        "w": 115,
+        "h": 186
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "ui_icon_plant_recovering.png": {
+      "frame": {
+        "x": 705,
+        "y": 1227,
+        "w": 95,
+        "h": 105
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 95,
+        "h": 105
+      },
+      "sourceSize": {
+        "w": 127,
+        "h": 137
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "prop_document_set.png": {
+      "frame": {
+        "x": 584,
+        "y": 1261,
+        "w": 95,
+        "h": 83
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 95,
+        "h": 83
+      },
+      "sourceSize": {
+        "w": 127,
+        "h": 115
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "prop_storage_crate_small.png": {
+      "frame": {
+        "x": 457,
+        "y": 1295,
+        "w": 93,
+        "h": 77
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 93,
+        "h": 77
+      },
+      "sourceSize": {
+        "w": 125,
+        "h": 109
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "pipe_support_vertical.png": {
+      "frame": {
+        "x": 951,
+        "y": 1176,
+        "w": 89,
+        "h": 156
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 89,
+        "h": 156
+      },
+      "sourceSize": {
+        "w": 121,
+        "h": 188
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equipment_pump_vertical.png": {
+      "frame": {
+        "x": 820,
+        "y": 1350,
+        "w": 89,
+        "h": 141
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 16,
+        "w": 89,
+        "h": 141
+      },
+      "sourceSize": {
+        "w": 105,
+        "h": 170
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "wall_corner_inner_bottom_left.png": {
+      "frame": {
+        "x": 699,
+        "y": 1352,
+        "w": 89,
+        "h": 121
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 89,
+        "h": 121
+      },
+      "sourceSize": {
+        "w": 121,
+        "h": 152
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "ui_icon_wrench_alt.png": {
+      "frame": {
+        "x": 570,
+        "y": 1364,
+        "w": 87,
+        "h": 103
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 87,
+        "h": 103
+      },
+      "sourceSize": {
+        "w": 119,
+        "h": 135
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "wall_corner_outer_bottom_left.png": {
+      "frame": {
+        "x": 310,
+        "y": 1365,
+        "w": 87,
+        "h": 73
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 87,
+        "h": 73
+      },
+      "sourceSize": {
+        "w": 119,
+        "h": 105
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "wall_cap_end.png": {
+      "frame": {
+        "x": 417,
+        "y": 1392,
+        "w": 85,
+        "h": 137
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 85,
+        "h": 137
+      },
+      "sourceSize": {
+        "w": 117,
+        "h": 168
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equipment_control_cabinet.png": {
+      "frame": {
+        "x": 298,
+        "y": 1458,
+        "w": 85,
+        "h": 97
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 85,
+        "h": 97
+      },
+      "sourceSize": {
+        "w": 117,
+        "h": 129
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "decal_poster_set.png": {
+      "frame": {
+        "x": 522,
+        "y": 1487,
+        "w": 85,
+        "h": 79
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 85,
+        "h": 79
+      },
+      "sourceSize": {
+        "w": 117,
+        "h": 111
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equipment_cabinet_narrow.png": {
+      "frame": {
+        "x": 230,
+        "y": 276,
+        "w": 79,
+        "h": 123
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 79,
+        "h": 123
+      },
+      "sourceSize": {
+        "w": 111,
+        "h": 154
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "floor_plate_damaged.png": {
+      "frame": {
+        "x": 403,
+        "y": 1549,
+        "w": 77,
+        "h": 141
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 77,
+        "h": 141
+      },
+      "sourceSize": {
+        "w": 109,
+        "h": 172
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "moon_rock_small.png": {
+      "frame": {
+        "x": 1212,
+        "y": 824,
+        "w": 77,
+        "h": 57
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 77,
+        "h": 57
+      },
+      "sourceSize": {
+        "w": 109,
+        "h": 89
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "pipe_support_tall.png": {
+      "frame": {
+        "x": 286,
+        "y": 1575,
+        "w": 75,
+        "h": 145
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 75,
+        "h": 145
+      },
+      "sourceSize": {
+        "w": 107,
+        "h": 176
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "pipe_junction_t.png": {
+      "frame": {
+        "x": 286,
+        "y": 1740,
+        "w": 75,
+        "h": 127
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 75,
+        "h": 127
+      },
+      "sourceSize": {
+        "w": 107,
+        "h": 158
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "decal_floor_hazard_scuffs.png": {
+      "frame": {
+        "x": 381,
+        "y": 1710,
+        "w": 73,
+        "h": 156
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 73,
+        "h": 156
+      },
+      "sourceSize": {
+        "w": 105,
+        "h": 188
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "equipment_pipe_endcap.png": {
+      "frame": {
+        "x": 474,
+        "y": 1710,
+        "w": 71,
+        "h": 137
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 71,
+        "h": 137
+      },
+      "sourceSize": {
+        "w": 103,
+        "h": 168
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "palette_moon_gray.png": {
+      "frame": {
+        "x": 1218,
+        "y": 689,
+        "w": 61,
+        "h": 61
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 61,
+        "h": 61
+      },
+      "sourceSize": {
+        "w": 93,
+        "h": 93
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "palette_ice_blue.png": {
+      "frame": {
+        "x": 153,
+        "y": 1806,
+        "w": 61,
+        "h": 61
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 61,
+        "h": 61
+      },
+      "sourceSize": {
+        "w": 93,
+        "h": 93
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "palette_steel_blue.png": {
+      "frame": {
+        "x": 500,
+        "y": 1586,
+        "w": 59,
+        "h": 61
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 59,
+        "h": 61
+      },
+      "sourceSize": {
+        "w": 91,
+        "h": 93
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "palette_panel_blue.png": {
+      "frame": {
+        "x": 627,
+        "y": 1493,
+        "w": 59,
+        "h": 61
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 59,
+        "h": 61
+      },
+      "sourceSize": {
+        "w": 91,
+        "h": 93
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "palette_life_green.png": {
+      "frame": {
+        "x": 706,
+        "y": 1493,
+        "w": 59,
+        "h": 61
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 59,
+        "h": 61
+      },
+      "sourceSize": {
+        "w": 91,
+        "h": 93
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "palette_deep_green.png": {
+      "frame": {
+        "x": 565,
+        "y": 1667,
+        "w": 59,
+        "h": 61
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 59,
+        "h": 61
+      },
+      "sourceSize": {
+        "w": 91,
+        "h": 93
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "palette_warning_amber.png": {
+      "frame": {
+        "x": 579,
+        "y": 1586,
+        "w": 59,
+        "h": 61
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 59,
+        "h": 61
+      },
+      "sourceSize": {
+        "w": 91,
+        "h": 93
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "palette_warning_red.png": {
+      "frame": {
+        "x": 565,
+        "y": 1748,
+        "w": 59,
+        "h": 61
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 59,
+        "h": 61
+      },
+      "sourceSize": {
+        "w": 91,
+        "h": 93
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "palette_warm_white.png": {
+      "frame": {
+        "x": 644,
+        "y": 1667,
+        "w": 57,
+        "h": 61
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 16,
+        "w": 57,
+        "h": 61
+      },
+      "sourceSize": {
+        "w": 89,
+        "h": 93
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    }
+  }
+}

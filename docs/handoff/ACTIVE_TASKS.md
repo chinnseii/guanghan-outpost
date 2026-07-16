@@ -9,10 +9,270 @@ This file is the current coordination board for active task ownership, file lock
 - **Locked files**: `1`
 - **Pending handoffs**: `0`
 - **Branch**: `main`
-- **Board baseline**: `53b4ba8` (MAIN-MENU-01 close-out, pushed to `main`)
+- **Board baseline**: `4b05509` (AUI-03-04 close-out, pushed to `main`)
 - **Last updated**: `2026-07-15`
 
 ## Active Tasks
+
+### TR-002 Round 3 — Full Reconstruction on the Shared Modular Atlas (lunar_base_modular_atlas)
+
+- User instruction: rebuild the hub's pure visual layer around the newly-delivered
+  `assets/material/lunar_base_modular_atlas.png` + `.json` (116-region Smart Sprite
+  Sheet Packer atlas covering floor/wall/pipe/console/lighting/UI-icon assets for
+  the whole game, not just this room), following an explicit 6-layer spec
+  (Floor/Structure/Props/Interactive/Lighting/Overlay), without touching door/
+  terminal/spawn interactive coordinates or logic.
+- New shared file: `scripts/data/lunar_base_atlas.gd` (`LunarBaseAtlas`, `RefCounted`)
+  — holds the atlas texture + a hardcoded `FRAMES` dict (Rect2i per region, copied
+  directly from the JSON) for the ~34 regions this round uses, plus a
+  `static func region(name) -> AtlasTexture` builder. Shared by both
+  `reference_prop.gd` and `training_module_scene.gd` so the frame-rect table
+  isn't duplicated. Add more entries here (from the same JSON) if another room
+  needs a different region later — this is meant to be the general-purpose
+  reader for the atlas going forward, not a training-hub-only helper.
+- `scripts/training/training_module_scene.gd`'s `TrainingHubBlockout` fully rewritten:
+  1. **Floor (`TileMapLayer`)**: each of the 7 floor variants used (`floor_plate_plain`/
+     `_seamed`/`_quad` as primary, `_cracked`/`_damaged`/`floor_grate_square`/
+     `floor_vent_rectangular` as ~8%-chance rare variants) becomes its own
+     single-tile `TileSetAtlasSource` (`margins` = that region's atlas x/y,
+     `texture_region_size` = that region's w/h) added to one shared `TileSet` —
+     this is how an irregularly-packed (non-uniform-grid) sprite-sheet atlas can
+     still back a real Godot `TileMapLayer` rather than needing a separate
+     uniform-grid texture. A deterministic RNG seed keeps the floor pattern
+     stable across rebuilds (door-lock changes, resizes) instead of reshuffling.
+  2. **Structure**: perimeter `wall_segment_horizontal` tiles repeated along all 4
+     sides (rotated 90° for the left/right walls), each skipping a gap sized to
+     that side's real door, 4 corner pieces, and a modest set of accents
+     (`equipment_power_cabinet`, `pipe_elbow_long`, `pipe_support_vertical`) —
+     not exhaustive wall-to-wall coverage, matching the User's "少量" wording.
+  3. **Props**: `console_status_panel`/`console_terminal_compact` placed flanking
+     the interactive terminal for atmosphere (the terminal's own visual is
+     `console_command_center`, drawn by the *interactive* node itself, not
+     duplicated here).
+  4. **Interactive nodes unchanged**: doors/terminal are still independent
+     `TrainingTargetVisual` + `prop_scene_path` nodes; `_hub_area_config()`'s
+     positions/sizes/`door_to`/logic in `training_base_map.gd` were not touched.
+  5. **Lighting**: 3x `grow_light_dual` across the top, `grow_light_pair` on the
+     left/right walls (rotated), replacing the old flat-color light-bar rects.
+     Cool blue-white only, no added warm/yellow per the User's constraint.
+  6. **Door signage**: 配电房/训练温室 now use the atlas's `ui_icon_power`/
+     `ui_icon_plant` (replacing the old bespoke `door_sign_power.png`/
+     `door_sign_greenhouse.png`); 宇航服整备室/空气系统控制室 use the two new
+     standalone files `assets/material/door_sign_suit_helmet.png`/
+     `door_sign_air_fan.png`. Purely static dressing — no state-tint applied to
+     the signage itself (see next point).
+  All child layers are built lazily (`call_deferred`) the first time `_draw()`
+  runs with a valid non-zero `size` (Control size isn't reliable yet at
+  `_ready()`), in local 760x520 design-space coordinates, then the whole layer
+  set gets one uniform-scale transform to match whatever the room actually
+  renders at — same convention `_room_size()`/`_room_point()` use elsewhere in
+  this scene, so art never stretches non-uniformly.
+- `scripts/props/reference_prop.gd`: removed the always-on colored tint + accent
+  border `_draw_textured_prop()` grew in TR-002 Round 2 — User feedback was that
+  a permanently-visible green/red/blue box around every prop read as a debug
+  collision outline, not in-world art. `_draw_textured_prop()` is back to a
+  plain "contain"-fit texture draw; all highlight/lock-dim/interact-prompt
+  feedback is entirely the **pre-existing** `TrainingTargetVisual`-level system
+  (`node.modulate` dimming + `_draw_highlight_ring()`'s amber ring + `prompt_label`
+  "E 交互"), unchanged from before any of this session's art work — matching the
+  instruction's "Overlay ... 全部继续由现有逻辑绘制". The interactive
+  terminal's own visual switched from the old standalone `hub_console.png` to
+  `LunarBaseAtlas.region("console_command_center")` (cached once in `_ready()`,
+  not rebuilt every `_draw()` call).
+- Real bug found and fixed while verifying the Props layer: the decorative
+  `console_terminal_compact` prop (placed at design x=510) overlapped the
+  interactive terminal's own bounding box by ~9px, and the boundary between the
+  terminal's dimmed `modulate` and the full-brightness decorative sprite next to
+  it created a faint rectangular seam that looked like a leftover debug outline.
+  Confirmed by cropping the raw atlas source for that region (clean, no overlay)
+  vs. the in-game render (visible seam) — not baked-in art, a real positioning
+  overlap. Fixed by moving the two flanking props further apart (x=230/x=560)
+  so neither touches the terminal's box. (Separately verified that the more
+  numerous faint green marks visible across the floor tiles *are* intentional
+  baked-in art — corner rivet/corrosion accents present in the raw
+  `floor_plate_plain` source tile itself, not a rendering artifact.)
+- Side effect: 训练温室's direction icon is now the atlas's vivid `ui_icon_plant`
+  (proper saturated green), which happens to resolve the muted-gray-leaf color
+  issue flagged (but not fixed) in TR-002 Round 1 — no longer needed since that
+  bespoke file isn't used for this door anymore.
+- Verification: Godot 4.7 headless parse EXIT 0 for `scripts/data/lunar_base_atlas.gd`,
+  `scripts/props/reference_prop.gd`, `scripts/training/training_module_scene.gd`,
+  `scripts/training/training_base_map.gd`. Ran a full `--headless --editor --quit`
+  import pass (real project + sandbox) for the atlas PNG/JSON and the 2 new
+  standalone signage PNGs. Re-ran the existing 29-check
+  `tests/aui_03_01_basic_information_test.gd` unmodified (PASS) after every
+  change, including after the overlap fix. Re-ran `tools/capture_training_hub_states.gd`
+  (all 5 acceptance shots) in the sandbox — confirmed visually: real tiled floor
+  with subtle rivet/corrosion variation, detailed walls with corner pieces/pipes/
+  power cabinet, both consoles now cleanly separated with no seam artifact,
+  terminal highlight shows only the pre-existing amber ring (no colored box),
+  locked/unlocked doors show only the pre-existing dim/bright modulate (no
+  colored box), and the greenhouse door's leaf icon is now properly vivid green.
+  Real project save file SHA-256 checked before/after every sandbox round;
+  unchanged (`56a39fec8c9856675194f4f7c7f134385c9154499c32a960182aac03127b8e24`).
+- Deliverables: `docs/screenshots/training_hub_art/01_hub_panorama_no_ui.png`,
+  `02_terminal_highlight.png`, `03_door_suit_unlocked.png`, `04_door_power_locked.png`,
+  `05_door_greenhouse_unlocked.png` (all overwritten in place with the new atlas-based
+  art); new `scripts/data/lunar_base_atlas.gd`.
+- Not touched: `_hub_area_config()`'s target positions/sizes/door_to/logic,
+  `TrainingTargetVisual`'s interaction/highlight/dimming system, save schema,
+  any other training room's blockout (`TrainingRoomBlockout`/`AirlockRoomBlockout`/
+  etc.), door gameplay logic (`DoorStateManager`/`DoorTypeDatabase`/`DoorAssetDatabase`).
+- Push/tag: `no / no` — not committed, not pushed, not tagged this round; awaiting
+  User visual review.
+
+### TR-002 - Training Hub Real Art Integration (训练中控室美术资源接入)
+
+- Owner: `Claude Code` (integration); art assets generated externally (Codex/user, per `docs/art/TR-002/asset_prompts.md`)
+- Reviewer: `User` (visual, direct)
+- Final Approval: pending — not yet reviewed by User this round.
+- Mode: `single owner`
+- Status: `IN_PROGRESS` — awaiting User visual review; not committed, not pushed.
+- Branch: `main`
+- Worktree: repository root
+- Base commit: post-TRAINING-BRIEFING-01-Round-2 (this session, uncommitted)
+- Objective: Wire the 8 real art assets (floor tile, 2 door-frame orientations, console, 4 direction-signage icons — generated per `docs/art/TR-002/asset_prompts.md`, placed at `assets/art/training_hub/`) into the training hub (`训练中控室`) so it no longer renders as the pure code-drawn `TrainingRoomBlockout` placeholder, without touching any other training room's look (宇航服整备室 etc. still share the old placeholder — out of scope, has its own already-approved TR-001 target pending a separate future round).
+- Implemented:
+  1. `scripts/props/reference_prop.gd`: added 3 new `prop_kind` cases (`hub_door_horizontal`, `hub_door_vertical`, `hub_console`), each preloading its PNG and drawing via a new shared `_draw_textured_prop()` helper — "contain"-fit (scaled to fit fully inside `prop_size`, centered, no distortion) rather than stretching the art to match whichever placeholder-era hitbox size a given door happens to have. Every other existing `prop_kind` in this shared, project-wide file is untouched.
+  2. New reusable prop scenes (`reference_prop.gd`-based, matching the exact existing convention of one `.tscn` per `prop_kind`): `scenes/props/training/HubDoorHorizontal.tscn`, `HubDoorVertical.tscn`, `HubConsole.tscn`.
+  3. `scripts/training/training_module_scene.gd`: added a new `TrainingHubBlockout` class (kept separate from the shared `TrainingRoomBlockout` class specifically so 宇航服整备室, which currently uses the same generic blockout, doesn't get reskinned by accident). Reuses `TrainingRoomBlockout`'s exact wall/light/panel layout, but draws the real tileable floor texture (`draw_texture_rect(..., tile=true)`) instead of a flat fill + grid lines, and adds the 4 direction-signage plaques (positioned as fractions of the room's own `size`, matching each door's real target center from `_hub_area_config()`).
+  4. `scripts/training/training_base_map.gd`: (a) `_build_training_area()` now forwards `visual.prop_scene_path = String(target.get("prop_scene_path", ""))` — this per-target field was previously never wired through in this file (a separate, simpler mechanism than `training_module_scene.gd`'s own `KIND_PROP_SCENES` kind-level dictionary, chosen because that dictionary maps by `kind` globally and would have reskinned every "door"-kind target project-wide, not just the hub's 4); (b) added a `"TrainingHubBlockout"` case to the blockout-selection `match`; (c) `_hub_area_config()`'s `"blockout"` changed from `"TrainingRoomBlockout"` to `"TrainingHubBlockout"`, and all 5 targets (terminal + 4 doors) gained a `"prop_scene_path"` key pointing at the 3 new scenes.
+- Known asset issue carried over from the prior message (not fixed this round, User explicitly chose to proceed without waiting): `door_sign_greenhouse.png` (訓練温室's leaf icon) renders as a muted gray-olive with ~44-48% opacity across the leaf shape, rather than the vivid, fully-opaque "生命绿" specified in the brief and shown in the reference image — verified via direct pixel sampling (not just visual inspection). Swapping the file once regenerated is a one-line no-code-change fix (same filename, same path).
+- Verification: Godot 4.7 headless parse EXIT 0 for all 3 modified scripts. Ran a full `--headless --editor --quit` import pass (both real project and sandbox) for the 8 new PNGs (confirmed proper `.import` sidecars for all 8, including the 2 files an earlier truncated log output didn't show individually). Synced to the same isolated sandbox and re-ran the existing 29-check `tests/aui_03_01_basic_information_test.gd` unmodified (PASS). New `tools/capture_training_hub_art.gd` run in the sandbox: dismisses the briefing modal and captures the hub room — confirmed visually: real tiled metal floor, console art centered, all 4 doors showing their correct-orientation frame art with the correct direction signage (red lightning/配电房, blue helmet/宇航服整备室, blue fan/空气系统控制室, green-ish leaf/训练温室 — this last one showing the known color issue above), player character and HUD panel unaffected. Real project save file SHA-256 checked before/after; unchanged (`56a39fec8c9856675194f4f7c7f134385c9154499c32a960182aac03127b8e24`).
+- Deliverables: `docs/screenshots/training_hub_art/01_hub_full_view.png`; new `tools/capture_training_hub_art.gd` (kept as a reusable capture tool); `scenes/props/training/HubDoorHorizontal.tscn`, `HubDoorVertical.tscn`, `HubConsole.tscn`.
+- Not touched: any other training room's blockout/door art (`TrainingRoomBlockout` itself, `AirlockRoomBlockout`, `PowerRepairRoomBlockout`, etc.), `TrainingTargetVisual`'s interaction/highlight logic, save schema, door gameplay logic (`DoorStateManager`/`DoorTypeDatabase`/`DoorAssetDatabase` — untouched, this round is training-scene-local art only).
+- Push/tag: `no / no` — not committed, not pushed, not tagged this round; awaiting User visual review (and the greenhouse-icon regeneration, whenever that lands).
+
+#### TR-002 Round 2 — Tightly-Cropped Assets, Nearest Filter, State Feedback, Environment-Layer Gap, and a Real Bug Fix
+
+- User (relaying a follow-up art-fix instruction, likely from Codex): door frames/console read as too small, room still looks like a code placeholder; re-crop the 8 assets tighter (already done externally — files replaced in place at the same paths, no code change needed for that part), set import filter to Nearest/no mipmaps/lossless, add visual state feedback (interaction highlight, locked/warning, unlocked/complete), and replace the remaining wall/corner/ceiling-light/panel placeholders with real art reusing TR-001's assets. 5 acceptance screenshots requested (no-UI panorama, terminal highlight, left-door unlocked, top-door locked, bottom-door unlocked/green).
+- Item 1 (re-import + import settings): confirmed the 8 PNGs were already replaced on disk at the same paths, now 432×384 / 256×560 / 400×320 / 128×128 as specified. Checked the actual `.import` files: `compress/mode=0` (Lossless) and `mipmaps/generate=false` were **already the default** for this project's texture import preset — no `.import` edits needed. "Filter: Nearest" is not an import-time setting in Godot 4's default 2D pipeline (it's a per-CanvasItem `texture_filter` property read at draw time), so set `texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST` in both `ReferenceProp._ready()` (scripts/props/reference_prop.gd) and the new `TrainingHubBlockout._ready()` (training_module_scene.gd) — affects only the `draw_texture_rect()` calls those two classes make; every other primitive-only prop kind is unaffected since draw_rect()/draw_line() don't sample a texture. Ran a full `--headless --editor --quit` import pass (real project + sandbox) to regenerate the `.ctex` cache for the resized files.
+- Item 2 (door/console still "too small"): with the assets now tightly cropped (no baked transparent padding), the existing `_draw_textured_prop()` "contain"-fit now fills nearly the whole `prop_size` box on its own — confirmed visually, no further scaling logic change needed.
+- Item 3 (state feedback): `_draw_textured_prop()` (reference_prop.gd) now draws a modulate tint + accent border on top of the real texture instead of the plain static image always looking the same: red tint + red border when `damaged` (doors' generic lock flag, same meaning as the old procedural `_draw_door()`'s locked state), blue tint + blue border when `active` (currently the interaction target), green border by default (unlocked/no special state) — satisfies the requested locked/warning, highlight, and unlocked/"complete" visual states without needing to recolor the source art itself.
+- Item 4 (environment layer — walls/corners/ceiling lights/panels): checked `docs/art/TR-001/` and the whole repo — TR-001 was **never sliced** into reusable individual wall/corner/light/panel files, only the one composite mood-reference image exists. The instruction's "reuse TR-001's assets" has nothing to actually reuse yet. **Not implemented this round** — wrote a new section 6 in `docs/art/TR-002/asset_prompts.md` specifying the 4 sub-items in the requested priority order (modular wall + 4 door-opening transitions / overhead cool-white-blue light strips / a couple of wall-mounted equipment panels / optional low-frequency floor detail decals) as generation prompts, so whoever generates TR-002's other assets can produce these the same way. `TrainingHubBlockout._draw()`'s wall/light/panel rects are unchanged (still the original procedural placeholder) pending those files.
+- Bug found and fixed (not part of the User's ask, discovered while trying to produce the locked/unlocked acceptance screenshots): `_clear_container()` only called `child.queue_free()` (deferred) without `remove_child()` (immediate) first. `_build_training_area()` gets called a second time almost immediately after the first (via `_rebuild_room_if_resized()`, triggered once `training_area`'s layout size settles a frame or two after `_ready()`), and that second call's `add_child(visual)` collided in name with the first call's not-yet-actually-removed same-named children — Godot silently auto-renamed the new nodes to `@Control@N` instead of `"terminal"`/`"door_power"`/etc. This silently broke every name-keyed lookup: `_door_locked()` (always returned `false`, i.e. doors visually never appeared locked regardless of real progress) and the `target_id`/`interaction_target_id` highlight-matching in `_update_room_prompt()`. Confirmed via direct debugging (printed `node.name` before/after the fix: `@Control@117` → `terminal`, etc.). This did **not** affect actual door passability (that's `DoorStateManager.can_pass_door()`, a separate system keyed differently) — purely a cosmetic/visual-state bug, which is presumably why it went unnoticed. Fixed with the standard Godot pattern: `node.remove_child(child)` before `child.queue_free()` in `_clear_container()` (also benefits the map-overview modal's own use of this same helper from TRAINING-BRIEFING-01).
+- Verification: Godot 4.7 headless parse EXIT 0 for `scripts/props/reference_prop.gd` and `scripts/training/training_base_map.gd`; re-ran the existing 29-check `tests/aui_03_01_basic_information_test.gd` unmodified (PASS) after both the asset re-import and the `_clear_container()` fix. New `tools/capture_training_hub_states.gd` drives all 5 requested screenshots: hides `minimal_hud` for the no-UI panorama; forces the terminal's interaction-highlight via the actual `interaction_running`/`interaction_target_id` flags (poking `.highlighted`/`.active` directly on the node gets overwritten by `_update_room_prompt()` the very next frame, so the script drives the real underlying state instead); forces door lock states by writing directly into the scene's `areas` dict (the actual source `_door_locked()` reads every frame). All 5 confirmed visually correct after the naming fix: 配电房/空气系统控制室/训练温室 show red/locked borders by default (fresh-profile progress), 宇航服整备室 shows green/unlocked (always-unlocked by design), the terminal shows a blue highlight border + "E 交互" prompt when forced active, and the forced-unlocked 训练温室 shows green. Real project save file SHA-256 checked before/after every sandbox round; unchanged (`56a39fec8c9856675194f4f7c7f134385c9154499c32a960182aac03127b8e24`).
+- Deliverables: `docs/screenshots/training_hub_art/01_hub_panorama_no_ui.png`, `02_terminal_highlight.png`, `03_door_suit_unlocked.png`, `04_door_power_locked.png`, `05_door_greenhouse_unlocked.png`; new `tools/capture_training_hub_states.gd`; new section 6 in `docs/art/TR-002/asset_prompts.md`.
+- Push/tag: `no / no` — not committed, not pushed, not tagged this round; awaiting User visual review and the still-outstanding environment-layer asset generation (section 6) plus the greenhouse-icon color/opacity fix from Round 1.
+
+### TRAINING-BRIEFING-01 - Training Base Map Briefing Modal (训练小型地图提示框)
+
+- Owner: `Claude Code`
+- Reviewer: `User` (visual, direct)
+- Final Approval: pending — not yet reviewed by User this round.
+- Mode: `single owner`
+- Status: `IN_PROGRESS` — awaiting User visual review; not committed, not pushed.
+- Branch: `main`
+- Worktree: repository root
+- Base commit: post-MAIN-MENU-01-Round-2 (this session, uncommitted)
+- Objective: Redesign the plain "训练小型地图" briefing modal shown on entering `TrainingBaseMap` (`scripts/training/training_base_map.gd`, `_build_briefing_modal()`) to match a User-supplied reference mockup, replacing the old bare unstyled panel (plain text block, single centered button, no border/close/cancel) with a bordered dialog matching the app's established confirmation-dialog grammar (header icon+title+close, divider, icon+text info rows, divider, two-button footer).
+- Implemented:
+  1. Panel restyled with an explicit dark-navy bordered `StyleBoxFlat` (bg `#111c26`, border `#2c4356`, radius 8) instead of relying on the engine's default `PanelContainer` theme, sized up from 640x380 to 800x520 to fit the richer content.
+  2. Header row: a new `_build_briefing_icon_badge()` — a circular bordered badge (no new icon asset; none of the existing shared icons were a semantic match for "candidate/training base", so a simple "◎" glyph in accent blue was used, matching the code-drawn-icon technique already established by `TitleScreenBackground`) — plus title/subtitle text, plus a close (X) button reusing the existing `icon_dialog_close.tres` (from the MAIN-MENU-01 new-game dialog) that routes back to the main menu.
+  3. Info list: 3 icon+text rows (`_add_briefing_info_row()`) for the same 3 lines of copy as before (room layout / E-Enter interact / Tab task panel), each with a small primitive icon frame (grid = 2x2 colored cells, info = "i" glyph, tab = "TAB" text) built from `Control` primitives, no new icon assets.
+  4. Footer: added a 取消 button (was previously absent — only "确认，开始训练" existed) at the far left, routing to the main menu same as the new close button; "确认，开始训练" kept as the primary action (`_close_briefing()`, unchanged business logic) pinned to the far right, both styled via a shared `_style_briefing_button(button, primary)` helper (dark-gray secondary vs. blue-accent primary, matching the app's established primary/secondary button coloring).
+- Errors found and fixed in this same round: the close button's icon rendered at its native atlas texture size (622x625px) because no `icon_max_width` theme constant was set, which also inflated the whole modal's computed minimum size far past its intended 800x520 (the classic "Button/TextureRect icon sizing" issue seen earlier this session in a different form) — fixed by adding `close_button.add_theme_constant_override("icon_max_width", 16)`.
+- Verification: Godot 4.7 headless parse EXIT 0; synced to the same isolated sandbox and re-ran the existing 29-check `tests/aui_03_01_basic_information_test.gd` unmodified (PASS). New `tools/capture_training_briefing_modal.gd` run in the sandbox; first capture caught the icon-sizing bug (oversized X glyph nearly filling the dialog), second capture (post-fix) confirmed the dialog now closely matches the User's reference mockup: circular badge + title/subtitle + close X in the header, divider, 3 icon+text info rows, divider, 取消/确认 footer buttons at correct size. Real project save file SHA-256 checked before/after; unchanged (`56a39fec8c9856675194f4f7c7f134385c9154499c32a960182aac03127b8e24`).
+- Deliverables: `docs/screenshots/training_briefing_modal/01_briefing_modal_default.png`; new `tools/capture_training_briefing_modal.gd` (kept as a reusable capture tool).
+- Not touched: `_close_briefing()`'s business logic, the training scene's footer buttons (保存训练进度/返回主菜单), save schema, any other modal in this file (`_build_pause_panel()`/`_build_interaction_panel()`/`_build_diagnosis_modal()`/`_build_suit_status_panel()`).
+- Push/tag: `no / no` — not committed, not pushed, not tagged this round; awaiting User visual review.
+
+#### TRAINING-BRIEFING-01 Round 2 — Remove Header Badge, Relabel TAB Row to M/地图, New Map Overview Feature
+
+- User feedback (2 items): (1) remove the circular icon badge in front of "训练小型地图"; (2) change the "按 Tab 可随时查看任务面板" row to "按 M 可随时查看地图".
+- Item 1: removed `_build_briefing_icon_badge()` entirely (dead code, no remaining callers) and its call site in the header row — header now shows only title/subtitle + close X.
+- Item 2 turned out to be more than a copy change. Before editing, clarified with the User: (a) should the actual keybind change from Tab to M, or just the label — User: keep Tab for the mission panel, wire a **real** M key; (b) a code search confirmed there is no existing "地图系统" anywhere in the project — the room-layout view visible in this scene's background is just the hub room's own door layout (`_hub_area_config()`'s targets), not a reusable map feature; the User confirmed wanting a **new** map overview popup built from scratch, separate from the Tab-bound mission panel.
+- Implemented, all in `scripts/training/training_base_map.gd`:
+  1. New `show_map` input action bound to `KEY_M` (`_ensure_input_actions()`, mirroring the existing `mission_panel`/`KEY_TAB` registration exactly), added to `_release_stale_movement_input()`'s stale-key-release list, and intercepted in `_input()` (not `_unhandled_input()`, same reasoning as the existing Tab handling: must win before any focused Button's GUI handling).
+  2. New `_build_map_overview_modal()` / `_toggle_map_overview()` / `_set_map_overview_visible()`: a bordered modal (same dark-navy panel styling as the redesigned briefing modal) showing a schematic (not pixel-accurate) diagram of all 6 training areas — `MAP_OVERVIEW_NODES` const mirrors the hub's own door layout (配电房 top / 宇航服整备室 left / 空气系统控制室 right / 训练温室 bottom around 训练中控室, 气闸舱 placed near 宇航服整备室 since that's its only connection) — each room rendered as a small labeled box color-coded by state: current location (blue-accent border + "当前位置" tag), unlocked (plain), or locked (dim + "未解锁" tag), driven by the same `areas[area_id]["unlocked"]` / `current_area_id` data the rest of the scene already reads. A 3-item color-swatch legend sits below the diagram. Rebuilt fresh every time the modal opens (`_refresh_map_overview()`) so progress made since the last open (newly-unlocked rooms, moving to a new current room) is always reflected.
+  3. Wired into all the same modal-gating logic used by the other overlays: `_process()`'s early-return guard, `_unhandled_input()`'s interact gate, `_sync_overlay_visibility()` (scrim/modal visibility, hides `minimal_hud`/`prompt_label` while open), and `_toggle_pause_menu()` (Esc closes the map overview first, same precedent as the existing briefing-modal special case) — so movement/interaction/HUD all correctly pause while the map is open, consistent with every other modal in this scene.
+  4. Also added "M 查看地图" to the minimal HUD's existing key-hint line ("Tab 查看任务 / Esc 暂停") for in-game discoverability.
+  5. Briefing modal's third info row updated: icon changed from a "TAB" key badge to an "M" key badge (renamed the `_add_briefing_info_row()` match case from `"tab"` to `"map"`, only case left of that kind — no dead code left behind), text changed to "按 M 可随时查看地图。".
+- Verification: Godot 4.7 headless parse EXIT 0; synced to the same isolated sandbox and re-ran the existing 29-check `tests/aui_03_01_basic_information_test.gd` unmodified (PASS). `tools/capture_training_briefing_modal.gd` extended to also call `_set_map_overview_visible(true)` after dismissing the briefing and capture the result: confirmed the badge is gone, the third row now reads "M / 按 M 可随时查看地图。", and the new map overview modal renders correctly — 训练中控室 marked "当前位置" (the scene's starting room), 宇航服整备室 shown unlocked with no tag (matches `_compute_unlocked()`'s hub/suit_prep-always-true rule), and the other 4 rooms marked "未解锁" — with a working legend. Real project save file SHA-256 checked before/after; unchanged (`56a39fec8c9856675194f4f7c7f134385c9154499c32a960182aac03127b8e24`).
+- Deliverables: `docs/screenshots/training_briefing_modal/01_briefing_modal_default.png` (re-captured, badge removed), `02_map_overview_modal.png` (new).
+- Push/tag: `no / no` — not committed, not pushed, not tagged this round; awaiting User visual review.
+- Next: none started automatically.
+
+### AUI-04-03 - Preliminary Eligibility Review Result Page (资格初审结果)
+
+- Owner: `Claude Code`
+- Reviewer: `User` (visual, direct)
+- Final Approval: pending — not yet reviewed by User this round.
+- Mode: `single owner`
+- Status: `IN_PROGRESS` — implementation underway; not committed, not pushed.
+- Branch: `main`
+- Worktree: repository root
+- Base commit: post-AUI-04-02 (this session, uncommitted)
+- Objective: Rebuild `_show_notice()` (the post-review-sequence result page, `current_application_step == "notice"`) per User's 12-section spec, so it reads as a formally-issued national institution document rather than a plain text announcement. Header/institution logo/系统编号与时间/four-step nav/shared font+color+button systems/1920x1080 frame/business logic/review-result data explicitly out of scope (untouched).
+- Real assets reused (no new art requested or generated): `assets/ui/common/icons/atlas/icon_earth.tres` (existing shared earth icon, already used elsewhere at 64x64 in the mission-link diagram, reused here at ~500px as a low-opacity ghost watermark per spec) and `icon_status_complete.tres` (reused for the approval badge and current-status-card icon, tinted cool blue — no new icon asset needed for this round).
+- Implemented (all in `scripts/application/application_flow_scene.gd`):
+  1. Layout switched from a single centered panel to the spec's two-column structure via the existing shared `_add_columns()` helper. Because that helper splits leftover row width equally between both columns regardless of the requested ratio, `_add_columns(0.74)` is called (not `0.64`) so the two panels render at the spec's intended ~64/36 visual proportion — the input ratio compensates for the helper's fixed additive-split behavior, not a change to the helper itself.
+  2. Left panel (正式通知区): 3-tier title block (机构名 → 中文主标题 30px → 英文副标题, `_build_notice_document()`) with a `_build_notice_approval_badge()` "审核通过 / PRELIMINARY APPROVED" badge (reusing `icon_status_complete`, cool-blue toned, no green/glow) pinned top-right of the title row; a 4-column `_build_notice_meta_row()` (文件编号/签发日期/候选人编号/审核状态, separated by `VSeparator`s, 候选人编号 sourced from the existing `derive_candidate_display_id()` helper already used on pages 01/04); a width-constrained (760px) `RichTextLabel` notice body with "通过资格初审" inline-highlighted in the spec's cool-blue (`#4f8eb8`); an `EXPAND_FILL` bottom spacer.
+  3. Right panel (审核摘要区): `_build_notice_summary_panel()` — 审核摘要 heading + 5 two-tier (CN bold / EN muted) checkmark rows (`_add_notice_summary_item()`); 当前状态 heading + a bordered status card (`_build_notice_current_status_card()`, bg `#142534`) showing "已通过资格初审/PRELIMINARY APPROVED" separated by a divider from "下一阶段：国家训练序列/NEXT PHASE..."; 流程位置 heading + a 5-node horizontal timeline (`_build_notice_progress_timeline()`/`_build_notice_progress_node()`/`_build_notice_progress_connector()`, done/current/pending states via filled/accent/hollow dot styling and connector-line coloring, current node labeled "CURRENT" beneath it) — built from primitives (`PanelContainer` circles + `ColorRect` connectors), no new icon assets requested since none of the 5 stage nodes had an existing matching icon and the spec didn't list new required assets for this section (unlike earlier rounds where the User explicitly supplied new icon files).
+  4. Earth ghost watermark (`_build_notice_earth_ghost()`): two `TextureRect`s (`EarthGhostBlur` behind, `EarthGhostMain` in front) both using the existing `icon_earth.tres`, anchor-point-positioned (not Container-fit) inside an `EarthGhostRoot` wrapper `Control` that is inserted as the left panel's first child (`PanelContainer.move_child(root, 0)`) so it renders behind all text content; `EarthGhostMain` at `#31506A`/~0.10 alpha, `EarthGhostBlur` at `#4A7292`/~0.06 alpha, ~8% larger and offset ~16px up-right per spec. Left panel's `PanelContainer.clip_contents = true` so the watermark can visually bleed toward the panel's own right/bottom edge without ever painting outside the left column (never reaching the right panel or footer). Kept static (no animation) per the spec's own "默认静态即可" default — the optional 8-12s drift/opacity-cycle animation was not implemented this round (low-risk future addition if requested).
+  5. Bottom Action Bar (`_build_notice_footer()`) rebuilt to match the spec's 3-part layout (返回主菜单 far left / center "下一阶段" bilingual text / 进入训练序列 far right with arrow), built entirely from the shared `_make_step_back_button()`/`_make_step_next_button()` so button size, height, and arrow icon stay identical to every other page's footer — replacing the previous ad-hoc `_add_footer_button()` + loose `Button.new()` pair.
+  6. Notice body copy adjusted to match the spec's exact paragraph wording (kept the existing personalized "致 %s：" greeting using the player's name rather than the spec's generic "致候选人：", since personalization was already the established behavior and isn't a regression).
+- Not implemented this round (disclosed): the optional earth-ghost drift animation (spec explicitly allows static as the default); no new icon assets for the 5-node progress timeline (primitives used instead, matching spec's "不使用复杂动画/不使用动态滚动" constraints).
+- Not touched: Header, institution logo, 系统编号/时间, four-step nav, shared Theme/font/color/button systems, save schema, review-result data fields, `_show_withdrawn()`, `_start_review_sequence()`.
+- Verification: Godot 4.7 headless parse EXIT 0; synced to the existing isolated sandbox (full project copy + unique `project.godot` `config/name`) and re-ran the existing 29-check `tests/aui_03_01_basic_information_test.gd` unmodified (PASS). New `tools/capture_aui_04_03_notice.gd` run in the sandbox, producing all 6 acceptance views the spec's section 十一 asked for plus the on/off comparison pair (7 files total): full 1920x1080 page, a left-document-region crop, a right-summary/progress-region crop, an earth-ghost close-up crop, earth-ghost off/on comparison pair (toggled live via `find_children("EarthGhostRoot", ...)` on the running scene, no code changes needed), and a Lanczos-downscaled 1600x900 view — all captured `err=0` and visually reviewed: title hierarchy/approval badge/meta row/highlighted body text/summary checklist/status card/progress timeline all render as specified; the earth watermark reads as a soft, legible-behind-text "archive watermark" (continent detail visible through the icon's own art, no double-outline artifact from the blur+main layering); the 1600x900 view scales cleanly with no new scrollbars or clipping. Real project save file SHA-256 checked before/after both sandbox capture runs; unchanged (`15c56a2f6f14cec388a1f91083293a4d2e354980383416f5658ac8db17afa598`).
+- Deliverables: `docs/screenshots/aui_04_03_notice/01_notice_full_page.png`, `02_notice_left_document_detail.png`, `03_notice_right_summary_progress_detail.png`, `04_notice_earth_ghost_detail.png`, `05a_notice_earth_ghost_off.png`, `05b_notice_earth_ghost_on.png`, `06_notice_1600x900.png`; new `tools/capture_aui_04_03_notice.gd` (kept as a reusable capture tool).
+- Push/tag: `no / no` — not committed, not pushed, not tagged this round; awaiting User visual review.
+- Next: none started automatically.
+
+### AUI-04-02 - Application Review Sequence (申请审核流程)
+
+- Owner: `Claude Code`
+- Reviewer: `User` (visual, direct)
+- Final Approval: pending — not yet reviewed by User this round.
+- Mode: `single owner`
+- Status: `IN_PROGRESS` — awaiting User visual review; not committed, not pushed.
+- Branch: `main`
+- Worktree: repository root
+- Base commit: post-AUI-03-04-close-out (`4b05509`)
+- Objective: Redesign the automated post-submit review sequence (`scripts/application/application_flow_scene.gd`, `_start_review_sequence()` / `_process()`) per User's 9-item spec: keep the existing autoplay behavior (no buttons, 8-10s total, ends by auto-advancing to the `notice` step) but replace the old plain text-append log with a terminal-log style presentation, add a progress bar + STEP counter + system status footer, and add a visible completion beat before the fade-out transition instead of an instant cut.
+- Implemented:
+  1. Replaced the old `review_lines`/`review_index`/`review_timer`/single `status_label` model with a continuous `review_elapsed` clock (`_process(delta)` accumulates `delta` while `is_reviewing`) driving a fixed 7-step data table, `REVIEW_SEQUENCE_STEPS` (each entry: `label`, `active` text, `done` text, `at` (seconds), optional `dots: true` for slow steps): 建立审核会话(0.5s) → 申请提交(1.5s) → 身份校验(2.5s) → 档案归档(4.0s) → 学术背景匹配(5.5s, dots) → 训练序列生成(7.0s, dots) → 候选人档案建立(8.5s), with overall completion at `REVIEW_SEQUENCE_COMPLETE_AT = 9.5s`.
+  2. Terminal-log rendering: `_build_review_log_row()` builds one row per step (timestamp label + ○/●/✓ status icon + step text), all built once in `_start_review_sequence()` and mutated in place by `_activate_review_step()` (○→●, active text, accent color) and `_complete_review_step()` (●→✓, done text, success color) as `review_elapsed` crosses each step's `at` threshold — never re-appending/re-flowing existing rows.
+  3. Timestamps are synthetic, derived from a fixed base time (`REVIEW_BASE_TIME_H/M/S = 07:15:32`) plus the step's elapsed offset via `_format_review_timestamp()`, giving each log line a stable HH:MM:SS stamp instead of a live wall-clock read.
+  4. Animated "..." dots for the two slow steps (学术背景匹配/训练序列生成): `_update_review_dots()` cycles 1-3 dots on the active row's text every 0.4s (`int(review_elapsed/0.4) % 3 + 1`) while that step is active.
+  5. Bottom status footer (`_build_review_status_footer()`, new bordered bar, no new panel/card style introduced beyond existing bordered-bar look): left cluster shows 审核进度 label + a thin `ColorRect` progress-bar fill + percent label; middle cluster shows `STEP n/7` counter; right cluster shows 审核状态 `ONLINE` + 当前模块 (current active/most-recent step's label). All three refreshed every frame via `_refresh_review_progress()`.
+  6. Completion beat before transition: at `review_elapsed >= 9.5s`, the last step is force-completed, progress shows `100%`/`STEP 7/7`, and a `review_completion_block` (hidden until then) becomes visible below the log with "所有审核流程已完成。" + "正在生成资格初审结果..." — held on screen for `REVIEW_SEQUENCE_HOLD_SECONDS = 1.0s` before a `review_fade_rect` (full-rect `ColorRect`, starts alpha 0) fades to opaque over `REVIEW_SEQUENCE_FADE_SECONDS = 0.5s`, only then advancing `current_application_step` to `notice` and calling `_show_step("notice")` — replacing the previous instant cut.
+  7. Visual constraints respected: no new page/panel/card types introduced (reused existing `_add_panel()`/bordered-bar look), no new complex animation beyond the Tween-free progress-bar width lerp and the dot-cycle text mutation, existing dark-blue/cool-gray-white/blue-accent palette (`AUI_COLOR_*` consts) reused throughout, existing autoplay/no-buttons behavior and total ~9.5-10s runtime preserved.
+- Verification: Godot 4.7 headless parse EXIT 0; synced to sandbox and re-ran existing 29-check `tests/aui_03_01_basic_information_test.gd` unmodified (PASS, unrelated page, sanity-checked). New `tools/capture_aui_04_02_review_sequence.gd` run in the isolated sandbox (full project copy + unique `project.godot` `config/name`), capturing 4 timepoints (t≈0, 3, 6, 9.6s); all 4 captures succeeded (`err=0`) and were visually reviewed: t=0 shows step 1 active (●, accent color) with the other 6 pending (○, muted), `0%`/`STEP 0/7`; t=3 shows 3 steps done + step 4 (档案归档) active, `32%`/`STEP 3/7`; t=6 shows 5 steps done + step 6 (训练序列生成) active mid-dot-cycle, `64%`/`STEP 5/7`; t=9.6 shows all 7 steps done (✓, correct timestamps/done-text), completion block visible ("所有审核流程已完成。"/"正在生成资格初审结果..."), `100%`/`STEP 7/7`, 当前模块 `审核完成`. Real project save file SHA-256 checked before/after this round's sandbox work; unchanged (`15c56a2f6f14cec388a1f91083293a4d2e354980383416f5658ac8db17afa598`).
+- Deliverables: `docs/screenshots/aui_04_02_review_sequence/01_review_t0_session_start.png`, `02_review_t3_in_progress.png`, `03_review_t6_academic_matching.png`, `04_review_t9_6_completion.png`; new `tools/capture_aui_04_02_review_sequence.gd` (kept as a reusable capture tool, matching the established pattern).
+- Not touched: Header/step-nav/page-title/fonts/colors/1920x1080 frame, `_show_review()` (the pre-submit confirmation page, AUI-03-04), `_show_notice()`/`_show_withdrawn()`, save schema.
+- Push/tag: `no / no` — not committed, not pushed, not tagged this round; awaiting User visual review.
+- Next: none started automatically.
+
+#### AUI-04-02 Round 2 — 美术总监 Review (VISUAL_PASS_WITH_MINOR_ADJUSTMENTS, "必须修正" items only)
+
+- User's art-director review verdict this round: `VISUAL_PASS_WITH_MINOR_ADJUSTMENTS` (ready for engineering, one more polish pass recommended). 3 items marked "必须修正" (implemented this round); 5 items marked "建议优化" (acknowledged, **not implemented**, deferred — matching the established Round-3-of-AUI-03-02 precedent of only doing the required items in a given round).
+- Implemented, all in `scripts/application/application_flow_scene.gd`, `_start_review_sequence()`/`_build_review_log_row()`:
+  1. **左侧时间轴整体右移**: the log rows and completion block were floating flush against the panel's own left edge ("视觉压力非常大"). Fixed by wrapping both `review_log_box` and `review_completion_block` in a new `content` `VBoxContainer` inside a `MarginContainer` with `margin_left = 36` (within the requested 32-40px range), so the whole sequence now sits with visible breathing room instead of hugging the edge.
+  2. **降低时间戳视觉权重**: timestamps (`07:15:32` etc.) were reading as loud as the status text ("时间和正文一样明显"). Fixed by reducing `timestamp_label`'s font size 12→10 and recoloring from `AUI_COLOR_TEXT_MUTED` to `Color("#70808d", 0.75)` (matching the User's suggested `#70808D` plus a slight alpha reduction) — the step text itself (icon + label) was left untouched at its existing size/color so it stays the visually dominant element per line.
+  3. **收尾状态改为流程日志的一部分**: the completion block's first line read as a disconnected sentence ("所有审核流程已完成。" — "有点突然"). Restyled to match the same icon+text row pattern as the 7 log steps themselves: a green `✓` icon + "审核流程完成" bold text in an `HBoxContainer`, immediately below the existing `HSeparator` divider, with "正在生成资格初审结果..." unchanged below it — so the ending reads as the log's own final row rather than an unrelated announcement. The existing `REVIEW_SEQUENCE_HOLD_SECONDS = 1.0s` hold before the fade was already in place from Round 1 and already satisfies the User's "停留约1秒" ask (no timing change needed); the ~1s natural gap between the last step's own `at` (8.5s) and `REVIEW_SEQUENCE_COMPLETE_AT` (9.5s) already gives the completion line a distinct beat rather than appearing in the same instant as the last step.
+- Not implemented this round (explicitly deferred, "建议优化"): 处理中状态的轻微动画反馈 (dots-cycle already exists for 2 of 7 steps per Round 1's own spec, but a more general spinner/blink treatment was not added); 统一状态图标样式 (circle-wrapped checkmark instead of a bare ✓ glyph); 加粗底部进度条 (4px → 6-8px); 放大 STEP 数字 (currently 15px → suggested 20-22px); Panel 背景加入地球虚影或科研纹理 (an ambient background element, distinct from the AUI-04-03 notice page's own earth-ghost watermark).
+- Verification: Godot 4.7 headless parse EXIT 0; synced to the same isolated sandbox and re-ran the existing 29-check `tests/aui_03_01_basic_information_test.gd` unmodified (PASS). Re-ran `tools/capture_aui_04_02_review_sequence.gd` in the sandbox; all 4 timepoints re-captured (`err=0`) and visually confirmed: t=3 and t=9.6 screenshots show the indent, the de-emphasized timestamps (clearly secondary to the bold step text now), and the completion block rendering as "✓ 审核流程完成" / "正在生成资格初审结果..." beneath the divider. Real project save file SHA-256 checked before/after; unchanged (`15c56a2f6f14cec388a1f91083293a4d2e354980383416f5658ac8db17afa598`).
+- Deliverables: `docs/screenshots/aui_04_02_review_sequence/01_review_t0_session_start.png` … `04_review_t9_6_completion.png` overwritten in place with the Round 2 fixes (same 4 filenames as Round 1).
+- Push/tag: `no / no` — still not committed, not pushed, not tagged; awaiting User's final visual sign-off.
+
+#### AUI-04-02 Round 3 — Critical Bug: Black Screen After Review Sequence (transition never completed)
+
+- User report (from testing the real, uncommitted project directly): after the review sequence's autoplay finished, the screen went black and never advanced to the next page ("等待审查流程结束后画面黑屏没有进入下个页面").
+- Root cause: `_start_review_sequence()` (introduced in Round 1) adds `review_fade_rect` — a full-rect opaque `ColorRect` at `z_index = 100` — directly as a child of `aui_canvas` (not `page_body`), so that it fades to opaque over the whole screen at the end of the sequence. `_process()`'s fade branch correctly calls `_show_step("notice")` once the fade reaches full opacity, but `_show_step()` only clears `page_body`/`footer` (see its definition) — it never touches `aui_canvas`'s other direct children. `review_fade_rect` was therefore left sitting on top of everything, fully opaque, forever: the `notice` page was actually being built underneath it the whole time, just permanently hidden behind the black overlay. This bug was not caught during AUI-04-02 Round 1/2 verification because every capture script up to this point only sampled timepoints up to t≈9.6s (mid-fade) or called `_show_step("notice")` directly to screenshot that page in isolation — neither path ever exercised the real fade-completes-then-hands-off-to-notice transition end-to-end.
+- Fix: one line, in `_process()`'s fade-completion branch — after `_show_step("notice")`, `review_fade_rect.queue_free()` (guarded by `is_instance_valid()`) so the overlay is removed once the handoff to the next page has happened.
+- Verification: Godot 4.7 headless parse EXIT 0; existing 29-check `tests/aui_03_01_basic_information_test.gd` re-run unmodified (PASS). New `tools/capture_aui_04_02_transition_fix.gd` written specifically to close this verification gap: runs the *entire* autoplay for real (12s of real timer waits, not just sampled timepoints) starting from `_start_review_sequence()`, then asserts `scene.step == "notice"` and captures a screenshot. Confirmed: `current step after autoplay: notice` (previously would have stayed `"review"` from the caller's perspective, but critically the visible frame would have stayed solid black regardless of the underlying step), and the captured frame shows the fully-rendered AUI-04-03 资格初审结果 page, not a black screen. Real project save file SHA-256 checked before this sandbox run; the hash differs from the previously-recorded baseline because the User was concurrently testing the real, uncommitted project themselves (multiple other save files — `air_system_state.json`, `power_system_state.json`, `water_system_state.json`, etc. — updated at the same timestamp, confirming this was the User's own play session, not this round's sandbox script, which remained isolated under its own `config/name`).
+- Deliverables: `docs/screenshots/aui_04_02_review_sequence/05_review_after_fade_notice_page.png` (new); `tools/capture_aui_04_02_transition_fix.gd` (new, kept as a reusable regression check for this specific transition).
+- Push/tag: `no / no` — not committed, not pushed, not tagged this round; awaiting User confirmation that the black-screen bug is resolved in the real project.
+
+#### AUI-04-02 Round 4 — Panel Color Mismatch + Main-Menu Shortcut-Hint Cleanup
+
+- User report (2 items, from a screenshot of the real project): (1) on the main menu, floating "E / Enter" / "R" / "F12" / "Esc" text appeared scattered across the background scene art; (2) on the review-sequence page, "审查流程中间这框的颜色太出戏了" — the main content box's color didn't match the rest of the app.
+- Item 1 root cause (`scripts/main.gd`): `_make_title_button()` (from MAIN-MENU-01) built a per-row `shortcut` `Label` (e.g. "E / Enter") inside each nav item's own `HBoxContainer` row. Because the `label` in that row is `SIZE_EXPAND_FILL`, the shortcut text gets pushed all the way to the row's far right edge — and since each button's row spans much wider than the visually-narrow menu column (the background video occupies the same canvas), the shortcut text visually lands on top of unrelated background art (the tower, satellite dish, buildings) rather than reading as part of the menu item next to it. Fixed by removing the shortcut-hint feature entirely: the `shortcut_text` parameter, the `shortcut` Label, its `state` dict entry, and its Tween line were all removed from `_make_title_button()`/`_apply_title_menu_visual()`, and the 4 call sites (开始新驻留/继续驻留/开发入口/退出) no longer pass a shortcut argument. The separate single-line bottom hint bar ("移动：WASD... 交互：E/Enter... 返回/取消：Esc... 开发菜单：F12", `InputHint` label) was **not** touched — the User's report only pointed at the per-row floating text visible in their screenshot, and that bottom bar is a distinct, intentionally-compact element, not scattered across the background art.
+- Item 2 root cause (`scripts/application/application_flow_scene.gd`, `_start_review_sequence()`): the page's main content panel is built via the generic `_add_panel()` helper, which — unlike every other page's panels — is never passed through `_style_identity_panel()`. It was therefore rendering with Godot's built-in default `PanelContainer` theme style (a plain flat light-gray box) instead of the app's dark-navy bordered panel treatment used everywhere else, which is why it read as visually inconsistent ("太出戏"). This wasn't caught in earlier AUI-04-02 verification rounds because the isolated sandbox project copy used for those captures didn't happen to surface the mismatch as starkly as the User's real-project screenshot did. Fixed by calling `_style_identity_panel(panel.get_parent() as PanelContainer)` on this panel, same as every other page. Since the panel now carries its own `AUI_PANEL_PADDING` (24px) content margin, the `MarginContainer` added in Round 2 to indent the log content was reduced from `margin_left = 36` to `margin_left = 12`, so the total visible indent (24 + 12 = 36px) still lands in the previously-requested 32-40px range instead of stacking to 60px.
+- Verification: Godot 4.7 headless parse EXIT 0 for both `scripts/main.gd` and `scripts/application/application_flow_scene.gd`; synced to the same isolated sandbox and re-ran the existing 29-check `tests/aui_03_01_basic_information_test.gd` unmodified (PASS). Re-ran the existing `tools/capture_main_menu_nav_states.gd` (main menu default + focus states) and `tools/capture_aui_04_02_review_sequence.gd` (all 4 timepoints); confirmed visually: no shortcut-hint text appears anywhere on the main menu (bottom hint bar unchanged), and the review page's main panel now renders with the same dark-navy border/background as every other page, with the log content properly indented. Real project save file SHA-256 noted before/after (values changed between checks because the User was concurrently testing the real, uncommitted project — consistent with the established pattern this session; the sandbox itself remained isolated under its own `config/name` throughout).
+- Deliverables: `docs/screenshots/main_menu/03_nav_default_state.png`, `04_nav_focus_state.png` (re-captured, shortcut-free); `docs/screenshots/aui_04_02_review_sequence/01_review_t0_session_start.png` … `04_review_t9_6_completion.png` (re-captured with the corrected panel style).
+- Push/tag: `no / no` — not committed, not pushed, not tagged this round; awaiting User confirmation.
 
 ### AUI-03-04 - Submit Application Page Layout (提交申请)
 
@@ -69,6 +329,20 @@ This file is the current coordination board for active task ownership, file lock
 - Deliverables: `docs/screenshots/main_menu/01-07*.png` (background, nav default/focus states, video-background frames, confirmation dialog).
 - Push/tag authorization: `yes / no` — User said "提交推送" this round. Not tagged.
 - Next: no follow-up started automatically.
+
+#### MAIN-MENU-01 Round 2 — Background Video Audio, New HD Source, and Loop-to-Fade
+
+- Owner: `Claude Code`. Same task ID; no duplicate task created. Status remains `IN_PROGRESS` (not closed; awaiting User visual/audio confirmation, not self-declared VISUAL_PASS).
+- Item A — background video was fully silent: User confirmed their source video does have audio and asked whether a setting suppressed it. Found `player.volume_db = -80.0` in `_build_title_background()` (`scripts/main.gd`) — an effectively-silent level set during the original MAIN-MENU-01 round with no explicit audio instruction at the time. Asked the User whether to restore full volume, keep silent, or lower-but-audible; User chose the latter. Changed to `player.volume_db = -12.0`.
+- Item B — User replaced `assets/ui/opening/backgrounds/opening_background.ogv` with a new HD source video directly in the folder, then reported "画面很奇怪" (weird-looking) after restarting. Two real issues found:
+  1. Replacing the file this way deleted two files git had tracked alongside it — `opening_background.png.import` and `opening_background.ogv.uid` — breaking Godot's ability to resolve either asset outside the editor (confirmed via `git status`/`git log` showing both as `D` against the last commit). Restored both via `git checkout --` (safe: the `.png` itself was unchanged, and `.uid` files are path-keyed, not content-keyed, so the old one is still valid for the new video's content at the same path).
+  2. The new video is `1920x1024` (landscape) vs. the old hardcoded `TITLE_BACKGROUND_VIDEO_SIZE := Vector2(720.0, 1280.0)` (portrait) used for the cover-fill scaling math in `resize_video()` — a stale value here directly causes a stretched/distorted background. Re-ffprobed the new file and updated the constant to `Vector2(1920.0, 1024.0)`, with a comment flagging this constant as a must-update-on-replacement value.
+  3. Diagnostic note (not a bug, no fix needed): ffprobe/ffmpeg report "Invalid extradata! / Unknown Theora config packet: 117" on the new file's Theora header, but a full decode + extracted test frame confirmed the actual video/audio content is intact and correct — this is a benign encoder-header quirk from whatever tool produced the file, not corruption.
+  4. Ran a full `--headless --editor --quit` import pass (both real project and sandbox) to reimport the replaced video and regenerate the PNG's `.import` cache entry.
+- Item C — User asked for the video to play once and settle on the fixed background image afterward, instead of looping forever (`player.finished.connect(func(): player.play())` from Round 1). Changed to: a `TitleScreenBackground` (the existing static-image fallback Control) is now always added behind the video from the start; on `finished`, a `TITLE_BACKGROUND_FADE_SECONDS = 1.5s` Tween fades the video player's own alpha to 0, then stops and frees it — revealing the already-present still image as the permanent background. No visibility/swap juggling needed since the video is fully opaque above the still image throughout normal playback.
+- Verification: Godot 4.7 headless parse EXIT 0 after each change; existing 29-check `tests/aui_03_01_basic_information_test.gd` passed unmodified throughout. New `tools/capture_main_menu_video_fade_to_still.gd` waits 14.5s (past the ~12s video + 1.5s fade + margin) and confirms via `is_instance_valid(player)` that the video node was actually freed (not just visually faded), then captures the resulting frame — confirmed showing the static background image cleanly, matching the pre-existing `TitleScreenBackground` aspect-fill rendering. Reused existing `tools/capture_main_menu_video_bg.gd` to confirm the new HD video itself still decodes and aspect-fills correctly after the resolution-constant fix. Real project save file SHA-256 checked before/after each sandbox round; unchanged within each round (cross-round differences reflect the User's own concurrent manual testing against the real, uncommitted project, consistent with the established pattern this session).
+- Deliverables: `docs/screenshots/main_menu/05_video_bg_frame_A.png`, `06_video_bg_frame_B.png` (re-captured against the new HD video, corrected aspect), `07_video_bg_after_fade_to_still.png` (new, confirms fade-to-still behavior); new `tools/capture_main_menu_video_fade_to_still.gd` (kept as a reusable regression check).
+- Push/tag: `no / no` — not committed, not pushed, not tagged this round; awaiting User confirmation in the real project (audio level, HD video look, and the fade-to-still behavior).
 
 ### AUI-03-03 - Appearance & Marking Page (外观与标识)
 

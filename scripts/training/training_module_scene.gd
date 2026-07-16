@@ -58,6 +58,211 @@ class TrainingRoomBlockout:
 		draw_rect(Rect2(Vector2(room.end.x - 180, room.position.y + 72), Vector2(94, 42)), panel_color, true)
 		draw_rect(Rect2(Vector2(room.end.x - 182, room.position.y + 74), Vector2(90, 6)), Color("#67b7e8", 0.55), true)
 
+## TR-002 训练中控室 (hub) real art: reuses TrainingRoomBlockout's wall/light
+## layout exactly (same margins/panel positions) but draws the real tileable
+## floor texture instead of a flat fill + grid lines, and adds the 4
+## direction-signage plaques above each door. Kept as its own class (rather
+## than modifying TrainingRoomBlockout in place) because that class is still
+## shared by 宇航服整备室 and must not change until that room gets its own
+## art pass. Only `_hub_area_config()`'s "blockout" points here.
+## TR-002 训练中控室 (hub) real art, rebuilt around the shared modular atlas
+## (assets/material/lunar_base_modular_atlas.png + .json) per the layered
+## Floor/Structure/Props/Interactive/Lighting/Overlay spec. Kept as its own
+## class (not folded into TrainingRoomBlockout) because that class is still
+## shared by 宇航服整备室 and must not change until that room gets its own art
+## pass. Only _hub_area_config()'s "blockout" points here.
+##
+## Child layers are built once, lazily, the first time _draw() runs with a
+## valid non-zero size (Control.size isn't reliable yet at _ready()) --
+## in local/design-space coordinates (ROOM_DESIGN_SIZE = 760x520, the same
+## design canvas training_base_map.gd's _room_point()/_room_size() scale
+## from), then the whole set of layers is scaled as one unit to match
+## whatever the room is actually rendering at (uniform scale, same approach
+## _room_size() uses elsewhere so art never stretches non-uniformly). Door/
+## terminal *positions* are never touched here -- those stay driven entirely
+## by _hub_area_config()'s targets list and TrainingTargetVisual, unchanged;
+## this class only draws the non-interactive room dressing around them.
+class TrainingHubBlockout:
+	extends Control
+
+	const LunarBaseAtlasScript := preload("res://scripts/data/lunar_base_atlas.gd")
+	const SignSuitHelmet := preload("res://assets/material/door_sign_suit_helmet.png")
+	const SignAirFan := preload("res://assets/material/door_sign_air_fan.png")
+
+	const ROOM_DESIGN_SIZE := Vector2(760, 520)
+	const FLOOR_TILE_PX := 115.0
+	const FLOOR_PRIMARY := ["floor_plate_plain", "floor_plate_seamed", "floor_plate_quad"]
+	const FLOOR_RARE := ["floor_plate_cracked", "floor_plate_damaged", "floor_grate_square", "floor_vent_rectangular"]
+	const SIGN_DISPLAY_SIZE := Vector2(44, 44)
+
+	var _built := false
+
+	func _ready() -> void:
+		texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+
+	func _draw() -> void:
+		draw_rect(Rect2(Vector2.ZERO, size), Color("#07111b"), true)
+		if not _built and size.x > 1.0 and size.y > 1.0:
+			_built = true
+			call_deferred("_build_layers")
+
+	func _build_layers() -> void:
+		var art_root := Node2D.new()
+		art_root.name = "HubArt"
+		var uniform: float = min(size.x / ROOM_DESIGN_SIZE.x, size.y / ROOM_DESIGN_SIZE.y)
+		art_root.scale = Vector2(uniform, uniform)
+		add_child(art_root)
+
+		_build_floor(art_root)
+		_build_structure(art_root)
+		_build_props(art_root)
+		_build_lighting(art_root)
+		_build_door_signage(art_root)
+
+	# -- 1. Floor (TileMapLayer): each irregularly-packed atlas region becomes
+	# its own single-tile TileSetAtlasSource (margins = that region's x/y,
+	# texture_region_size = that region's w/h), so a non-uniform sprite-sheet
+	# atlas can still back a real Godot TileSet/TileMapLayer. --
+	func _build_floor(art_root: Node2D) -> void:
+		var tile_set := TileSet.new()
+		tile_set.tile_size = Vector2i(int(FLOOR_TILE_PX), int(FLOOR_TILE_PX))
+		var source_ids: Dictionary = {}
+		for variant in FLOOR_PRIMARY + FLOOR_RARE:
+			var frame: Rect2i = LunarBaseAtlasScript.FRAMES[variant]
+			var source := TileSetAtlasSource.new()
+			source.texture = LunarBaseAtlasScript.AtlasTexture_
+			source.margins = Vector2i(frame.position.x, frame.position.y)
+			source.texture_region_size = Vector2i(frame.size.x, frame.size.y)
+			source.create_tile(Vector2i.ZERO)
+			source_ids[variant] = tile_set.add_source(source)
+
+		var layer := TileMapLayer.new()
+		layer.name = "Floor"
+		layer.tile_set = tile_set
+		layer.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		layer.position = Vector2(24, 24)
+		art_root.add_child(layer)
+
+		var interior := Vector2(ROOM_DESIGN_SIZE.x - 48.0, ROOM_DESIGN_SIZE.y - 48.0)
+		var cols: int = int(floor(interior.x / FLOOR_TILE_PX))
+		var rows: int = int(floor(interior.y / FLOOR_TILE_PX))
+		# Deterministic seed: the floor pattern shouldn't visibly shuffle every
+		# time _build_training_area() reruns (door lock changes, resize, etc.).
+		var rng := RandomNumberGenerator.new()
+		rng.seed = 20260716
+		for gy in range(rows):
+			for gx in range(cols):
+				var variant: String = FLOOR_PRIMARY[rng.randi_range(0, FLOOR_PRIMARY.size() - 1)]
+				if rng.randf() < 0.08:
+					variant = FLOOR_RARE[rng.randi_range(0, FLOOR_RARE.size() - 1)]
+				layer.set_cell(Vector2i(gx, gy), source_ids[variant], Vector2i.ZERO)
+
+	# -- 2. Structure: perimeter wall segments (skipping each door's gap) +
+	# 4 corners + a modest set of pipe/equipment accents (not wall-to-wall
+	# coverage -- User asked for "少量"). --
+	func _build_structure(art_root: Node2D) -> void:
+		var structure := Node2D.new()
+		structure.name = "Structure"
+		art_root.add_child(structure)
+
+		var wall_frame: Rect2i = LunarBaseAtlasScript.FRAMES["wall_segment_horizontal"]
+		var wall_len := float(wall_frame.size.x)
+
+		# Top wall (配电房 gap ~ design x 300-460) / bottom wall (训练温室 gap, same span).
+		_tile_wall_row(structure, Vector2(24, 24), ROOM_DESIGN_SIZE.x - 48.0, wall_len, [Vector2(296.0, 464.0)])
+		_tile_wall_row(structure, Vector2(24, ROOM_DESIGN_SIZE.y - 24), ROOM_DESIGN_SIZE.x - 48.0, wall_len, [Vector2(296.0, 464.0)])
+		# Left wall (宇航服整备室 gap) / right wall (空气系统控制室 gap), rotated 90°.
+		_tile_wall_column(structure, Vector2(24, 24), ROOM_DESIGN_SIZE.y - 48.0, wall_len, [Vector2(188.0, 352.0)])
+		_tile_wall_column(structure, Vector2(ROOM_DESIGN_SIZE.x - 24, 24), ROOM_DESIGN_SIZE.y - 48.0, wall_len, [Vector2(188.0, 352.0)])
+
+		_place_sprite(structure, "wall_corner_outer_left", Vector2(24, 24))
+		_place_sprite(structure, "wall_corner_outer_top_right", Vector2(ROOM_DESIGN_SIZE.x - 24, 24))
+		_place_sprite(structure, "wall_corner_outer_bottom_left", Vector2(24, ROOM_DESIGN_SIZE.y - 24))
+		_place_sprite(structure, "wall_corner_inner_bottom_right", Vector2(ROOM_DESIGN_SIZE.x - 24, ROOM_DESIGN_SIZE.y - 24))
+
+		_place_sprite(structure, "equipment_power_cabinet", Vector2(90, ROOM_DESIGN_SIZE.y - 90))
+		_place_sprite(structure, "pipe_elbow_long", Vector2(ROOM_DESIGN_SIZE.x - 130, 90))
+		_place_sprite(structure, "pipe_support_vertical", Vector2(ROOM_DESIGN_SIZE.x - 55, ROOM_DESIGN_SIZE.y * 0.5))
+
+	# -- 3. Props: decorative consoles flanking the interactive terminal
+	# (center console art itself is the terminal's own visual, drawn by
+	# HubConsole.tscn/reference_prop.gd -- not duplicated here). --
+	func _build_props(art_root: Node2D) -> void:
+		var props := Node2D.new()
+		props.name = "Props"
+		art_root.add_child(props)
+		_place_sprite(props, "console_status_panel", Vector2(230, 250))
+		_place_sprite(props, "console_terminal_compact", Vector2(560, 250))
+
+	# -- 5. Lighting: 3x grow_light_dual across the top, grow_light_pair on
+	# the left/right walls. Cool blue-white only, no added warm/yellow. --
+	func _build_lighting(art_root: Node2D) -> void:
+		var lighting := Node2D.new()
+		lighting.name = "Lighting"
+		art_root.add_child(lighting)
+		for light_x in [150.0, ROOM_DESIGN_SIZE.x * 0.5, ROOM_DESIGN_SIZE.x - 150.0]:
+			_place_sprite(lighting, "grow_light_dual", Vector2(light_x, 32))
+		_place_sprite(lighting, "grow_light_pair", Vector2(90, ROOM_DESIGN_SIZE.y * 0.5 - 60), false, false, PI * 0.5)
+		_place_sprite(lighting, "grow_light_pair", Vector2(ROOM_DESIGN_SIZE.x - 90, ROOM_DESIGN_SIZE.y * 0.5 - 60), false, false, PI * 0.5)
+
+	# -- Door-direction signage: 配电房/训练温室 use atlas UI icons,
+	# 宇航服整备室/空气系统控制室 use the standalone signage PNGs. Purely
+	# static dressing -- any locked/warning state is already conveyed by the
+	# interactive door node itself (existing modulate-dim system), not by
+	# recoloring this signage. --
+	func _build_door_signage(art_root: Node2D) -> void:
+		var signage := Node2D.new()
+		signage.name = "DoorSignage"
+		art_root.add_child(signage)
+		_place_icon(signage, LunarBaseAtlasScript.region("ui_icon_power"), Vector2(380, 34))
+		_place_icon(signage, LunarBaseAtlasScript.region("ui_icon_plant"), Vector2(380, ROOM_DESIGN_SIZE.y - 34))
+		_place_icon(signage, SignSuitHelmet, Vector2(46, 280))
+		_place_icon(signage, SignAirFan, Vector2(ROOM_DESIGN_SIZE.x - 46, 280))
+
+	func _place_sprite(parent: Node2D, frame_name: String, pos: Vector2, flip_h: bool = false, flip_v: bool = false, rot: float = 0.0) -> void:
+		var sprite := Sprite2D.new()
+		sprite.texture = LunarBaseAtlasScript.region(frame_name)
+		sprite.position = pos
+		sprite.flip_h = flip_h
+		sprite.flip_v = flip_v
+		sprite.rotation = rot
+		sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		parent.add_child(sprite)
+
+	func _place_icon(parent: Node2D, tex: Texture2D, pos: Vector2) -> void:
+		var sprite := Sprite2D.new()
+		sprite.texture = tex
+		sprite.position = pos
+		sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		var native: Vector2 = tex.get_size()
+		if native.x > 0.0 and native.y > 0.0:
+			sprite.scale = SIGN_DISPLAY_SIZE / native
+		parent.add_child(sprite)
+
+	func _tile_wall_row(parent: Node2D, start: Vector2, total_width: float, tile_len: float, gaps: Array) -> void:
+		var x := start.x
+		var end_x := start.x + total_width
+		while x < end_x - tile_len * 0.5:
+			var center := Vector2(x + tile_len * 0.5, start.y)
+			if not _in_any_gap(center.x, gaps):
+				_place_sprite(parent, "wall_segment_horizontal", center)
+			x += tile_len
+
+	func _tile_wall_column(parent: Node2D, start: Vector2, total_height: float, tile_len: float, gaps: Array) -> void:
+		var y := start.y
+		var end_y := start.y + total_height
+		while y < end_y - tile_len * 0.5:
+			var center := Vector2(start.x, y + tile_len * 0.5)
+			if not _in_any_gap(center.y, gaps):
+				_place_sprite(parent, "wall_segment_horizontal", center, false, false, PI * 0.5)
+			y += tile_len
+
+	func _in_any_gap(value: float, gaps: Array) -> bool:
+		for gap in gaps:
+			if value >= gap.x and value <= gap.y:
+				return true
+		return false
+
 class AirlockRoomBlockout:
 	extends Control
 

@@ -30,7 +30,22 @@ extends Control
 ## permits keeping it a separate scene ("如果开发成本更低，优先使用单场景多区域"
 ## / "太阳能阵列训练场也可以作为同场景下的外部区域，或单独场景").
 
+const IconDialogClose := preload("res://assets/ui/common/icons/add/atlas/icon_dialog_close.tres")
 const TrainingManagerScript := preload("res://scripts/training/training_manager.gd")
+
+## Schematic (not pixel-accurate) positions for the M-key map overview modal,
+## normalized 0..1 within the diagram Control. Mirrors the hub's own door
+## layout from _hub_area_config() (配电房 top / 宇航服整备室 left / 空气系统
+## 控制室 right / 训练温室 bottom, around the central 训练中控室), plus 气闸舱
+## placed near 宇航服整备室 since that's the only room it connects from.
+const MAP_OVERVIEW_NODES := [
+	{"area_id": "hub", "label": "训练中控室", "pos": Vector2(0.5, 0.5)},
+	{"area_id": "power_distribution_room", "label": "配电房", "pos": Vector2(0.5, 0.12)},
+	{"area_id": "suit_prep_room", "label": "宇航服整备室", "pos": Vector2(0.12, 0.5)},
+	{"area_id": "airlock_simulation_room", "label": "气闸舱", "pos": Vector2(0.12, 0.85)},
+	{"area_id": "air_system_control_room", "label": "空气系统控制室", "pos": Vector2(0.88, 0.5)},
+	{"area_id": "greenhouse_room", "label": "训练温室", "pos": Vector2(0.5, 0.88)},
+]
 const PlayerControllerScript := preload("res://scripts/controllers/player_controller_2d.gd")
 const InteractionAreaScript := preload("res://scripts/controllers/interaction_area_2d.gd")
 const TrainingModuleSceneScript := preload("res://scripts/training/training_module_scene.gd")
@@ -88,6 +103,10 @@ var suit_status_scrim: ColorRect
 var suit_status_modal: PanelContainer
 var suit_status_text_label: Label
 var suit_status_panel_visible := false
+var map_overview_scrim: ColorRect
+var map_overview_modal: PanelContainer
+var map_overview_diagram: Control
+var map_overview_visible := false
 var footer_buttons: HBoxContainer
 var training_area: Control
 var floor_node: Control
@@ -145,7 +164,7 @@ func _gameplay_modal_open() -> bool:
 func _process(delta: float) -> void:
 	_rebuild_room_if_resized()
 	_update_toast(delta)
-	if briefing_visible or pause_visible or interaction_running or _gameplay_modal_open():
+	if briefing_visible or pause_visible or interaction_running or map_overview_visible or _gameplay_modal_open():
 		_update_room_prompt()
 		return
 	_move_player(delta)
@@ -183,9 +202,12 @@ func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("mission_panel"):
 		_toggle_mission_panel()
 		get_viewport().set_input_as_handled()
+	if event.is_action_pressed("show_map"):
+		_toggle_map_overview()
+		get_viewport().set_input_as_handled()
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("interact") and not briefing_visible and not pause_visible and not interaction_running and not _gameplay_modal_open():
+	if event.is_action_pressed("interact") and not briefing_visible and not pause_visible and not interaction_running and not map_overview_visible and not _gameplay_modal_open():
 		_try_interact()
 	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_F3:
 		show_trigger_debug = not show_trigger_debug
@@ -207,13 +229,18 @@ func _ensure_input_actions() -> void:
 		var panel_event := InputEventKey.new()
 		panel_event.physical_keycode = KEY_TAB
 		InputMap.action_add_event("mission_panel", panel_event)
+	if not InputMap.has_action("show_map"):
+		InputMap.add_action("show_map")
+		var map_event := InputEventKey.new()
+		map_event.physical_keycode = KEY_M
+		InputMap.action_add_event("show_map", map_event)
 
 ## Same rationale as training_module_scene.gd's own copy of this function:
 ## Godot's input action "pressed" state is global, not per-scene, so a key
 ## held down when this scene loads (e.g. Enter on the previous screen's
 ## button) can otherwise read as a stuck movement/interact input.
 func _release_stale_movement_input() -> void:
-	for action in ["ui_up", "ui_down", "ui_left", "ui_right", "interact", "mission_panel", "ui_cancel", "ui_accept"]:
+	for action in ["ui_up", "ui_down", "ui_left", "ui_right", "interact", "mission_panel", "show_map", "ui_cancel", "ui_accept"]:
 		if InputMap.has_action(action):
 			Input.action_release(action)
 
@@ -500,15 +527,15 @@ func _hub_area_config() -> Dictionary:
 		"module_id": "",
 		"requires_suit": false,
 		"terrain_type": "indoor",
-		"blockout": "TrainingRoomBlockout",
+		"blockout": "TrainingHubBlockout",
 		"player_start": Vector2(350, 330),
 		"hud": "训练中控室：室内枢纽\n连接宇航服整备室 / 配电房 / 空气系统控制室 / 训练温室。",
 		"targets": [
-			{"id": "terminal", "kind": "terminal", "label": "训练状态终端", "position": Vector2(330, 210), "size": Vector2(100, 80), "info": true},
-			{"id": "door_suit", "kind": "door", "label": "宇航服整备室", "position": Vector2(30, 210), "size": Vector2(64, 140), "door_to": "suit_prep_room", "door_spawn": Vector2(560, 300)},
-			{"id": "door_power", "kind": "door", "label": "配电房", "position": Vector2(326, 18), "size": Vector2(108, 96), "door_to": "power_distribution_room", "door_spawn": Vector2(350, 340)},
-			{"id": "door_air", "kind": "door", "label": "空气系统控制室", "position": Vector2(666, 210), "size": Vector2(64, 140), "door_to": "air_system_control_room", "door_spawn": Vector2(120, 300)},
-			{"id": "door_greenhouse", "kind": "door", "label": "训练温室", "position": Vector2(330, 446), "size": Vector2(100, 54), "door_to": "greenhouse_room", "door_spawn": Vector2(350, 116)},
+			{"id": "terminal", "kind": "terminal", "label": "训练状态终端", "position": Vector2(330, 210), "size": Vector2(100, 80), "info": true, "prop_scene_path": "res://scenes/props/training/HubConsole.tscn"},
+			{"id": "door_suit", "kind": "door", "label": "宇航服整备室", "position": Vector2(30, 210), "size": Vector2(64, 140), "door_to": "suit_prep_room", "door_spawn": Vector2(560, 300), "prop_scene_path": "res://scenes/props/training/HubDoorVertical.tscn"},
+			{"id": "door_power", "kind": "door", "label": "配电房", "position": Vector2(326, 18), "size": Vector2(108, 96), "door_to": "power_distribution_room", "door_spawn": Vector2(350, 340), "prop_scene_path": "res://scenes/props/training/HubDoorHorizontal.tscn"},
+			{"id": "door_air", "kind": "door", "label": "空气系统控制室", "position": Vector2(666, 210), "size": Vector2(64, 140), "door_to": "air_system_control_room", "door_spawn": Vector2(120, 300), "prop_scene_path": "res://scenes/props/training/HubDoorVertical.tscn"},
+			{"id": "door_greenhouse", "kind": "door", "label": "训练温室", "position": Vector2(330, 446), "size": Vector2(100, 54), "door_to": "greenhouse_room", "door_spawn": Vector2(350, 116), "prop_scene_path": "res://scenes/props/training/HubDoorHorizontal.tscn"},
 		],
 		"steps": [],
 	}
@@ -1634,6 +1661,9 @@ func _toggle_pause_menu() -> void:
 	if briefing_visible:
 		_close_briefing()
 		return
+	if map_overview_visible:
+		_set_map_overview_visible(false)
+		return
 	_set_pause_visible(not pause_visible)
 
 func _set_pause_visible(value: bool) -> void:
@@ -1658,9 +1688,13 @@ func _sync_overlay_visibility() -> void:
 		briefing_modal.visible = briefing_visible
 	if left_panel != null:
 		left_panel.visible = mission_panel_visible or diagnosis_panel_open
+	if map_overview_scrim != null:
+		map_overview_scrim.visible = map_overview_visible
+	if map_overview_modal != null:
+		map_overview_modal.visible = map_overview_visible
 	if minimal_hud != null:
-		minimal_hud.visible = not briefing_visible and not mission_panel_visible and not pause_visible and not diagnosis_open and not suit_status_open
-	if prompt_label != null and (briefing_visible or mission_panel_visible or pause_visible or diagnosis_open or suit_status_open):
+		minimal_hud.visible = not briefing_visible and not mission_panel_visible and not pause_visible and not map_overview_visible and not diagnosis_open and not suit_status_open
+	if prompt_label != null and (briefing_visible or mission_panel_visible or pause_visible or map_overview_visible or diagnosis_open or suit_status_open):
 		prompt_label.visible = false
 
 ## -- HUD --
@@ -1820,7 +1854,7 @@ func _build_training_overlays() -> void:
 	minimal_time_label.add_theme_font_size_override("font_size", 13)
 	hud_box.add_child(minimal_time_label)
 	var key_hint := Label.new()
-	key_hint.text = "Tab 查看任务    Esc 暂停"
+	key_hint.text = "Tab 查看任务    M 查看地图    Esc 暂停"
 	key_hint.modulate = Color("#7f93a3")
 	key_hint.add_theme_font_size_override("font_size", 12)
 	hud_box.add_child(key_hint)
@@ -1843,6 +1877,7 @@ func _build_training_overlays() -> void:
 	_build_interaction_panel()
 	_build_diagnosis_modal()
 	_build_suit_status_panel()
+	_build_map_overview_modal()
 
 func _build_briefing_modal() -> void:
 	briefing_scrim = ColorRect.new()
@@ -1853,38 +1888,348 @@ func _build_briefing_modal() -> void:
 
 	briefing_modal = PanelContainer.new()
 	briefing_modal.set_anchors_preset(Control.PRESET_CENTER)
-	briefing_modal.offset_left = -320
-	briefing_modal.offset_top = -190
-	briefing_modal.offset_right = 320
-	briefing_modal.offset_bottom = 190
+	briefing_modal.offset_left = -400
+	briefing_modal.offset_top = -260
+	briefing_modal.offset_right = 400
+	briefing_modal.offset_bottom = 260
 	briefing_modal.visible = true
 	add_child(briefing_modal)
+	var modal_style := StyleBoxFlat.new()
+	modal_style.bg_color = Color("#111c26")
+	modal_style.border_color = Color("#2c4356")
+	modal_style.set_border_width_all(1)
+	modal_style.set_corner_radius_all(8)
+	modal_style.content_margin_left = 28
+	modal_style.content_margin_right = 28
+	modal_style.content_margin_top = 22
+	modal_style.content_margin_bottom = 22
+	briefing_modal.add_theme_stylebox_override("panel", modal_style)
+
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 14)
+	box.add_theme_constant_override("separation", 16)
 	briefing_modal.add_child(box)
+
+	var header_row := HBoxContainer.new()
+	header_row.add_theme_constant_override("separation", 14)
+	box.add_child(header_row)
+
+	var title_col := VBoxContainer.new()
+	title_col.add_theme_constant_override("separation", 4)
+	title_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title_col.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	header_row.add_child(title_col)
 	var title := Label.new()
 	title.text = "训练小型地图"
 	title.modulate = Color("#eaf4ff")
-	title.add_theme_font_size_override("font_size", 24)
-	box.add_child(title)
+	title.add_theme_font_size_override("font_size", 22)
+	title_col.add_child(title)
 	var subtitle := Label.new()
 	subtitle.text = "候选人训练基地"
-	subtitle.modulate = Color("#86c7ff")
-	subtitle.add_theme_font_size_override("font_size", 16)
-	box.add_child(subtitle)
-	var body := Label.new()
-	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	body.modulate = Color("#c6d5df")
-	body.add_theme_font_size_override("font_size", 16)
-	body.text = "所有训练房间围绕训练中控室展开。\n\n靠近目标后按 E / Enter 交互，走到门口即可进入已解锁的训练区。\n按 Tab 可随时查看任务面板。"
-	box.add_child(body)
+	subtitle.modulate = Color("#5fa8dd")
+	subtitle.add_theme_font_size_override("font_size", 15)
+	title_col.add_child(subtitle)
+
+	var close_button := Button.new()
+	close_button.icon = IconDialogClose
+	close_button.add_theme_constant_override("icon_max_width", 16)
+	close_button.custom_minimum_size = Vector2(28, 28)
+	close_button.flat = true
+	close_button.focus_mode = Control.FOCUS_NONE
+	close_button.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	close_button.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/main.tscn"))
+	header_row.add_child(close_button)
+
+	box.add_child(HSeparator.new())
+
+	var info_list := VBoxContainer.new()
+	info_list.add_theme_constant_override("separation", 14)
+	box.add_child(info_list)
+	_add_briefing_info_row(info_list, "grid", "所有训练房间围绕训练中控室展开。")
+	_add_briefing_info_row(info_list, "info", "靠近目标后按 E / Enter 交互，走到门口即可进入已解锁的训练区。")
+	_add_briefing_info_row(info_list, "map", "按 M 可随时查看地图。")
+
+	box.add_child(HSeparator.new())
+
+	var footer_row := HBoxContainer.new()
+	footer_row.add_theme_constant_override("separation", 16)
+	box.add_child(footer_row)
+
+	var cancel_button := Button.new()
+	cancel_button.text = "取消"
+	cancel_button.custom_minimum_size = Vector2(140, 48)
+	cancel_button.focus_mode = Control.FOCUS_NONE
+	cancel_button.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/main.tscn"))
+	_style_briefing_button(cancel_button, false)
+	footer_row.add_child(cancel_button)
+
+	var footer_spacer := Control.new()
+	footer_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	footer_row.add_child(footer_spacer)
+
 	var button := Button.new()
 	button.text = "确认，开始训练"
-	button.custom_minimum_size = Vector2(0, 44)
+	button.custom_minimum_size = Vector2(220, 48)
 	button.focus_mode = Control.FOCUS_NONE
 	button.pressed.connect(func(): _close_briefing())
-	box.add_child(button)
+	_style_briefing_button(button, true)
+	footer_row.add_child(button)
+
 	briefing_visible = true
+
+## One icon+text row in the briefing modal's info list. `kind` selects a
+## small primitive glyph (grid / info / map) built without new icon assets.
+func _add_briefing_info_row(parent: VBoxContainer, kind: String, text: String) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 14)
+	parent.add_child(row)
+
+	var icon_frame := PanelContainer.new()
+	icon_frame.custom_minimum_size = Vector2(32, 32)
+	icon_frame.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var icon_style := StyleBoxFlat.new()
+	icon_style.bg_color = Color("#16232f")
+	icon_style.border_color = Color("#33475a")
+	icon_style.set_border_width_all(1)
+	icon_style.set_corner_radius_all(4 if kind == "map" else 6)
+	icon_frame.add_theme_stylebox_override("panel", icon_style)
+	row.add_child(icon_frame)
+
+	match kind:
+		"grid":
+			var grid := GridContainer.new()
+			grid.columns = 2
+			grid.add_theme_constant_override("h_separation", 3)
+			grid.add_theme_constant_override("v_separation", 3)
+			var grid_wrap := CenterContainer.new()
+			grid_wrap.add_child(grid)
+			icon_frame.add_child(grid_wrap)
+			for _i in range(4):
+				var cell := ColorRect.new()
+				cell.custom_minimum_size = Vector2(8, 8)
+				cell.color = Color("#5fa8dd")
+				grid.add_child(cell)
+		"info":
+			var info_label := Label.new()
+			info_label.text = "i"
+			info_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			info_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+			info_label.modulate = Color("#5fa8dd")
+			info_label.add_theme_font_size_override("font_size", 16)
+			icon_frame.add_child(info_label)
+		"map":
+			var map_label := Label.new()
+			map_label.text = "M"
+			map_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			map_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+			map_label.modulate = Color("#c6d5df")
+			map_label.add_theme_font_size_override("font_size", 12)
+			icon_frame.add_child(map_label)
+
+	var label := Label.new()
+	label.text = text
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.modulate = Color("#c6d5df")
+	label.add_theme_font_size_override("font_size", 16)
+	row.add_child(label)
+
+func _style_briefing_button(button: Button, primary: bool) -> void:
+	var style := StyleBoxFlat.new()
+	style.set_corner_radius_all(4)
+	style.set_border_width_all(1)
+	if primary:
+		style.bg_color = Color("#1c3a52")
+		style.border_color = Color("#4f8eb8")
+	else:
+		style.bg_color = Color("#16232f")
+		style.border_color = Color("#33475a")
+	for theme_state in ["normal", "hover", "pressed", "focus", "disabled"]:
+		button.add_theme_stylebox_override(theme_state, style)
+
+## -- Map overview (M key) --
+
+func _toggle_map_overview() -> void:
+	if briefing_visible or pause_visible or interaction_running or _gameplay_modal_open():
+		return
+	_set_map_overview_visible(not map_overview_visible)
+
+func _set_map_overview_visible(value: bool) -> void:
+	map_overview_visible = value
+	if value:
+		_refresh_map_overview()
+	_sync_overlay_visibility()
+
+func _build_map_overview_modal() -> void:
+	map_overview_scrim = ColorRect.new()
+	map_overview_scrim.color = Color("#02070d", 0.78)
+	map_overview_scrim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	map_overview_scrim.visible = false
+	add_child(map_overview_scrim)
+
+	map_overview_modal = PanelContainer.new()
+	map_overview_modal.set_anchors_preset(Control.PRESET_CENTER)
+	map_overview_modal.offset_left = -340
+	map_overview_modal.offset_top = -280
+	map_overview_modal.offset_right = 340
+	map_overview_modal.offset_bottom = 280
+	map_overview_modal.visible = false
+	add_child(map_overview_modal)
+	var modal_style := StyleBoxFlat.new()
+	modal_style.bg_color = Color("#111c26")
+	modal_style.border_color = Color("#2c4356")
+	modal_style.set_border_width_all(1)
+	modal_style.set_corner_radius_all(8)
+	modal_style.content_margin_left = 24
+	modal_style.content_margin_right = 24
+	modal_style.content_margin_top = 20
+	modal_style.content_margin_bottom = 20
+	map_overview_modal.add_theme_stylebox_override("panel", modal_style)
+
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 14)
+	map_overview_modal.add_child(box)
+
+	var header_row := HBoxContainer.new()
+	header_row.add_theme_constant_override("separation", 12)
+	box.add_child(header_row)
+	var title_col := VBoxContainer.new()
+	title_col.add_theme_constant_override("separation", 2)
+	title_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header_row.add_child(title_col)
+	var title := Label.new()
+	title.text = "训练基地地图"
+	title.modulate = Color("#eaf4ff")
+	title.add_theme_font_size_override("font_size", 20)
+	title_col.add_child(title)
+	var subtitle := Label.new()
+	subtitle.text = "BASE MAP OVERVIEW"
+	subtitle.modulate = Color("#6f8493")
+	subtitle.add_theme_font_size_override("font_size", 12)
+	title_col.add_child(subtitle)
+	var close_button := Button.new()
+	close_button.icon = IconDialogClose
+	close_button.add_theme_constant_override("icon_max_width", 16)
+	close_button.custom_minimum_size = Vector2(28, 28)
+	close_button.flat = true
+	close_button.focus_mode = Control.FOCUS_NONE
+	close_button.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	close_button.pressed.connect(func(): _set_map_overview_visible(false))
+	header_row.add_child(close_button)
+
+	box.add_child(HSeparator.new())
+
+	map_overview_diagram = Control.new()
+	map_overview_diagram.custom_minimum_size = Vector2(0, 340)
+	map_overview_diagram.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	box.add_child(map_overview_diagram)
+
+	box.add_child(HSeparator.new())
+
+	var legend_row := HBoxContainer.new()
+	legend_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	legend_row.add_theme_constant_override("separation", 24)
+	box.add_child(legend_row)
+	_add_map_legend_item(legend_row, Color("#4f8eb8"), "当前位置")
+	_add_map_legend_item(legend_row, Color("#3d5266"), "已解锁")
+	_add_map_legend_item(legend_row, Color("#242f38"), "未解锁")
+
+## Rebuilds the schematic room diagram every time the modal opens, since
+## unlocked/current-room state changes as training progresses. Positions
+## are schematic (MAP_OVERVIEW_NODES), not the real per-room pixel layout --
+## this is an overview/orientation aid, not a 1:1 rendering of each room's
+## own interior blockout.
+func _refresh_map_overview() -> void:
+	if map_overview_diagram == null:
+		return
+	_clear_container(map_overview_diagram)
+	var diagram_size: Vector2 = map_overview_diagram.size
+	if diagram_size.x <= 1.0 or diagram_size.y <= 1.0:
+		diagram_size = Vector2(640, 340)
+	for node_data in MAP_OVERVIEW_NODES:
+		_add_map_overview_node(map_overview_diagram, diagram_size, node_data)
+
+func _add_map_overview_node(parent: Control, diagram_size: Vector2, node_data: Dictionary) -> void:
+	var area_id := String(node_data["area_id"])
+	var label_text := String(node_data["label"])
+	var pos: Vector2 = (node_data["pos"] as Vector2) * diagram_size
+
+	var is_current := area_id == current_area_id
+	var is_unlocked := bool((areas.get(area_id, {}) as Dictionary).get("unlocked", false))
+
+	var node_box := PanelContainer.new()
+	var node_size := Vector2(136, 56)
+	node_box.size = node_size
+	node_box.position = pos - node_size * 0.5
+	var style := StyleBoxFlat.new()
+	style.set_corner_radius_all(6)
+	style.content_margin_left = 8
+	style.content_margin_right = 8
+	style.content_margin_top = 6
+	style.content_margin_bottom = 6
+	if is_current:
+		style.bg_color = Color("#1c3a52")
+		style.border_color = Color("#4f8eb8")
+		style.set_border_width_all(2)
+	elif is_unlocked:
+		style.bg_color = Color("#16232f")
+		style.border_color = Color("#3d5266")
+		style.set_border_width_all(1)
+	else:
+		style.bg_color = Color("#0d151c")
+		style.border_color = Color("#242f38")
+		style.set_border_width_all(1)
+	node_box.add_theme_stylebox_override("panel", style)
+	parent.add_child(node_box)
+
+	var label_col := VBoxContainer.new()
+	label_col.alignment = BoxContainer.ALIGNMENT_CENTER
+	node_box.add_child(label_col)
+	var room_label := Label.new()
+	room_label.text = label_text
+	room_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	room_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	if is_current:
+		room_label.modulate = Color("#eaf4ff")
+	elif is_unlocked:
+		room_label.modulate = Color("#c6d5df")
+	else:
+		room_label.modulate = Color("#4a5865")
+	room_label.add_theme_font_size_override("font_size", 13)
+	label_col.add_child(room_label)
+	if is_current:
+		var current_tag := Label.new()
+		current_tag.text = "当前位置"
+		current_tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		current_tag.modulate = Color("#4f8eb8")
+		current_tag.add_theme_font_size_override("font_size", 10)
+		label_col.add_child(current_tag)
+	elif not is_unlocked:
+		var locked_tag := Label.new()
+		locked_tag.text = "未解锁"
+		locked_tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		locked_tag.modulate = Color("#3d4750")
+		locked_tag.add_theme_font_size_override("font_size", 10)
+		label_col.add_child(locked_tag)
+
+func _add_map_legend_item(parent: HBoxContainer, color: Color, text: String) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	parent.add_child(row)
+	var swatch := PanelContainer.new()
+	swatch.custom_minimum_size = Vector2(12, 12)
+	swatch.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var swatch_style := StyleBoxFlat.new()
+	swatch_style.bg_color = color
+	swatch_style.set_corner_radius_all(3)
+	swatch.add_theme_stylebox_override("panel", swatch_style)
+	row.add_child(swatch)
+	var label := Label.new()
+	label.text = text
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.modulate = Color("#8fa1aa")
+	label.add_theme_font_size_override("font_size", 12)
+	row.add_child(label)
 
 func _build_pause_panel() -> void:
 	pause_panel = PanelContainer.new()
@@ -2032,6 +2377,8 @@ func _build_training_area() -> void:
 			floor = TrainingModuleSceneScript.LifeSupportRoomBlockout.new()
 		"PlantDiagnosisRoomBlockout":
 			floor = TrainingModuleSceneScript.PlantDiagnosisRoomBlockout.new()
+		"TrainingHubBlockout":
+			floor = TrainingModuleSceneScript.TrainingHubBlockout.new()
 		_:
 			floor = TrainingModuleSceneScript.TrainingRoomBlockout.new()
 	floor.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -2044,6 +2391,7 @@ func _build_training_area() -> void:
 		visual.name = String(target["id"])
 		visual.kind = String(target.get("kind", "marker"))
 		visual.label_text = String(target.get("label", ""))
+		visual.prop_scene_path = String(target.get("prop_scene_path", ""))
 		visual.position = _room_point(target.get("position", Vector2.ZERO))
 		visual.size = _room_size(target.get("size", Vector2(96, 72)))
 		training_area.add_child(visual)
@@ -2127,6 +2475,7 @@ func _update_room_prompt() -> void:
 				node.locked = _door_locked(node)
 				node.modulate = Color(0.62, 0.68, 0.74, 0.48)
 				node.queue_redraw()
+				node._sync_prop_node()
 		prompt_label.visible = false
 		return
 	_refresh_floor_state()
@@ -2165,6 +2514,7 @@ func _update_room_prompt() -> void:
 			if current_area_id == "power_distribution_room" and String(node.name) == "power_display" and not node.highlighted:
 				node.modulate = Color(0.95, 0.32, 0.36, 0.86) if not bool(state.get("PowerRestored", false)) else Color(0.45, 0.78, 1.0, 0.9)
 			node.queue_redraw()
+			node._sync_prop_node()
 	if target_id.is_empty() or not target_nodes.has(target_id):
 		prompt_label.visible = false
 		_push_player_state_interaction("", "", "")
@@ -2250,6 +2600,15 @@ func _add_button(parent: HBoxContainer, text: String, callback: Callable) -> voi
 	button.pressed.connect(callback)
 	parent.add_child(button)
 
+## remove_child() first (synchronous) rather than relying on queue_free()
+## alone (deferred to end-of-frame): callers that rebuild the same container
+## again before that deferred free actually runs (e.g. _build_training_area()
+## via _rebuild_room_if_resized(), which fires again once the Control's
+## layout size settles a frame or two after _ready()) would otherwise hit a
+## node-name collision with the still-present old child and get silently
+## auto-renamed to "@Control@N" -- breaking every name-keyed lookup
+## (_door_locked(), target_id/interaction_target_id highlight matching).
 func _clear_container(node: Node) -> void:
 	for child in node.get_children():
+		node.remove_child(child)
 		child.queue_free()

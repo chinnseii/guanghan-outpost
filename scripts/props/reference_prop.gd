@@ -8,6 +8,23 @@ class_name ReferenceProp
 @export var damaged := false
 @export var status_text := ""
 
+## TR-002 训练中控室 real art (replaces the procedural placeholder for these
+## 3 kinds only -- every other kind above is untouched and still draws via
+## its own _draw_x() primitive function).
+const HubDoorHorizontalTexture := preload("res://assets/art/training_hub/props/door_frame_horizontal.png")
+const HubDoorVerticalTexture := preload("res://assets/art/training_hub/props/door_frame_vertical.png")
+const LunarBaseAtlasScript := preload("res://scripts/data/lunar_base_atlas.gd")
+
+var _hub_console_texture: AtlasTexture
+
+func _ready() -> void:
+	# Pixel-art-sourced hub textures should sample Nearest, not the engine's
+	# default Linear -- only affects draw_texture_rect() calls (the many
+	# draw_rect()/draw_line() primitive kinds above don't sample a texture,
+	# so this is a no-op for them).
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_hub_console_texture = LunarBaseAtlasScript.region("console_command_center")
+
 func _draw() -> void:
 	match prop_kind:
 		"old_floor_tile":
@@ -70,6 +87,12 @@ func _draw() -> void:
 			_draw_ventilation()
 		"training_exit":
 			_draw_training_exit()
+		"hub_door_horizontal":
+			_draw_textured_prop(HubDoorHorizontalTexture)
+		"hub_door_vertical":
+			_draw_textured_prop(HubDoorVerticalTexture)
+		"hub_console":
+			_draw_textured_prop(_hub_console_texture)
 		_:
 			_draw_console()
 
@@ -77,6 +100,26 @@ func _label(pos: Vector2, color: Color = Color("#c8d8e2"), font_size: int = 14) 
 	if prop_label.is_empty():
 		return
 	draw_string(ThemeDB.fallback_font, pos, prop_label, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
+
+## Draws `texture` "contain"-fit within prop_size (scaled to fit fully inside,
+## centered, preserving the art's own aspect ratio) rather than stretching it
+## to match whichever interaction-zone box this prop happens to occupy --
+## avoids distorting real art to fit a placeholder-era hitbox size.
+##
+## No state-tint/border is drawn here (a first pass added one; User feedback
+## was that an always-on colored box around every prop read as a debug
+## collision outline, not in-world art). Highlight/lock-dim/interact-prompt
+## feedback stays entirely on the existing TrainingTargetVisual-level system
+## (`node.modulate` dimming + `_draw_highlight_ring()` + `prompt_label`),
+## unchanged from before this class existed.
+func _draw_textured_prop(texture: Texture2D) -> void:
+	var tex_size := texture.get_size()
+	if tex_size.x <= 0.0 or tex_size.y <= 0.0 or prop_size.x <= 0.0 or prop_size.y <= 0.0:
+		return
+	var fit_scale: float = min(prop_size.x / tex_size.x, prop_size.y / tex_size.y)
+	var draw_size := tex_size * fit_scale
+	var draw_pos := (prop_size - draw_size) * 0.5
+	draw_texture_rect(texture, Rect2(draw_pos, draw_size), false)
 
 func _draw_wall_frame() -> void:
 	var r := Rect2(Vector2.ZERO, prop_size)

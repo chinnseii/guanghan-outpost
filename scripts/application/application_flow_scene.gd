@@ -194,19 +194,52 @@ const STEP_LABELS := {
 	"review": ["04 提交申请", "SUBMIT APPLICATION"],
 }
 
+## AUI-04-02: the automated post-submit review sequence. Each step becomes
+## "active" (● + the -ing phrasing) the moment the previous step's "at"
+## timestamp passes (or immediately for step 0), then flips to "done" (✓ +
+## the completed phrasing) at its own "at" timestamp. "dots": true steps get
+## an animated "..." suffix while active (the two genuinely time-consuming
+## ones per the art-director timeline). "label" is the neutral noun form
+## shown for steps still pending.
+const REVIEW_SEQUENCE_STEPS := [
+	{"label": "建立审核会话", "active": "建立审核会话中", "done": "审核会话已建立", "at": 0.5},
+	{"label": "申请提交", "active": "申请提交中", "done": "申请已提交", "at": 1.5},
+	{"label": "身份校验", "active": "身份校验中", "done": "身份校验完成", "at": 2.5},
+	{"label": "档案归档", "active": "档案归档中", "done": "档案归档完成", "at": 4.0},
+	{"label": "学术背景匹配", "active": "学术背景匹配中", "done": "学术背景匹配完成", "at": 5.5, "dots": true},
+	{"label": "训练序列生成", "active": "训练序列生成中", "done": "一级训练序列生成完成", "at": 7.0, "dots": true},
+	{"label": "候选人档案建立", "active": "候选人档案建立中", "done": "候选人档案建立完成", "at": 8.5},
+]
+const REVIEW_SEQUENCE_COMPLETE_AT := 9.5
+const REVIEW_SEQUENCE_HOLD_SECONDS := 1.0
+const REVIEW_SEQUENCE_FADE_SECONDS := 0.5
+const REVIEW_BASE_TIME_H := 7
+const REVIEW_BASE_TIME_M := 15
+const REVIEW_BASE_TIME_S := 32
+
 var profile: Resource
 var step := "identity"
-var review_lines: Array[String] = []
-var review_index := 0
-var review_timer := 0.0
+var review_elapsed := 0.0
+var review_step_index := 0
+var review_completion_shown := false
 var review_complete_hold := 0.0
+var review_fading := false
+var review_fade_timer := 0.0
 var is_reviewing := false
+var review_log_box: VBoxContainer
+var review_step_rows: Array[Dictionary] = []
+var review_completion_block: VBoxContainer
+var review_progress_fill: ColorRect
+var review_progress_percent_label: Label
+var review_step_counter_label: Label
+var review_system_status_label: Label
+var review_current_module_label: Label
+var review_fade_rect: ColorRect
 
 var page_body: VBoxContainer
 var footer: HBoxContainer
 var aui_canvas: Control
 var _aui_canvas_last_available := Vector2(-1, -1)
-var status_label: Label
 var name_edit: LineEdit
 var birth_options: OptionButton
 var gender_options: OptionButton
@@ -266,22 +299,48 @@ func _process(delta: float) -> void:
 	_update_aui_canvas_scale()
 	if not is_reviewing:
 		return
-	if review_index >= review_lines.size():
+
+	if review_fading:
+		review_fade_timer += delta
+		var fade_alpha: float = clamp(review_fade_timer / REVIEW_SEQUENCE_FADE_SECONDS, 0.0, 1.0)
+		review_fade_rect.color = Color(0.02, 0.04, 0.06, fade_alpha)
+		if fade_alpha >= 1.0:
+			is_reviewing = false
+			profile.set("candidate_file_status", "已通过资格初审")
+			profile.set("current_application_step", "notice")
+			_save_profile()
+			_show_step("notice")
+			if is_instance_valid(review_fade_rect):
+				review_fade_rect.queue_free()
+		return
+
+	if review_completion_shown:
 		review_complete_hold += delta
-		if review_complete_hold < 1.25:
-			return
-		is_reviewing = false
-		profile.set("candidate_file_status", "已通过资格初审")
-		profile.set("current_application_step", "notice")
-		_save_profile()
-		_show_step("notice")
+		if review_complete_hold >= REVIEW_SEQUENCE_HOLD_SECONDS:
+			review_fading = true
 		return
-	review_timer += delta
-	if review_timer < 0.58:
+
+	review_elapsed += delta
+	_update_review_dots()
+
+	if review_elapsed >= REVIEW_SEQUENCE_COMPLETE_AT:
+		if review_step_index < REVIEW_SEQUENCE_STEPS.size():
+			_complete_review_step(review_step_index)
+			review_step_index = REVIEW_SEQUENCE_STEPS.size()
+		review_completion_block.visible = true
+		review_completion_shown = true
+		_refresh_review_progress()
 		return
-	review_timer = 0.0
-	status_label.text += "\n" + review_lines[review_index]
-	review_index += 1
+
+	if review_step_index < REVIEW_SEQUENCE_STEPS.size():
+		var current: Dictionary = REVIEW_SEQUENCE_STEPS[review_step_index]
+		if review_elapsed >= float(current["at"]):
+			_complete_review_step(review_step_index)
+			review_step_index += 1
+			if review_step_index < REVIEW_SEQUENCE_STEPS.size():
+				_activate_review_step(review_step_index)
+
+	_refresh_review_progress()
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
@@ -2372,6 +2431,8 @@ func _build_review_footer() -> void:
 	right_cluster.add_child(submit_button)
 
 func _start_review_sequence() -> void:
+	if is_instance_valid(review_fade_rect):
+		review_fade_rect.queue_free()
 	profile.set("application_submitted", true)
 	profile.set("candidate_file_status", "审核中")
 	profile.set("current_application_step", "review")
@@ -2379,63 +2440,664 @@ func _start_review_sequence() -> void:
 	_clear_container(page_body)
 	_clear_container(footer)
 	_add_page_title("审核流程", "APPLICATION REVIEW")
+
 	var panel := _add_panel(page_body)
-	status_label = Label.new()
-	status_label.text = "申请已提交"
-	status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	status_label.modulate = Color("#d8e7f2")
-	status_label.add_theme_font_size_override("font_size", 22)
-	panel.add_child(status_label)
-	var review_status := VBoxContainer.new()
-	review_status.add_theme_constant_override("separation", 8)
-	panel.add_child(review_status)
-	_add_note_to(review_status, "资料归档：完成")
-	_add_note_to(review_status, "身份校验：完成")
-	_add_note_to(review_status, "学术背景匹配：进行中")
-	_add_note_to(review_status, "训练序列分配：等待")
-	review_lines = [
-		"正在进行资格审核",
-		"正在匹配学术背景",
-		"正在生成训练计划",
-		"正在建立候选人档案",
-		"审核完成",
-	]
-	review_index = 0
-	review_timer = 0.0
+	# _add_panel() never styles the returned PanelContainer, so this page was
+	# rendering with Godot's built-in default panel style (a plain light gray
+	# box) instead of the app's dark navy panel treatment every other page
+	# uses. Apply the same shared style here for visual consistency.
+	_style_identity_panel(panel.get_parent() as PanelContainer)
+	var content_margin := MarginContainer.new()
+	# Panel padding above already contributes AUI_PANEL_PADDING (24px); this
+	# adds the remaining breathing room so the log's total left indent lands
+	# in the 32-40px range requested by the art-director review.
+	content_margin.add_theme_constant_override("margin_left", 12)
+	content_margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	content_margin.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	panel.add_child(content_margin)
+	var content := VBoxContainer.new()
+	content.add_theme_constant_override("separation", 14)
+	content_margin.add_child(content)
+
+	review_log_box = VBoxContainer.new()
+	review_log_box.add_theme_constant_override("separation", 10)
+	content.add_child(review_log_box)
+	review_step_rows.clear()
+	for step_data in REVIEW_SEQUENCE_STEPS:
+		review_step_rows.append(_build_review_log_row(review_log_box, step_data))
+
+	review_completion_block = VBoxContainer.new()
+	review_completion_block.visible = false
+	review_completion_block.add_theme_constant_override("separation", 8)
+	content.add_child(review_completion_block)
+	review_completion_block.add_child(HSeparator.new())
+	var complete_row := HBoxContainer.new()
+	complete_row.add_theme_constant_override("separation", 10)
+	review_completion_block.add_child(complete_row)
+	var complete_icon := Label.new()
+	complete_icon.text = "✓"
+	complete_icon.modulate = AUI_COLOR_SUCCESS
+	complete_icon.add_theme_font_size_override("font_size", 16)
+	complete_row.add_child(complete_icon)
+	var complete_label := Label.new()
+	complete_label.text = "审核流程完成"
+	complete_label.modulate = AUI_COLOR_TEXT_PRIMARY
+	complete_label.add_theme_font_size_override("font_size", 16)
+	complete_row.add_child(complete_label)
+	var next_label := Label.new()
+	next_label.text = "正在生成资格初审结果..."
+	next_label.modulate = AUI_COLOR_TEXT_SECONDARY
+	next_label.add_theme_font_size_override("font_size", 14)
+	review_completion_block.add_child(next_label)
+
+	_build_review_status_footer()
+
+	review_fade_rect = ColorRect.new()
+	review_fade_rect.color = Color(0.02, 0.04, 0.06, 0.0)
+	review_fade_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	review_fade_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	review_fade_rect.z_index = 100
+	aui_canvas.add_child(review_fade_rect)
+
+	review_elapsed = 0.0
+	review_step_index = 0
+	review_completion_shown = false
 	review_complete_hold = 0.0
+	review_fading = false
+	review_fade_timer = 0.0
 	is_reviewing = true
+	_activate_review_step(0)
+	_refresh_review_progress()
+
+func _build_review_log_row(parent: VBoxContainer, step_data: Dictionary) -> Dictionary:
+	var row := VBoxContainer.new()
+	row.add_theme_constant_override("separation", 2)
+	parent.add_child(row)
+	var timestamp_label := Label.new()
+	timestamp_label.text = ""
+	timestamp_label.modulate = Color("#70808d", 0.75)
+	timestamp_label.add_theme_font_size_override("font_size", 10)
+	row.add_child(timestamp_label)
+	var status_row := HBoxContainer.new()
+	status_row.add_theme_constant_override("separation", 10)
+	row.add_child(status_row)
+	var icon_label := Label.new()
+	icon_label.text = "○"
+	icon_label.modulate = AUI_COLOR_TEXT_MUTED
+	icon_label.add_theme_font_size_override("font_size", 16)
+	status_row.add_child(icon_label)
+	var text_label := Label.new()
+	text_label.text = String(step_data["label"])
+	text_label.modulate = AUI_COLOR_TEXT_MUTED
+	text_label.add_theme_font_size_override("font_size", 16)
+	status_row.add_child(text_label)
+	return {"timestamp": timestamp_label, "icon": icon_label, "text": text_label, "state": "pending"}
+
+func _activate_review_step(index: int) -> void:
+	var row: Dictionary = review_step_rows[index]
+	var step_data: Dictionary = REVIEW_SEQUENCE_STEPS[index]
+	(row["timestamp"] as Label).text = _format_review_timestamp(float(step_data["at"]))
+	(row["icon"] as Label).text = "●"
+	(row["icon"] as Label).modulate = AUI_COLOR_ACTIVE_ACCENT
+	(row["text"] as Label).text = String(step_data["active"])
+	(row["text"] as Label).modulate = AUI_COLOR_TEXT_PRIMARY
+	review_step_rows[index]["state"] = "active"
+
+func _complete_review_step(index: int) -> void:
+	var row: Dictionary = review_step_rows[index]
+	var step_data: Dictionary = REVIEW_SEQUENCE_STEPS[index]
+	(row["icon"] as Label).text = "✓"
+	(row["icon"] as Label).modulate = AUI_COLOR_SUCCESS
+	(row["text"] as Label).text = String(step_data["done"])
+	(row["text"] as Label).modulate = AUI_COLOR_TEXT_PRIMARY
+	review_step_rows[index]["state"] = "done"
+
+func _update_review_dots() -> void:
+	if review_step_index >= REVIEW_SEQUENCE_STEPS.size():
+		return
+	var step_data: Dictionary = REVIEW_SEQUENCE_STEPS[review_step_index]
+	if not bool(step_data.get("dots", false)):
+		return
+	var row: Dictionary = review_step_rows[review_step_index]
+	if String(row.get("state", "")) != "active":
+		return
+	var cycle := int(review_elapsed / 0.4) % 3 + 1
+	(row["text"] as Label).text = String(step_data["active"]) + ".".repeat(cycle)
+
+func _format_review_timestamp(offset_seconds: float) -> String:
+	var total_seconds := REVIEW_BASE_TIME_H * 3600 + REVIEW_BASE_TIME_M * 60 + REVIEW_BASE_TIME_S + int(offset_seconds)
+	var h := (total_seconds / 3600) % 24
+	var m := (total_seconds / 60) % 60
+	var s := total_seconds % 60
+	return "%02d:%02d:%02d" % [h, m, s]
+
+func _refresh_review_progress() -> void:
+	var total_steps := REVIEW_SEQUENCE_STEPS.size()
+	var completed: int = mini(review_step_index, total_steps)
+	var fraction: float = clamp(review_elapsed / float(REVIEW_SEQUENCE_COMPLETE_AT), 0.0, 1.0)
+	if review_progress_fill != null:
+		review_progress_fill.size = Vector2(160.0 * fraction, 8)
+		review_progress_percent_label.text = "%d%%" % int(round(fraction * 100.0))
+	if review_step_counter_label != null:
+		review_step_counter_label.text = "%d / %d" % [completed, total_steps]
+	if review_current_module_label != null:
+		if completed < total_steps:
+			review_current_module_label.text = String(REVIEW_SEQUENCE_STEPS[completed]["label"])
+		else:
+			review_current_module_label.text = "审核完成"
+
+func _build_review_status_footer() -> void:
+	var frame := PanelContainer.new()
+	frame.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	var style := StyleBoxFlat.new()
+	style.bg_color = AUI_COLOR_PANEL_BG
+	style.border_color = AUI_COLOR_PANEL_BORDER
+	style.set_border_width_all(AUI_BORDER_WIDTH)
+	style.set_corner_radius_all(AUI_PANEL_RADIUS)
+	style.content_margin_left = AUI_PANEL_PADDING
+	style.content_margin_right = AUI_PANEL_PADDING
+	style.content_margin_top = 16
+	style.content_margin_bottom = 16
+	frame.add_theme_stylebox_override("panel", style)
+	footer.add_child(frame)
+
+	var row := HBoxContainer.new()
+	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	row.add_theme_constant_override("separation", 24)
+	frame.add_child(row)
+
+	var progress_cluster := VBoxContainer.new()
+	progress_cluster.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	progress_cluster.add_theme_constant_override("separation", 4)
+	row.add_child(progress_cluster)
+	var progress_caption := Label.new()
+	progress_caption.text = "审核进度"
+	progress_caption.modulate = AUI_COLOR_TEXT_SECONDARY
+	progress_caption.add_theme_font_size_override("font_size", 12)
+	progress_cluster.add_child(progress_caption)
+	var progress_row := HBoxContainer.new()
+	progress_row.add_theme_constant_override("separation", 10)
+	progress_cluster.add_child(progress_row)
+	var track := PanelContainer.new()
+	track.custom_minimum_size = Vector2(160, 8)
+	track.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var track_style := StyleBoxFlat.new()
+	track_style.bg_color = Color("#152029")
+	track_style.set_corner_radius_all(4)
+	track.add_theme_stylebox_override("panel", track_style)
+	progress_row.add_child(track)
+	review_progress_fill = ColorRect.new()
+	review_progress_fill.color = AUI_COLOR_ACTIVE_ACCENT
+	review_progress_fill.size = Vector2(0, 8)
+	track.add_child(review_progress_fill)
+	review_progress_percent_label = Label.new()
+	review_progress_percent_label.text = "0%"
+	review_progress_percent_label.modulate = AUI_COLOR_TEXT_INPUT
+	review_progress_percent_label.add_theme_font_size_override("font_size", 14)
+	progress_row.add_child(review_progress_percent_label)
+
+	row.add_child(VSeparator.new())
+
+	var step_cluster := VBoxContainer.new()
+	step_cluster.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	step_cluster.add_theme_constant_override("separation", 4)
+	row.add_child(step_cluster)
+	var step_caption := Label.new()
+	step_caption.text = "STEP"
+	step_caption.modulate = AUI_COLOR_TEXT_SECONDARY
+	step_caption.add_theme_font_size_override("font_size", 12)
+	step_cluster.add_child(step_caption)
+	review_step_counter_label = Label.new()
+	review_step_counter_label.text = "0 / %d" % REVIEW_SEQUENCE_STEPS.size()
+	review_step_counter_label.modulate = AUI_COLOR_TEXT_INPUT
+	review_step_counter_label.add_theme_font_size_override("font_size", 15)
+	step_cluster.add_child(review_step_counter_label)
+
+	var spacer := Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(spacer)
+
+	row.add_child(VSeparator.new())
+
+	var status_cluster := VBoxContainer.new()
+	status_cluster.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	status_cluster.add_theme_constant_override("separation", 4)
+	row.add_child(status_cluster)
+	var status_row := HBoxContainer.new()
+	status_row.add_theme_constant_override("separation", 8)
+	status_cluster.add_child(status_row)
+	var status_caption := Label.new()
+	status_caption.text = "审核状态"
+	status_caption.modulate = AUI_COLOR_TEXT_SECONDARY
+	status_caption.add_theme_font_size_override("font_size", 12)
+	status_row.add_child(status_caption)
+	review_system_status_label = Label.new()
+	review_system_status_label.text = "ONLINE"
+	review_system_status_label.modulate = AUI_COLOR_SUCCESS
+	review_system_status_label.add_theme_font_size_override("font_size", 13)
+	status_row.add_child(review_system_status_label)
+	var module_row := HBoxContainer.new()
+	module_row.add_theme_constant_override("separation", 8)
+	status_cluster.add_child(module_row)
+	var module_caption := Label.new()
+	module_caption.text = "当前模块"
+	module_caption.modulate = AUI_COLOR_TEXT_SECONDARY
+	module_caption.add_theme_font_size_override("font_size", 12)
+	module_row.add_child(module_caption)
+	review_current_module_label = Label.new()
+	review_current_module_label.text = String(REVIEW_SEQUENCE_STEPS[0]["label"])
+	review_current_module_label.modulate = AUI_COLOR_TEXT_INPUT
+	review_current_module_label.add_theme_font_size_override("font_size", 13)
+	module_row.add_child(review_current_module_label)
+
+const NOTICE_PROGRESS_STEPS := [
+	{"cn": "申请提交", "en": "SUBMITTED", "state": "done"},
+	{"cn": "资格初审", "en": "PRELIMINARY REVIEW", "state": "current"},
+	{"cn": "国家训练", "en": "NATIONAL TRAINING", "state": "pending"},
+	{"cn": "最终考核", "en": "FINAL ASSESSMENT", "state": "pending"},
+	{"cn": "正式派驻", "en": "DEPLOYMENT", "state": "pending"},
+]
 
 func _show_notice() -> void:
 	profile.set("candidate_file_status", "已通过资格初审")
-	_add_page_title("资格初审结果", "PRELIMINARY ELIGIBILITY REVIEW")
-	var panel := _add_panel(page_body)
-	panel.custom_minimum_size = Vector2(980, 540)
-	var title := Label.new()
-	title.text = "国家深空生命科学中心\n资格初审结果"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.modulate = Color("#eaf4ff")
-	title.add_theme_font_size_override("font_size", 28)
-	panel.add_child(title)
-	_add_note_to(panel, "文书编号：GHO-REV-2068-0421    签发日期：2068-04-12")
-	_add_note_to(panel, "候选人：%s    档案状态：%s    签发单位：广寒计划常驻开拓者选拔委员会" % [
-		_display_name(),
-		String(profile.get("candidate_file_status")),
-	])
-	_add_body_to(panel, "致 %s：\n\n经广寒计划常驻开拓者选拔委员会初步审核，\n你的申请已通过资格初审。\n\n你将进入国家深空生命科学中心训练序列。\n\n训练完成并通过最终考核后，\n你才可能被正式派往月球广寒前哨，\n执行长期驻留与生命支持建设任务。\n\n广寒计划不是一次普通申请。\n这只是第一步。" % _display_name())
-	_add_footer_button("返回主菜单", func():
+	# _add_columns() splits leftover row width equally between both panels
+	# regardless of the requested ratio, so 0.74 (not the nominal 0.64) is
+	# passed here to land on the spec's intended ~64/36 visual proportion.
+	var columns := _add_columns(0.74)
+	var left: VBoxContainer = columns[0]
+	var right: VBoxContainer = columns[1]
+	var left_panel := left.get_parent() as PanelContainer
+	var right_panel := right.get_parent() as PanelContainer
+	_style_identity_panel(left_panel)
+	_style_identity_panel(right_panel)
+	left_panel.clip_contents = true
+
+	_build_notice_earth_ghost(left_panel)
+	_build_notice_document(left)
+	_build_notice_summary_panel(right)
+	_build_notice_footer()
+
+func _build_notice_earth_ghost(panel: PanelContainer) -> void:
+	var root := Control.new()
+	root.name = "EarthGhostRoot"
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_child(root)
+	panel.move_child(root, 0)
+
+	var blur := TextureRect.new()
+	blur.name = "EarthGhostBlur"
+	blur.texture = IconEarth
+	blur.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+	blur.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	blur.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	blur.anchor_left = 0.66
+	blur.anchor_top = 0.62
+	blur.anchor_right = 0.66
+	blur.anchor_bottom = 0.62
+	blur.offset_left = -254
+	blur.offset_top = -286
+	blur.offset_right = 286
+	blur.offset_bottom = 254
+	blur.modulate = Color("#4A7292", 0.06)
+	root.add_child(blur)
+
+	var main := TextureRect.new()
+	main.name = "EarthGhostMain"
+	main.texture = IconEarth
+	main.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+	main.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	main.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	main.anchor_left = 0.66
+	main.anchor_top = 0.62
+	main.anchor_right = 0.66
+	main.anchor_bottom = 0.62
+	main.offset_left = -250
+	main.offset_top = -250
+	main.offset_right = 250
+	main.offset_bottom = 250
+	main.modulate = Color("#31506A", 0.10)
+	root.add_child(main)
+
+func _build_notice_document(left: VBoxContainer) -> void:
+	var header_row := HBoxContainer.new()
+	header_row.add_theme_constant_override("separation", 16)
+	left.add_child(header_row)
+
+	var title_col := VBoxContainer.new()
+	title_col.add_theme_constant_override("separation", 4)
+	title_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header_row.add_child(title_col)
+	var org_label := Label.new()
+	org_label.text = "国家深空生命科学中心"
+	org_label.modulate = AUI_COLOR_TEXT_SECONDARY
+	org_label.add_theme_font_size_override("font_size", 15)
+	title_col.add_child(org_label)
+	var main_title := Label.new()
+	main_title.text = "资格初审结果"
+	main_title.modulate = AUI_COLOR_TEXT_PRIMARY
+	main_title.add_theme_font_size_override("font_size", 30)
+	title_col.add_child(main_title)
+	var sub_title := Label.new()
+	sub_title.text = "PRELIMINARY ELIGIBILITY REVIEW"
+	sub_title.modulate = AUI_COLOR_TEXT_MUTED
+	sub_title.add_theme_font_size_override("font_size", 13)
+	title_col.add_child(sub_title)
+
+	header_row.add_child(_build_notice_approval_badge())
+
+	left.add_child(_make_fixed_spacer(6))
+	left.add_child(HSeparator.new())
+	_build_notice_meta_row(left)
+	left.add_child(HSeparator.new())
+	left.add_child(_make_fixed_spacer(10))
+
+	var body := RichTextLabel.new()
+	body.bbcode_enabled = true
+	body.fit_content = true
+	body.scroll_active = false
+	body.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	body.custom_minimum_size = Vector2(760, 0)
+	body.add_theme_font_size_override("normal_font_size", 16)
+	body.add_theme_color_override("default_color", AUI_COLOR_TEXT_INPUT)
+	body.text = "致 %s：\n\n经广寒计划常驻开拓者遴选委员会初步审核，\n你的申请已[color=#4f8eb8]通过资格初审[/color]。\n\n你将进入国家深空生命科学中心训练序列。\n\n训练完成并通过最终考核后，\n你方可正式派驻月球广寒前哨，\n执行长期驻留与生命支持建设任务。\n\n广寒计划不是一次普通申请。\n\n这是成为月面开拓者的第一步。" % _display_name()
+	left.add_child(body)
+
+	var left_spacer := Control.new()
+	left_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	left.add_child(left_spacer)
+
+func _build_notice_approval_badge() -> PanelContainer:
+	var badge := PanelContainer.new()
+	badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	badge.size_flags_horizontal = Control.SIZE_SHRINK_END
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color("#142534")
+	style.border_color = Color("#3d5f78")
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(AUI_INPUT_RADIUS)
+	style.content_margin_left = 14
+	style.content_margin_right = 16
+	style.content_margin_top = 10
+	style.content_margin_bottom = 10
+	badge.add_theme_stylebox_override("panel", style)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	badge.add_child(row)
+	var icon := _add_icon(row, IconStatusComplete, Vector2(28, 28))
+	icon.modulate = Color("#4f8eb8")
+	var text_col := VBoxContainer.new()
+	text_col.add_theme_constant_override("separation", 1)
+	text_col.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(text_col)
+	var cn := Label.new()
+	cn.text = "审核通过"
+	cn.modulate = Color("#cfe3f0")
+	cn.add_theme_font_size_override("font_size", 16)
+	text_col.add_child(cn)
+	var en := Label.new()
+	en.text = "PRELIMINARY APPROVED"
+	en.modulate = Color("#7fa8c2")
+	en.add_theme_font_size_override("font_size", 10)
+	text_col.add_child(en)
+	return badge
+
+func _build_notice_meta_row(parent: VBoxContainer) -> void:
+	var row := HBoxContainer.new()
+	row.custom_minimum_size = Vector2(0, 44)
+	row.add_theme_constant_override("separation", 20)
+	parent.add_child(row)
+	var items := [
+		["文件编号", "DOCUMENT NO.", "GHO-REV-2068-0421", false],
+		["签发日期", "ISSUE DATE", "2068-04-12", false],
+		["候选人编号", "CANDIDATE ID", derive_candidate_display_id(String(profile.get("application_id"))), false],
+		["审核状态", "REVIEW STATUS", String(profile.get("candidate_file_status")), true],
+	]
+	for i in items.size():
+		var item: Array = items[i]
+		var col := VBoxContainer.new()
+		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		col.add_theme_constant_override("separation", 3)
+		row.add_child(col)
+		var label_row := HBoxContainer.new()
+		label_row.add_theme_constant_override("separation", 6)
+		col.add_child(label_row)
+		var label_cn := Label.new()
+		label_cn.text = String(item[0])
+		label_cn.modulate = AUI_COLOR_TEXT_SECONDARY
+		label_cn.add_theme_font_size_override("font_size", 12)
+		label_row.add_child(label_cn)
+		var label_en := Label.new()
+		label_en.text = String(item[1])
+		label_en.modulate = AUI_COLOR_TEXT_MUTED
+		label_en.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		label_en.add_theme_font_size_override("font_size", 9)
+		label_row.add_child(label_en)
+		var value := Label.new()
+		value.text = String(item[2])
+		value.modulate = Color("#4f8eb8") if bool(item[3]) else AUI_COLOR_TEXT_PRIMARY
+		value.add_theme_font_size_override("font_size", 16)
+		col.add_child(value)
+		if i < items.size() - 1:
+			row.add_child(VSeparator.new())
+
+func _build_notice_summary_panel(right: VBoxContainer) -> void:
+	_add_identity_panel_heading(right, "审核摘要", "REVIEW SUMMARY")
+	var summary_list := VBoxContainer.new()
+	summary_list.add_theme_constant_override("separation", 16)
+	right.add_child(summary_list)
+	_add_notice_summary_item(summary_list, "身份校验", "IDENTITY VERIFICATION")
+	_add_notice_summary_item(summary_list, "档案完整性检查", "ARCHIVE INTEGRITY CHECK")
+	_add_notice_summary_item(summary_list, "学术背景匹配", "ACADEMIC BACKGROUND MATCH")
+	_add_notice_summary_item(summary_list, "外观与标识确认", "APPEARANCE & MARKING CHECK")
+	_add_notice_summary_item(summary_list, "一级任务身份建立", "PRIMARY ROLE ESTABLISHED")
+
+	right.add_child(_make_fixed_spacer(10))
+	_add_identity_section_heading(right, "当前状态", "CURRENT STATUS")
+	_build_notice_current_status_card(right)
+
+	right.add_child(_make_fixed_spacer(10))
+	_add_identity_section_heading(right, "流程位置", "APPLICATION PROGRESS")
+	_build_notice_progress_timeline(right)
+
+	var right_spacer := Control.new()
+	right_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	right.add_child(right_spacer)
+
+func _add_notice_summary_item(parent: VBoxContainer, cn_text: String, en_text: String) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	parent.add_child(row)
+	var check := Label.new()
+	check.text = "✓"
+	check.modulate = AUI_COLOR_ACTIVE_ACCENT
+	check.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	check.add_theme_font_size_override("font_size", 16)
+	row.add_child(check)
+	var text_col := VBoxContainer.new()
+	text_col.add_theme_constant_override("separation", 1)
+	text_col.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(text_col)
+	var cn := Label.new()
+	cn.text = cn_text
+	cn.modulate = AUI_COLOR_TEXT_PRIMARY
+	cn.add_theme_font_size_override("font_size", 15)
+	text_col.add_child(cn)
+	var en := Label.new()
+	en.text = en_text
+	en.modulate = AUI_COLOR_TEXT_MUTED
+	en.add_theme_font_size_override("font_size", 11)
+	text_col.add_child(en)
+
+func _build_notice_current_status_card(parent: VBoxContainer) -> void:
+	var card := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color("#142534")
+	style.border_color = Color("#2c4356")
+	style.set_border_width_all(AUI_BORDER_WIDTH)
+	style.set_corner_radius_all(AUI_INPUT_RADIUS)
+	style.content_margin_left = 16
+	style.content_margin_right = 16
+	style.content_margin_top = 14
+	style.content_margin_bottom = 14
+	card.add_theme_stylebox_override("panel", style)
+	parent.add_child(card)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 10)
+	card.add_child(box)
+
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	box.add_child(row)
+	var icon := _add_icon(row, IconStatusComplete, Vector2(30, 30))
+	icon.modulate = Color("#4f8eb8")
+	var status_col := VBoxContainer.new()
+	status_col.add_theme_constant_override("separation", 1)
+	row.add_child(status_col)
+	var cn := Label.new()
+	cn.text = "已通过资格初审"
+	cn.modulate = Color("#4f8eb8")
+	cn.add_theme_font_size_override("font_size", 17)
+	status_col.add_child(cn)
+	var en := Label.new()
+	en.text = "PRELIMINARY APPROVED"
+	en.modulate = AUI_COLOR_TEXT_MUTED
+	en.add_theme_font_size_override("font_size", 11)
+	status_col.add_child(en)
+
+	box.add_child(HSeparator.new())
+
+	var next_col := VBoxContainer.new()
+	next_col.add_theme_constant_override("separation", 2)
+	box.add_child(next_col)
+	var next_cn := Label.new()
+	next_cn.text = "下一阶段：国家训练序列"
+	next_cn.modulate = AUI_COLOR_TEXT_PRIMARY
+	next_cn.add_theme_font_size_override("font_size", 14)
+	next_col.add_child(next_cn)
+	var next_en := Label.new()
+	next_en.text = "NEXT PHASE: NATIONAL TRAINING SEQUENCE"
+	next_en.modulate = AUI_COLOR_TEXT_MUTED
+	next_en.add_theme_font_size_override("font_size", 10)
+	next_col.add_child(next_en)
+
+func _build_notice_progress_timeline(parent: VBoxContainer) -> void:
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 4)
+	parent.add_child(row)
+	for i in NOTICE_PROGRESS_STEPS.size():
+		var data: Dictionary = NOTICE_PROGRESS_STEPS[i]
+		row.add_child(_build_notice_progress_node(data))
+		if i < NOTICE_PROGRESS_STEPS.size() - 1:
+			row.add_child(_build_notice_progress_connector(String(data["state"])))
+
+func _build_notice_progress_node(data: Dictionary) -> VBoxContainer:
+	var col := VBoxContainer.new()
+	col.alignment = BoxContainer.ALIGNMENT_CENTER
+	col.add_theme_constant_override("separation", 6)
+	col.custom_minimum_size = Vector2(94, 0)
+	var state := String(data["state"])
+	var dot := PanelContainer.new()
+	dot.custom_minimum_size = Vector2(16, 16)
+	dot.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	var dot_style := StyleBoxFlat.new()
+	dot_style.set_corner_radius_all(8)
+	dot_style.set_border_width_all(1)
+	match state:
+		"done":
+			dot_style.bg_color = Color("#c7d1d8")
+			dot_style.border_color = Color("#c7d1d8")
+		"current":
+			dot_style.bg_color = Color("#4f8eb8")
+			dot_style.border_color = Color("#4f8eb8")
+		_:
+			dot_style.bg_color = Color("#1a2831")
+			dot_style.border_color = Color("#33475a")
+	dot.add_theme_stylebox_override("panel", dot_style)
+	col.add_child(dot)
+	var cn := Label.new()
+	cn.text = String(data["cn"])
+	cn.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	cn.modulate = Color("#c7d1d8") if state == "done" else AUI_COLOR_TEXT_MUTED
+	if state == "current":
+		cn.modulate = Color("#4f8eb8")
+	cn.add_theme_font_size_override("font_size", 13)
+	col.add_child(cn)
+	var en := Label.new()
+	en.text = String(data["en"])
+	en.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	en.modulate = AUI_COLOR_TEXT_MUTED
+	en.add_theme_font_size_override("font_size", 9)
+	col.add_child(en)
+	if state == "current":
+		var current_label := Label.new()
+		current_label.text = "CURRENT"
+		current_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		current_label.modulate = Color("#4f8eb8")
+		current_label.add_theme_font_size_override("font_size", 9)
+		col.add_child(current_label)
+	return col
+
+func _build_notice_progress_connector(prev_state: String) -> Control:
+	var line := ColorRect.new()
+	line.custom_minimum_size = Vector2(24, 2)
+	line.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	line.color = Color("#c7d1d8") if prev_state == "done" else Color("#2a3a46")
+	return line
+
+func _build_notice_footer() -> void:
+	var frame := PanelContainer.new()
+	frame.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	var style := StyleBoxFlat.new()
+	style.bg_color = AUI_COLOR_PANEL_BG
+	style.border_color = AUI_COLOR_PANEL_BORDER
+	style.set_border_width_all(AUI_BORDER_WIDTH)
+	style.set_corner_radius_all(AUI_PANEL_RADIUS)
+	style.content_margin_left = AUI_PANEL_PADDING
+	style.content_margin_right = AUI_PANEL_PADDING
+	style.content_margin_top = 16
+	style.content_margin_bottom = 16
+	frame.add_theme_stylebox_override("panel", style)
+	footer.add_child(frame)
+
+	var row := HBoxContainer.new()
+	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	row.add_theme_constant_override("separation", 16)
+	frame.add_child(row)
+
+	var back_button := _make_step_back_button("返回主菜单", func():
 		get_tree().change_scene_to_file("res://scenes/main.tscn")
 	)
-	var training := Button.new()
-	training.text = "进入训练序列"
-	training.custom_minimum_size = Vector2(240, 46)
-	training.modulate = Color("#9ac7e8")
-	training.pressed.connect(func():
+	row.add_child(back_button)
+
+	var center := VBoxContainer.new()
+	center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	center.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	center.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_child(center)
+	var next_phase_cn := Label.new()
+	next_phase_cn.text = "下一阶段：国家深空生命科学中心训练序列"
+	next_phase_cn.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	next_phase_cn.modulate = AUI_COLOR_TEXT_SECONDARY
+	next_phase_cn.add_theme_font_size_override("font_size", 14)
+	center.add_child(next_phase_cn)
+	var next_phase_en := Label.new()
+	next_phase_en.text = "NEXT PHASE: NATIONAL DEEP SPACE LIFE SCIENCE CENTER TRAINING SEQUENCE"
+	next_phase_en.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	next_phase_en.modulate = AUI_COLOR_TEXT_MUTED
+	next_phase_en.add_theme_font_size_override("font_size", 11)
+	center.add_child(next_phase_en)
+
+	var next_button := _make_step_next_button("进入训练序列", func():
 		profile.set("current_application_step", "training_start")
 		profile.set("candidate_file_status", "训练序列中")
 		_save_profile()
 		get_tree().change_scene_to_file("res://scenes/training/TrainingStartScene.tscn")
 	)
-	footer.add_child(training)
+	row.add_child(next_button)
 
 func _show_withdrawn() -> void:
 	_add_page_title("申请已撤回", "APPLICATION WITHDRAWN")

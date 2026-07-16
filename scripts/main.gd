@@ -58,11 +58,15 @@ class TitleScreenBackground:
 ## Ogg Theora -- Godot 4 has no built-in MP4/H.264 decoder, .ogv is the only
 ## natively-supported video format). Falls back to the static
 ## TitleScreenBackground image if the video can't be loaded for any reason.
-## Native source resolution is 720x1280 (portrait, 24fps, ~8s) per ffprobe;
+## Native source resolution is 1920x1024 (landscape, 24fps, ~12s) per ffprobe;
 ## hard-coded here since VideoStreamPlayer.get_size() isn't reliably
-## available before the first frame decodes.
+## available before the first frame decodes. Update this if the source
+## video file is ever replaced with a different resolution/aspect ratio --
+## a stale value here is a common cause of a stretched/distorted-looking
+## background, since it drives the cover-fill scaling math in resize_video().
 const TITLE_BACKGROUND_VIDEO := "res://assets/ui/opening/backgrounds/opening_background.ogv"
-const TITLE_BACKGROUND_VIDEO_SIZE := Vector2(720.0, 1280.0)
+const TITLE_BACKGROUND_VIDEO_SIZE := Vector2(1920.0, 1024.0)
+const TITLE_BACKGROUND_FADE_SECONDS := 1.5
 
 func _build_title_background(menu: Control) -> Control:
 	var wrapper := Control.new()
@@ -79,15 +83,31 @@ func _build_title_background(menu: Control) -> Control:
 		wrapper.add_child(fallback)
 		return wrapper
 
+	# The still image sits behind the video from the start (cheap, a single
+	# Control) so that once the video plays through once, it only needs to
+	# fade its own alpha out -- no swap/visibility juggling -- to settle on
+	# a fixed background instead of looping forever.
+	var still := TitleScreenBackground.new()
+	still.name = "TitleBackgroundImage"
+	still.set_anchors_preset(Control.PRESET_FULL_RECT)
+	wrapper.add_child(still)
+
 	var player := VideoStreamPlayer.new()
 	player.name = "BackgroundVideo"
 	player.stream = video_stream
 	player.autoplay = false
 	player.expand = true
-	player.volume_db = -80.0
+	player.volume_db = -12.0
 	player.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	wrapper.add_child(player)
-	player.finished.connect(func(): player.play())
+	player.finished.connect(func():
+		var tween := create_tween()
+		tween.tween_property(player, "modulate:a", 0.0, TITLE_BACKGROUND_FADE_SECONDS)
+		tween.tween_callback(func():
+			player.stop()
+			player.queue_free()
+		)
+	)
 
 	var resize_video := func():
 		var avail: Vector2 = wrapper.size
@@ -3642,18 +3662,18 @@ func _setup_main_menu() -> void:
 	subtitle.add_theme_font_size_override("font_size", 22)
 	box.add_child(subtitle)
 
-	var start_button := _make_title_button("开始新驻留", Callable(_formal_flow_router, "start_application_flow"), true, "icon_menu_new_expedition", "E / Enter")
+	var start_button := _make_title_button("开始新驻留", Callable(_formal_flow_router, "start_application_flow"), true, "icon_menu_new_expedition")
 	start_button.name = "StartButton"
 	box.add_child(start_button)
 	box.add_child(_make_title_menu_divider())
-	var continue_button := _make_title_button("继续驻留", Callable(_formal_flow_router, "continue_mission"), _formal_flow_router.has_continue_mission(), "icon_menu_continue", "R")
+	var continue_button := _make_title_button("继续驻留", Callable(_formal_flow_router, "continue_mission"), _formal_flow_router.has_continue_mission(), "icon_menu_continue")
 	continue_button.name = "ContinueButton"
 	box.add_child(continue_button)
 	box.add_child(_make_title_menu_divider())
-	var dev_entry := _make_title_button("开发入口 / Debug", _toggle_dev_menu, true, "icon_menu_developer", "F12")
+	var dev_entry := _make_title_button("开发入口 / Debug", _toggle_dev_menu, true, "icon_menu_developer")
 	box.add_child(dev_entry)
 	box.add_child(_make_title_menu_divider())
-	box.add_child(_make_title_button("退出", func(): get_tree().quit(), true, "icon_menu_exit", "Esc"))
+	box.add_child(_make_title_button("退出", func(): get_tree().quit(), true, "icon_menu_exit"))
 
 	var menu_notice := Label.new()
 	menu_notice.name = "MenuNotice"
@@ -3696,7 +3716,7 @@ func _setup_main_menu() -> void:
 	_set_gameplay_hud_visible(false)
 	_refresh_main_menu()
 
-## Title-menu item component: icon + label + shortcut hint, with a left
+## Title-menu item component: icon + label, with a left
 ## accent bar and Default/Hover/Focus/Pressed/Disabled states driven by a
 ## single Tween (per the art-director state table -- background/accent/
 ## text/icon opacity and a small hover shift, no glow/blink/bounce).
@@ -3707,7 +3727,7 @@ const TITLE_LOGO_JSON := "res://assets/ui/opening/logos/sprite.godot.json"
 const TITLE_MENU_ACCENT_COLOR := Color("#e0a542")
 const TITLE_MENU_BG_COLOR := Color("#0b1622")
 
-func _make_title_button(text: String, callback: Callable, enabled: bool, icon_region: String, shortcut_text: String) -> Button:
+func _make_title_button(text: String, callback: Callable, enabled: bool, icon_region: String) -> Button:
 	var button := Button.new()
 	button.text = ""
 	button.custom_minimum_size = Vector2(0, 74)
@@ -3757,16 +3777,9 @@ func _make_title_button(text: String, callback: Callable, enabled: bool, icon_re
 	label.add_theme_font_size_override("font_size", 24)
 	row.add_child(label)
 
-	var shortcut := Label.new()
-	shortcut.text = shortcut_text
-	shortcut.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	shortcut.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	shortcut.add_theme_font_size_override("font_size", 15)
-	row.add_child(shortcut)
-
 	var state := {
 		"button": button, "bg": bg_style, "accent": accent,
-		"icon": icon, "label": label, "shortcut": shortcut, "row": row,
+		"icon": icon, "label": label, "row": row,
 		"tween": null,
 	}
 	button.set_meta("title_menu_state", state)
@@ -3838,7 +3851,6 @@ func _apply_title_menu_visual(state: Dictionary, mode: String, duration: float) 
 	var accent: ColorRect = state["accent"]
 	var icon: TextureRect = state["icon"]
 	var label: Label = state["label"]
-	var shortcut: Label = state["shortcut"]
 	var row: HBoxContainer = state["row"]
 
 	var bg_alpha := 0.0
@@ -3876,7 +3888,6 @@ func _apply_title_menu_visual(state: Dictionary, mode: String, duration: float) 
 	tween.tween_property(accent, "color", Color(TITLE_MENU_ACCENT_COLOR, accent_alpha), duration)
 	tween.tween_property(label, "modulate", Color(1, 1, 1, text_alpha), duration)
 	tween.tween_property(icon, "modulate", Color(1, 1, 1, text_alpha), duration)
-	tween.tween_property(shortcut, "modulate", Color(1, 1, 1, text_alpha * 0.85), duration)
 	tween.tween_property(row, "position:x", offset_x, duration)
 	state["tween"] = tween
 
