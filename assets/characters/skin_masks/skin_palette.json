@@ -1,0 +1,25 @@
+{
+  "format": "skin_palette_v1",
+  "mask_channels": {
+    "r": "shadow",
+    "g": "midtone",
+    "b": "highlight"
+  },
+  "skin_tones": {
+    "light": {
+      "shadow": "#B69C80",
+      "midtone": "#E3C3A0",
+      "highlight": "#FFE0B8"
+    },
+    "warm": {
+      "shadow": "#9B6C48",
+      "midtone": "#C3875A",
+      "highlight": "#E9A773"
+    },
+    "deep": {
+      "shadow": "#5E3825",
+      "midtone": "#7A4A30",
+      "highlight": "#9E6240"
+    }
+  }
+}

@@ -58,6 +58,7 @@ static func provider_specs() -> Array[Dictionary]:
 		{"id": "water", "node": "WaterSystemManager", "required": true, "order": 70, "finalize": false},
 		{"id": "inventory", "node": "InventoryManager", "required": true, "order": 80, "finalize": false},
 		{"id": "backpack", "node": "BackpackManager", "required": true, "order": 90, "finalize": false},
+		{"id": "world_state", "node": "WorldStateManager", "required": true, "order": 95, "finalize": false},
 		{"id": "storage", "node": "StorageManager", "required": true, "order": 100, "finalize": false},
 		{"id": "plant_growth", "node": "PlantGrowthManager", "required": false, "order": 110, "finalize": false},
 		{"id": "suit", "node": "SuitManager", "required": true, "order": 120, "finalize": true},

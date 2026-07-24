@@ -138,6 +138,7 @@ func build_menu() -> void:
 	_dev_add(_make_dev_button("Dev Only: Arrival Cinematic", func(): get_tree().change_scene_to_file("res://scenes/arrival/ArrivalCinematicScene.tscn")))
 	_dev_add(_make_dev_button("Dev Only: Arrival Landing", func(): get_tree().change_scene_to_file("res://scenes/arrival/ArrivalLandingScene.tscn")))
 	_dev_add(_make_dev_button("Dev Only: Lunar Surface (EVA seed)", func(): get_tree().change_scene_to_file("res://scenes/surface/LunarSurfaceScene.tscn")))
+	_dev_add(_make_dev_button("Dev Only: Procedural Chunk Prototype", func(): get_tree().change_scene_to_file("res://scenes/surface/ProceduralChunkPrototypeScene.tscn")))
 	_dev_add(_make_dev_button("Dev Only: Base Airlock Entry", func(): get_tree().change_scene_to_file("res://scenes/base/BaseAirlockEntryScene.tscn")))
 	_dev_add(_make_dev_button("Dev Only: Old Base Interior", func(): get_tree().change_scene_to_file("res://scenes/base/OldBaseInteriorScene.tscn")))
 	_dev_add(_make_dev_button("Dev Only: Old Base Art Slice", func(): get_tree().change_scene_to_file("res://scenes/base/OldBaseCore_ArtSlice.tscn")))

@@ -1,0 +1,104 @@
+{
+  "approved_base_colors": {
+    "black": "#1C1C1E",
+    "blonde": "#D8B563",
+    "auburn": "#7A3B23"
+  },
+  "sheets": {
+    "assets\\characters\\player_preview\\female\\light\\auburn\\walk_cycle_long.png": {
+      "hair_color": "auburn",
+      "recolored_pixels": 126486,
+      "target_frame_value": 0.45882352941176474
+    },
+    "assets\\characters\\player_preview\\female\\light\\auburn\\walk_cycle_ponytail.png": {
+      "hair_color": "auburn",
+      "recolored_pixels": 84023,
+      "target_frame_value": 0.4843137254901961
+    },
+    "assets\\characters\\player_preview\\female\\light\\auburn\\walk_cycle_short.png": {
+      "hair_color": "auburn",
+      "recolored_pixels": 63137,
+      "target_frame_value": 0.4607843137254902
+    },
+    "assets\\characters\\player_preview\\female\\light\\black\\walk_cycle_long.png": {
+      "hair_color": "black",
+      "recolored_pixels": 28845,
+      "target_frame_value": 0.16862745098039217
+    },
+    "assets\\characters\\player_preview\\female\\light\\black\\walk_cycle_native.png": {
+      "hair_color": "black",
+      "recolored_pixels": 465252,
+      "target_frame_value": 0.16862745098039217
+    },
+    "assets\\characters\\player_preview\\female\\light\\black\\walk_cycle_ponytail.png": {
+      "hair_color": "black",
+      "recolored_pixels": 82774,
+      "target_frame_value": 0.16862745098039217
+    },
+    "assets\\characters\\player_preview\\female\\light\\black\\walk_cycle_short.png": {
+      "hair_color": "black",
+      "recolored_pixels": 58870,
+      "target_frame_value": 0.16862745098039217
+    },
+    "assets\\characters\\player_preview\\female\\light\\blonde\\walk_cycle_long.png": {
+      "hair_color": "blonde",
+      "recolored_pixels": 120081,
+      "target_frame_value": 0.7058823529411764
+    },
+    "assets\\characters\\player_preview\\female\\light\\blonde\\walk_cycle_ponytail.png": {
+      "hair_color": "blonde",
+      "recolored_pixels": 79441,
+      "target_frame_value": 0.7607843137254902
+    },
+    "assets\\characters\\player_preview\\female\\light\\blonde\\walk_cycle_short.png": {
+      "hair_color": "blonde",
+      "recolored_pixels": 60284,
+      "target_frame_value": 0.7666666666666666
+    },
+    "assets\\characters\\player_preview\\male\\medium\\auburn\\walk_cycle_buzz.png": {
+      "hair_color": "auburn",
+      "recolored_pixels": 45714,
+      "target_frame_value": 0.47058823529411764
+    },
+    "assets\\characters\\player_preview\\male\\medium\\auburn\\walk_cycle_long.png": {
+      "hair_color": "auburn",
+      "recolored_pixels": 56610,
+      "target_frame_value": 0.4823529411764706
+    },
+    "assets\\characters\\player_preview\\male\\medium\\auburn\\walk_cycle_short.png": {
+      "hair_color": "auburn",
+      "recolored_pixels": 40745,
+      "target_frame_value": 0.5725490196078431
+    },
+    "assets\\characters\\player_preview\\male\\medium\\black\\walk_cycle_buzz.png": {
+      "hair_color": "black",
+      "recolored_pixels": 32496,
+      "target_frame_value": 0.22745098039215686
+    },
+    "assets\\characters\\player_preview\\male\\medium\\black\\walk_cycle_long.png": {
+      "hair_color": "black",
+      "recolored_pixels": 47155,
+      "target_frame_value": 0.16862745098039217
+    },
+    "assets\\characters\\player_preview\\male\\medium\\black\\walk_cycle_short.png": {
+      "hair_color": "black",
+      "recolored_pixels": 11364,
+      "target_frame_value": 0.22745098039215686
+    },
+    "assets\\characters\\player_preview\\male\\medium\\blonde\\walk_cycle_buzz.png": {
+      "hair_color": "blonde",
+      "recolored_pixels": 45809,
+      "target_frame_value": 0.7098039215686275
+    },
+    "assets\\characters\\player_preview\\male\\medium\\blonde\\walk_cycle_long.png": {
+      "hair_color": "blonde",
+      "recolored_pixels": 57745,
+      "target_frame_value": 0.7450980392156863
+    },
+    "assets\\characters\\player_preview\\male\\medium\\blonde\\walk_cycle_short.png": {
+      "hair_color": "blonde",
+      "recolored_pixels": 42864,
+      "target_frame_value": 0.8294117647058823
+    }
+  }
+}

@@ -60,42 +60,275 @@ class TrainingRoomBlockout:
 		draw_rect(Rect2(Vector2(room.end.x - 180, room.position.y + 72), Vector2(94, 42)), panel_color, true)
 		draw_rect(Rect2(Vector2(room.end.x - 182, room.position.y + 74), Vector2(90, 6)), Color("#67b7e8", 0.55), true)
 
-## TR-002 训练中控室 (hub) real art: reuses TrainingRoomBlockout's wall/light
-## layout exactly (same margins/panel positions) but draws the real tileable
-## floor texture instead of a flat fill + grid lines, and adds the 4
-## direction-signage plaques above each door. Kept as its own class (rather
-## than modifying TrainingRoomBlockout in place) because that class is still
-## shared by 宇航服整备室 and must not change until that room gets its own
-## art pass. Only `_hub_area_config()`'s "blockout" points here.
-## TR-002 训练中控室 (hub) real art, rebuilt around the shared modular atlas
-## (assets/material/lunar_base_modular_atlas.png + .json) per the layered
-## Floor/Structure/Props/Interactive/Lighting/Overlay spec. Kept as its own
-## class (not folded into TrainingRoomBlockout) because that class is still
-## shared by 宇航服整备室 and must not change until that room gets its own art
-## pass. Only _hub_area_config()'s "blockout" points here.
+## TR-002 训练中控室 (hub) procedural rebuild (2026-07-21, User rejected the
+## modular pack integration: "地板铺满整格边框、墙体铺进房间内部" -- the
+## delivered runtime_4x tile/wall/door PNGs are a flatter, simplified
+## restyle that never actually had the target reference's pseudo-3D quality
+## (beveled wall top-face + front-face, pipe/tank details, recessed door
+## pockets) no matter how they were arranged, so rearranging them further
+## couldn't close the gap. User's sole master reference is
+## user/TR-002_3Q_TOPDOWN_MODULAR_ASSET_PACK/source/training_hub_3q_target_reference.png
+## (confirmed identical to the screenshot User pasted directly). Per User's
+## explicit instruction, this round drops runtime_4x entirely and hand-draws
+## the room with primitives (draw_rect/draw_line) instead -- matching how
+## every OTHER prop kind in reference_prop.gd already works; the hub was the
+## only exception using baked/tiled PNGs. Floor + perimeter walls only this
+## round (no wall-adjacent decorations yet, per User's explicit "先只做纯
+## 地板+外围墙+四门+终端" scope) -- door frame/body/light/placard and the
+## center console are drawn separately by reference_prop.gd, on top of this
+## class's continuous wall band, same architecture as before.
 ##
 ## Child layers are built once, lazily, the first time _draw() runs with a
-## valid non-zero size (Control.size isn't reliable yet at _ready()) --
-## in local/design-space coordinates (ROOM_DESIGN_SIZE = 760x520, the same
-## design canvas training_base_map.gd's _room_point()/_room_size() scale
-## from), then the whole set of layers is scaled as one unit to match
-## whatever the room is actually rendering at (uniform scale, same approach
-## _room_size() uses elsewhere so art never stretches non-uniformly). Door/
-## terminal *positions* are never touched here -- those stay driven entirely
-## by _hub_area_config()'s targets list and TrainingTargetVisual, unchanged;
-## this class only draws the non-interactive room dressing around them.
+## valid non-zero size (Control.size isn't reliable yet at _ready()) -- in
+## local/design-space coordinates (ROOM_DESIGN_SIZE = 760x520, the SAME
+## design canvas training_base_map.gd's own top-level ROOM_DESIGN_SIZE const
+## scales door/terminal/player_start coordinates from via _room_point()/
+## _room_size() -- these two constants must stay numerically identical, or
+## this class's wall/floor art will visually drift out of alignment with the
+## real interactive door/terminal hitboxes), then the whole set of layers is
+## scaled as one unit to match whatever the room is actually rendering at
+## (non-uniform scale -- matches _room_point()'s own per-axis stretch
+## exactly, unlike a uniform/letterboxed scale, which left a visible unfilled
+## gap between this art and the real door hitboxes in an earlier round).
 class TrainingHubBlockout:
 	extends Control
 
-	const LunarBaseAtlasScript := preload("res://scripts/data/lunar_base_atlas.gd")
-	const SignSuitHelmet := preload("res://assets/material/door_sign_suit_helmet.png")
-	const SignAirFan := preload("res://assets/material/door_sign_air_fan.png")
-
 	const ROOM_DESIGN_SIZE := Vector2(760, 520)
-	const FLOOR_TILE_PX := 115.0
-	const FLOOR_PRIMARY := ["floor_plate_plain", "floor_plate_seamed", "floor_plate_quad"]
-	const FLOOR_RARE := ["floor_plate_cracked", "floor_plate_damaged", "floor_grate_square", "floor_vent_rectangular"]
-	const SIGN_DISPLAY_SIZE := Vector2(44, 44)
+
+	var _built := false
+
+	func _ready() -> void:
+		texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+
+	func _draw() -> void:
+		draw_rect(Rect2(Vector2.ZERO, size), Color("#050a10"), true)
+		if not _built and size.x > 1.0 and size.y > 1.0:
+			_built = true
+			call_deferred("_build_layers")
+
+	func _build_layers() -> void:
+		var art_root := Node2D.new()
+		art_root.name = "HubArt"
+		# Non-uniform, matching training_base_map.gd's own _room_scale()
+		# exactly (per-axis size/ROOM_DESIGN_SIZE, no aspect-preserving
+		# clamp) -- door/terminal/player positions are placed via that same
+		# _room_point() mapping, so this class's floor/wall art must scale
+		# identically or it visibly drifts away from the real interactive
+		# hitboxes.
+		art_root.scale = Vector2(size.x / ROOM_DESIGN_SIZE.x, size.y / ROOM_DESIGN_SIZE.y)
+		add_child(art_root)
+		art_root.add_child(_RoomArtDrawer.new())
+
+	## Hand-drawn floor + perimeter walls, tuned to the reference screenshot:
+	## a mostly-flat low-detail floor (thin seam grid at the logical 64px
+	## tile pitch, NOT individually-bordered tiles) with one lighter vertical
+	## corridor accent connecting the top/bottom doors past the terminal, and
+	## thick walls confined strictly to the room's outer ring (never tiled
+	## into the interior) with a lighter top-face band + a darker inset
+	## front-face strip to read as "near-top-down 2.5D" without going 3D,
+	## plus 4 corner blocks and 2 short cold-white light-strip accents on the
+	## top wall (matching the reference's corner/light placement).
+	class _RoomArtDrawer:
+		extends Node2D
+
+		const ROOM_SIZE := Vector2(760, 520)
+		const WALL_THICKNESS := 58.0
+		# Front face occupies this fraction of WALL_THICKNESS, on the
+		# room-facing side -- larger than the first pass's thin 14px inset
+		# per User's "外墙缺少厚度与内侧立面" feedback, so the top/front
+		# split reads clearly instead of like one flat bar.
+		const WALL_FRONT_RATIO := 0.4
+		const CORNER_SIZE := 64.0
+		const CORRIDOR_WIDTH := 48.0
+		# The corridor and both horizontal doors share this x -- see
+		# _hub_area_config()'s door_power/door_greenhouse position+size.
+		const CORRIDOR_X := 380.0
+
+		# Darkened a second time per User's "颜色更深，不能整体偏灰" feedback
+		# (Round 1's #4c5a68/#181e25 pair still read as one medium-gray bar
+		# at a glance) -- the top/front split is now carried by a much wider
+		# value gap, not just a thin inset.
+		const WALL_TOP_TONE := Color("#303a44")
+		const WALL_PANEL_SEAM_TONE := Color("#1a2028")
+		const WALL_FRONT_TONE := Color("#10141a")
+		const WALL_EDGE_TONE := Color("#080a0d")
+		const WALL_HILITE := Color("#bfe8ff")
+		const CORNER_TONE := Color("#11151a")
+		const FLOOR_BASE_TONE := Color("#3c4650")
+		const FLOOR_SEAM_TONE := Color("#2c343c")
+		const FLOOR_MARK_TONE := Color("#2a323a")
+		const CORRIDOR_TONE := Color("#4c5a65")
+
+		func _draw() -> void:
+			_draw_floor()
+			_draw_walls()
+
+		func _draw_floor() -> void:
+			var interior := Rect2(Vector2(WALL_THICKNESS, WALL_THICKNESS), ROOM_SIZE - Vector2(WALL_THICKNESS, WALL_THICKNESS) * 2.0)
+			draw_rect(interior, FLOOR_BASE_TONE, true)
+			# Single lighter corridor accent (not a repeating "highlighted
+			# tile" pattern) -- matches the reference's one vertical path
+			# from the top door, past the terminal, to the bottom door.
+			var corridor := Rect2(Vector2(CORRIDOR_X - CORRIDOR_WIDTH * 0.5, interior.position.y), Vector2(CORRIDOR_WIDTH, interior.size.y))
+			draw_rect(corridor, Color(CORRIDOR_TONE, 0.55), true)
+			# Thin, low-contrast seam grid at the logical 64px tile pitch --
+			# this is what keeps the floor tied to the same tile unit the
+			# rest of the room uses, WITHOUT every cell reading as its own
+			# thick-bordered tile (User's core complaint about the previous
+			# round).
+			var x := interior.position.x
+			while x <= interior.end.x + 0.5:
+				draw_line(Vector2(x, interior.position.y), Vector2(x, interior.end.y), Color(FLOOR_SEAM_TONE, 0.3), 1.0)
+				x += 64.0
+			var y := interior.position.y
+			while y <= interior.end.y + 0.5:
+				draw_line(Vector2(interior.position.x, y), Vector2(interior.end.x, y), Color(FLOOR_SEAM_TONE, 0.3), 1.0)
+				y += 64.0
+			# A handful of sparse inspection-panel marks: beside the corridor
+			# (unchanged from the previous round) plus one near each of the
+			# 4 interior corners -- per User's "仅在中央通道和四角补少量检修
+			# 盖板/通风口" instruction. Still hand-placed, not a repeating
+			# tile variant.
+			var corner_inset := 44.0
+			for mark_pos in [
+				Vector2(CORRIDOR_X - 44.0, 168.0), Vector2(CORRIDOR_X + 44.0, 168.0),
+				Vector2(CORRIDOR_X - 44.0, 366.0), Vector2(CORRIDOR_X + 44.0, 366.0),
+				Vector2(interior.position.x + corner_inset, interior.position.y + corner_inset),
+				Vector2(interior.end.x - corner_inset, interior.position.y + corner_inset),
+				Vector2(interior.position.x + corner_inset, interior.end.y - corner_inset),
+				Vector2(interior.end.x - corner_inset, interior.end.y - corner_inset),
+			]:
+				var mark := Rect2(mark_pos - Vector2(9.0, 9.0), Vector2(18.0, 18.0))
+				draw_rect(mark, Color(FLOOR_MARK_TONE, 0.6), true)
+				draw_rect(mark, Color(FLOOR_SEAM_TONE, 0.5), false, 1.0)
+
+		## Each of the 4 walls gets: a lighter outer/top face, a clearly
+		## darker inner/front face (WALL_FRONT_RATIO of the thickness, on the
+		## room-facing side) separated by a dark edge-rim line right where
+		## the wall meets the floor, plus a few low-contrast panel-seam lines
+		## on the outer face -- this is what turns "one flat gray bar" into a
+		## paneled, near-top-down 2.5D wall per User's "缺少厚度与内侧立面"
+		## feedback, still with zero 3D geometry (draw_rect/draw_line only).
+		func _draw_walls() -> void:
+			var front_thickness := WALL_THICKNESS * WALL_FRONT_RATIO
+			var seam_margin := int(CORNER_SIZE) + 30
+
+			var groove_w := 4.0
+
+			# -- Top --
+			draw_rect(Rect2(Vector2.ZERO, Vector2(ROOM_SIZE.x, WALL_THICKNESS)), WALL_TOP_TONE, true)
+			draw_rect(Rect2(Vector2(0.0, WALL_THICKNESS - front_thickness), Vector2(ROOM_SIZE.x, front_thickness)), WALL_FRONT_TONE, true)
+			draw_line(Vector2(0.0, WALL_THICKNESS), Vector2(ROOM_SIZE.x, WALL_THICKNESS), WALL_EDGE_TONE, 2.0)
+			for x in range(seam_margin, int(ROOM_SIZE.x) - seam_margin, 110):
+				draw_rect(Rect2(Vector2(x - groove_w * 0.5, 3.0), Vector2(groove_w, WALL_THICKNESS - front_thickness - 6.0)), WALL_PANEL_SEAM_TONE, true)
+
+			# -- Bottom --
+			draw_rect(Rect2(Vector2(0.0, ROOM_SIZE.y - WALL_THICKNESS), Vector2(ROOM_SIZE.x, WALL_THICKNESS)), WALL_TOP_TONE, true)
+			draw_rect(Rect2(Vector2(0.0, ROOM_SIZE.y - WALL_THICKNESS), Vector2(ROOM_SIZE.x, front_thickness)), WALL_FRONT_TONE, true)
+			draw_line(Vector2(0.0, ROOM_SIZE.y - WALL_THICKNESS), Vector2(ROOM_SIZE.x, ROOM_SIZE.y - WALL_THICKNESS), WALL_EDGE_TONE, 2.0)
+			for x in range(seam_margin, int(ROOM_SIZE.x) - seam_margin, 110):
+				draw_rect(Rect2(Vector2(x - groove_w * 0.5, ROOM_SIZE.y - front_thickness), Vector2(groove_w, WALL_THICKNESS - front_thickness - 6.0)), WALL_PANEL_SEAM_TONE, true)
+
+			# -- Left --
+			draw_rect(Rect2(Vector2.ZERO, Vector2(WALL_THICKNESS, ROOM_SIZE.y)), WALL_TOP_TONE, true)
+			draw_rect(Rect2(Vector2(WALL_THICKNESS - front_thickness, 0.0), Vector2(front_thickness, ROOM_SIZE.y)), WALL_FRONT_TONE, true)
+			draw_line(Vector2(WALL_THICKNESS, 0.0), Vector2(WALL_THICKNESS, ROOM_SIZE.y), WALL_EDGE_TONE, 2.0)
+			for y in range(seam_margin, int(ROOM_SIZE.y) - seam_margin, 110):
+				draw_rect(Rect2(Vector2(3.0, y - groove_w * 0.5), Vector2(WALL_THICKNESS - front_thickness - 6.0, groove_w)), WALL_PANEL_SEAM_TONE, true)
+
+			# -- Right --
+			draw_rect(Rect2(Vector2(ROOM_SIZE.x - WALL_THICKNESS, 0.0), Vector2(WALL_THICKNESS, ROOM_SIZE.y)), WALL_TOP_TONE, true)
+			draw_rect(Rect2(Vector2(ROOM_SIZE.x - WALL_THICKNESS, 0.0), Vector2(front_thickness, ROOM_SIZE.y)), WALL_FRONT_TONE, true)
+			draw_line(Vector2(ROOM_SIZE.x - WALL_THICKNESS, 0.0), Vector2(ROOM_SIZE.x - WALL_THICKNESS, ROOM_SIZE.y), WALL_EDGE_TONE, 2.0)
+			for y in range(seam_margin, int(ROOM_SIZE.y) - seam_margin, 110):
+				draw_rect(Rect2(Vector2(ROOM_SIZE.x - front_thickness, y - groove_w * 0.5), Vector2(WALL_THICKNESS - front_thickness - 6.0, groove_w)), WALL_PANEL_SEAM_TONE, true)
+
+			for corner in [
+				Vector2.ZERO, Vector2(ROOM_SIZE.x - CORNER_SIZE, 0.0),
+				Vector2(0.0, ROOM_SIZE.y - CORNER_SIZE), Vector2(ROOM_SIZE.x - CORNER_SIZE, ROOM_SIZE.y - CORNER_SIZE),
+			]:
+				draw_rect(Rect2(corner, Vector2(CORNER_SIZE, CORNER_SIZE)), CORNER_TONE, true)
+
+			# Cold-white light-strip accents: 2 on the top wall (clear of the
+			# door_power gap), 1 each on the left/right walls -- matches the
+			# reference, "只保留少量，不做全场蓝色泛光". Brighter than the
+			# previous round since the wall base tone is now much darker.
+			for light_x in [150.0, ROOM_SIZE.x - 150.0]:
+				draw_rect(Rect2(Vector2(light_x - 35.0, WALL_THICKNESS * 0.28), Vector2(70.0, 8.0)), Color(WALL_HILITE, 0.85), true)
+			var side_light_y := 150.0
+			draw_rect(Rect2(Vector2(WALL_THICKNESS * 0.28, side_light_y - 25.0), Vector2(8.0, 50.0)), Color(WALL_HILITE, 0.8), true)
+			draw_rect(Rect2(Vector2(ROOM_SIZE.x - WALL_THICKNESS * 0.28 - 8.0, side_light_y - 25.0), Vector2(8.0, 50.0)), Color(WALL_HILITE, 0.8), true)
+
+## TR-002 恢复轮 01 baked-reference blockout (2026-07-22,
+## user/TR-002_RESTORATION_ROUND_01) -- after 3 rounds of procedural
+## hand-drawn revision still landed on `VISUAL_REVISION_REQUIRED`, the
+## creative director side switched strategy: restore the room to their own
+## CONFIRMED baked visual (`visual_base/tr002_training_hub_no_actor_760x520.png`,
+## a clean re-render of the same target reference WITHOUT the earlier
+## baked-in reference astronaut) as a temporary single-image VisualBase,
+## explicitly as round 1 of a planned incremental real-asset replacement
+## (floor -> walls/doors structure -> 4 doors -> terminal -> wall props),
+## each step re-diffed against this same baked screenshot. Deliberately
+## additive: TrainingHubBlockout (the procedural class from the prior 3
+## rounds) is untouched and still available/revertible. Carries NO logic of
+## its own -- door/terminal interaction targets, hit-tests, and the
+## highlight-ring overlay are still training_base_map.gd's existing
+## TrainingTargetVisual system, layered on top unchanged (see
+## TrainingTargetVisual.hide_prop_visual for how their prop art gets
+## suppressed so it doesn't double-draw over this baked background, per the
+## handoff's own "不要继续渲染当前灰色白盒...会覆盖底板，造成双重房间").
+## Per the handoff's own explicit caveat: "视觉通过不代表代码正确" -- this
+## only restores the approved look, it doesn't imply collision/interaction/
+## state logic has been re-verified.
+class TrainingHubBakedReferenceBlockout:
+	extends Control
+
+	# 2026-07-24 TR-002_MASTER_ELEMENTS_TRIAL swap: the terminal is baked out
+	# of the room background and reissued as two separate sprites (back half
+	# = screen/body, front half = base lip) so the player can render between
+	# them. Doors/walls stayed baked into this new background (confirmed via
+	# pixel diff against the prior tr002_training_hub_no_actor_1520x1040.png:
+	# floor/wall boundary samples matched within 1-2px at every point
+	# checked, so the existing wall/door collision tuning in
+	# training_base_map.gd's _hub_area_config() still applies unchanged --
+	# only the terminal moved).
+	#
+	# TerminalBack is built here (below, in _build_layers()) since tree order
+	# alone already puts it behind the player -- this Control (the room
+	# floor) is added to training_area before player/player_visual, so no
+	# z_index is needed or used.
+	#
+	# TerminalFrontOccluder is deliberately NOT built here. An earlier
+	# version of this class gave it z_index=3 (and player_visual z_index=2)
+	# to force it in front of the player -- but CanvasItem z_index compares
+	# globally across the WHOLE scene, not just within training_area's own
+	# children, and this codebase's modal dialogs (briefing/mission popups
+	# etc.) rely on tree order, not z_index, to stay on top (they default to
+	# z_index=0). Any positive z_index here out-ranked them regardless of
+	# tree position -- confirmed by User screenshot: the terminal rendered
+	# ON TOP of the mission briefing popup right at scene entry. Fixed by
+	# moving TerminalFrontOccluder's construction to
+	# training_base_map.gd's _build_training_area(), where it's added as a
+	# plain sibling AFTER player_visual with no z_index override at all --
+	# tree order then does the job safely, scoped to just this local
+	# ordering, the same way every other node in this file already works.
+	const BakedReference := preload("res://assets/art/training_hub_3q_reference/tr002_room_backplate_no_terminal_1520x1040.png")
+	const TerminalBackTexture := preload("res://assets/art/training_hub_3q_reference/tr002_terminal_back_256x192.png")
+	const ROOM_DESIGN_SIZE := Vector2(760, 520)
+	const SOURCE_TO_LOGICAL_SCALE := 0.5
+	# Design-space top-left for both terminal sprites' shared 256x192 (2x)
+	# source canvas. Measured, not eyeballed: composited
+	# tr002_terminal_full_256x192.png over BakedReference at a grid of
+	# candidate offsets and picked the pixel-closest match against
+	# tr002_master_elements_trial_preview_760x520.png (the delivered preview
+	# with the terminal drawn in) -- best fit at (316, 174), independently
+	# confirmed by diffing the preview against BakedReference directly (same
+	# bbox). Both sprites must share this exact position: they're two halves
+	# of the same canvas, split at source y=142 (design y ~245).
+	# Referenced by training_base_map.gd (as
+	# TrainingModuleSceneScript.TrainingHubBakedReferenceBlockout.TERMINAL_ART_ORIGIN)
+	# to position the separately-built TerminalFrontOccluder identically.
+	const TERMINAL_ART_ORIGIN := Vector2(316, 174)
 
 	var _built := false
 
@@ -110,160 +343,46 @@ class TrainingHubBlockout:
 
 	func _build_layers() -> void:
 		var art_root := Node2D.new()
-		art_root.name = "HubArt"
-		var uniform: float = min(size.x / ROOM_DESIGN_SIZE.x, size.y / ROOM_DESIGN_SIZE.y)
-		art_root.scale = Vector2(uniform, uniform)
+		art_root.name = "HubBakedArt"
+		# Same non-uniform per-axis scale convention as TrainingHubBlockout
+		# (see its own _build_layers() comment) -- door/terminal/player
+		# positions are placed via training_base_map.gd's _room_point(),
+		# which uses this identical size/ROOM_DESIGN_SIZE mapping.
+		art_root.scale = Vector2(size.x / ROOM_DESIGN_SIZE.x, size.y / ROOM_DESIGN_SIZE.y)
 		add_child(art_root)
 
-		_build_floor(art_root)
-		_build_structure(art_root)
-		_build_props(art_root)
-		_build_lighting(art_root)
-		_build_door_signage(art_root)
-
-	# -- 1. Floor (TileMapLayer): each irregularly-packed atlas region becomes
-	# its own single-tile TileSetAtlasSource (margins = that region's x/y,
-	# texture_region_size = that region's w/h), so a non-uniform sprite-sheet
-	# atlas can still back a real Godot TileSet/TileMapLayer. --
-	func _build_floor(art_root: Node2D) -> void:
-		var tile_set := TileSet.new()
-		tile_set.tile_size = Vector2i(int(FLOOR_TILE_PX), int(FLOOR_TILE_PX))
-		var source_ids: Dictionary = {}
-		for variant in FLOOR_PRIMARY + FLOOR_RARE:
-			var frame: Rect2i = LunarBaseAtlasScript.FRAMES[variant]
-			var source := TileSetAtlasSource.new()
-			source.texture = LunarBaseAtlasScript.AtlasTexture_
-			source.margins = Vector2i(frame.position.x, frame.position.y)
-			source.texture_region_size = Vector2i(frame.size.x, frame.size.y)
-			source.create_tile(Vector2i.ZERO)
-			source_ids[variant] = tile_set.add_source(source)
-
-		var layer := TileMapLayer.new()
-		layer.name = "Floor"
-		layer.tile_set = tile_set
-		layer.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		layer.position = Vector2(24, 24)
-		art_root.add_child(layer)
-
-		var interior := Vector2(ROOM_DESIGN_SIZE.x - 48.0, ROOM_DESIGN_SIZE.y - 48.0)
-		var cols: int = int(floor(interior.x / FLOOR_TILE_PX))
-		var rows: int = int(floor(interior.y / FLOOR_TILE_PX))
-		# Deterministic seed: the floor pattern shouldn't visibly shuffle every
-		# time _build_training_area() reruns (door lock changes, resize, etc.).
-		var rng := RandomNumberGenerator.new()
-		rng.seed = 20260716
-		for gy in range(rows):
-			for gx in range(cols):
-				var variant: String = FLOOR_PRIMARY[rng.randi_range(0, FLOOR_PRIMARY.size() - 1)]
-				if rng.randf() < 0.08:
-					variant = FLOOR_RARE[rng.randi_range(0, FLOOR_RARE.size() - 1)]
-				layer.set_cell(Vector2i(gx, gy), source_ids[variant], Vector2i.ZERO)
-
-	# -- 2. Structure: perimeter wall segments (skipping each door's gap) +
-	# 4 corners + a modest set of pipe/equipment accents (not wall-to-wall
-	# coverage -- User asked for "少量"). --
-	func _build_structure(art_root: Node2D) -> void:
-		var structure := Node2D.new()
-		structure.name = "Structure"
-		art_root.add_child(structure)
-
-		var wall_frame: Rect2i = LunarBaseAtlasScript.FRAMES["wall_segment_horizontal"]
-		var wall_len := float(wall_frame.size.x)
-
-		# Top wall (配电房 gap ~ design x 300-460) / bottom wall (训练温室 gap, same span).
-		_tile_wall_row(structure, Vector2(24, 24), ROOM_DESIGN_SIZE.x - 48.0, wall_len, [Vector2(296.0, 464.0)])
-		_tile_wall_row(structure, Vector2(24, ROOM_DESIGN_SIZE.y - 24), ROOM_DESIGN_SIZE.x - 48.0, wall_len, [Vector2(296.0, 464.0)])
-		# Left wall (宇航服整备室 gap) / right wall (空气系统控制室 gap), rotated 90°.
-		_tile_wall_column(structure, Vector2(24, 24), ROOM_DESIGN_SIZE.y - 48.0, wall_len, [Vector2(188.0, 352.0)])
-		_tile_wall_column(structure, Vector2(ROOM_DESIGN_SIZE.x - 24, 24), ROOM_DESIGN_SIZE.y - 48.0, wall_len, [Vector2(188.0, 352.0)])
-
-		_place_sprite(structure, "wall_corner_outer_left", Vector2(24, 24))
-		_place_sprite(structure, "wall_corner_outer_top_right", Vector2(ROOM_DESIGN_SIZE.x - 24, 24))
-		_place_sprite(structure, "wall_corner_outer_bottom_left", Vector2(24, ROOM_DESIGN_SIZE.y - 24))
-		_place_sprite(structure, "wall_corner_inner_bottom_right", Vector2(ROOM_DESIGN_SIZE.x - 24, ROOM_DESIGN_SIZE.y - 24))
-
-		_place_sprite(structure, "equipment_power_cabinet", Vector2(90, ROOM_DESIGN_SIZE.y - 90))
-		_place_sprite(structure, "pipe_elbow_long", Vector2(ROOM_DESIGN_SIZE.x - 130, 90))
-		_place_sprite(structure, "pipe_support_vertical", Vector2(ROOM_DESIGN_SIZE.x - 55, ROOM_DESIGN_SIZE.y * 0.5))
-
-	# -- 3. Props: decorative consoles flanking the interactive terminal
-	# (center console art itself is the terminal's own visual, drawn by
-	# HubConsole.tscn/reference_prop.gd -- not duplicated here). --
-	func _build_props(art_root: Node2D) -> void:
-		var props := Node2D.new()
-		props.name = "Props"
-		art_root.add_child(props)
-		_place_sprite(props, "console_status_panel", Vector2(230, 250))
-		_place_sprite(props, "console_terminal_compact", Vector2(560, 250))
-
-	# -- 5. Lighting: 3x grow_light_dual across the top, grow_light_pair on
-	# the left/right walls. Cool blue-white only, no added warm/yellow. --
-	func _build_lighting(art_root: Node2D) -> void:
-		var lighting := Node2D.new()
-		lighting.name = "Lighting"
-		art_root.add_child(lighting)
-		for light_x in [150.0, ROOM_DESIGN_SIZE.x * 0.5, ROOM_DESIGN_SIZE.x - 150.0]:
-			_place_sprite(lighting, "grow_light_dual", Vector2(light_x, 32))
-		_place_sprite(lighting, "grow_light_pair", Vector2(90, ROOM_DESIGN_SIZE.y * 0.5 - 60), false, false, PI * 0.5)
-		_place_sprite(lighting, "grow_light_pair", Vector2(ROOM_DESIGN_SIZE.x - 90, ROOM_DESIGN_SIZE.y * 0.5 - 60), false, false, PI * 0.5)
-
-	# -- Door-direction signage: 配电房/训练温室 use atlas UI icons,
-	# 宇航服整备室/空气系统控制室 use the standalone signage PNGs. Purely
-	# static dressing -- any locked/warning state is already conveyed by the
-	# interactive door node itself (existing modulate-dim system), not by
-	# recoloring this signage. --
-	func _build_door_signage(art_root: Node2D) -> void:
-		var signage := Node2D.new()
-		signage.name = "DoorSignage"
-		art_root.add_child(signage)
-		_place_icon(signage, LunarBaseAtlasScript.region("ui_icon_power"), Vector2(380, 34))
-		_place_icon(signage, LunarBaseAtlasScript.region("ui_icon_plant"), Vector2(380, ROOM_DESIGN_SIZE.y - 34))
-		_place_icon(signage, SignSuitHelmet, Vector2(46, 280))
-		_place_icon(signage, SignAirFan, Vector2(ROOM_DESIGN_SIZE.x - 46, 280))
-
-	func _place_sprite(parent: Node2D, frame_name: String, pos: Vector2, flip_h: bool = false, flip_v: bool = false, rot: float = 0.0) -> void:
+		# 2026-07-22 scaling spec: source is 1520x1040, logical canvas is
+		# 760x520, and the relationship between them must be an integer
+		# ratio (0.5/1/2, ...) sampled with Nearest -- never an arbitrary
+		# stretch, and never independent per-axis scaling. A uniform 0.5
+		# constant (not a computed native.x/ROOM_DESIGN_SIZE.x-style ratio)
+		# makes this an explicit, asserted invariant rather than an
+		# incidental one; if a future re-export changes the source's native
+		# size, this assert catches it instead of silently drifting to a
+		# non-integer ratio.
+		var native: Vector2 = BakedReference.get_size()
+		assert(native == ROOM_DESIGN_SIZE / SOURCE_TO_LOGICAL_SCALE, "BakedReference native size must be exactly logical size / %s" % SOURCE_TO_LOGICAL_SCALE)
 		var sprite := Sprite2D.new()
-		sprite.texture = LunarBaseAtlasScript.region(frame_name)
-		sprite.position = pos
-		sprite.flip_h = flip_h
-		sprite.flip_v = flip_v
-		sprite.rotation = rot
+		sprite.name = "BakedReference"
+		sprite.texture = BakedReference
+		sprite.centered = false
 		sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		parent.add_child(sprite)
+		sprite.scale = Vector2.ONE * SOURCE_TO_LOGICAL_SCALE
+		art_root.add_child(sprite)
 
-	func _place_icon(parent: Node2D, tex: Texture2D, pos: Vector2) -> void:
-		var sprite := Sprite2D.new()
-		sprite.texture = tex
-		sprite.position = pos
-		sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		var native: Vector2 = tex.get_size()
-		if native.x > 0.0 and native.y > 0.0:
-			sprite.scale = SIGN_DISPLAY_SIZE / native
-		parent.add_child(sprite)
-
-	func _tile_wall_row(parent: Node2D, start: Vector2, total_width: float, tile_len: float, gaps: Array) -> void:
-		var x := start.x
-		var end_x := start.x + total_width
-		while x < end_x - tile_len * 0.5:
-			var center := Vector2(x + tile_len * 0.5, start.y)
-			if not _in_any_gap(center.x, gaps):
-				_place_sprite(parent, "wall_segment_horizontal", center)
-			x += tile_len
-
-	func _tile_wall_column(parent: Node2D, start: Vector2, total_height: float, tile_len: float, gaps: Array) -> void:
-		var y := start.y
-		var end_y := start.y + total_height
-		while y < end_y - tile_len * 0.5:
-			var center := Vector2(start.x, y + tile_len * 0.5)
-			if not _in_any_gap(center.y, gaps):
-				_place_sprite(parent, "wall_segment_horizontal", center, false, false, PI * 0.5)
-			y += tile_len
-
-	func _in_any_gap(value: float, gaps: Array) -> bool:
-		for gap in gaps:
-			if value >= gap.x and value <= gap.y:
-				return true
-		return false
+		# No z_index here -- this whole Control (the room floor) is added to
+		# training_area before player/player_visual, so tree order alone
+		# already puts TerminalBack behind the player. TerminalFrontOccluder
+		# is built separately by training_base_map.gd, after player_visual,
+		# for the same tree-order reason (see this class's own top comment).
+		var terminal_back := Sprite2D.new()
+		terminal_back.name = "TerminalBack"
+		terminal_back.texture = TerminalBackTexture
+		terminal_back.centered = false
+		terminal_back.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		terminal_back.scale = Vector2.ONE * SOURCE_TO_LOGICAL_SCALE
+		terminal_back.position = TERMINAL_ART_ORIGIN
+		art_root.add_child(terminal_back)
 
 class AirlockRoomBlockout:
 	extends Control
@@ -484,6 +603,15 @@ class TrainingTargetVisual:
 	var show_trigger_debug := false
 	var status_text := ""
 	var prop_scene_path := ""
+	## When true, prop_scene_path's instance is still created (so anything
+	## reading its state via _sync_prop_node() below keeps working
+	## unchanged) but hidden -- for TR-002's baked-reference blockout
+	## (2026-07-21), whose background already shows the door/terminal art,
+	## so the old prop_scene_path prop would otherwise double-draw on top
+	## of it. Interaction/hit-testing (this Control's own size/position,
+	## the highlight ring in _draw_highlight_ring()) is untouched either
+	## way -- only the prop's own visual is suppressed.
+	var hide_prop_visual := false
 	var _prop_node: Node2D = null
 
 	func _ready() -> void:
@@ -496,6 +624,7 @@ class TrainingTargetVisual:
 				_prop_node.set("prop_size", size)
 				if not label_text.is_empty():
 					_prop_node.set("prop_label", label_text)
+				_prop_node.visible = not hide_prop_visual
 				add_child(_prop_node)
 
 	func _sync_prop_node() -> void:
@@ -898,6 +1027,11 @@ var player: Control
 ## player_visual.gd's setup()/_draw() assume a feet-center Node2D origin, not
 ## a top-left Control rect.
 var player_visual: Node2D
+## Cached from CharacterAppearanceCatalogScript.load_selected_appearance() at
+## build time -- reused by the wear_suit_confirm dialog's confirm callback so
+## it doesn't need to re-read the save file just to know which suit color to
+## animate (see _show_wear_suit_confirm_dialog()).
+var _current_suit_marking_color := "blue"
 var player_facing := Vector2.DOWN
 var player_moving := false
 var walk_phase := 0.0
@@ -1264,6 +1398,9 @@ func _build_training_area() -> void:
 		if player_visual.has_method("set_character_appearance"):
 			var appearance: Dictionary = CharacterAppearanceCatalogScript.load_selected_appearance()
 			player_visual.call("set_character_appearance", appearance["gender"], appearance["skin_tone"], appearance["hair_color"], appearance["hairstyle"])
+			_current_suit_marking_color = String(appearance.get("suit_marking_color", _current_suit_marking_color))
+			if player_visual.has_method("set_suit_marking_color"):
+				player_visual.call("set_suit_marking_color", _current_suit_marking_color)
 		_sync_player_visual()
 	else:
 		player_visual = null
@@ -1589,7 +1726,9 @@ func _sync_player_visual() -> void:
 		return
 	player_visual.position = player.position + Vector2(player.size.x * 0.5, player.size.y)
 	if player_visual.has_method("setup"):
-		player_visual.call("setup", player_facing, true, 100.0, player_moving, walk_phase)
+		var suit_manager := _suit_manager()
+		var suit_worn := bool(suit_manager.get("is_suit_worn")) if suit_manager != null else false
+		player_visual.call("setup", player_facing, true, 100.0, player_moving, walk_phase, suit_worn)
 
 func _ensure_player_controller(movement_bounds: Rect2) -> void:
 	if player_controller != null:
@@ -2321,6 +2460,8 @@ func _show_wear_suit_confirm_dialog() -> void:
 			success = suit_manager.call("wear_suit_training")
 		_hide_training_diagnosis_modal()
 		if success:
+			if player_visual != null and is_instance_valid(player_visual) and player_visual.has_method("play_suit_up_animation"):
+				await player_visual.call("play_suit_up_animation", _current_suit_marking_color)
 			_complete_step()
 		else:
 			hint_label.text = "宇航服当前无法穿戴。"

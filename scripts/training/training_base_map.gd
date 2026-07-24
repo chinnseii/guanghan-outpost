@@ -120,6 +120,11 @@ var player: Control
 ## player_visual.gd's setup()/_draw() assume a feet-center Node2D origin, not
 ## a top-left Control rect.
 var player_visual: Node2D
+## Cached from CharacterAppearanceCatalogScript.load_selected_appearance() at
+## build time -- reused by _show_wear_suit_confirm_dialog()'s confirm
+## callback so it doesn't need to re-read the save file just to know which
+## suit color to animate.
+var _current_suit_marking_color := "blue"
 var player_facing := Vector2.DOWN
 var player_moving := false
 var walk_phase := 0.0
@@ -539,15 +544,86 @@ func _hub_area_config() -> Dictionary:
 		"module_id": "",
 		"requires_suit": false,
 		"terrain_type": "indoor",
-		"blockout": "TrainingHubBlockout",
-		"player_start": Vector2(350, 330),
+		# TR-002 恢复轮 01 (2026-07-22, user/TR-002_RESTORATION_ROUND_01) --
+		# after 3 rounds of procedural hand-drawn revision still came back
+		# VISUAL_REVISION_REQUIRED, the creative director side switched to
+		# restoring their own confirmed baked visual as a temporary
+		# single-image VisualBase (TrainingHubBakedReferenceBlockout, now
+		# pointing at the no-actor re-render -- see its own doc comment in
+		# training_module_scene.gd) while real independent assets are
+		# planned incrementally behind it. TrainingHubBlockout (the
+		# procedural class) is untouched and still available/revertible by
+		# changing this one string back.
+		"blockout": "TrainingHubBakedReferenceBlockout",
+		# TR-002 scene collision/layering spec round 2 (2026-07-22): "不要
+		# 只用一个大矩形活动范围...沿室内地板内缘建立墙体碰撞...在门洞处切分
+		# 为多个碰撞段". movement_margin now only a tiny outer safety-net
+		# clamp (real containment comes from the segmented wall blockers
+		# below) -- see _move_player()'s own doc comment.
+		"movement_margin": 2.0,
+		# Static blockers: the terminal's solid-footprint (spec item 2: only
+		# the console body -- screen/control-panel/side-light column,
+		# measured from the baked PNG -- NOT its screen glow, floor
+		# shadow/projection, or the corridor; kept clearly smaller than
+		# "terminal"'s own (124,112) approach/interact hitbox below, which is
+		# unrelated and unchanged) plus the room's 4 walls, each split into 2
+		# segments with a gap left exactly at that wall's door opening (spec
+		# item 1: "左右墙、上下墙在门洞处切分为多个碰撞段") -- WALL_THICKNESS
+		# here (56) matches movement_margin's old value/the baked art's real
+		# wall depth. The gap itself is only solid when that door is locked
+		# -- see "door_gap_blockers" below and _effective_blockers().
+		#
+		# 2026-07-24 TR-002-MASTER-ELEMENTS-01 re-measurement: this rect was
+		# (332,181)-(96,69), fitted to the OLD single-baked terminal image.
+		# The new split terminal art (TerminalBack/TerminalFrontOccluder,
+		# origin (316,174)) is a taller/wider console -- its real opaque
+		# footprint measures (326,178)-(107,92) (alpha-thresholded against
+		# the source PNG). Kept the old rect and just re-verified via a
+		# sandbox walk-to-block test first: confirmed the south edge left a
+		# real, new ~20px dead-floor gap between where the player stops and
+		# where the new console visually ends (User screenshot: "走到那个位
+		# 置就不能继续向上了" / "贴图是不是太高了") -- not present with the
+		# old, more compact art. Updated to match the new art's measured
+		# bounds, same as COLLISION-04's wall-depth re-measurement precedent.
+		"blockers": [
+			Rect2(Vector2(326, 178), Vector2(107, 92)),
+			# Bottom-left maintenance crate cluster (measured from the baked
+			# PNG) -- explicitly requested earlier ("终端跟墙壁，以及左下角的
+			# 装置") but never actually added; its visible top sticks up
+			# ~35-40px above the wall band, unprotected, letting the player
+			# stand on it (User screenshot).
+			Rect2(Vector2(90, 385), Vector2(80, 50)),
+			# Top wall, gap at door_power (x:326-434)
+			Rect2(Vector2(0, 0), Vector2(326, 96)), Rect2(Vector2(434, 0), Vector2(326, 96)),
+			# Bottom wall, gap at door_greenhouse (x:330-430)
+			Rect2(Vector2(0, 424), Vector2(330, 96)), Rect2(Vector2(430, 424), Vector2(330, 96)),
+			# Left wall, gap at door_suit (y:232-328)
+			Rect2(Vector2(0, 0), Vector2(96, 232)), Rect2(Vector2(0, 328), Vector2(96, 192)),
+			# Right wall, gap at door_air (y:232-328)
+			Rect2(Vector2(664, 0), Vector2(96, 232)), Rect2(Vector2(664, 328), Vector2(96, 192)),
+		],
+		# Dynamic per-door blockers (spec item 3: Trigger vs Blocker) -- each
+		# rect exactly plugs its own wall gap above; _effective_blockers()
+		# only includes it while `areas[door_to].unlocked` is false, so an
+		# unlocked door's gap opens for real walking, not just a touch-line,
+		# while a locked door stays as solid as the rest of the wall.
+		"door_gap_blockers": [
+			{"door_to": "power_distribution_room", "rect": Rect2(Vector2(326, 0), Vector2(108, 96))},
+			{"door_to": "greenhouse_room", "rect": Rect2(Vector2(330, 424), Vector2(100, 96))},
+			{"door_to": "suit_prep_room", "rect": Rect2(Vector2(0, 232), Vector2(96, 96))},
+			{"door_to": "air_system_control_room", "rect": Rect2(Vector2(664, 232), Vector2(96, 96))},
+		],
+		# Player enters the hub on the lower approach line.  This establishes
+		# the terminal as the visual destination rather than placing the player
+		# off to one side in a fully exposed rectangular room.
+		"player_start": Vector2(359, 356),
 		"hud": "训练中控室：室内枢纽\n连接宇航服整备室 / 配电房 / 空气系统控制室 / 训练温室。",
 		"targets": [
-			{"id": "terminal", "kind": "terminal", "label": "训练状态终端", "position": Vector2(330, 210), "size": Vector2(100, 80), "info": true, "prop_scene_path": "res://scenes/props/training/HubConsole.tscn"},
-			{"id": "door_suit", "kind": "door", "label": "宇航服整备室", "position": Vector2(30, 210), "size": Vector2(64, 140), "door_to": "suit_prep_room", "door_spawn": Vector2(560, 300), "prop_scene_path": "res://scenes/props/training/HubDoorVertical.tscn"},
-			{"id": "door_power", "kind": "door", "label": "配电房", "position": Vector2(326, 18), "size": Vector2(108, 96), "door_to": "power_distribution_room", "door_spawn": Vector2(350, 340), "prop_scene_path": "res://scenes/props/training/HubDoorHorizontal.tscn"},
-			{"id": "door_air", "kind": "door", "label": "空气系统控制室", "position": Vector2(666, 210), "size": Vector2(64, 140), "door_to": "air_system_control_room", "door_spawn": Vector2(120, 300), "prop_scene_path": "res://scenes/props/training/HubDoorVertical.tscn"},
-			{"id": "door_greenhouse", "kind": "door", "label": "训练温室", "position": Vector2(330, 446), "size": Vector2(100, 54), "door_to": "greenhouse_room", "door_spawn": Vector2(350, 116), "prop_scene_path": "res://scenes/props/training/HubDoorHorizontal.tscn"},
+			{"id": "terminal", "kind": "terminal", "label": "训练状态终端", "position": Vector2(318, 192), "size": Vector2(124, 112), "info": true, "prop_scene_path": "res://scenes/props/training/HubConsole.tscn", "hide_prop_visual": true},
+			{"id": "door_suit", "kind": "door", "label": "宇航服整备室", "position": Vector2(30, 232), "size": Vector2(56, 96), "door_to": "suit_prep_room", "door_spawn": Vector2(560, 300), "prop_scene_path": "res://scenes/props/training/HubDoorVertical.tscn", "hide_prop_visual": true},
+			{"id": "door_power", "kind": "door", "label": "配电房", "position": Vector2(326, 18), "size": Vector2(108, 96), "door_to": "power_distribution_room", "door_spawn": Vector2(350, 340), "prop_scene_path": "res://scenes/props/training/HubDoorHorizontal.tscn", "hide_prop_visual": true},
+			{"id": "door_air", "kind": "door", "label": "空气系统控制室", "position": Vector2(674, 232), "size": Vector2(56, 96), "door_to": "air_system_control_room", "door_spawn": Vector2(120, 300), "prop_scene_path": "res://scenes/props/training/HubDoorVertical.tscn", "hide_prop_visual": true},
+			{"id": "door_greenhouse", "kind": "door", "label": "训练温室", "position": Vector2(330, 446), "size": Vector2(100, 54), "door_to": "greenhouse_room", "door_spawn": Vector2(350, 116), "prop_scene_path": "res://scenes/props/training/HubDoorHorizontal.tscn", "hide_prop_visual": true},
 		],
 		"steps": [],
 	}
@@ -823,7 +899,13 @@ func _check_door_crossing() -> void:
 ## -- Movement --
 
 func _move_player(delta: float) -> void:
-	var margin := 36.0
+	# Per-room override (TR-002 collision spec, 2026-07-22): the walkable
+	# area must stop at the room art's true inner wall edge, not an
+	# unrelated flat constant -- every room besides the hub keeps the
+	# original 36 (unchanged behavior); the hub's baked-reference wall band
+	# measures ~56-58px thick, so it declares "movement_margin" explicitly
+	# in _hub_area_config() instead.
+	var margin: float = float(module_data.get("movement_margin", 36.0))
 	var movement_bounds := Rect2(Vector2(margin, margin), training_area.size - Vector2(margin * 2.0, margin * 2.0))
 	_ensure_player_controller(movement_bounds)
 	player_controller.bounds = movement_bounds
@@ -835,9 +917,10 @@ func _move_player(delta: float) -> void:
 	player_controller.set_movement_time_manager(_movement_time_manager())
 	player_controller.terrain_type = String(module_data.get("terrain_type", "indoor"))
 	player_controller.movement_context = "training"
+	var old_position := player.position
 	player_controller.sync_position(player.position)
 	var result: Dictionary = player_controller.move_with_actions(delta, "ui_left", "ui_right", "ui_up", "ui_down")
-	player.position = result.get("position", player.position)
+	player.position = _resolve_blockers(old_position, result.get("position", player.position))
 	var direction: Vector2 = result.get("direction", Vector2.ZERO)
 	player_moving = bool(result.get("moved", false))
 	if direction != Vector2.ZERO:
@@ -845,6 +928,100 @@ func _move_player(delta: float) -> void:
 	if player_moving:
 		walk_phase += delta * 10.0
 	_sync_player_visual()
+
+## Interior obstacles a room can declare via `module_data["blockers"]`
+## (static design-space `Array[Rect2]` -- e.g. the hub's central terminal
+## base and its 8 wall segments, see _hub_area_config()) plus
+## `module_data["door_gap_blockers"]` (dynamic: each `{"door_to", "rect"}`
+## entry only counts while that area is locked -- see _effective_blockers())
+## that block walking through them, independent of the outer room-bounds
+## clamp above. No room had any interior obstacle before this (TR-002
+## collision spec, 2026-07-22). Resolved with a simple per-axis slide (try
+## the candidate as-is, then X-only, then Y-only, then give up and keep the
+## old position) rather than a hard full-stop, so approaching an obstacle
+## diagonally slides along its edge instead of snapping.
+func _resolve_blockers(old_position: Vector2, candidate: Vector2) -> Vector2:
+	var blockers := _effective_blockers()
+	if blockers.is_empty():
+		return candidate
+	if not _rect_hits_any_blocker(_footprint_rect(candidate), blockers):
+		return candidate
+	var x_only := Vector2(candidate.x, old_position.y)
+	if not _rect_hits_any_blocker(_footprint_rect(x_only), blockers):
+		return x_only
+	var y_only := Vector2(old_position.x, candidate.y)
+	if not _rect_hits_any_blocker(_footprint_rect(y_only), blockers):
+		return y_only
+	return old_position
+
+## 2026-07-24 TR-002-MASTER-ELEMENTS-01 follow-up: User caught a real,
+## general problem -- approaching any blocker (wall, terminal, crate) from
+## the south (moving up/north) left a big, wrong-looking gap between the
+## visible character and the obstacle, while approaching from the north
+## (moving down/south) touched almost exactly. Root cause: `player.size`
+## (~54px tall, design space) represents the character's full head-to-toe
+## silhouette, but player_visual.gd draws the sprite upward from the FEET
+## (the hitbox's bottom edge, matching `interaction_area_2d.gd`'s own
+## feet-point convention for door-crossing checks). Using the FULL rect for
+## movement collision meant that walking up into an obstacle stopped the
+## rect's TOP first -- a whole body-height above the feet -- leaving the
+## visible character (anchored at the bottom) far short of it. Walking down
+## into an obstacle stopped the rect's BOTTOM (= the feet) right at the
+## edge, which is why that direction always looked correct.
+## Fixed by checking blocker collisions against a much shorter footprint
+## anchored at the SAME bottom edge (feet) instead of the full rect --
+## symmetric from both directions, and doesn't touch `player.size` itself
+## (so door target rects, spawn points, and every other blocker value tuned
+## against `player.size` this session stay valid). Deliberately scoped to
+## `_resolve_blockers()`'s interior-blocker checks only -- the outer
+## per-room `movement_margin` clamp (player_controller_2d.gd's
+## `_clamped_position()`) is untouched, since no room besides the hub uses
+## the `blockers` mechanism this affects.
+const FOOTPRINT_DESIGN_HEIGHT := 16.0
+
+func _footprint_rect(top_left: Vector2) -> Rect2:
+	var footprint_size := Vector2(player.size.x, _room_size(Vector2(0, FOOTPRINT_DESIGN_HEIGHT)).y)
+	return Rect2(Vector2(top_left.x, top_left.y + player.size.y - footprint_size.y), footprint_size)
+
+## Static blockers (terminal + wall segments) always apply; each
+## "door_gap_blockers" entry's rect is appended on top only while its
+## `door_to` area is still locked (mirrors _door_locked()'s own
+## `not area.unlocked` check, just keyed directly by area id instead of a
+## Control node) -- once unlocked, that entry is omitted and the matching
+## wall-segment gap becomes the only thing there, letting the player
+## actually walk into/through the opening instead of just touching a line.
+func _effective_blockers() -> Array:
+	var blockers: Array = module_data.get("blockers", []).duplicate()
+	for entry: Dictionary in module_data.get("door_gap_blockers", []):
+		var area: Dictionary = areas.get(String(entry.get("door_to", "")), {})
+		if not bool(area.get("unlocked", false)):
+			blockers.append(entry["rect"])
+	return blockers
+
+## `rect` is in real training_area (room-pixel) space -- the same space
+## `player.position`/`player.size` live in -- but `blockers` are authored in
+## the fixed 760x520 design space (matching every target's own "position"/
+## "size" dict values, which only get mapped to room space later via
+## _room_point()/_room_size() when their Control nodes are built). A real
+## bug shipped in the first collision round: blockers were compared
+## directly against `rect` with no space conversion at all, so on any
+## window size other than exactly 760x520 the blockers landed nowhere near
+## the actual walls/terminal (confirmed by User screenshot: player stuck
+## mid-floor, nowhere near a real wall). Fixed by converting `rect`'s own
+## two corners INTO design space via _design_point_from_room() (the
+## existing inverse of _room_point(), already used elsewhere in this file)
+## before testing -- not by scaling every blocker rect, since that would
+## need the same non-uniform per-axis size scaling _room_size() deliberately
+## does NOT do (it uses a uniform min-scale, for aspect-preserving sprite
+## sizing, wrong for this).
+func _rect_hits_any_blocker(rect: Rect2, blockers: Array) -> bool:
+	var design_top_left := _design_point_from_room(rect.position)
+	var design_bottom_right := _design_point_from_room(rect.end)
+	var design_rect := Rect2(design_top_left, design_bottom_right - design_top_left)
+	for blocker: Rect2 in blockers:
+		if design_rect.intersects(blocker):
+			return true
+	return false
 
 ## Keeps the walk-cycle sprite (player_visual) aligned to the invisible
 ## hit-testing `player` Control every frame: player_visual.gd draws upward
@@ -860,7 +1037,9 @@ func _sync_player_visual() -> void:
 	player_visual.scale = Vector2.ONE * uniform_scale
 	player_visual.position = player.position + Vector2(player.size.x * 0.5, player.size.y)
 	if player_visual.has_method("setup"):
-		player_visual.call("setup", player_facing, true, 100.0, player_moving, walk_phase)
+		var suit_manager := _suit_manager()
+		var suit_worn := bool(suit_manager.get("is_suit_worn")) if suit_manager != null else false
+		player_visual.call("setup", player_facing, true, 100.0, player_moving, walk_phase, suit_worn)
 
 func _ensure_player_controller(movement_bounds: Rect2) -> void:
 	if player_controller != null:
@@ -894,6 +1073,10 @@ func _try_interact() -> void:
 	if _try_interact_suit_return():
 		return
 	if _try_interact_suit_wear_fallback():
+		return
+	if _try_interact_suit_toggle_remove():
+		return
+	if _try_interact_suit_toggle_wear():
 		return
 	var step := _current_step()
 	if step.is_empty():
@@ -1022,6 +1205,52 @@ func _try_interact_suit_wear_fallback() -> bool:
 	if bool(TrainingManagerScript.read_progress().get("PowerRepairCompleted", false)):
 		return false
 	if not _is_near("suit_rack"):
+		return false
+	var suit_manager := _suit_manager()
+	if suit_manager == null or bool(suit_manager.get("is_suit_worn")):
+		return false
+	_show_wear_suit_confirm_dialog()
+	return true
+
+## Free "take the suit off any time" toggle (User request, 2026-07-19, for
+## testing convenience) -- independent of the tutorial's own step sequencing
+## and of _try_interact_suit_return()'s specific post-EVA
+## SuitReturnPending narrative above, which still takes priority whenever
+## its own conditions are met (this only fires when that one didn't).
+## Deliberately NOT gated on PowerRepairCompleted/step completion, so the
+## suit can come off right after wearing it -- if that leaves the player
+## unable to pass the suit-required airlock, _try_interact_suit_wear_fallback()
+## above already lets them put it back on (as long as PowerRepairCompleted
+## is still false), so this can't soft-lock training.
+func _try_interact_suit_toggle_remove() -> bool:
+	if current_area_id != "suit_prep_room":
+		return false
+	if not _is_near("suit_rack"):
+		return false
+	var suit_manager := _suit_manager()
+	if suit_manager == null or not bool(suit_manager.get("is_suit_worn")):
+		return false
+	_show_suit_toggle_remove_dialog()
+	return true
+
+## Symmetric counterpart to _try_interact_suit_toggle_remove() (User
+## clarification, 2026-07-19: wear/remove should both be free at any time;
+## the only real constraint is that the airlock requires the suit to be
+## worn to pass through). Without this, removing the suit mid-tutorial via
+## the free-remove toggle left no way to put it back on until the whole
+## suit_control module's steps were exhausted (_try_interact_suit_wear_fallback()
+## only fires then) -- a real gap, not intended.
+## Skips firing when the CURRENT step is itself "wear_suit_confirm" so the
+## very first, tutorial-driven wear still goes through the normal step
+## dispatch below (needed so _complete_step() properly advances training
+## state/flags) -- this only handles every wear AFTER that first one.
+func _try_interact_suit_toggle_wear() -> bool:
+	if current_area_id != "suit_prep_room":
+		return false
+	if not _is_near("suit_rack"):
+		return false
+	var step := _current_step()
+	if not step.is_empty() and String(step.get("type", "")) == "wear_suit_confirm":
 		return false
 	var suit_manager := _suit_manager()
 	if suit_manager == null or bool(suit_manager.get("is_suit_worn")):
@@ -1320,6 +1549,8 @@ func _show_wear_suit_confirm_dialog() -> void:
 			success = suit_manager.call("wear_suit_training")
 		_hide_training_diagnosis_modal()
 		if success:
+			if player_visual != null and is_instance_valid(player_visual) and player_visual.has_method("play_suit_up_animation"):
+				await player_visual.call("play_suit_up_animation", _current_suit_marking_color)
 			_notify("宇航服已穿戴。")
 			_complete_step()
 		else:
@@ -1349,6 +1580,16 @@ func _show_return_suit_confirm_dialog() -> void:
 		var success := false
 		if suit_manager != null and suit_manager.has_method("remove_suit_to_service_station_training"):
 			success = suit_manager.call("remove_suit_to_service_station_training")
+		# remove_suit_to_service_station_training() leaves suit_storage_state
+		# at "servicing", not "ready" -- the dialog's own copy above promises
+		# "训练模式下无需等待完整维护流程" (no waiting for full maintenance in
+		# training mode), so finish the service pass immediately rather than
+		# leaving the suit stuck unable to be worn again. Already-topped-up
+		# oxygen/power from the remove call above means this costs ~0 real
+		# base water/power (service_suit_full() only spends on the gap
+		# between current and capacity, which is already ~0 here).
+		if success and suit_manager.has_method("service_suit_full"):
+			suit_manager.call("service_suit_full")
 		_hide_training_diagnosis_modal()
 		if success:
 			# Post-EVA return: take the suit off and unseal the hub door.
@@ -1372,6 +1613,48 @@ func _show_return_suit_confirm_dialog() -> void:
 	cancel.focus_mode = Control.FOCUS_NONE
 	cancel.pressed.connect(func():
 		hint_label.text = "已取消宇航服归位。"
+		_hide_training_diagnosis_modal()
+	)
+	_popup.add_action_control(cancel)
+	_sync_overlay_visibility()
+
+## Backs _try_interact_suit_toggle_remove() -- a plain, narrative-neutral
+## "take the suit off" dialog, deliberately NOT reusing
+## _show_return_suit_confirm_dialog()'s copy/side effects (that one's
+## "请前往配电房，恢复供电" messaging and SuitReturnPending bookkeeping are
+## specific to the post-EVA return and would be wrong/misleading here).
+func _show_suit_toggle_remove_dialog() -> void:
+	_open_diagnosis_modal("脱下宇航服\n\n脱下宇航服并放回维护位。\n是否确认？")
+	var confirm := Button.new()
+	confirm.text = "确认脱下"
+	confirm.custom_minimum_size = Vector2(0, 42)
+	confirm.focus_mode = Control.FOCUS_NONE
+	confirm.pressed.connect(func():
+		var suit_manager := _suit_manager()
+		var success := false
+		if suit_manager != null and suit_manager.has_method("remove_suit_to_service_station_training"):
+			success = suit_manager.call("remove_suit_to_service_station_training")
+		# Immediately finish the service pass (see the identical note in
+		# _show_return_suit_confirm_dialog()) so this free toggle leaves the
+		# suit in "ready" state, not stuck at "servicing" and unable to be
+		# worn again via _try_interact_suit_toggle_wear().
+		if success and suit_manager.has_method("service_suit_full"):
+			suit_manager.call("service_suit_full")
+		_hide_training_diagnosis_modal()
+		if success:
+			_notify("宇航服已脱下。")
+			_update_hud()
+		else:
+			hint_label.text = "宇航服当前无法脱下。"
+			_show_toast("宇航服当前无法脱下。")
+	)
+	_popup.add_action_control(confirm)
+	var cancel := Button.new()
+	cancel.text = "取消"
+	cancel.custom_minimum_size = Vector2(0, 42)
+	cancel.focus_mode = Control.FOCUS_NONE
+	cancel.pressed.connect(func():
+		hint_label.text = "已取消。"
 		_hide_training_diagnosis_modal()
 	)
 	_popup.add_action_control(cancel)
@@ -2415,6 +2698,8 @@ func _build_training_area() -> void:
 			floor = TrainingModuleSceneScript.PlantDiagnosisRoomBlockout.new()
 		"TrainingHubBlockout":
 			floor = TrainingModuleSceneScript.TrainingHubBlockout.new()
+		"TrainingHubBakedReferenceBlockout":
+			floor = TrainingModuleSceneScript.TrainingHubBakedReferenceBlockout.new()
 		_:
 			floor = TrainingModuleSceneScript.TrainingRoomBlockout.new()
 	floor.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -2428,6 +2713,7 @@ func _build_training_area() -> void:
 		visual.kind = String(target.get("kind", "marker"))
 		visual.label_text = String(target.get("label", ""))
 		visual.prop_scene_path = String(target.get("prop_scene_path", ""))
+		visual.hide_prop_visual = bool(target.get("hide_prop_visual", false))
 		visual.position = _room_point(target.get("position", Vector2.ZERO))
 		visual.size = _room_size(target.get("size", Vector2(96, 72)))
 		training_area.add_child(visual)
@@ -2445,7 +2731,32 @@ func _build_training_area() -> void:
 	if player_visual.has_method("set_character_appearance"):
 		var appearance: Dictionary = CharacterAppearanceCatalogScript.load_selected_appearance()
 		player_visual.call("set_character_appearance", appearance["gender"], appearance["skin_tone"], appearance["hair_color"], appearance["hairstyle"])
+		_current_suit_marking_color = String(appearance.get("suit_marking_color", _current_suit_marking_color))
+		if player_visual.has_method("set_suit_marking_color"):
+			player_visual.call("set_suit_marking_color", _current_suit_marking_color)
 	_sync_player_visual()
+
+	# TR-002 hub only: TerminalFrontOccluder must render IN FRONT of the
+	# player. An earlier version used z_index for this (on both this sprite
+	# and player_visual) -- but CanvasItem z_index compares globally across
+	# the ENTIRE scene, not just training_area's own children, and this
+	# codebase's modal dialogs (briefing/mission popups) rely on plain tree
+	# order (they default to z_index=0) to stay on top. Any positive
+	# z_index here out-ranked them regardless of tree position (User
+	# screenshot: the terminal rendered on top of the mission briefing
+	# popup at scene entry). Fixed by using pure tree order instead: this
+	# sprite is added as a sibling AFTER player_visual, with no z_index
+	# override at all, so it naturally draws on top of the player only --
+	# it can never out-rank an unrelated popup added elsewhere in the tree.
+	if blockout_name == "TrainingHubBakedReferenceBlockout":
+		var terminal_front_occluder := Sprite2D.new()
+		terminal_front_occluder.name = "TerminalFrontOccluder"
+		terminal_front_occluder.texture = preload("res://assets/art/training_hub_3q_reference/tr002_terminal_front_occluder_256x192.png")
+		terminal_front_occluder.centered = false
+		terminal_front_occluder.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		terminal_front_occluder.scale = _room_scale() * TrainingModuleSceneScript.TrainingHubBakedReferenceBlockout.SOURCE_TO_LOGICAL_SCALE
+		terminal_front_occluder.position = _room_point(TrainingModuleSceneScript.TrainingHubBakedReferenceBlockout.TERMINAL_ART_ORIGIN)
+		training_area.add_child(terminal_front_occluder)
 
 	prompt_label = Label.new()
 	prompt_label.modulate = Color("#f0c766")

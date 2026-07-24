@@ -1,0 +1,192 @@
+{
+  "assets\\characters\\player_preview\\female\\light\\auburn\\walk_cycle_long.png": {
+    "cell_size": [
+      256,
+      256
+    ],
+    "pivot": [
+      117.0,
+      239.0
+    ]
+  },
+  "assets\\characters\\player_preview\\female\\light\\auburn\\walk_cycle_ponytail.png": {
+    "cell_size": [
+      256,
+      256
+    ],
+    "pivot": [
+      126.5,
+      236.0
+    ]
+  },
+  "assets\\characters\\player_preview\\female\\light\\auburn\\walk_cycle_short.png": {
+    "cell_size": [
+      256,
+      256
+    ],
+    "pivot": [
+      124.75,
+      226.0
+    ]
+  },
+  "assets\\characters\\player_preview\\female\\light\\black\\walk_cycle_long.png": {
+    "cell_size": [
+      128,
+      128
+    ],
+    "pivot": [
+      58.5,
+      122.0
+    ]
+  },
+  "assets\\characters\\player_preview\\female\\light\\black\\walk_cycle_native.png": {
+    "cell_size": [
+      512,
+      512
+    ],
+    "pivot": [
+      235.25,
+      478.0
+    ]
+  },
+  "assets\\characters\\player_preview\\female\\light\\black\\walk_cycle_ponytail.png": {
+    "cell_size": [
+      256,
+      256
+    ],
+    "pivot": [
+      126.25,
+      236.0
+    ]
+  },
+  "assets\\characters\\player_preview\\female\\light\\black\\walk_cycle_short.png": {
+    "cell_size": [
+      256,
+      256
+    ],
+    "pivot": [
+      125.5,
+      226.0
+    ]
+  },
+  "assets\\characters\\player_preview\\female\\light\\blonde\\walk_cycle_long.png": {
+    "cell_size": [
+      256,
+      256
+    ],
+    "pivot": [
+      117.25,
+      239.0
+    ]
+  },
+  "assets\\characters\\player_preview\\female\\light\\blonde\\walk_cycle_ponytail.png": {
+    "cell_size": [
+      256,
+      256
+    ],
+    "pivot": [
+      126.0,
+      236.0
+    ]
+  },
+  "assets\\characters\\player_preview\\female\\light\\blonde\\walk_cycle_short.png": {
+    "cell_size": [
+      256,
+      256
+    ],
+    "pivot": [
+      125.5,
+      226.0
+    ]
+  },
+  "assets\\characters\\player_preview\\male\\medium\\auburn\\walk_cycle_buzz.png": {
+    "cell_size": [
+      256,
+      256
+    ],
+    "pivot": [
+      124.75,
+      230.0
+    ]
+  },
+  "assets\\characters\\player_preview\\male\\medium\\auburn\\walk_cycle_long.png": {
+    "cell_size": [
+      256,
+      256
+    ],
+    "pivot": [
+      123.25,
+      229.0
+    ]
+  },
+  "assets\\characters\\player_preview\\male\\medium\\auburn\\walk_cycle_short.png": {
+    "cell_size": [
+      256,
+      256
+    ],
+    "pivot": [
+      125.5,
+      229.0
+    ]
+  },
+  "assets\\characters\\player_preview\\male\\medium\\black\\walk_cycle_buzz.png": {
+    "cell_size": [
+      256,
+      256
+    ],
+    "pivot": [
+      125.0,
+      230.0
+    ]
+  },
+  "assets\\characters\\player_preview\\male\\medium\\black\\walk_cycle_long.png": {
+    "cell_size": [
+      256,
+      256
+    ],
+    "pivot": [
+      123.0,
+      230.0
+    ]
+  },
+  "assets\\characters\\player_preview\\male\\medium\\black\\walk_cycle_short.png": {
+    "cell_size": [
+      256,
+      256
+    ],
+    "pivot": [
+      125.25,
+      230.0
+    ]
+  },
+  "assets\\characters\\player_preview\\male\\medium\\blonde\\walk_cycle_buzz.png": {
+    "cell_size": [
+      256,
+      256
+    ],
+    "pivot": [
+      124.25,
+      230.0
+    ]
+  },
+  "assets\\characters\\player_preview\\male\\medium\\blonde\\walk_cycle_long.png": {
+    "cell_size": [
+      256,
+      256
+    ],
+    "pivot": [
+      122.5,
+      230.0
+    ]
+  },
+  "assets\\characters\\player_preview\\male\\medium\\blonde\\walk_cycle_short.png": {
+    "cell_size": [
+      256,
+      256
+    ],
+    "pivot": [
+      125.0,
+      230.0
+    ]
+  }
+}

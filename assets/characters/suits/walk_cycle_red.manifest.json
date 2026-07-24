@@ -1,0 +1,365 @@
+{
+  "frame_size": [
+    512,
+    512
+  ],
+  "direction_order": [
+    "down",
+    "left",
+    "right",
+    "up"
+  ],
+  "frames_per_direction": 6,
+  "source_mapping": {
+    "down": "matted_frames (6).zip",
+    "up": "matted_frames (7).zip",
+    "left": "matted_frames (9).zip",
+    "right": "matted_frames (8).zip"
+  },
+  "alignment": {
+    "down_00": {
+      "translation": [
+        0,
+        0
+      ],
+      "upper_body_alpha_difference": 0,
+      "alpha_bbox": [
+        122,
+        97,
+        366,
+        457
+      ]
+    },
+    "down_01": {
+      "translation": [
+        0,
+        -2
+      ],
+      "upper_body_alpha_difference": 577,
+      "alpha_bbox": [
+        115,
+        97,
+        369,
+        463
+      ]
+    },
+    "down_02": {
+      "translation": [
+        0,
+        -2
+      ],
+      "upper_body_alpha_difference": 575,
+      "alpha_bbox": [
+        115,
+        97,
+        369,
+        462
+      ]
+    },
+    "down_03": {
+      "translation": [
+        1,
+        3
+      ],
+      "upper_body_alpha_difference": 668,
+      "alpha_bbox": [
+        125,
+        96,
+        363,
+        457
+      ]
+    },
+    "down_04": {
+      "translation": [
+        2,
+        0
+      ],
+      "upper_body_alpha_difference": 1530,
+      "alpha_bbox": [
+        136,
+        97,
+        360,
+        463
+      ]
+    },
+    "down_05": {
+      "translation": [
+        3,
+        -2
+      ],
+      "upper_body_alpha_difference": 1398,
+      "alpha_bbox": [
+        136,
+        97,
+        360,
+        463
+      ]
+    },
+    "left_00": {
+      "translation": [
+        0,
+        0
+      ],
+      "upper_body_alpha_difference": 0,
+      "alpha_bbox": [
+        171,
+        91,
+        349,
+        428
+      ]
+    },
+    "left_01": {
+      "translation": [
+        0,
+        0
+      ],
+      "upper_body_alpha_difference": 407,
+      "alpha_bbox": [
+        150,
+        91,
+        349,
+        423
+      ]
+    },
+    "left_02": {
+      "translation": [
+        0,
+        -7
+      ],
+      "upper_body_alpha_difference": 780,
+      "alpha_bbox": [
+        146,
+        92,
+        349,
+        417
+      ]
+    },
+    "left_03": {
+      "translation": [
+        0,
+        -2
+      ],
+      "upper_body_alpha_difference": 342,
+      "alpha_bbox": [
+        170,
+        91,
+        349,
+        426
+      ]
+    },
+    "left_04": {
+      "translation": [
+        0,
+        -2
+      ],
+      "upper_body_alpha_difference": 338,
+      "alpha_bbox": [
+        168,
+        91,
+        349,
+        425
+      ]
+    },
+    "left_05": {
+      "translation": [
+        0,
+        -5
+      ],
+      "upper_body_alpha_difference": 651,
+      "alpha_bbox": [
+        151,
+        92,
+        349,
+        416
+      ]
+    },
+    "right_00": {
+      "translation": [
+        0,
+        0
+      ],
+      "upper_body_alpha_difference": 0,
+      "alpha_bbox": [
+        161,
+        77,
+        343,
+        432
+      ]
+    },
+    "right_01": {
+      "translation": [
+        0,
+        -3
+      ],
+      "upper_body_alpha_difference": 471,
+      "alpha_bbox": [
+        161,
+        77,
+        358,
+        431
+      ]
+    },
+    "right_02": {
+      "translation": [
+        0,
+        -11
+      ],
+      "upper_body_alpha_difference": 482,
+      "alpha_bbox": [
+        161,
+        77,
+        366,
+        424
+      ]
+    },
+    "right_03": {
+      "translation": [
+        0,
+        -14
+      ],
+      "upper_body_alpha_difference": 336,
+      "alpha_bbox": [
+        161,
+        77,
+        362,
+        418
+      ]
+    },
+    "right_04": {
+      "translation": [
+        0,
+        -4
+      ],
+      "upper_body_alpha_difference": 180,
+      "alpha_bbox": [
+        161,
+        77,
+        343,
+        427
+      ]
+    },
+    "right_05": {
+      "translation": [
+        0,
+        -4
+      ],
+      "upper_body_alpha_difference": 185,
+      "alpha_bbox": [
+        161,
+        77,
+        343,
+        427
+      ]
+    },
+    "up_00": {
+      "translation": [
+        0,
+        0
+      ],
+      "upper_body_alpha_difference": 0,
+      "alpha_bbox": [
+        159,
+        85,
+        349,
+        423
+      ]
+    },
+    "up_01": {
+      "translation": [
+        -1,
+        10
+      ],
+      "upper_body_alpha_difference": 1267,
+      "alpha_bbox": [
+        160,
+        86,
+        347,
+        455
+      ]
+    },
+    "up_02": {
+      "translation": [
+        -1,
+        6
+      ],
+      "upper_body_alpha_difference": 1046,
+      "alpha_bbox": [
+        161,
+        85,
+        344,
+        445
+      ]
+    },
+    "up_03": {
+      "translation": [
+        -1,
+        2
+      ],
+      "upper_body_alpha_difference": 2288,
+      "alpha_bbox": [
+        156,
+        85,
+        344,
+        436
+      ]
+    },
+    "up_04": {
+      "translation": [
+        -1,
+        1
+      ],
+      "upper_body_alpha_difference": 3023,
+      "alpha_bbox": [
+        153,
+        85,
+        344,
+        444
+      ]
+    },
+    "up_05": {
+      "translation": [
+        -1,
+        7
+      ],
+      "upper_body_alpha_difference": 2954,
+      "alpha_bbox": [
+        153,
+        85,
+        345,
+        452
+      ]
+    }
+  },
+  "down": [
+    "astronaut_red_walk_down_00.png",
+    "astronaut_red_walk_down_01.png",
+    "astronaut_red_walk_down_02.png",
+    "astronaut_red_walk_down_03.png",
+    "astronaut_red_walk_down_04.png",
+    "astronaut_red_walk_down_05.png"
+  ],
+  "left": [
+    "astronaut_red_walk_left_00.png",
+    "astronaut_red_walk_left_01.png",
+    "astronaut_red_walk_left_02.png",
+    "astronaut_red_walk_left_03.png",
+    "astronaut_red_walk_left_04.png",
+    "astronaut_red_walk_left_05.png"
+  ],
+  "right": [
+    "astronaut_red_walk_right_00.png",
+    "astronaut_red_walk_right_01.png",
+    "astronaut_red_walk_right_02.png",
+    "astronaut_red_walk_right_03.png",
+    "astronaut_red_walk_right_04.png",
+    "astronaut_red_walk_right_05.png"
+  ],
+  "up": [
+    "astronaut_red_walk_up_00.png",
+    "astronaut_red_walk_up_01.png",
+    "astronaut_red_walk_up_02.png",
+    "astronaut_red_walk_up_03.png",
+    "astronaut_red_walk_up_04.png",
+    "astronaut_red_walk_up_05.png"
+  ]
+}

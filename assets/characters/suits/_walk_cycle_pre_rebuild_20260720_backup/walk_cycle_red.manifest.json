@@ -1,0 +1,44 @@
+{
+  "frame_size": {
+    "width": 512,
+    "height": 512
+  },
+  "frames_per_direction": 6,
+  "direction_order": [
+    "down",
+    "left",
+    "right",
+    "up"
+  ],
+  "fps": 8,
+  "feet_baseline_y": 480,
+  "sheet": "astronaut_red_walk_4dir_6f.png",
+  "frames": [
+    "astronaut_red_walk_down_00.png",
+    "astronaut_red_walk_down_01.png",
+    "astronaut_red_walk_down_02.png",
+    "astronaut_red_walk_down_03.png",
+    "astronaut_red_walk_down_04.png",
+    "astronaut_red_walk_down_05.png",
+    "astronaut_red_walk_left_00.png",
+    "astronaut_red_walk_left_01.png",
+    "astronaut_red_walk_left_02.png",
+    "astronaut_red_walk_left_03.png",
+    "astronaut_red_walk_left_04.png",
+    "astronaut_red_walk_left_05.png",
+    "astronaut_red_walk_right_00.png",
+    "astronaut_red_walk_right_01.png",
+    "astronaut_red_walk_right_02.png",
+    "astronaut_red_walk_right_03.png",
+    "astronaut_red_walk_right_04.png",
+    "astronaut_red_walk_right_05.png",
+    "astronaut_red_walk_up_00.png",
+    "astronaut_red_walk_up_01.png",
+    "astronaut_red_walk_up_02.png",
+    "astronaut_red_walk_up_03.png",
+    "astronaut_red_walk_up_04.png",
+    "astronaut_red_walk_up_05.png"
+  ],
+  "front_back_boot_tint": "neutralized to white-gray",
+  "accent_color": "original red, China flag preserved"
+}

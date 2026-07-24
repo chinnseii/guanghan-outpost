@@ -5,14 +5,305 @@ This file is the current coordination board for active task ownership, file lock
 ## Board Status
 
 - **Status**: `ACTIVE`
-- **Active tasks**: `1`
+- **Active tasks**: `4`
 - **Locked files**: `1`
 - **Pending handoffs**: `0`
 - **Branch**: `main`
 - **Board baseline**: `049a1fe` (AUI-04-02/04-03 + main menu polish + training hub art, pushed to `main`)
-- **Last updated**: `2026-07-17`
+- **Last updated**: `2026-07-24`
 
 ## Active Tasks
+
+#### TR-002-MASTER-ELEMENTS-01 — Split Terminal Art Wired In; Fixes the "Feet on Console" Visual Bug Flagged in COLLISION-05
+
+- User delivered `user/TR-002_MASTER_ELEMENTS_TRIAL/` (README: "主体视觉拆分试验包"): a new room backplate with the terminal baked OUT (`tr002_room_backplate_no_terminal_1520x1040.png`), plus the terminal reissued as two separate sprites -- `tr002_terminal_back_256x192.png` (screen/upper body) and `tr002_terminal_front_occluder_256x192.png` (base lip) -- so the player can render between them instead of always drawing in front of one flat baked terminal image.
+- Confirmed safe to swap in before touching anything: pixel-diffed the new backplate against the currently-active `tr002_training_hub_no_actor_1520x1040.png` at several wall/floor boundary sample points (top wall, left wall, multiple x/y). All matched within 1-2px -- doors/walls are unchanged, so every existing wall-segment/door-gap blocker in `_hub_area_config()` still applies as-is. (A naive whole-image diff is NOT useful here -- the two backgrounds are separate art-generation passes with different lighting grain everywhere, so it reports near-100% different even though the structural geometry matches.)
+- Measured exact terminal placement rather than eyeballing it: composited the delivered `tr002_terminal_full_256x192.png` (reference-only, not used at runtime) over the new backplate at a grid of candidate offsets and found the pixel-closest match against the delivered preview screenshot (`tr002_master_elements_trial_preview_760x520.png`, which has the terminal drawn in) -- best fit at design-space top-left `(316, 174)`, independently cross-checked by diffing the preview against the backplate directly (same bounding box). Both terminal sprites share this exact position since they're two halves of the same 256x192 source canvas, split at source row 142 (design y ~245).
+- Implementation (`training_module_scene.gd`'s `TrainingHubBakedReferenceBlockout`): repointed `BakedReference` to the new no-terminal backplate; added `TerminalBack` (z_index 1) and `TerminalFrontOccluder` (z_index 3) as Sprite2D children of the same non-uniformly-scaled `art_root`, same Nearest/0.5x-scale convention as the background. `training_base_map.gd`'s `_build_training_area()` sets `player_visual.z_index = 2` scoped to `blockout_name == "TrainingHubBakedReferenceBlockout"` only (other rooms' draw order is untouched). This is a **static** z-index sandwich, not per-frame Y-sort -- sufficient because the existing terminal blocker already prevents the player from ever standing north of the terminal and overlapping it, so front/back never needs to flip dynamically.
+- Collision was deliberately NOT touched: the delivered README explicitly says "不要按 PNG 轮廓自动生成" (don't auto-derive collision from the PNG outline) -- the existing terminal blocker (`Rect2(332,181)-(96,69)`, unchanged since COLLISION-04/05) remains the sole source of truth.
+- **This incidentally fixes the exact "脚踩到终端上了" (feet visibly on the terminal) visual bug from COLLISION-05**, without touching the shared `player_visual.gd` file: that bug's suspected root cause (the sprite's own bottom edge drawing 16px past the true hitbox anchor -- see COLLISION-05's note) is now masked by `TerminalFrontOccluder`, which sits in front of the player and covers exactly that overhang when approaching from the south. Confirmed via sandbox screenshot (`10_master_elements_south_approach.png`): clean floor gap, no visible overlap.
+- Known, NOT fixed this round (same root cause, different side, out of this round's stated scope): approaching the terminal from the north still shows the player's sprite visually overlapping the top of the terminal's screen (`10_master_elements_north_approach.png`) -- this is the same pre-existing `player_visual.gd` 16px sprite-vs-hitbox offset, just unmasked on the side the delivered art didn't split an occluder for. Still deferred to User (see COLLISION-05's original note) since it's shared code with broad blast radius.
+- Assets added: `assets/art/training_hub_3q_reference/tr002_room_backplate_no_terminal_1520x1040.png`, `tr002_terminal_back_256x192.png`, `tr002_terminal_front_occluder_256x192.png`. New verification scripts: `tools/capture_tr002_master_elements_check.gd`, `tools/capture_tr002_master_elements_gap_check.gd`. Deliverables: `docs/screenshots/training_hub_art/10_master_elements_full_room.png`, `10_master_elements_south_approach.png`, `10_master_elements_north_approach.png`. Push/tag: pending -- not committed, not pushed.
+
+**Follow-up same day**: User caught a real bug via 4 more screenshots -- feet still visibly on the console from the north, AND a new "can't get any closer" stop-short gap from the south, concluding the terminal texture and collision felt misaligned ("贴图是不是太高了"). Root cause confirmed by measurement, not guesswork: the delivered terminal art is a genuinely bigger/taller console than the old single-baked one, but the terminal blocker was left at its OLD value (`(332,181)-(96,69)`, fitted to the old art) instead of being re-measured against the new art -- same class of mistake COLLISION-04 already fixed once for wall thickness. A sandbox walk-to-block test (`capture_tr002_master_elements_gap_check.gd`) confirmed a real, new ~20px dead-floor gap on the south side that didn't exist with the old art. Fixed by updating the blocker to the new art's actual measured opaque bbox: `Rect2(Vector2(326,178), Vector2(107,92))`. Re-verified: south approach now stops within ~1px of the console's real edge (was ~20px short); north approach is unchanged (hitbox already correct, per COLLISION-05 -- the residual visual dip there is `player_visual.gd`'s own 16px sprite offset, not collision, and remains out of this round's scope).
+- Process note: this diagnostic round hit a real test-authoring bug worth remembering -- a hardcoded sandbox start position landed inside a currently-*locked* door's gap blocker (those only exist while that door is locked), making the start rect already-invalid; `_resolve_blockers()` has no recovery from an invalid starting rect, so it silently rejected every subsequent candidate move forever (looked exactly like "movement is broken" from the outside). Confirmed via direct instrumentation of `_move_player()`/`_rect_hits_any_blocker()` (temporarily, reverted after) that the underlying movement/collision code was never at fault. Any future sandbox script that hardcodes a player start position near a wall band should keep the full player rect (not just a point) clear of `y<96`/`y>=424`-style wall bands, especially near a currently-locked door's x-range.
+
+**Second follow-up same day**: User said none of their 4 original points were actually resolved and gave 3 concrete clarifications. Findings:
+1. **Real bug, fixed**: "刚打开画面会有任务提示弹窗，终端出现在任务弹窗上了" (terminal renders on top of the mission briefing popup at scene entry). Root cause: `TerminalFrontOccluder`'s `z_index=3` (and `player_visual.z_index=2`) compares GLOBALLY across the whole scene, not just within `training_area` -- this codebase's modal dialogs rely on plain tree order (default `z_index=0`) to stay on top, so any positive z_index anywhere out-ranks them regardless of tree position. Fixed by removing z_index entirely: `TerminalBack` stays inside the floor blockout (already tree-ordered before player via `_build_training_area()`'s existing add-child order), and `TerminalFrontOccluder` is now built separately in `training_base_map.gd`'s `_build_training_area()` as a plain sibling added AFTER `player_visual`, no z_index at all. Verified via `tools/capture_tr002_briefing_popup_check.gd` (captures the briefing popup without closing it) -- `docs/screenshots/training_hub_art/11_master_elements_briefing_popup_zorder.png` confirms the terminal no longer bleeds through.
+2. **"配电房 stuck far from the wall"**: reproduced with `tools/capture_tr002_door_power_straight_up_check.gd` -- walking straight up from directly under the terminal's x-column stops at the terminal's south edge (y=270 design), 174px short of the real wall (y=96). Confirmed this is NOT a new regression: the terminal has always sat directly between the default spawn and door_power in that x-column (even the OLD, smaller blocker would have stopped the player at y=250, still far from the wall) -- it's normal furniture-blocking, requiring the player to sidestep around it, same as any other room obstacle. Separately confirmed `power_distribution_room` is gated on `PowerRepairCompleted` and is NOT unlocked at this point in the curriculum regardless (`tools/capture_tr002_door_power_approach_check.gd` printed `power_distribution_room unlocked=false`), so reaching that door isn't possible yet either way. Not treated as a bug pending User confirmation this matches what they actually saw (vs. a different, untested approach path).
+3. User also mentioned clearing their save file when testing the latest code -- noted for context, no action needed (matches this session's own sandbox-testing default of a fresh save).
+
+**Third follow-up same day**: User pushed back on point 1's screenshot -- correctly: the "reaches the wall" screenshot still showed a real, visible gap. Root cause, and it's general (not specific to door_power or the terminal): `player.size` (~54px tall, design space) is the character's full head-to-toe hitbox, but `player_visual.gd` draws the sprite upward from the FEET (the hitbox's bottom edge -- the same point `interaction_area_2d.gd` already uses for door-crossing checks). Movement collision was checking the FULL rect, so walking up into an obstacle stopped the rect's TOP first -- a whole body-height above the actual feet -- leaving the visible character far short of it. Walking down into an obstacle stopped the rect's BOTTOM (= the feet) right at the edge, which is why that direction always looked correct (matches every "north approach" observation this whole session). Confirmed via pixel measurement on the screenshot before touching any code (crop showed a large real gap, not a measurement artifact).
+- Fixed by checking blocker collisions against a small "footprint" (16px design-space tall) anchored at the same feet point, instead of the full ~54px rect -- see `_footprint_rect()` in `training_base_map.gd`. Deliberately did NOT change `player.size` itself (would have risked invalidating every blocker value tuned against it this session -- terminal, crate, wall segments, door gaps) or the outer per-room `movement_margin` clamp (`player_controller_2d.gd`, unrelated code path). Scoped to `_resolve_blockers()`'s interior-blocker checks only, which only the hub currently uses.
+- Re-verified: terminal south-approach gap shrank from ~55px to ~17px (design space, matches the new 16px footprint almost exactly); terminal north-approach unchanged (+1.34 vs +1.13 before -- confirms no regression); door_power off-center wall approach now reaches within ~16px of the true wall edge (was ~54px short). Fresh screenshots: `10_master_elements_south_approach.png`, `12_door_power_after_sidestep_reaches_wall.png` (before/after zoom crops confirm the visible gap is now small and natural-looking, not eliminated to zero -- the character's own sprite still has some rendering margin, but nothing like the previous full-body-height gap).
+- This is a genuine, general fix -- it changes how EVERY interior blocker in the hub feels from the south (terminal, crate, all 4 wall segments), not just the one path the User happened to report.
+
+#### TR-002-COLLISION-06 — door_suit Investigated: Crossing Mechanism Confirmed Correct; Widening Attempt Reverted (Not Yet a Fix)
+
+- User reported (screenshot): standing right at door_suit's (宇航服整备室, left wall) recessed opening but unable to enter, despite it being unlocked by default.
+- Direct test (`tools/capture_tr002_door_suit_check.gd`): driving the player straight to `door_suit`'s real target-node center from spawn **succeeds** -- crosses into `suit_prep_room` cleanly (confirmed `current_area_id` actually changes). The underlying `_is_inside_target_area()`/`_try_pass_training_door()` crossing logic is not broken.
+- Attempted a tolerance-widening fix (232-328 -> 212-348 for both the wall gap and door_suit/door_air's own target rects, reasoning that the left/right doors have no sharp visual "recess" cue like the top/bottom doors, so exact alignment might be the friction) -- but follow-up testing at off-center y values gave inconsistent results (one worked, one silently got stuck at the wall's inner edge), and a first attempt at widening (gap only, without also widening the door's own target rect) introduced a real regression: the player could walk through the wall opening without ever entering the door's narrower target rect, meaning `_check_door_crossing()` never fired -- a "walk into nowhere" hole. Given the inconsistent results even after correcting that specific bug, and limited remaining time to fully root-cause it, **reverted all of it back to the original 232-328 values** (confirmed working via the direct-center test above) rather than ship an uncertain, partially-tested change.
+- Net effect this round: no functional change to door_suit/door_air (back to their state at the end of COLLISION-05). The bottom-left crate blocker (COLLISION-05) and wall-thickness fix (COLLISION-04) remain in place and unaffected.
+- Not done: door_suit's real friction point (imprecise manual alignment vs. something else) is still not conclusively identified. If User reproduces this again, exact on-screen position (or better, a save-state/coordinate) would help far more than another screenshot -- the previous round's screenshot-only reports required extensive trial-and-error reproduction that ultimately didn't converge here. Push/tag: pending -- not committed, not pushed.
+
+#### TR-002-COLLISION-05 — Crate Blocker Added; Terminal Hitbox Confirmed Correct (Visual Overhang Suspected); One Open Repro Needed
+
+- User reported 4 more issues via screenshots: (1) stuck in what looks like open floor, (2)/(4) terminal problem "not resolved" -- one screenshot shows the player's feet visibly on top of the console, (3) able to walk onto a scene prop.
+- **Terminal (2/4): rigorously re-tested, hitbox confirmed correct from all 8 compass directions.** New `tools/capture_tr002_terminal_directional_check.gd` drove the player straight at the terminal's real center from 8 angles (including approaching from directly above, matching the reported screenshot) and printed the resolved hitbox rect vs. the blocker rect every time: `overlaps_blocker=false` in all 8 cases, with no exceptions. The invisible collision box is not the problem. Prime suspect instead: `player_visual.gd`'s own draw offset -- `_draw_astronaut_sprite()`'s `dest` rect is anchored at `-display_size.y + 16` (i.e. the drawn sprite's own bottom edge sits 16px below the actual hitbox's bottom edge/anchor point), so the VISUAL character can appear to stand somewhat past the true collision line even when the invisible box is honestly stopped there. This is shared, foundational rendering code used by every room in the game, not something scoped to the hub -- flagged to User rather than changed unilaterally, since adjusting it is a broader visual change with a much bigger blast radius than anything else in this collision-only spec.
+- **Prop collision (3): confirmed real, fixed.** The bottom-left maintenance crate cluster was explicitly requested in an earlier round ("终端跟墙壁，以及左下角的装置") but never actually implemented -- confirmed via pixel measurement its visible top sticks up ~35-40px above the (now correctly deep, 96px) wall band with zero collision. Added `Rect2(Vector2(90,385), Vector2(80,50))` to `_hub_area_config()`'s `blockers` list, measured directly from the baked PNG. Verified in an isolated sandbox: walking straight at the crate's center now stops correctly (`overlaps_crate=false`).
+- **Open floor stuck (1): not reproduced, needs a precise location from User.** Two candidate explanations considered but neither confirmed: (a) this may simply be the CORRECT, intended result of COLLISION-04's wall-depth fix (56->96) -- a spot that used to be reachable under the old, under-measured wall is now correctly blocked, which can subjectively read as "stuck in open floor" if the true wall/floor transition in this painted (gradient-shaded, not flat-color) art is subtler than it looks; (b) the 90-110px measurement itself could be a few px conservative in places (gradient-based measurement on painted art is inherently approximate), over-blocking a strip of real floor. Without the exact spot (screenshot coordinates, or which wall/corner), can't distinguish between "working as intended" and "still wrong" -- asked User for a precise repro.
+- Deliverables: `docs/screenshots/training_hub_art/09_terminal_dir_check_*.png` (8-direction terminal proof), `10_hub_crate_check.png`; new `tools/capture_tr002_terminal_directional_check.gd`, `tools/capture_tr002_crate_check.gd`.
+- Not done: player_visual.gd's sprite-vs-hitbox draw offset not touched, pending User direction (see above). Open-floor repro pending. Push/tag: pending -- not committed, not pushed.
+
+#### TR-002-COLLISION-04 — Real Bug: Wall Thickness Never Re-Measured Against This Art (56 vs true ~90-110px)
+
+- User reported (2 screenshots): stuck far from the terminal approaching from the south specifically (left/right/top fine); could stand ON the wall texture, wanted "everywhere outside the floor" to be unreachable.
+- Root cause, confirmed by direct pixel measurement of the baked PNG at multiple plain (non-corner, non-door) points on the top/bottom/right walls: the true floor/wall transition sits consistently around 90-110px from the canvas edge. The `56` used in TR-002-COLLISION-02/03 was carried over from an EARLIER round's procedural-art tuning and never actually re-checked against this baked image -- it under-covered the wall by roughly 35-55px, exactly matching the User's "can stand on the wall" report (the gap between the 56px collision line and the true ~96-110px wall edge was walkable wall texture).
+- Also re-measured the terminal footprint directly (vertical pixel scan through its center): the hard rectangular console body ends around design y=250-262, not the 259 used before by itself, but the earlier rect's south edge had crept into the rounded shadow/threshold trim beneath the unit -- trimmed to `Rect2(Vector2(332,181), Vector2(96,69))` (was `(330,179)-(104,80)`).
+- Fix: all 8 wall segments and 4 `door_gap_blockers` in `_hub_area_config()` changed from 56 to 96 deep (a conservative value inside the measured 90-110px range on every side checked); terminal blocker's south edge tightened as above. No coordinate/door/terminal-hitbox/collision-mechanism changes beyond these numeric constants -- `_effective_blockers()`/`_resolve_blockers()`/`_rect_hits_any_blocker()` (the space-conversion fix from COLLISION-03) are untouched and still correct.
+- Verification: parse-check clean. Re-ran `capture_tr002_blocker_space_fix_verification.gd` (extended with a new check: push straight into a plain wall stretch on 3 sides away from any door/corner and confirm, via `_design_point_from_room()`, that the stop point lands on the floor side of the newly-measured 96px boundary) in the same isolated-sandbox recipe (config/name swap + revert, diff-confirmed): all 3 sides stopped right at the measured boundary (e.g. top stopped at design-space y=96.8, matching the 96 threshold almost exactly); terminal south-approach distance tightened from the previous ~55-92px down to ~41px.
+- Deliverables: `docs/screenshots/training_hub_art/08_hub_blocker_space_fix_full_view.png` (re-captured after this fix). One doc comment in `_hub_area_config()` still says the old "56" value in prose (a string-match edit failure, not a functional issue -- the actual `Rect2` numbers are all correctly 96) -- flagged here rather than left silently wrong.
+- Not done: the room's true footprint is a beveled/cut-corner octagon in the art (confirmed visually), not a plain rectangle -- the 4 corner overlaps between adjacent wall segments approximate this conservatively (both segments' shared corner square is covered twice, erring toward "can't reach void" rather than precision), but no dedicated diagonal-corner collision shape was built; flag if a future round wants pixel-perfect corner containment. Push/tag: pending -- not committed, not pushed.
+
+#### TR-002-COLLISION-03 — Real Bug: Blockers Compared in the Wrong Coordinate Space
+
+- User reported (with an actual real-gameplay screenshot, not a sandbox test): collision "completely mismatched the visuals" -- got stuck near the bottom-left decorative crate, nowhere near a real wall.
+- Root cause, confirmed: `_hub_area_config()`'s `blockers`/`door_gap_blockers` rects are authored in the fixed 760x520 design space (same space every target's raw "position"/"size" dict value lives in, matching `ROOM_DESIGN_SIZE`). But `player.position`/`player.size` -- and therefore the rect `_rect_hits_any_blocker()` was checking -- live in the REAL, already-scaled `training_area` pixel space (whatever the actual window size produces, e.g. 1528x730, NOT 760x520). TR-002-COLLISION-01/02 both added and verified this mechanism WITHOUT ever converting between the two spaces, so on any window size other than exactly 760x520 (i.e. always, in real play) the blockers landed nowhere near the real walls/terminal -- confirmed by User's screenshot and reproduced in a sandbox at 1600x900.
+- Real gap in how this was caught: the collision round's own verification scripts (`capture_tr002_segmented_wall_verification.gd` et al) compared `player.position` against the same un-converted design-space blockers, so they were internally self-consistent with the bug and reported all-clean passes -- they validated the resolver against itself, never against the actual rendered art. Confirmed by re-running that same script after the fix: it now reports FALSE/inconsistent results, because it's the one still doing the naive (wrong) comparison -- it's superseded by the new script below, not reflective of real behavior anymore.
+- Fix: `_rect_hits_any_blocker()` now converts the incoming room-space rect's two corners INTO design space via `_design_point_from_room()` (the project's own existing, already-used inverse of `_room_point()` -- e.g. `_rebuild_room_if_resized()` already relies on it) before testing against the design-space blockers, instead of scaling every blocker rect (which would need the same non-uniform per-axis SIZE scaling `_room_size()` deliberately avoids -- it uses a uniform min-scale for aspect-preserving sizing, which is the wrong transform for this).
+- Verification: parse-check clean. New `tools/capture_tr002_blocker_space_fix_verification.gd` (kept as a reusable check, supersedes the two collision rounds' own scripts) cross-checks against the REAL, already-correctly-scaled `target_nodes` rects instead of internal self-consistency -- run at a deliberately different window size (1600x900) than the design canvas so a repeat of this exact bug can't "pass by coincidence" again. Confirmed: walking straight at the real terminal center now stops ~55px short of it (in real room-space, matching its true rendered position); walking toward the 3 default-locked doors' real centers stops within a plausible distance of each (54-94px, one at 274px explained by the straight-line path crossing near the terminal en route, not a blocker misplacement). A real test-harness bug was also caught and fixed in the same pass: the verification script itself was reusing an early, pre-layout-settle player-position snapshot as its walk-reset point across all door tests, reintroducing a stale unscaled position -- fixed by recomputing a fresh spawn point via the scene's own `_room_point()` every reset instead of a cached snapshot.
+- Deliverables: `docs/screenshots/training_hub_art/08_hub_blocker_space_fix_full_view.png`; new `tools/capture_tr002_blocker_space_fix_verification.gd`. The two collision rounds' own verification scripts (`capture_tr002_collision_verification.gd`, `capture_tr002_segmented_wall_verification.gd`) are left in place for historical reference but should NOT be trusted for this file going forward -- their own pass/fail logic still has the same missing space-conversion this round fixed in the real game code.
+- Not done: door_power's real-walk distance (274px) wasn't independently re-verified with a path that routes around the terminal (no pathfinding in this straight-line test) -- the explanation is plausible but not proven; flag if a future round wants to confirm it more rigorously. Push/tag: pending -- not committed, not pushed.
+
+#### TR-002-RESTORATION-01 Scaling Fix — Source Switched to 1520x1040, Explicit 0.5x Nearest
+
+- User gave a display-scaling spec for the baked hub background: source 1520x1040, logical canvas 760x520, uniform integer-ratio scaling only (0.5/1/2...), Nearest sampling, no independent per-axis stretch, no stretch-to-fill-window. Clarified scope with User first, since the room's OUTER scale-to-screen step (`art_root.scale`, non-uniform per-axis, matching `_room_point()`/`_room_scale()` used by every door/terminal/player position in every room) was deliberately chosen after an earlier round left a visible gap between the baked art and real hitboxes with a uniform/letterboxed scale -- User confirmed the spec is scoped to the background texture's OWN internal scale only (source -> logical canvas), not the room's existing screen-fit stretch.
+- Confirmed the 1520x1040 companion file was patched at the same time as the 760x520 one used previously (matching file timestamps; both carry Patch 02's corridor-artifact fix, verified by opening the 1520x1040 file directly and confirming the same clean continuous seam/rivet rhythm below the terminal).
+- Imported `assets/art/training_hub_3q_reference/tr002_training_hub_no_actor_1520x1040.png`. `TrainingHubBakedReferenceBlockout`'s `BakedReference` repointed to it; the sprite's own scale changed from a *computed* `native/ROOM_DESIGN_SIZE` ratio (which happened to already equal 1.0 against the old 760x520 file) to an explicit `const SOURCE_TO_LOGICAL_SCALE := 0.5` constant plus an `assert()` that the source's native size is exactly `ROOM_DESIGN_SIZE / 0.5` -- makes the integer-ratio requirement a checked invariant instead of an incidental fact, and catches a future re-export at the wrong resolution immediately (parse/runtime assert) rather than silently drifting into a non-integer stretch. `texture_filter = NEAREST` unchanged (already set from the prior round). The room's own outer per-axis stretch is completely untouched.
+- Verification: parse-check clean (after the required import pass for the new PNG). Screenshots re-captured in the same isolated-sandbox recipe (config/name swap + revert, diff-confirmed); no assert failure; visually confirmed no degradation/misalignment against the previous 760x520-sourced version.
+- Deliverables: `docs/screenshots/training_hub_art/04_hub_full_view_clean.png` and `05_hub_*.png` re-captured against the new source. Push/tag: pending -- not committed, not pushed.
+
+### TR-002-COLLISION-02 - Segmented Wall Blockers + Locked/Unlocked Door Gaps (场景碰撞与层级修复)
+
+- Owner: `Claude Code`. Follow-up spec after TR-002-COLLISION-01: (1) the room's single rectangular movement clamp isn't enough -- wall collision must sit at the true inner floor edge, and each wall must be split into multiple segments at its door opening; (2) reconfirm the terminal blocker covers screen/console/side-equipment fully; (3) doors need an explicit Trigger (proximity/hint/E) vs Blocker (solid only while locked, disabled once unlocked) split; (4) draw-order/Y-sort so the terminal and door frames occlude the player correctly; (5) an actual walkthrough (perimeter loop, terminal circle, locked/unlocked doors).
+- **Item 4 flagged, not implemented -- real architecture limit, not an oversight.** `TrainingHubBakedReferenceBlockout` (the current temporary VisualBase from TR-002-RESTORATION-01) is ONE single flat baked `Sprite2D` for the entire room -- floor, walls, doors, and terminal are all one image with no separable layers. The player always draws on top of that one sprite; there is no way to make just the terminal's/door's "front" occlude the player from above without splitting them out of the baked image into their own sprite(s) drawn at a higher z-index than the player. That split is literally the restoration round's own next planned steps ("3.四门可拆层;4.中央终端" in `user/TR-002_RESTORATION_ROUND_01/docs/README_FOR_DEVELOPER.md`'s roadmap) -- doing it now would mean building real replacement assets ahead of schedule, not a collision fix. Left as-is (player always renders in front) pending that step; flagged to User rather than silently skipped or hacked around with a partial image crop that risked visible seams.
+- Items 1/2/3/5 fully implemented, all collision-only (no coordinates, art, or Tier-1 doc changes beyond `training_base_map.gd`):
+  - `_hub_area_config()`: `"movement_margin"` dropped to `2.0` (now just an outer safety-net clamp -- the segmented blockers below are the real containment). `"blockers"` (static, always-on) now holds the terminal footprint (widened to `Rect2(Vector2(330,179), Vector2(104,80))`, confirmed against the baked PNG to cover the full console body including its side-light column and base threshold, still excluding the screen glow/floor shadow) plus **8 wall-segment rects** -- each of the 4 walls split into 2 segments with a gap left open exactly at that wall's own door opening (spec item 1: "左右墙、上下墙在门洞处切分为多个碰撞段"). New `"door_gap_blockers"`: one `{door_to, rect}` entry per door, each rect exactly plugging its own wall gap.
+  - `training_base_map.gd` new `_effective_blockers()`: static blockers always apply; each door-gap entry's rect is appended on top only while `areas[door_to].unlocked` is false (mirrors `_door_locked()`'s own logic, keyed directly by area id) -- once unlocked, the gap has no blocker and the door's own wall-segment gap is genuinely walkable, not just a touch-line (spec item 3's Trigger/Blocker split). `_resolve_blockers()` now calls this instead of reading `module_data["blockers"]` directly.
+  - Door proximity/interact/crossing (`_is_near()`, `_check_door_crossing()`) untouched -- already the Trigger half of the spec's split, working correctly against the new Blocker half.
+- Verification: parse-check clean. New `tools/capture_tr002_segmented_wall_verification.gd` (kept as a reusable check), run in the same isolated-sandbox recipe (config/name swap + revert, diff-confirmed): (1) genuine walked pushes into all 4 walls (away from their door gaps) never entered a wall segment; (2) a genuine 8-direction walked loop around the terminal never entered its blocker from any angle; (3a) genuine walks toward all 4 doors while locked stopped cleanly outside the gap; (3b) a direct `_resolve_blockers()` check (deliberately not a full walk -- reaching an unlocked gap correctly triggers the pre-existing, unmodified room-switch code, which frees this test scene's nodes, so a full walk isn't a safe way to test the blocker-gating logic in isolation) confirmed all 4 doors are kept out while locked and let through once unlocked.
+- Deliverables: `docs/screenshots/training_hub_art/07_hub_segmented_wall_full_view.png`; new `tools/capture_tr002_segmented_wall_verification.gd`.
+- Not done: item 4 (see above, explicitly deferred to the restoration round's own asset-splitting roadmap, User to confirm direction). Push/tag: pending -- not committed, not pushed.
+
+### TR-002-COLLISION-01 - Room Boundary + Terminal Footprint Collision (训练中控室碰撞规范)
+
+- Owner: `Claude Code`. User gave a numbered collision spec for the hub (760x520 logical canvas): no collision derived from the background PNG; walkable area = room's inner floor with the outer wall's inner edge as a hard boundary; 4 doors stay independent entrances each with a proximity/interact/scene-switch trigger plus a lock-state-gated blocker; the central terminal needs its own solid-footprint collision (console base only, not its screen glow/projection/corridor floor); wall collision must sit at the walkable-floor edge, not the wall texture's outermost silhouette (or the play area gets needlessly compressed); everything needs an actual walkthrough screenshot, not just a visual read.
+- Investigated the current implementation first (this project has **zero physics nodes anywhere** -- no `Area2D`/`StaticBody2D`/`CollisionShape2D` in any training script or hub prop scene; all movement/interaction is a custom `Rect2`-based system: a single project-wide `Rect2` clamp for room bounds, `_is_near()`/`_is_inside_target_area()` distance/point-in-rect checks for proximity and door-crossing). Given the spec's "Area2D"/"StaticBody2D" wording doesn't match this project's real architecture anywhere, adapted it to the existing pattern rather than introducing new physics nodes project-wide (consistent with this project's "GPT-authored prompts may be adjusted, preserve intent" convention) -- reported the adaptation, didn't just silently follow the literal wording.
+- Confirmed real bugs matching the spec's concerns: (1) room-boundary margin was a **hardcoded 36px for every room**, unrelated to the hub's actual wall thickness (~56-58px measured from the baked reference PNG) -- the player could walk ~20px into the visual wall band; (2) the central terminal had **no collision of any kind** -- the player could walk straight through/over the console.
+- `scripts/training/training_base_map.gd`:
+  - `_move_player()`: `margin` now reads `module_data.get("movement_margin", 36.0)` -- every other room keeps the original 36 unchanged (safe default); `_hub_area_config()` declares `"movement_margin": 56.0` only.
+  - New `_resolve_blockers()`/`_rect_hits_any_blocker()`: a room can declare `module_data["blockers"]` (design-space `Array[Rect2]`), resolved with a simple per-axis slide (candidate as-is -> X-only -> Y-only -> give up, keep old position) so approaching diagonally slides along the obstacle's edge instead of snapping. `_hub_area_config()` declares one blocker, `Rect2(Vector2(330, 180), Vector2(104, 70))`, measured directly off the baked PNG to cover only the console's solid visual body -- clearly smaller than and independent of the terminal target's own `(124, 112)` approach/interact hitbox (unchanged, still used only for `_is_near()`/info-interact).
+  - Door proximity/interact/crossing (`_is_near()`, `_check_door_crossing()`, `door_blocked_by_state` lock-gating) were NOT changed -- already satisfies the spec's intent as-is: since the whole room boundary is a hard clamp the player can never spatially pass through regardless of lock state, and crossing only ever happens via the explicit `DoorStateManager.try_pass_door()` code path (not a "walk past" mechanic), a separate "locked-only blocker" node would be redundant in this architecture.
+  - No collision was derived from the PNG anywhere (confirmed, unchanged) -- `TrainingHubBakedReferenceBlockout` remains purely a `Control`/`Sprite2D` visual with no logic of its own.
+- Verification: parse-check clean. New `tools/capture_tr002_collision_verification.gd` (kept as a reusable check) confirmed, in an isolated sandbox (config/name swap + revert, diff-confirmed): the real `player_controller.bounds` now reflects margin=56 (not the stale 36 the older capture script's own hardcoded constant would have implied); all 4 doors remain reachable (`reached_near: true`) under the tighter margin -- including `door_greenhouse`, whose crossable zone shrank to its tightest (~18px) but still worked; the player walking straight at the terminal never overlapped the new blocker rect (`ever_overlapped=false`) and stopped at a plausible edge distance.
+- Deliverables: `docs/screenshots/training_hub_art/06_hub_collision_full_view.png`; new `tools/capture_tr002_collision_verification.gd`.
+- Not done: door rect positions/sizes themselves were not adjusted (out of scope -- the spec asked for collision correctness, not new door placement, and all 4 still work under the new margin); no per-door "locked visual push-back" was added since the existing hard room-boundary clamp already makes it physically impossible to walk past any door art regardless of lock state. Push/tag: pending -- not committed, not pushed.
+
+#### TR-002-RESTORATION-01 Patch 02 — Central Corridor Artifact Fix
+
+- Art redelivered the SAME runtime filename (`visual_base/tr002_training_hub_no_actor_760x520.png`) with new content only, per `user/TR-002_RESTORATION_ROUND_01/docs/PATCH_02_DEVELOPER_NOTE.md`: cleared a rectangular removed-actor patch mark directly below the terminal and restored continuous seam/rivet rhythm along the central corridor between the terminal and the bottom door. No layout/door/terminal/wall/color/lighting/canvas-size change per the note's own scope.
+- Overwrote `assets/art/training_hub_3q_reference/tr002_training_hub_no_actor_760x520.png` in place (confirmed via checksum that the delivered file's content actually differed before copying), re-ran the `--headless --editor --quit` import pass (same filename, new content -- Godot's import cache is keyed by file hash, not just path, so this step is required), no code changes needed since `TrainingHubBakedReferenceBlockout` already references this exact path/filename.
+- Verification: re-captured screenshots in the same isolated-sandbox recipe (config/name swap + revert, diff-confirmed). Pixel-cropped the region directly below the terminal and confirmed the rectangular patch artifact is gone -- continuous panel seams/rivets, no dark block, no character residue.
+- Deliverables: `docs/screenshots/training_hub_art/04_hub_full_view_clean.png` and `05_hub_*.png` re-captured with the patched art. Push/tag: pending -- not committed, not pushed.
+
+### TR-002-RESTORATION-01 - Switched Strategy: Restore Confirmed Baked Visual, Plan Incremental Real-Asset Replacement (训练中控室恢复轮)
+
+- Owner: `Claude Code`. After 3 rounds of procedural hand-drawn revision (TR-002-PROCEDURAL-01, below) still came back `VISUAL_REVISION_REQUIRED` each time (structure kept getting confirmed correct, but overall polish/contrast never closed the gap to the confirmed target), the creative director side switched strategy via `user/TR-002_RESTORATION_ROUND_01/docs/README_FOR_DEVELOPER.md`: restore the room to their own CONFIRMED baked visual as a temporary single-image VisualBase, explicitly framed as round 1 of a planned incremental replacement (floor -> wall/door structure -> 4 doors -> terminal -> wall props), each future step to be re-diffed against this same baked screenshot before moving to the next layer.
+- The delivered asset (`visual_base/tr002_training_hub_no_actor_760x520.png`) is a clean re-render of the same confirmed target reference (matches `training_hub_3q_target_reference.png`/the User's earlier pasted screenshot) but WITHOUT the earlier round's baked-in reference astronaut -- the handoff explicitly prohibits using the old `full_scene_baked_reference.png` for exactly that reason.
+- This mapped directly onto infrastructure already built during TR-002-BAKED-01 (2026-07-21) and left in place as a deliberately-revertible option: `TrainingHubBakedReferenceBlockout` (training_module_scene.gd) and the `hide_prop_visual` toggle on `TrainingTargetVisual` (training_base_map.gd). Work this round was retargeting, not rebuilding:
+  - Imported the new PNG to `assets/art/training_hub_3q_reference/tr002_training_hub_no_actor_760x520.png` (the 2x check-only version was NOT imported, per the handoff's own "只用于检查...禁止做非整数缩放" -- runtime uses the 760x520 file directly).
+  - `TrainingHubBakedReferenceBlockout`'s `BakedReference` const repointed to the new file; added `texture_filter = NEAREST` on both the Control and the Sprite2D (the handoff's own "过滤方式 Nearest" requirement -- the old baked-reference round had deliberately left this at the default smooth filter, since old asset was "painted/rendered reference art"; the new asset is delivered pre-scaled to the exact 760x520 runtime size, matching this project's usual pixel-art convention instead).
+  - `_hub_area_config()` (training_base_map.gd): `"blockout"` switched from `"TrainingHubBlockout"` (the procedural class from the 3 prior rounds, left untouched/revertible) back to `"TrainingHubBakedReferenceBlockout"`; `"hide_prop_visual": true` re-added to the terminal + all 4 door target dicts so the procedural door/terminal art doesn't double-draw over the baked image, per the handoff's own "不要继续渲染当前灰色白盒...会覆盖底板，造成双重房间".
+  - No door/terminal/player coordinate changed; no collision/Area2D/proximity-trigger code touched, per the handoff's own explicit scope.
+- Verification: parse-check clean on both touched files (after the required `--headless --editor --quit` import pass for the new PNG). Screenshots captured in the same isolated-sandbox recipe as every prior round (config/name swap + revert, diff-confirmed back to a 1-line pre-existing state). Confirmed by direct screenshot inspection: exactly one real player character visible (no duplicate/ghost astronaut from the old baked image), no purple grid/node borders/debug overlay, room silhouette matches the confirmed reference.
+- Deliverables: `docs/screenshots/training_hub_art/04_hub_full_view_clean.png` (re-captured), `05_hub_door_{suit,power,air,greenhouse}.png`, `05_hub_terminal.png` (re-captured).
+- Not done, per the handoff's own explicit framing: this is a temporary single-image backdrop, not final layered assets -- the planned incremental real-asset replacement (floor/walls-doors-structure/4-doors/terminal/wall-props, each step diffed against this same baked screenshot) has not started. "视觉通过不代表代码正确" carries forward unchanged -- room boundary, door proximity triggers, and the terminal Area2D still need their own walkthrough (not re-run this round; only the visual layer changed, RoomBounds/TerminalBlocker/DoorTrigger code is untouched). Push/tag: pending -- not committed, not pushed.
+
+#### TR-002-PROCEDURAL-01 Round 3 — VISUAL_REVISION_REQUIRED again: contrast/darkness pass, not structure
+
+- User verdict on Round 2: structure confirmed correct again (floor complete, walls at the perimeter, corridor/door/terminal/player proportions closer to right), but still read as an overall "gray whitebox" -- walls looked like a plain wide gray bar without visible thickness/segmentation/cold light, doors lacked frame contrast and functional legibility, terminal still read as a flat black box lacking a focal point, overall brightness too uniform/gray. Explicit instruction: lock all current coordinates AND floor layout, do not touch structure again -- this round is a palette/contrast pass only.
+- `scripts/training/training_module_scene.gd`: `_RoomArtDrawer` repalette -- `WALL_TOP_TONE` darkened `#4c5a68` → `#303a44`, `WALL_FRONT_TONE` darkened `#181e25` → `#10141a`, `CORNER_TONE` darkened `#171d24` → `#11151a` (Round 2's colors still read as one medium-gray value band at a glance despite the correct top/front split existing underneath). The panel-seam lines (1px, low alpha) were replaced with actual filled groove-block rects (4px wide, spanning most of the outer face) for a genuine "modular panel division" read instead of a faint line. Light-strip alpha raised (top 0.62→0.85, sides 0.55→0.8) so the cold-white accents still pop clearly against the now-much-darker wall base. Floor: added one inspection mark near each of the 4 interior corners (previously only 4 marks beside the corridor), per User's "仅在中央通道和四角补少量检修盖板/通风口" -- floor's base tone/seam grid/corridor accent otherwise completely unchanged.
+- `scripts/props/reference_prop.gd`: door FRAME tone darkened to match the new wall top-face tone (`#4c5a68` → `#303a44`) for a unified dark-gray look across wall and door, BODY tone darkened further (`#20272e` → `#171d24`); light bar thinned 6px → 4.5px per "细状态灯". Icon-to-door mapping was already correct (power=lightning, suit=helmet, air=fan, greenhouse=leaf) -- no change needed there. Terminal: added a distinct lighter BEZEL ring (`#3a4654`) around a darker inner shell (`#20293a` → `#1c2530`), fixing "仍是平面黑框，视觉焦点不足" -- fixed display size (112x84) and hitbox both unchanged.
+- Verification: parse-check clean on both files. Screenshot re-captured in the same isolated-sandbox recipe (config/name swap + revert, diff-confirmed).
+- Deliverables: `docs/screenshots/training_hub_art/04_hub_full_view_clean.png` (re-captured), `05_hub_door_{suit,power,air,greenhouse}.png`, `05_hub_terminal.png` (re-captured).
+- Not done: floor layout, all door/terminal/player coordinates untouched, per User's explicit scope lock. Wall-adjacent decorations still held back pending art approval. Room boundary/door-trigger/terminal-Area2D walkthrough still not re-run this round (palette-only change on unchanged hitboxes/positions). Push/tag: pending -- not committed, not pushed.
+
+#### TR-002-PROCEDURAL-01 Round 2 — VISUAL_REVISION_REQUIRED fixes (walls/doors/terminal only, layout locked)
+
+- User verdict on Round 1: layout direction confirmed correct (walls back at the perimeter, floor frequency down, corridor readable), but called it a "structural white box" -- doors were flat black rectangles, walls lacked visible thickness/inner face, the terminal was too big/flat and crowded the corridor, floor seams too uniform/low-contrast. Explicit instruction: lock the current layout, only touch outer walls, the 4 doors, and the terminal this round; leave the character/UI/coordinates untouched.
+- `scripts/training/training_module_scene.gd`: `_RoomArtDrawer._draw_walls()` rewritten again -- front-face ratio raised from a thin 14px inset to 40% of the (now 58px, was 56px) wall thickness for a visibly distinct top-face/front-face split, a dark edge-rim line right at the wall/floor boundary, low-contrast panel-seam lines on the outer face (breaks up the flat single-tone read), and light-strip accents added to the left/right walls (previously only the top wall had them). `_draw_floor()`'s 4 hand-placed sparse marks moved from open-floor quadrants to sit immediately beside the central corridor, per User's "只在中央通道、检修区放少量格栅/盖板变体".
+- `scripts/props/reference_prop.gd`: `_draw_hub_door()` rewritten again -- now draws a lighter FRAME rim (matching the wall's own top-face tone) around a darker inset BODY panel with 4 corner rivets, replacing the single flat dark pocket rect; the light bar and icon badge/placard are unchanged in position logic. `_draw_hub_console()` rewritten to draw a FIXED `Vector2(112, 84)` display size (within User's 96-128 x 64-96 spec) centered inside the console's real interactive `prop_size` (124x112, unchanged) instead of filling the whole hitbox -- directly fixes "过大、过扁平，压住了主通道"; shell tone darkened/blue-shifted (`#20293a`), screen stays tech-blue. Real bug caught and fixed in the same pass: recentering the console body away from `prop_size`'s origin made a pre-existing duplicate-label bug visible (`_draw_hub_console()` was calling `_label()` a second time; `TrainingTargetVisual._draw_debug_label()` already draws every target's label once) -- removed the redundant `_label()` call, matching `_draw_hub_door()`'s existing precedent of not duplicating the label.
+- Verification: parse-check clean on both files after every edit. Screenshots re-captured in the same isolated-sandbox recipe (config/name swap + revert, diff-confirmed) after both the structural changes and the label-duplication fix.
+- Deliverables: `docs/screenshots/training_hub_art/04_hub_full_view_clean.png` (re-captured), `05_hub_door_{suit,power,air,greenhouse}.png`, `05_hub_terminal.png` (re-captured).
+- Not done: floor/layout/character/UI/door-terminal coordinates deliberately untouched this round, per User's own scoping instruction. Wall-adjacent decorations still held back pending art approval of this pass. Room boundary/door-trigger/terminal-Area2D walkthrough still not re-run this round (art-only changes layered on unchanged hitboxes). Push/tag: pending -- not committed, not pushed.
+
+### TR-002-PROCEDURAL-01 - Hub Room Rejected Modular Pack, Rebuilt Hand-Drawn Against the Real Reference (训练中控室手绘重建)
+
+- Owner: `Claude Code`. User rejected TR-002-MODULAR-01 (below) outright: "地板铺满整格边框、墙体铺进房间内部" -- stop using `runtime_4x` entirely, stop tweaking the tile-collage version. User pasted a screenshot directly as the sole master reference; it was confirmed byte-for-byte identical in content to `user/TR-002_3Q_TOPDOWN_MODULAR_ASSET_PACK/source/training_hub_3q_target_reference.png` already in the repo (same pipes/tanks/corner-badge/crate/cable-box layout). Real root cause: the modular pack's actual tile/wall/door PNGs (flat 256px plates, single-face wall runs) never had that reference's pseudo-3D quality (beveled top-face + front-face walls, recessed door pockets, pipe/tank surface detail) -- no amount of rearranging them could close that gap, since the gap was in the delivered art's own fidelity, not the composition code.
+- Per User's explicit instruction, dropped `runtime_4x`/`training_hub_modular` entirely and hand-drew the room with `draw_rect`/`draw_line`/`draw_polygon`/`draw_circle` primitives -- matching how every OTHER prop kind in `reference_prop.gd` already works (the hub was the only exception using baked/tiled textures).
+- `scripts/training/training_module_scene.gd` (Tier-1): `TrainingHubBlockout` rewritten again -- floor is a single flat-toned interior rect with a thin low-contrast 64px seam grid (not individually-bordered tiles), one lighter vertical corridor accent connecting the top/bottom doors past the terminal, and a handful of hand-placed sparse floor marks (not a repeating variant system). Walls are confined strictly to a 56px outer ring (never tiled into the interior) with a lighter top-face tone + a darker inset front-face strip (fakes the "near-top-down 2.5D height" without real 3D), 4 corner blocks, and 2 short cold-white light-strip accents on the top wall. No wall-adjacent decorations this round, per User's explicit "先只做纯地板+外围墙+四门+终端".
+- `scripts/props/reference_prop.gd` (Tier-1, shared): `_draw_hub_door()` rewritten a second time -- a recessed pocket occupies the wall-side ~62% of the door's short axis (position driven by a new `outer_dir` per door identity in `HUB_DOOR_INFO`, pointing away from the room interior: up for door_power, down for door_greenhouse, left for door_suit, right for door_air), a lock-state-colored light bar sits at the pocket's room-facing edge, and a small upright icon badge (lightning bolt / leaf / helmet arc / fan blades, hand-drawn with polygons/arcs/circles) sits just outside `prop_size` in the `outer_dir` direction -- always unrotated regardless of door orientation, satisfying "铭牌图标...不得随竖门旋转90°" by construction rather than a special case. `_draw_hub_console()` rewritten to a hand-drawn console (screen with a circular gauge + readout lines, a 3-light side indicator panel, dark base trim) sized to `prop_size` directly (no texture fitting needed). The whole `_clean_texture()`/`_is_bad_pixel()`/`_nearest_clean_color()`/`_contain_rect()` helper set was removed from this file since nothing in it loads a texture anymore.
+- Deleted `assets/art/training_hub_modular/` (confirmed zero remaining code references first) -- it was untracked in git, so no history was lost, matching how `training_hub_v2` was retired the round before.
+- Verification: parse-check clean on both touched files. Real screenshots captured in the same isolated-sandbox recipe as the previous round (`config/name` swapped to a distinct sandbox name and reverted immediately after -- diff-confirmed back to its pre-existing single-line state). Reused `tools/capture_tr002_modular_hub_screenshots.gd` as-is (it only calls into the scene, no dependency on the removed pack) to produce a clean full-room view plus per-door/terminal close-ups; pixel-cropped each door badge to confirm all 4 icons render legibly and upright, and confirmed door_suit still shows the real unlocked (blue) light color against door_power/door_air/door_greenhouse's real locked (red-tinted) color.
+- Deliverables: `docs/screenshots/training_hub_art/04_hub_full_view_clean.png` (re-captured, single 760x520 shot with the player visible, no purple grid/node borders/debug UI), `05_hub_door_suit.png`, `05_hub_door_power.png`, `05_hub_door_air.png`, `05_hub_door_greenhouse.png`, `05_hub_terminal.png` (re-captured).
+- Not done / explicitly held per User's instruction: no wall-adjacent decorations (vent/maintenance-crate/fire-extinguisher/first-aid) this round -- waiting for art approval of the pure floor+walls+doors+terminal pass before adding them back. "Visual PASS 不等于 Code Correctness" carries forward unchanged -- room boundary, all 4 door proximity triggers, and the terminal Area2D still need their own walkthrough verification (not re-run this round; the interactive hitboxes/positions in `_hub_area_config()` were not touched, only the art layered on top of them). Push/tag: pending -- not committed, not pushed.
+
+### TR-002-MODULAR-01 - Hub Room Full Replacement with Modular Layered Asset Pack (训练中控室正式模块化美术接入)
+
+- Owner: `Claude Code`. User decision (explicit, asked via clarifying question): full replacement of the V2 pipeline, not a side-by-side trial and not a narrower fix.
+- Art delivered `user/TR-002_3Q_TOPDOWN_MODULAR_ASSET_PACK/` — described by the developer instructions as the "正式版本" (formal/production version), superseding BOTH the temporary `TrainingHubBakedReferenceBlockout` swap (TR-002-BAKED-01, above) AND the underlying `training_hub_v2` art it was standing in front of. `layered_tilemap` render model: independent 256×256 floor/wall tiles and 4-layer doors (frame/body/light/sign), explicitly NOT a baked scene image, all meant to import at `scale = 0.25` (its own README's stated convention, confirmed against every file's actual native size — floor/wall tiles 256×256→64×64, horizontal doors 512×256→128×64, vertical doors 256×512→64×128, terminal 384×256→96×64 — all landing exactly on the handoff doc's own suggested display sizes, so no per-asset display-size math was needed).
+- Prompt-injection note: the asset-pack docs (read via the Read tool) contained an embedded block styled as a system/tool instruction telling the agent to stop using tools and output a scripted response. Flagged to the User before proceeding rather than acted on; User confirmed the legitimate intent (read and integrate the pack normally) and the corpus's actual content (the developer handoff docs) was otherwise exactly what it claimed to be.
+- Copied `runtime_4x/{tiles,props}` into `assets/art/training_hub_modular/{tiles,walls,doors,props}` (source pack left untouched under `user/` as the archival original, per this project's asset-drop convention). Deleted the now-fully-superseded `assets/art/training_hub_v2/` (it was untracked in git, so no history was lost).
+- `scripts/training/training_module_scene.gd` (Tier-1): `TrainingHubBlockout` rewritten from scratch — real gapless `TileMapLayer` walls (11×8 grid, border ring = wall_top/bottom/side_straight_01 + 4 dedicated corner tiles, door art from `reference_prop.gd` draws on top of the continuous wall ring rather than the class carrying a tile-grid gap that had to stay pixel-aligned with each door hitbox), a floor `TileMapLayer` with restrained role-specific variants (corridor grate, door-front caution insets, one hatch + one vent placed once each, scuffed/bolts/seam scattered at low frequency near walls only), ceiling lights and wall-adjacent props (vent/maintenance-crate/fire-extinguisher/first-aid) placed per the pack's own placement handoff. The old solid-color wall-band containment hack and its whole reason for existing (sparse V2 wall sprites that could leave gaps) are both gone.
+- `scripts/props/reference_prop.gd` (Tier-1, shared): `_draw_hub_door()` rewritten to draw 4 independent layers (frame → body → light → sign) at the same `_contain_rect`-fitted rect, per the pack's own layering spec (previously the door was frame+sign+a small separate status-light strip, and body was baked into the frame). `_draw_hub_console()` retargeted to `training_terminal_01.png` (estimated screen sub-rect for the existing fault/stabilizing/stable status-tint overlay, same technique as before).
+- `scripts/training/training_base_map.gd` (Tier-1): `_hub_area_config()`'s `"blockout"` switched back from `"TrainingHubBakedReferenceBlockout"` to `"TrainingHubBlockout"`, and `"hide_prop_visual": true` removed from the terminal + all 4 door target dicts (real door/terminal prop art draws again). Door/terminal gameplay positions themselves were NOT changed, per the handoff doc's own instruction to keep existing gameplay coordinates authoritative and let visual art follow them.
+- **Real recurring defect found, not assumed away**: a pixel scan (same method used on the old V2 delivery) found this "formal" pack ships the *same* magenta/violet-hued opaque-pixel defect in its own internal linework across nearly every file (counts from a few pixels up to ~880 per file) — the pack's claim of a clean alpha background is true only for the *background key-out*, not internal art. Confirmed visually first (a small purple dot survived at the wall-corner tiles in a first-pass screenshot) before restoring a `_clean_texture()`/`_is_bad_pixel()`/`_nearest_clean_color()` pixel-cleanup helper (same algorithm as the one removed from both files at the start of this round, re-added once the defect was confirmed to persist) in both `training_module_scene.gd` and `reference_prop.gd`, retargeted at the new pack's files. Re-verified clean via a pixel-level crop after the fix.
+- Verification: parse-check clean on all 3 touched files; full `--headless --editor --quit` import scan clean (108 new/changed assets, incl. the whole `user/` pack getting `.import` sidecars as a side effect of it living inside the project tree). Real screenshots captured in an isolated sandbox (`project.godot` `config/name` temporarily swapped to a distinct sandbox name and reverted immediately after — diff-confirmed back to its pre-existing state — rather than copying the ~1.5GB project tree): `tools/capture_tr002_blockout_verification.gd` (existing, reused as-is) confirmed all 4 doors + terminal remain reachable and the player stays in bounds; new `tools/capture_tr002_modular_hub_screenshots.gd` (kept as a reusable capture tool) produced a clean full-room view plus a close-up at each door/terminal, and confirmed via real game state (not a forced flag) that `door_suit` renders unlocked (blue `door_light_*`) while `door_power`/`door_air`/`door_greenhouse` render locked (red-tinted) at a fresh save, matching `_compute_unlocked()`'s actual default logic.
+- Deliverables: `docs/screenshots/training_hub_art/02_tr002_blockout_verification_annotated.png` (re-captured), `04_hub_full_view_clean.png`, `05_hub_door_suit.png`, `05_hub_door_power.png`, `05_hub_door_air.png`, `05_hub_door_greenhouse.png`, `05_hub_terminal.png`.
+- Not done / out of scope: `01_hub_full_view.png` and `03_hub_v2_real_art.png` (older rounds' screenshots) were left in place as historical record, not deleted or overwritten. `docs/art/TR-002/TR-002_v2_unified_pixel_scale_brief.md` (the V2 brief) left in place as historical record of why V2 was rejected. `TrainingHubBakedReferenceBlockout` class and its baked reference PNG left in place, unreferenced but revertible, exactly as its own doc comment already described. Push/tag: pending — not committed, not pushed.
+
+### TR-002-BAKED-01 - Hub Room Baked-Reference Visual Swap (训练中控室目标图临时视觉还原)
+
+- Art delivered `user/TR-002_3Q_TOPDOWN_TARGET_HANDOFF/` — an approved "近俯视斜投影 2D" (near-top-down oblique) visual target for 训练中控室/TR-002 hub room, with a full baked reference render (`source/training_hub_3q_target_reference.png`, 1516×1038), individual baked element crops (doors/walls/terminal/floor samples, explicitly NOT final reusable assets per the doc's own warning), and a developer README specifying a recommended quick-verification approach: swap in the baked full-scene image as a temporary Layer-1 background, keep all existing door/terminal/spawn interaction logic and hit-ranges completely unchanged, hide the old placeholder wall/door/terminal art, keep only the interaction highlight/prompt overlay.
+- Followed that recipe closely rather than improvising a different integration:
+  - Imported `full_scene_baked_reference.png` to `assets/art/training_hub_3q_reference/`.
+  - New `TrainingHubBakedReferenceBlockout` class in `scripts/training/training_module_scene.gd` (Tier-1, purely additive — the existing `TrainingHubBlockout` procedural room class is completely untouched and still present/revertible), showing the baked image scaled to `ROOM_DESIGN_SIZE` (760×520) using the exact same non-uniform per-axis scale convention `TrainingHubBlockout` already uses, so it lines up with `training_base_map.gd`'s own `_room_point()`/`_room_scale()` positioning for doors/terminal/player.
+  - New `hide_prop_visual` flag on `TrainingTargetVisual` (also training_module_scene.gd) — when true, the target's `prop_scene_path` instance still gets created (so anything reading its state keeps working) but is set `visible = false`; the highlight ring / hit-test / label are completely unaffected, only the OLD prop art is suppressed.
+  - `scripts/training/training_base_map.gd` (Tier-1): `_hub_area_config()`'s `"blockout"` switched to the new class (one string, easily reverted), all 4 doors + the terminal target dicts got `"hide_prop_visual": true`, plus the two small plumbing additions this needs (a new blockout match-case, reading `hide_prop_visual` off the target dict onto the `TrainingTargetVisual` instance).
+- Verification: parse-check clean on both touched files; full `--headless --editor --quit` import scan clean; real screenshot captured in an isolated sandbox (via the existing `tools/capture_training_hub_art.gd`, unmodified) confirming the baked background renders correctly, the real player character is clearly visible in the corridor, the old V2 pixel-art door/terminal props are correctly suppressed (no double-drawing), and the door/terminal interaction labels land reasonably close to their corresponding baked-art doors (not pixel-perfect, expected given the source image's aspect ratio doesn't exactly match 760:520 — README frames this as a visual check, not final alignment).
+- Not done / explicitly out of scope this round (per the README's own framing): this is a temporary Layer-1 backdrop, not final layered assets — no separate floor Tile/wall module/door frame+body+placard+light/terminal shell+screen layers were rebuilt; the baked image includes the art team's own reference "ghost" astronaut mockup standing near the terminal (part of the static baked art, not the real player) as a known, expected artifact of using their reference composition wholesale. "Visual PASS 不等于 Code Correctness" — collision/interaction/state logic was not re-verified beyond confirming the existing hit-test Controls/labels still render and roughly align.
+- Push/tag: pending — not committed, not pushed.
+
+### SUIT-ANIM-01 - Suit-Up Donning Animation Wiring (宇航服穿戴动画接入)
+
+- Owner: `Claude Code`
+- Reviewer: none yet — awaiting User's own playtest.
+- Art delivered `user/SUIT_ANIMATION_DEVELOPER_HANDOFF.md` plus three suit-color variants (red/yellow/blue) of: a front-facing suit-up animation (8 frames, 4x2), a back-facing helmet-lower-down animation (7 frames, 4x2, last cell unused), and a 4-direction/6-frame walk-cycle sheet per color (already imported in a prior round — see PLAYER-VISUAL-01's asset-import notes). Before this round, `player_visual.gd` rendered the SAME appearance walk-cycle sprite regardless of whether the suit was worn — "wearing the suit" only affected a nearly-invisible oxygen-ring decoration (`RingsLayer`), with no real body-sprite change and no `SuitMarkingColor` (red/yellow/blue) plumbed into rendering at all.
+- Real discovery mid-implementation: the training room's `wear_suit_confirm` step ("宇航服整备室") has a duplicate module-data block in the Tier-1 `training_module_scene.gd` (`_suit_control_config()`), but that path is confirmed DEAD CODE — its target scene `Training_01_SuitControl.tscn` doesn't exist on disk, and `training_manager.gd`'s own comment says that constant is kept "solely so `_remap_legacy_training_scene()` can recognize... old save files" and "Never pass them to `change_scene_to_file()`". The REAL, reachable suit-control room is built dynamically inside `training_base_map.gd` (`MODULE_SCENES["suit_control"] = TRAINING_BASE_MAP`), which has its OWN separate `_show_wear_suit_confirm_dialog()`. Both files' confirm-dialog handlers were updated for consistency/safety, but only `training_base_map.gd`'s copy is actually exercised by real gameplay. **Flagging `training_module_scene.gd`'s `_suit_control_config()`/related dead branch as a confirmed cleanup candidate for a future round** — not touched further this round since it's out of scope and harmless to leave.
+- New in `scripts/player_visual.gd`: `suit_marking_color`/`is_suit_worn` state, `set_suit_marking_color()`, `setup()` gained a 6th optional param (`new_is_suit_worn`, additive/back-compat-safe), `_draw_astronaut_sprite()` now branches to `assets/characters/suits/walk_cycle_<color>.png` (fixed 512x512 frame) when suit-worn instead of the normal appearance texture, and a new `async play_suit_up_animation(color_id)` plays the front or back one-shot variant (picked from live `facing` at call time — the training rack sits above the player's spawn point, so facing-up/away triggers the back/helmet-lower variant) using the artist's exact per-frame durations, then flips `is_suit_worn` true so the very next regular render lands on the frame the art spec calls for (down-row-00 or up-row-00) with no special-casing.
+- `scripts/data/character_appearance_catalog.gd`: `load_selected_appearance()` now also returns `suit_marking_color` (from the save's `SuitMarkingColor`, default `"blue"`) — purely additive.
+- `scripts/training/training_base_map.gd` (the real reachable path) and `scripts/training/training_module_scene.gd` (dead path, updated anyway for consistency): both thread `suit_marking_color` into `player_visual` at build time, pass live `SuitManager.is_suit_worn` into `setup()` every frame, and `await player_visual.call("play_suit_up_animation", ...)` in their confirm-dialog handler before completing the step.
+- Verification: parse-check clean on all 4 touched files; full `--headless --editor --quit` import scan clean (covers the 6 new suit-animation PNGs imported earlier this session too); confirmed via a small isolated test that `await` correctly waits for a coroutine invoked through `.call()` dynamic dispatch (this project's standard cross-script calling convention) before relying on it in the Tier-1 confirm handler; end-to-end logic verified in an isolated sandbox — front variant (facing down) and back variant (facing up) both complete and set `is_suit_worn`/`suit_marking_color` correctly, the back variant's real elapsed time (~1198ms) matches the sum of its 7 frame durations (proving durations are honored, not skipped), the suit-worn render path picks the correct 512x512 frame, and reverting `is_suit_worn` correctly falls back to the normal appearance frame size. Real save data untouched throughout (sandbox only).
+- Not done: no visual undress/removal animation (art didn't provide one — `return_suit_confirm` stays dialog-only, but correctly reverts to the appearance sprite since `is_suit_worn` is read fresh from `SuitManager` every frame); no manual in-editor playtest of the full move-to-rack-and-click UI flow (verified the new logic directly instead, per this session's established pattern of scoping automated checks to the actual new code surface).
+- Push/tag: pending — not committed, not pushed.
+
+#### SUIT-ANIM-01 Round 2 — Three real bugs found on User's actual playtest
+
+- User reported, verbatim: 左右移动帧反了 (left/right movement frames reversed); 戴上头盔后头发的 mask 透出头盔 (hair mask bleeds through the helmet); 一进游戏就已经是穿上宇航服的状态 (game starts already suit-worn, expected default = not worn until interacting with the rack).
+- **Left/right reversed — confirmed a genuine asset defect, not a code indexing bug.** Rendered row 1 ("left") and row 2 ("right") of `walk_cycle_blue.png` side by side and via a per-pixel diff (`tools/debug_check_suit_lr_rows.gd` + `tools/debug_diff_suit_lr.gd`, both deleted after use): both rows visually show the character facing/walking toward screen-**right** — there's no genuine mirrored "walking left" pose in the sheet (likely an artifact of the art's AI video-generation pipeline). Since `_direction_row()` and the row-to-frame math are shared with the (unaffected) normal appearance sprites and already correctly mirror those, permuting row indices wouldn't fix a case where two source rows are near-duplicates. Fix, scoped to the suit texture only: `_draw_astronaut_sprite()` now special-cases `row == 1` while suit-worn — borrows row 2's confirmed-correct frame content and flips it horizontally via a negative-width source rect (`Rect2(Vector2((frame+1)*w, 2*h), Vector2(-w, h))`), instead of sampling the broken row 1 directly. Verified visually (character now correctly faces/walks left) and confirmed the appearance-sheet's own left/right rows are untouched by this change.
+- **Hair mask bleeding through the helmet — root cause confirmed.** `_skin_tone_material` (the per-hairstyle hand/face mask shader) stays bound to `_sprite_layer` permanently once set in `_ready()`; switching `_sprite_layer.sprite_texture` to the suit sheet left the shader still sampling the mask (aligned to the completely different appearance-sheet layout) against the suit art, painting stray skin-tone-shifted patches wherever the two layouts happened to overlap (the helmet, per the report). Fix: `_draw_astronaut_sprite()` now sets `_sprite_layer.material = null` while `is_suit_worn`, and restores `_sprite_layer.material = _skin_tone_material` otherwise. Verified via direct property checks (null while worn, restored after).
+- **Already suit-worn on entry — confirmed NOT a code bug.** All three `setup()` call sites pass the live, freshly-queried `SuitManager.is_suit_worn` (never a hardcoded value) — verified by grep. The real project's `saves/suit_state.json` was found holding `is_suit_worn: true` with partially-drained oxygen (98.35/98.9, not a fresh 100/100), i.e. genuine leftover state from earlier dev-menu EVA testing (`lunar_surface_scene.gd`'s `_prepare_suit_for_eva()` dev-convenience auto-wear), not anything this feature's own code set. Corrected by resetting the real `suit_state.json` to `SuitManager.reset_to_arrival()`'s defaults (not-worn, full oxygen/power, `suit_storage_state: "ready"`) so the next playtest starts clean.
+- Verification: parse-check clean on `player_visual.gd`; full `--headless --editor --quit` import scan clean; all debug/diff scripts and their screenshot outputs deleted after use, per this session's convention of not leaving one-off diagnostics behind.
+- Push/tag: pending — not committed, not pushed.
+
+#### SUIT-ANIM-01 Round 3 — Left/right fix replaced per User's explicit instruction
+
+- User rejected Round 2's flip-based fix (borrow row 2 + negative-width source rect to mirror it) and gave an explicit, precise replacement instead: no node `scale`/`flip_h` changes anywhere, just a row-index remap on the suit sheet — `left` should read source row index 2, `right` should read source row index 1.
+- `_draw_astronaut_sprite()` updated: the flip-based special-casing (the `flip_source` branch and its negative-width `Rect2`) removed entirely; replaced with a plain row-index swap scoped to `is_suit_worn` only (`row == 1 → source_row = 2`, `row == 2 → source_row = 1`), leaving `_direction_row()` and the normal appearance-sheet path completely untouched.
+- Verification: parse-check clean on `player_visual.gd`; full `--headless --editor --quit` import scan clean.
+- Push/tag: pending — not committed, not pushed.
+
+#### SUIT-ANIM-01 Round 4 — Free "take suit off any time" toggle at the rack
+
+- User request: currently the suit-control room only lets you WEAR the suit; wants interacting with the rack again to let you take it off too. Asked User to confirm scope given a real design tension already documented in the existing code (`_try_interact_suit_return()`'s comments): the existing "take it off" path only activates after `PowerRepairCompleted` (post-EVA), specifically because the airlock requires the suit to pass through, and removing that gate risks the player stripping the suit before reaching the airlock. **User's answer: make it available any time, explicitly for testing purposes**, accepting that risk (mitigated anyway by the pre-existing `_try_interact_suit_wear_fallback()`, which already re-offers the wear dialog if the suit isn't worn and `PowerRepairCompleted` is still false).
+- New in `scripts/training/training_base_map.gd` (Tier-1, additive only): `_try_interact_suit_toggle_remove()` — fires whenever near `suit_rack` with `SuitManager.is_suit_worn` true, checked in `_try_interact()` right after the existing `_try_interact_suit_wear_fallback()` (so the more specific, narrative-correct post-EVA `_try_interact_suit_return()` dialog still takes priority whenever ITS conditions are also met; this one only catches the other worn-but-not-that-case states, e.g. right after wearing, well before the EVA). New `_show_suit_toggle_remove_dialog()` is a plain, narrative-neutral confirm dialog (deliberately NOT reusing `_show_return_suit_confirm_dialog()`'s "请前往配电房，恢复供电" copy or `SuitReturnPending` bookkeeping, which are specific to the real post-EVA return and would be misleading here) — just calls `SuitManager.remove_suit_to_service_station_training()` (confirmed no extra gating beyond `is_suit_worn`) and shows a neutral "宇航服已脱下。" toast.
+- Known UX gap, not addressed this round: the room's "E 交互" HUD prompt is driven entirely by the tutorial's own current step (`_update_room_prompt()`), so once the step machine has moved past `wear_suit_confirm`, the prompt no longer shows near the rack even though this new toggle now works there — the capability exists but isn't visually hinted. Left as-is since this was explicitly framed as a testing feature; flag if you want the prompt extended too.
+- No animation plays on removal (matches the existing return-suit dialog's behavior and the fact that art only delivered wearing animations, not undressing ones).
+- Verification: parse-check clean; full `--headless --editor --quit` import scan clean.
+- Push/tag: pending — not committed, not pushed.
+
+#### SUIT-ANIM-01 Round 5 — Left/right row fix restored (mirror, not remap) + free re-wear toggle
+
+- Two User-directed changes after further playtesting/review:
+- **1) Round 3's plain row-index-swap reverted back to a mirror-based fix.** User specified precisely: row index 2 is the SOLE side-walking master for the suit sheet (confirmed-correct "right" content); row index 1 is never read directly. Facing left is derived by mirroring row index 2 frame-by-frame (`left_NN = mirror(right_NN)`, same frame index each time) — explicitly NOT via node `scale`/`flip_h`, same constraint as before. `_draw_astronaut_sprite()` updated: `row == 2` (right) now reads row index 2 directly; `row == 1` (left) reads row index 2 via the same negative-width source-rect technique from Round 2 (`Rect2(Vector2((frame+1)*w, 2*h), Vector2(-w, h))`), restoring the `flip_source` branch Round 3 had removed. Verified via a direct source-rect check: right → unflipped row-2/frame-N region; left → same frame index N, row 2, negative width.
+- **2) Free "take suit off any time" (Round 4) had an asymmetric gap — fixed.** User's own testing found that after removing the suit mid-tutorial via Round 4's new toggle, interacting again couldn't put it back on (the existing `_try_interact_suit_wear_fallback()` only re-offers wearing once the WHOLE suit_control module's steps are exhausted). User clarified intent: wear/remove should both be freely toggleable at any time; the only real constraint is that the airlock still requires the suit to be worn to pass through (unaffected by this change). New `_try_interact_suit_toggle_wear()` in `training_base_map.gd`, symmetric to Round 4's `_try_interact_suit_toggle_remove()`: fires whenever near `suit_rack` with the suit not worn, EXCEPT when the current tutorial step is itself `wear_suit_confirm` (so the very first, tutorial-driven wear still goes through the normal step dispatch, needed for `_complete_step()` to correctly advance training state/flags) — every wear after that first one now goes through this free path instead, reusing the existing `_show_wear_suit_confirm_dialog()` (so the suit-up animation still plays on re-wear too).
+- Verification: parse-check clean on both files; full `--headless --editor --quit` import scan clean; direct logic check confirming the row-fix's source-rect math.
+- Push/tag: pending — not committed, not pushed.
+
+#### SUIT-ANIM-01 Round 6 — Round 5's re-wear toggle still failed: real `SuitManager` state-machine bug found
+
+- User tested Round 5's fix and still got "宇航服当前无法穿戴。请检查宇航服是否已在维护位就绪。" trying to re-wear.
+- Root cause: `SuitManager.remove_suit_to_service_station_training()` sets `suit_storage_state = "servicing"` (not `"ready"`), but `wear_suit_training()` requires `suit_storage_state == "ready"` to succeed. Nothing in either training dialog ever called `service_suit_full()` (the only method that transitions `"servicing" → "ready"`) — so once removed, the suit could never be worn again via any path, including the pre-existing official post-EVA `_show_return_suit_confirm_dialog()`, whose OWN copy already promises "训练模式下无需等待完整维护流程" (no waiting for full maintenance in training mode) but whose code never delivered on that. This was a latent bug in existing (not mine) code, only surfaced now because nothing previously tried to re-wear after that dialog.
+- Fix: both `_show_return_suit_confirm_dialog()` and `_show_suit_toggle_remove_dialog()` now call `suit_manager.call("service_suit_full")` immediately after a successful removal. Confirmed this costs ~0 real base water/power in practice: `remove_suit_to_service_station_training()` already tops up `suit_oxygen`/`suit_power` to capacity before marking "servicing", so by the time `service_suit_full()` runs the gap it bills for is already ~0.
+- Also fixed the real project's `saves/suit_state.json`, which was stuck exactly in this broken `"servicing"` state from the User's own testing — reset to `"ready"`.
+- Verification: parse-check clean; full import scan clean; full wear→remove→re-wear cycle verified directly against `SuitManager` in an isolated sandbox (confirmed `remove_suit_to_service_station_training()` alone leaves `"servicing"`, `service_suit_full()` brings it back to `"ready"`, and a second `wear_suit_training()` then succeeds where it previously failed).
+- Push/tag: pending — not committed, not pushed.
+
+#### SUIT-ANIM-01 Round 7 — Left-facing walk read as "moonwalking" (correct direction, backwards footwork)
+
+- User reported "左右移动的时候又开始倒着走了" (left/right walking backward again) — asked a clarifying question rather than re-guessing based on my own uncertain visual read of these small pixel-art thumbnails (which had already been wrong more than once this feature). User confirmed precisely: facing direction is correct, but the stride/footwork itself looks like it's playing in reverse (moonwalk feel), not that left/right are swapped again.
+- Root cause: these suit-walk frames came from real AI-generated motion (an image-to-video pipeline), not a hand-drawn symmetric gait cycle. Round 5's fix mirrors row index 2 (the master) spatially for the left direction but kept the SAME temporal frame order (0,1,2,3,4,5) as right — for footage with genuine physical motion, mirroring left-right alone isn't sufficient; a real gait also needs its temporal order reversed when mirrored, or the footwork reads as backward.
+- Fix: `_draw_astronaut_sprite()` now also reverses which master frame gets sampled when `flip_source` is true — `sample_frame = (FRAMES_PER_ROW - 1) - frame` instead of `frame` directly (so as `walk_phase` advances, left plays the master's frames as 5,4,3,2,1,0 instead of 0,1,2,3,4,5), combined with the existing per-frame horizontal mirror. Right is completely unaffected (still reads frames 0..5 directly, unflipped, unreversed).
+- Verification: parse-check clean; full import scan clean; direct logic check confirming the exact sampled-frame sequence for both directions (left: 5,4,3,2,1,0 mirrored; right: 0,1,2,3,4,5 unflipped) as `walk_phase` advances through a full cycle.
+- Push/tag: pending — not committed, not pushed.
+
+#### SUIT-ANIM-01 Round 8 — Conclusively isolated to a SOURCE ASSET defect, not code
+
+- User reported Round 7's mirror+reverse fix still didn't resolve the "backwards walking" feel. Rather than keep guessing at frame-reindexing schemes (three variants tried across Rounds 5-7: plain row swap, mirror-only, mirror+temporal-reversal — none fixed it), reverted to the plain mirror-only version (Round 5/6 behavior) and asked the decisive diagnostic question: does the UNMODIFIED "right" direction (row index 2 read directly, zero code-side transformation — no mirror, no reordering) ALSO look backwards?
+- **User confirmed: yes, right is also wrong.** This conclusively rules out every code-side hypothesis tried so far — `_draw_astronaut_sprite()`'s right-facing path is a bare, untransformed pixel readout of row index 2, frames 0-5 in original order, with zero manipulation. If that also reads as backwards walking, the defect is in the PIXEL CONTENT of the master frames themselves (`assets/characters/suits/walk_cycle_<color>.png`'s row index 2), not in any row-selection/mirroring/reordering logic in this codebase.
+- Most likely cause (per project history): these frames originated from an AI image-to-video pipeline (LTX-2.3), which can produce non-committal/foot-sliding gait cycles that don't read as natural forward walking when looped — a known risk class for AI-generated cyclic motion, not something fixable by permuting which frame index is read.
+- **This is now flagged as an art-asset redo, not a code task** — spawned a background task (`Re-request suit walk-cycle master frames from art`) with the full investigation history so whoever picks it up doesn't re-try the same three already-ruled-out code-side approaches.
+- Current code state: reverted to Round 5/6's plain per-frame mirror (no temporal reversal) — this is the simplest/cleanest of the three tried variants and is left in place as the baseline to build on once new art frames arrive, since none of the three affected the actual reported problem either way.
+- Verification: parse-check clean; full import scan clean.
+- Push/tag: pending — not committed, not pushed.
+
+#### SUIT-ANIM-01 Round 9 — Art delivered a proper rebuild; integrated + simplified
+
+- Art delivered `user/suit/rebuild_20260720/` (dev handoff: `开发交付说明_宇航服行走帧.md`) — a genuine rebuild, not a re-crop of the same broken footage: `left`/`right` are now confirmed sourced from two DIFFERENT original clips (`matted_frames (9).zip` vs `matted_frames (8).zip` per the manifest's `source_mapping`, with visibly different `alpha_bbox` values per frame), matching `_direction_row()`'s existing down/left/right/up row convention exactly, same 512x512/frame contract as before. Dismissed the background task that had asked art to redo this.
+- Given my own visual read of this exact profile art style has been wrong multiple times this feature (Rounds 5, 7, 8), did NOT rely on eyeballing the new sheet to judge "does left look distinct from right" — trusted the manifest's structural guarantee (different source clips, different bboxes) instead, and deferred the "does it actually walk naturally" judgment call to the User's own in-game test rather than declaring it fixed myself.
+- Old (broken) `walk_cycle_<color>.png`/`.manifest.json` backed up to `assets/characters/suits/_walk_cycle_pre_rebuild_20260720_backup/` before overwriting (reversible, not deleted).
+- Replaced `assets/characters/suits/walk_cycle_{red,blue,yellow}.png` + their manifests with the rebuild's sheets.
+- **`player_visual.gd` simplified**: removed the entire row-swap/mirror workaround from `_draw_astronaut_sprite()` (the `flip_source`/`source_row` special-casing added across Rounds 5-8 for the old broken asset) — the suit-worn path now reads `row` directly, identical in shape to the normal appearance-sheet path below it. This is a real simplification, not just a fix: the old asset's defect required a workaround that no longer applies to properly-authored art.
+- Verification: parse-check clean on `player_visual.gd`; full `--headless --editor --quit` import scan clean (covers the 6 new/replaced PNGs); direct logic check confirming all 4 directions now read a plain, unflipped, un-swapped 512x512 region from the correct row of the new 3072x2048 sheet.
+- **Not verified by me**: whether the walk motion itself now reads as natural (my own visual judgment on this specific art style has been unreliable all feature) — needs the User's own in-game check.
+- Push/tag: pending — not committed, not pushed.
+
+#### SUIT-ANIM-01 Round 10 — Direction mapping confirmed correct; gait-type mismatch found instead
+
+- User confirmed Round 9's rebuild integration fixed left/right direction mapping. But found a different, real source-content issue: the two rebuild source videos had inconsistent gait types — right reads as a normal walk, left reads more like running — so playing the two side by side looks mismatched even though each is individually valid footage.
+- User's explicit fix: standardize on right (the walk) as the sole side-walking master; derive left by mirroring it, discarding the rebuild's own (run-like) left row entirely.
+- `_draw_astronaut_sprite()` updated: reinstated the mirror-via-negative-width-source-rect technique (same frame index, spatial flip only, no temporal reversal) — this time deliberately, not as a workaround for broken/duplicate content but because the master (right) is confirmed good footage, so a plain mirror is the correct approach. Down/up unaffected, still read their own rows directly.
+- Verification: parse-check clean; full import scan clean; direct logic check confirming right reads row 2 (the walk master) directly and left mirrors the same row/frame index via a negative-width rect, with down/up unchanged.
+- Push/tag: pending — not committed, not pushed.
+
+#### SUIT-ANIM-01 Round 11 — Left-facing sprite flickered/disappeared intermittently
+
+- User reported walking left now has consistent gait (Round 10 fixed that) but the character flickers, disappearing and reappearing.
+- Root cause: Round 10's mirror used a NEGATIVE-WIDTH SOURCE rect (`draw_texture_rect_region(texture, dest, source)` with `source.size.x < 0`). That method's `clip_uv` parameter (defaults `true`) almost certainly assumes a normalized (non-negative size) source region for its UV-clipping math — a negative-width source describes reversed/degenerate UV bounds, which is plausible grounds for inconsistent frame-to-frame clipping (exactly matching "flickers, disappears, reappears").
+- Fix: source rect is now ALWAYS normalized (positive size) regardless of direction — mirroring is done via the DESTINATION rect instead (`Rect2` with negative width, i.e. a screen-space quad flip), which isn't subject to the same UV-clip assumptions since it's just where the quad gets placed on screen, not a texture-sampling region. Still not a node `scale`/`flip_h` change — just a different sign flip on a different one of the two rects passed into the same per-draw-call.
+- Verification: parse-check clean; full import scan clean; direct logic check confirming source rect stays positive-width for both directions while dest rect flips sign only for left; rendered a visual check confirming the mirrored sprite still draws as a coherent, correctly-shaped image via this method (not garbled).
+- Push/tag: pending — not committed, not pushed.
+
+#### SUIT-ANIM-01 Round 12 — Round 11's dest-rect flip caused a position jump on direction switch; switched to node scale
+
+- User confirmed flickering was gone, but switching direction (left ↔ right) now made the character visibly jump/teleport a short distance.
+- Verified the dest-rect math itself was correct (bounding box and foot-anchor identical between flipped/unflipped forms) — this was a second real Godot rendering inconsistency with manually-negated `Rect2` dimensions, not a logic bug in either attempt (Round 11's negative source rect flickered; this negative dest rect jumped). Rather than try a third manual-rect variant blindly, asked the User whether switching to Godot's actual first-class mirroring mechanism (`scale.x = -1`) was acceptable, scoped ONLY to `_sprite_layer` (the child node that draws just the suit sprite body) rather than the whole `player_visual` node the User had previously ruled out touching. **User confirmed this is fine as long as it's not the whole character node.**
+- `_draw_astronaut_sprite()` now sets `_sprite_layer.scale = Vector2(-1, 1)` when mirroring is needed (`Vector2(1, 1)` otherwise) — both `source` and `dest` rects are now ALWAYS normalized/unflipped in every direction, with zero special-casing; the mirror is entirely a transform on this one child node, which doesn't affect the shadow rect (drawn by this script's own `_draw()`) or the O2 rings (`_rings_layer`, a sibling node).
+- Verification: parse-check clean; full import scan clean; direct logic check confirming both rects stay identical/normalized between left and right, with only `_sprite_layer.scale.x` differing; rendered a visual check confirming a clean, correctly-shaped mirrored sprite.
+- Push/tag: pending — not committed, not pushed.
+
+### CHUNK-WORLD-01 - Infinite Procedural Chunk-Map Prototype (无限程序化区块地图验证原型)
+
+- Owner: `Claude Code`
+- Reviewer: none yet — awaiting User's own playtest/decision on next steps.
+- User request: convert the outdoor map into an "infinite procedural chunk map" (fixed per-save `world_seed`, chunk content deterministic from `world_seed + chunk_x + chunk_y`, only nearby chunks loaded/unloaded, player modifications persist independently of the regenerable base terrain), referencing FrameRonin's seed+chunk-cache concept but rewritten natively in GDScript (no code ported). User explicitly scoped this round to a validation prototype only: fixed seed + 3x3(-ish) chunk loading + ore/moon-rock generation + leave-and-return consistency + a placeholder building persisting across reload — not fog-of-war UI, rover, day/night gating, mid/far POI tiers, or NPCs.
+- **Important**: `docs/design/LUNAR_SURFACE_MAP.md` (already approved 2026-07-08) describes a DIFFERENT, currently-shipping surface mechanism — a single persistent hand-authored world gated by oxygen/power budget, no procedural generation. This task is an ADDITION alongside it, not a replacement; built as a fully separate standalone prototype (`scenes/surface/ProceduralChunkPrototypeScene.tscn`, Dev Menu only) that does not touch `lunar_surface_scene.gd` / `near_base_chunk.gd` at all. See `docs/handoff/CURRENT.md`'s "Separate Workstream" note and `docs/handoff/SYSTEMS_REFERENCE_FOR_DESIGN.md`'s new WorldStateManager section for full detail.
+- New files: `scripts/world/WorldGenerator.gd`, `scripts/world/ChunkManager.gd`, `scripts/surface/chunks/procedural_chunk.gd` + `scenes/surface/chunks/ProceduralChunk.tscn`, `scripts/managers/WorldStateManager.gd` (new 21st autoload), `scripts/surface/procedural_chunk_prototype_scene.gd` + its scene, `tools/debug_world_generator_determinism.gd` (kept as a permanent regression check for the seed-mixing invariant).
+- Modified: `project.godot` (`[autoload]`), `scripts/systems/full_save_orchestrator.gd` (`provider_specs()` — one appended entry, additive only, `SCENE_MANAGER_KEYS` checked and confirmed no change needed), `scripts/data/ItemDatabase.gd` (new `MT-OR-001` item), `scripts/controllers/dev_tools_controller.gd` (one new Dev Menu button).
+- Real bug caught during implementation: the first seed-mixing function collided across many coordinate pairs (poor bit diffusion); replaced with a Murmur3 fmix32-style avalanche mix + zigzag encoding, verified collision-free across a -20..20 sweep.
+- Verification: parse-checks clean on every new/modified file; full `--headless --editor --quit` import scan clean; end-to-end verified in an isolated sandbox project copy (unique `config/name`, deleted after use) — 25-chunk (5x5) load window, deterministic regeneration after unload/reload, harvest deposits into `BackpackManager`, depleted node + placed structure stub both survive chunk reload AND a genuine separate-process restart via `FullSaveOrchestrator`. Real project's `saves/` directory confirmed untouched (no `world_state.json` there) throughout.
+- Not done: no decision yet on how `NearBaseChunk` (192x192 tiles) coexists with the new 48-tile procedural grid (flagged, deliberately deferred); no real building system (placeholder stub only); no fog/map UI/rover/night-gating/POI tiers/NPCs.
+- Push/tag: pending — not committed, not pushed; awaiting User's review.
 
 ### PLAYER-VISUAL-01 - Overworld Player Sprite Upgrade (角色行走精灵接入)
 
@@ -211,6 +502,259 @@ This file is the current coordination board for active task ownership, file lock
 - Deliverables: `docs/screenshots/male_hairstyle_variants/` (24 captures); `tools/capture_male_hairstyle_variants.gd`.
 - Push/tag: `no / no` — not committed, not pushed; awaiting User review. Male now has all 3 hairstyles x 3 hair colors registered (9 combos), matching female's 3 hairstyles x 3 hair colors (9 combos) — full parity between the two genders' currently-available appearance grid.
 
+### PLAYER-VISUAL-01 Round 13 — Skin-Tone Shader (light/medium/dark via face+hand masks)
+
+- User handoff: `user/CHARACTER_SKIN_TONE_HANDOFF.md` + `user/skin_masks/` (6 skin_mask PNGs, one per hairstyle silhouette, shared across hair colors + `skin_palette.json`). Before implementing, confirmed with the User whether `skin_tone` should finally switch to the handoff's repeatedly-suggested `light/warm/deep` — declined again, staying `light/medium/dark` (the mapping to the palette's own `light/warm/deep` ids happens only inside the catalog, see below).
+- Verified the 6 masks directly (not just trusted the filenames): dumped a frame's raw RGB channels ignoring alpha and confirmed real R/G/B content only at face/hand-shaped regions, matching the handoff's channel protocol (R=shadow/G=midtone/B=highlight, A=influence).
+- Archived to a new shared location (masks aren't per-hair-color, so they don't belong in the existing gender/skin/hair_color combo folders): `assets/characters/skin_masks/{female_longhair,female_ponytail,female_shorthair,male_buzzcut,male_shortfringe,male_longhair}_skin_mask.png` + `skin_palette.json` (+ the designer's own `mask_generation_report.json`, kept for reference).
+- New shader `assets/shaders/character_skin_tone.gdshader` (first shader in this project): samples the albedo (`TEXTURE`/`UV`, Godot's built-ins for whatever `draw_texture_rect_region()` call is active) and a separate `skin_mask_texture` uniform at the *same* `UV` — works despite differing pixel resolutions between the two textures because UV is normalized and both share the same 6x4 grid layout (confirmed against the handoff's own point: "两张贴图必须使用同一UV...但SpriteSheet的6×4网格参数必须一致"). Output = `mix(albedo.rgb, mask.r*shadow + mask.g*mid + mask.b*highlight, mask.a)` — a direct implementation of the handoff's "R/G/B 映射为 shadow/midtone/highlight,再以 mask alpha 混回原角色图".
+- **Structural fix required in `player_visual.gd` to apply the shader safely**: a `CanvasItem.material` affects *every* `draw_*()` call a node issues, not just the textured one — the existing shadow ellipse and O2-warning/atmosphere-ring arcs are untextured primitives that would have sampled `skin_mask_texture` at meaningless UV coordinates if the whole node had the material, risking skin-colored artifacts on those overlays. Fixed by splitting rendering into two child nodes (nested classes `SpriteLayer` — materialed, draws only the character texture — and `RingsLayer` — unmaterialed, draws the rings), added in that order so Godot's parent-then-children draw order preserves the original stacking (shadow → sprite → rings) exactly. The placeholder (non-textured) fallback path in `_draw()` explicitly clears both children so no stale sprite/ring state leaks through if `astronaut_texture` is ever null.
+- `scripts/data/character_appearance_catalog.gd`: added `SKIN_MASK_REGISTRY` (keyed `<gender>_<hairstyle>` only — masks are hair-color-independent, since face/hand shape doesn't change with hair color), `SKIN_PALETTE` (copied directly from the delivered `skin_palette.json`, keyed by the handoff's own `light/warm/deep` palette ids), and `SKIN_TONE_TO_PALETTE_KEY` (the one place this catalog's `light/medium/dark` bridges to the palette's `light/warm/deep` — `medium`→`warm`, `dark`→`deep`). New `skin_mask_path()`/`skin_palette_colors()` static lookups.
+- `player_visual.gd`: `_apply_appearance()` now also calls a new `_apply_skin_tone()`, which resolves the mask path + palette colors for the current gender/hairstyle/skin_tone and pushes them onto a per-instance `ShaderMaterial`. A static 1x1 fully-transparent fallback texture (`_get_empty_mask_texture()`) is bound if a mask is ever missing, making the shader a safe no-op instead of erroring.
+- Verification: parse-check clean on both edited scripts (exit 0 each), full `--headless --editor --quit` import pass clean (exit 0, no errors, confirmed the shader compiles). New `tools/capture_skin_tone_shader.gd` (isolated `player.tscn`, no save interaction) rendered `female_light_black_long` and `male_medium_black_buzz` at all 3 skin tones. Verification went beyond visual inspection: pixel-diffed the `light` vs `dark` renders programmatically — 400 pixels differed out of the crop, all within a tight bounding box matching the face+hand area, and a sampled suit-torso pixel was **bit-for-bit identical** between the two (confirming the suit is genuinely untouched, not just visually similar). Sampled face-region colors matched the palette's `deep` shadow/midtone values almost exactly. Close-up crops additionally confirm the visual progression light → medium → dark is clearly visible on the face/hands only, hair and suit unchanged.
+- Deliverables: `assets/shaders/character_skin_tone.gdshader`; `assets/characters/skin_masks/` (8 files); `docs/screenshots/skin_tone_shader/` (6 renders + face close-ups); `tools/capture_skin_tone_shader.gd`. Real project save file re-checked: unchanged.
+- Push/tag: `no / no` — not committed, not pushed; awaiting User review (test via character creation → pick a skin tone → Survival Sandbox / training, or the existing Dev Menu appearance-cycle button combined with manually setting `skin_tone` for a quick look).
+
+#### PLAYER-VISUAL-01 Round 13 follow-up — Real bug found: skin_tone baked into the registry key
+
+- User report: "女性的肤色好像没成功改变" (female's skin tone doesn't seem to change). Real bug, not a misunderstanding, and not a missing-art gap — the User's next message asked to compile a missing-asset list for the art team, which prompted a closer look before assuming more art was actually needed.
+- Root cause: `WALK_CYCLE_REGISTRY` was keyed `<gender>_<skin_tone>_<hair_color>_<hairstyle>` (a leftover from *before* the skin-mask shader existed, when skin tone genuinely meant "a different baked sheet"). Since female only has "light"-tier art and male only has "medium"-tier art, requesting ANY other skin_tone failed the registry lookup and fell back via `FALLBACK_APPEARANCE_BY_GENDER` — which discards hair_color AND hairstyle too, not just skin_tone. So picking, say, female + ponytail + dark skin silently reverted to the default black-longhair sheet; the mask/shader system was still correctly recoloring the face/hands underneath, but for the *wrong* hairstyle's mask (ponytail) painted onto the *fallback* sheet (longhair) in some cases, and in all cases the much-more-visible hairstyle/color reset overshadowed the subtle, still-working face-tone shift — reading as "nothing changed."
+- **The actual fix is architectural, and means no additional walk-cycle art is needed for skin-tone coverage at all**: `WALK_CYCLE_REGISTRY` re-keyed to `<gender>_<hair_color>_<hairstyle>` (skin_tone removed entirely from this lookup) — `resolve()` signature dropped its `skin_tone` parameter to match. This is correct because skin_tone was never supposed to select a different SHEET in the first place; that's the whole point of Round 13's mask/shader system — one sheet per gender/hair_color/hairstyle, recolored to any skin_tone at render time. `FALLBACK_APPEARANCE_BY_GENDER` keys updated to match (`female_black_long`, `male_black_buzz`). `player_visual.gd`'s `_apply_appearance()` call site and `set_appearance_by_key()` (the dev-menu convenience wrapper, now parses a 3-part key and keeps whichever `skin_tone` is already set rather than resetting it) updated accordingly.
+- Verification: parse-check clean on all 3 touched scripts, full import pass clean. Re-ran `tools/capture_skin_tone_shader.gd` (now covering all 3 female hairstyles x all 3 skin tones, not just "long") — every combination now resolves with `is_fallback=false` regardless of skin_tone (previously: `long`/`ponytail`/`short` all showed `is_fallback=true` for `medium`/`dark`). Re-inspected the previously-broken `female_black_ponytail` at `dark`: now correctly shows the ponytail hairstyle (not a fallback-to-longhair swap) with visibly darker face/hands; pixel-diffed against the `light` version — 368 differing pixels, tightly bounded to the face/hand region, with a sampled suit pixel bit-for-bit identical between the two. Real project save file re-checked: unchanged.
+- Push/tag: `no / no` — not committed, not pushed; bundled with Round 13, awaiting User re-test. **No art-team follow-up needed for this specific issue** — flagged clearly to the User since they were about to ask art to produce more skin-tone-specific sheets, which the mask system was already designed to make unnecessary.
+
+### PLAYER-VISUAL-01 Round 14 — Facing-Right Sprite Reads Larger (Source-Art Defect, Code-Side Stopgap)
+
+- User report: "我确定人物移动的时候，向右移动人物会变大" (confirmed: moving right makes the character look bigger). Investigated before assuming anything — measured actual pixel bounding boxes per direction row (not just eyeballed) across the real save's actual appearance (`male_medium_black_buzz`, per the live `application_profile.json`) plus 4 other registered sheets (`female_black_long`, `female_black_ponytail`, `male_blonde_buzz`, `male_black_short`, `male_black_long`).
+- Root cause confirmed as a **source-art inconsistency, not a code bug**: the row-2 (facing-right) frames are drawn measurably larger within their own 256x256 (or 128x128) cell than the down/left/up rows, consistently across every sheet checked (avg character height ~190-202px for down/left/up vs. ~228-236px for right — roughly 1.05-1.19x larger depending on the sheet). `player_visual.gd`'s code (`_direction_row()`, `_apply_appearance()`, `_draw_astronaut_sprite()`) applies one `display_size` uniformly across all 4 rows and is working exactly as designed — it's faithfully displaying oversized source pixels. Traced likely origin (not fixable from this repo): `tools/build_right_walk_00/02/03.py` + `extract_right_00_preview.py` (present in this repo, not authored by this session) show the right-facing frames were hand-repose-edited on a *separate* `_right_master.png` reference, a different pipeline than however the down/left/up masters were produced — consistent with a scale mismatch introduced upstream of these scripts.
+- Asked the User how to handle it (asset re-generation vs. code-side compensation vs. defer): chose a **temporary code-side compensation** to suppress the visible jump now, while the source art gets regenerated separately later.
+- `scripts/player_visual.gd`: added `RIGHT_ROW_SCALE_COMPENSATION := 1.0 / 1.15` and applied it only to row 2's `display_size` in `_draw_astronaut_sprite()`, anchored at the same foot point (`dest`'s bottom edge is always `y=16` regardless of size) so the character doesn't appear to shift or float when facing right. Explicitly documented as an approximation — the measured oversized ratio varies per sheet (1.05-1.19x), so one constant can't correct every appearance exactly; this only suppresses the worst of it. **Should be removed once the source art is regenerated to match the other 3 directions** — this is a stopgap, not a real fix, and doesn't touch the underlying PNGs at all.
+- Verification: parse-check clean (exit 0), full `--headless --editor --quit` import scan clean. New `tools/capture_right_row_scale_check.gd` renders all 4 directions of the real save's actual appearance (`male_medium_black_buzz`) side by side against a shared guide line, in an isolated sandbox (own `config/name`, deleted after use) — confirms the facing-right character now reads as consistent in size with the other 3 directions (previously visibly taller). Real project save file re-checked: unchanged.
+- Deliverable: `docs/screenshots/right_row_scale_check/four_directions_side_by_side.png`.
+- Not done this round (explicitly deferred by User's own choice): no fix to the actual source PNGs; no per-appearance/per-sheet precision tuning (one global constant for all sheets).
+- Push/tag: pending — not committed, not pushed; awaiting User's own visual confirmation in-game, and a future decision on when/whether to have the art side regenerate the right-facing frames properly (at which point this compensation should be removed).
+
+#### PLAYER-VISUAL-01 Round 14 follow-up — Full correction overshot; dialed back to a lighter partial compensation
+
+- User in-game feedback after testing Round 14's fix: "现在感觉向右的时候人物缩小了" (now it feels like facing right shrinks the character). Re-verified the underlying measurement wasn't the problem — remeasured head-top and feet-bottom separately (not just full bounding box) on the real `male_medium_black_buzz` sheet to rule out walk-pose/stride variance skewing the numbers: head-top sits ~11-14px higher and feet-bottom ~20-28px lower for row 2 than the other 3 rows, confirming a genuine whole-body scale-up (not a leg-stride artifact) and that the original `1/1.15` factor was numerically well-calibrated to the measured ratio. The mismatch was between "numerically matched" and "how it reads to the User in motion" — asked directly rather than guessing again blind.
+- User's choice: keep partial compensation, but much lighter (~6-7% smaller instead of ~13%) — takes the edge off without fully matching the measured ratio.
+- `scripts/player_visual.gd`: `RIGHT_ROW_SCALE_COMPENSATION` changed from `1.0 / 1.15` to `1.0 / 1.07`. Comment updated to record both data points (full correction measured-correct but felt like overcorrection; this is an intentional partial correction, not a math error) so a future pass doesn't "fix" this back to the fully-corrected value without knowing that was already tried and rejected.
+- Verification: parse-check clean, full import scan clean, re-ran `tools/capture_right_row_scale_check.gd` in a fresh isolated sandbox — new comparison screenshot shows facing-right still visibly a little taller than the other 3 (expected and intended for a partial correction, not a full match). Real project save file re-checked: unchanged.
+- Deliverable: `docs/screenshots/right_row_scale_check/four_directions_side_by_side_v2_light_compensation.png`.
+- Push/tag: pending — still not committed/pushed; this value is explicitly tunable further if it still doesn't feel right in the User's own playtest.
+
+#### PLAYER-VISUAL-01 Round 14 follow-up 2 — Split the difference between the two tried values
+
+- User in-game feedback after testing the `1/1.07` light compensation: "再稍微压缩一点，现在感觉向右的时候会变大一点点" (compress a bit more — still feels slightly bigger going right). Confirms `1/1.07` under-corrected (too light) the same way `1/1.15` over-corrected (too strong) in the previous round.
+- `scripts/player_visual.gd`: `RIGHT_ROW_SCALE_COMPENSATION` changed from `1.0 / 1.07` to `1.0 / 1.10` — directly between the two already-playtested values. Comment now records the full tuning history (`1/1.15` too strong -> `1/1.07` too light -> settled between) so a future pass has the actual bracketed range instead of re-discovering it.
+- Verification: parse-check clean, full import scan clean, re-ran `tools/capture_right_row_scale_check.gd` in a fresh isolated sandbox — new comparison screenshot shows the gap between facing-right and the other 3 directions further narrowed versus the `1/1.07` version. Real project save file re-checked: unchanged.
+- Deliverable: `docs/screenshots/right_row_scale_check/four_directions_side_by_side_v3.png`.
+- Push/tag: pending — still not committed/pushed; awaiting User's next in-game read (now bracketed between a value that felt too strong and one that felt too light, so further tuning should converge quickly).
+
+#### PLAYER-VISUAL-01 Round 15 — Compensation Removed; Art Rebaked the Source Frames
+
+- User: "美术修复了一轮素材，角色移动时候的大小变化补正可以删掉了" (art fixed a round of assets, the movement size-compensation can be deleted now). By this point `RIGHT_ROW_SCALE_COMPENSATION` had already been neutralized to `1.0` (with a comment pointing to `tools/bake_right_walk_scale.py` as the real fix), so the source-art mismatch from Round 14 is confirmed resolved upstream — the runtime code just hadn't caught up.
+- `scripts/player_visual.gd`: removed the `RIGHT_ROW_SCALE_COMPENSATION` const and its comment entirely, and simplified `_draw_astronaut_sprite()` back to a single unconditional `dest := Rect2(Vector2(-display_size.x * 0.5, -display_size.y + 16), display_size)` (no more per-row branching). Deleted the now-obsolete diagnostic tool `tools/capture_right_row_scale_check.gd` (untracked, existed only to verify the removed compensation).
+- Note: this file also carries a large unrelated uncommitted diff from Round 13's skin-tone shader work (sprite/rings layer split, `SkinToneShader` material, appearance-key restructuring) — left completely untouched by this round; only the scale-compensation lines were edited.
+- Verification: parse-check clean (`--check-only --script`, exit 0).
+- Push/tag: pending — not committed, not pushed (bundled with the rest of the file's pending Round 13 work).
+
+#### PLAYER-VISUAL-01 Round 15 follow-up — Removal was premature: real save's active sheet still has the asymmetry
+
+- User pushed back with two in-game screenshots ("说实话问题没解决") — facing left leaves a visible gap to a black line/wall above the head, facing right the head touches it.
+- Re-measured the **actual active sheet** for the real save (`saves/application_profile.json`: gender=女/female, hair=black/long → `female_black_long` → `res://assets/characters/player_preview/female/light/black/walk_cycle_long.png`, 128x128 frames), per-row opaque-pixel bounding box across all 6 frames:
+  - left row: top ~14-18px, bottom ~118-119, height ~102-105px.
+  - right row: top ~11-12px, bottom ~121, height ~110-111px.
+  - Right is still ~7-8px (~7%) taller than left — head sits higher in the cell *and* feet extend lower, within the identical 128x128 frame. Whatever art pass ran did not correct this specific sheet (or corrected a different one — male packs weren't re-checked this round since the real save is female).
+- Asked the User how to proceed (restore the code compensation vs. leave it and flag to art vs. user checks themselves). **User's choice: leave the code as-is (Round 15's removal stands), flag this specific sheet to art, revisit once art confirms the fix.**
+- Action needed on the art side: `assets/characters/player_preview/female/light/black/walk_cycle_long.png` right-facing row (row index 2) still needs to be re-baked/re-aligned to match the left/down/up rows' head-top and feet-bottom extents within the 128x128 cell.
+- No code changes this round (measurement/investigation only); temporary measurement script (`tools/debug_measure_walk_cycle_rows.gd`) deleted after use.
+
+### LAUNCH-SEQ-01 - Launch Cutscene (发射序列过场：倒计时/文字/视频)
+
+- User dropped `assets/ui/launch/launch_01/02/03/04.ogv` and asked for a
+  video+text cutscene inserted right after the existing "训练结束接受月面派遣"
+  flow's black-screen text scroll (`AssignmentBlackScreenScene`), before the
+  existing `ArrivalCinematicScene`. Exact spec: launch_01.ogv -> countdown
+  text (10..1, 点火, 1s/step, big & centered) -> launch_02.ogv -> fade to
+  black -> "3天后" -> launch_04.ogv. `launch_03.ogv` wasn't part of the spec.
+- Found this fills in a pre-existing TODO: `opening_flow_manager.gd`'s
+  `transition_black_screen_to_arrival()` had carried a
+  `# TODO: Insert formal LaunchSequenceScene / EarthMoonTransferScene / LandingSequenceScene here when art direction is ready`
+  comment since the opening flow was first built — this is exactly that gap.
+- New `scenes/training/LaunchSequenceScene.tscn` + `scripts/training/launch_sequence_scene.gd`,
+  self-contained (own `VideoStreamPlayer` reused across all 3 clips via
+  `.stream` swap + `.finished` await, same cover-fill-scale approach
+  `main.gd`'s title background video already uses since
+  `VideoStreamPlayer.get_size()` isn't reliable pre-decode). Draw order
+  (bottom->top): black background, video player, a black fade-overlay
+  `ColorRect`, then the message `Label` -- overlay must sit above the video
+  (covers it during the black-fade beat) and the label must sit above the
+  overlay (stays readable even at full black). Per the User's exact spec:
+  hard cuts video<->countdown<->video, but a real tweened fade specifically
+  around the "3天后" beat (the only fade the User explicitly asked for);
+  added a symmetrical fade back out before launch_04 for polish (User didn't
+  ask for it but not fading back in from black felt like an oversight to
+  leave out).
+- `scripts/training/opening_flow_manager.gd`: `transition_black_screen_to_arrival()`
+  now hands off to `LaunchSequenceScene` instead of `ArrivalCinematicScene`
+  directly; new `transition_launch_sequence_to_arrival()` (same fade/change-
+  scene/fade shape) is what `LaunchSequenceScene` itself calls once
+  launch_04 finishes, so both handoffs stay visually identical from one
+  place. `scripts/training/training_manager.gd`: added `LAUNCH_SEQUENCE`
+  const + a new `AwaitingLaunchSequence` branch in `continue_scene_path()`
+  so a save/reload mid-cutscene resumes into the launch sequence instead of
+  jumping straight to arrival (the pre-existing resume dispatch only knew
+  about "black screen" and "arrival" stages).
+- **Real defect found and fixed via direct testing, not just code review**:
+  first end-to-end sandbox run hit a genuine Godot runtime error --
+  `launch_02.ogv has no video stream`. Diagnosed with ffprobe/ffmpeg (not
+  just the in-engine error): `Headers mismatch for stream 0: expected 3
+  received 2` + `Broken file, non-keyframe not correctly marked` -- this
+  exact file was missing a required Theora header packet, isolated to this
+  one file (confirmed launch_01/04 have neither warning). Tried a lossless
+  stream-copy remux (didn't fix it -- the missing header can't be
+  reconstructed from a copy) and a full re-encode (produced a *worse*
+  result -- `Decode error rate 0.88 exceeds maximum`, meaning the original
+  file had genuine bitstream damage beyond just the header count, and
+  reported this rather than shipping a silently-corrupted re-encode.
+  Reported the exact diagnosis to the User rather than guessing at a fix.
+  User replaced the file -- turned out to be `launch_03.ogv` renamed over
+  `launch_02.ogv` (different native resolution/fps/duration: 2026x1080
+  @30fps ~2.2s vs. the other two clips' 1920x1024 @24fps ~6s) -- confirmed
+  intentional with the User rather than assuming it was a misclick, since
+  `launch_03.ogv` is now gone from the folder entirely. Updated
+  `VIDEO_NATIVE_SIZE` from one shared constant to a per-video dictionary so
+  the cover-fill scaling doesn't stretch/crop launch_02 using the wrong
+  aspect ratio.
+- Verification: parse-check clean on all 3 touched/new scripts, full
+  `--headless --editor --quit` import scan clean (registers the new
+  `.ogv`/`.tscn`/`.gd` -- confirmed `.ogv` files don't need `.import`
+  sidecars in this project, only `.uid`, matching the already-working
+  `opening_background.ogv`). New `tools/capture_launch_sequence.gd` loads
+  `LaunchSequenceScene.tscn` directly in an isolated sandbox (own
+  `config/name`, deleted after use) and grabs a screenshot near each beat's
+  real-time midpoint -- confirmed launch_01 decodes and renders (a real
+  launch-pad frame, not black), the countdown text updates and reads big/
+  centered, the (now-replaced) launch_02 decodes and renders, "3天后"
+  displays correctly against solid black, launch_04 decodes and renders,
+  and the sequence's final `print` confirmed the scene actually changed to
+  `ArrivalCinematicScene` (the pre-existing cinematic's own HUD/dialogue
+  elements visible in the final capture) -- the full handoff chain works
+  end to end.
+- Deliverables: `docs/screenshots/launch_sequence/01` through `06` (one per
+  beat + the post-handoff frame).
+- Not done this round: no skip/interrupt input (matches the existing
+  `AssignmentBlackScreenScene`'s own auto-advance-only behavior, not asked
+  for here either); `launch_03.ogv` no longer exists as a separate asset
+  (intentionally consumed as the new launch_02 per the User).
+- Push/tag: pending — not committed, not pushed; awaiting User's own
+  in-game playthrough (never self-declared VISUAL_PASS).
+
+#### LAUNCH-SEQ-01 Round 2 — Restructured to Video/Scroll-Text Alternation + New launch_05.ogv
+
+- User replaced all the launch videos again and gave a full re-spec: 5 clips
+  now (`launch_01..05.ogv`), alternating with narrative scrolling-text
+  beats (explicitly "类似截图那种滚动文字" -- pointed at a screenshot of the
+  existing `AssignmentBlackScreenScene`'s own text-scroll look), plus a
+  short big-centered countdown just before ignition. Exact new order:
+  launch_01 -> scroll (4 lines, "你回首望向远方...") -> launch_02 -> scroll
+  ("耳机传来数秒声" / "10，9，8，7，6，5，4") -> countdown (3,2,1,点火, 1s
+  each, big & centered) -> launch_03 -> scroll (2 lines, "距离发射已经过去了
+  三天...") -> launch_04 -> scroll (6 lines, "透过舷窗...") -> launch_05.
+  Round 1's single "3天后" big-text beat and its fade-to-black are gone,
+  replaced by this richer structure -- no fade requested anywhere in
+  Round 2's spec, so simplified to hard cuts throughout (matching every
+  other beat's existing precedent) and removed the now-unused
+  `fade_overlay`/`_fade_to()`/`_show_message()` machinery from Round 1.
+- Confirmed all 5 new video files via ffprobe/ffmpeg before writing any
+  code (after Round 1's launch_02 corruption): none show the
+  `Headers mismatch`/`Broken file` signature this time. Native resolutions
+  vary per clip (launch_01/04/05 = 1920x1024 @24fps; launch_02/03 =
+  2026x1080 @30fps) -- `VIDEO_NATIVE_SIZE` dictionary (added in Round 1's
+  own fix) already handled per-video sizing, just extended with the 2 new
+  entries.
+- Added `_play_scrolling_text(lines: Array)` to `launch_sequence_scene.gd`,
+  reusing `AssignmentBlackScreenScene`'s exact look (font size 30, `#d8e7f2`,
+  lines accumulate with a blank line between them, ~1.15s/line, no extra
+  hold after the last line) rather than inventing a new style, since the
+  User's spec explicitly named that scene's screenshot as the reference.
+  `_play_countdown()` kept from Round 1 but shortened to `["3","2","1","点火"]`
+  (the lead-in "10..4" is now scrolling narration instead, per the new spec).
+  `message_label` is shared by both text modes; each sets its own font
+  size/color at entry so neither leaks into the other.
+- Verification: parse-check clean, full `--headless --editor --quit` import
+  scan clean (registers `launch_05.ogv` + the updated `launch_02/03.ogv`
+  content). Re-ran the capture tool (updated timings for the new, longer
+  ~60s sequence) end to end in a fresh isolated sandbox -- all 5 videos
+  confirmed decoding/rendering real frames (not black), all 4 scrolling-
+  text beats confirmed showing the correct accumulating lines, the 3-2-1-
+  点火 countdown confirmed cycling, and the final `print` + capture
+  confirmed the scene handed off to `ArrivalCinematicScene` exactly as
+  before. One deliverable screenshot (`03_launch02_playing.png`) was
+  accidentally deleted during cleanup (filename collision with a Round 1
+  file of the same name) and had to be recaptured in a second, smaller
+  sandbox pass -- confirmed clean, no functional impact, just a documented
+  near-miss in file hygiene during cleanup.
+- Real project's `application_profile.json` SHA-256 re-checked before and
+  after this round: unchanged from the value already on record after the
+  User's own play session (`73F600BD...4AD1B47` -- see the note in this
+  round's chat reply; not caused by anything in this round or Round 1).
+- Deliverables: `docs/screenshots/launch_sequence/01` through `11` (one
+  per beat + the post-handoff frame), replacing Round 1's 6-file set.
+- Not done this round: no skip/interrupt input (same reasoning as Round 1);
+  no fades (none requested this round, Round 1's fade machinery removed as
+  unused rather than left dormant).
+- Push/tag: pending — not committed, not pushed; awaiting User's own
+  in-game playthrough (never self-declared VISUAL_PASS).
+
+#### LAUNCH-SEQ-01 Round 2 follow-up — Content-only tuning on 2 scroll beats
+
+- User in-game feedback: the "耳机传来数秒声 / 10..4" beat "刷的太快了" (flashed
+  by too fast) -- it had been one comma-joined line ("10，9，8，7，6，5，4")
+  revealed as a single scroll step, so the whole countdown lead-in appeared
+  and vanished in one 1.15s beat instead of reading as a countdown. Also
+  asked to shorten the opening beat: "你回首望向远方，/ 又低头凝望脚下的土地，"
+  (2 lines) -> "你凝望脚下的土地，" (1 line).
+- `scripts/training/launch_sequence_scene.gd` `_run_sequence()`: split
+  "10，9，8，7，6，5，4" into 7 separate scrolling lines (one number per
+  line, each getting its own full `SCROLL_LINE_SECONDS` reveal) so the
+  countdown lead-in now paces out properly instead of dumping all 7 numbers
+  on screen at once; shortened the first scroll beat to 3 lines per the
+  User's replacement text. No new mechanism needed -- `_play_scrolling_text()`
+  already reveals whatever array it's given one entry at a time, so this
+  was a content-only change to the arrays passed in, not new code.
+- Verification: parse-check clean. Rather than re-running the full ~65s
+  sequence again (the rest is unchanged and was already verified in
+  Round 2), wrote a small targeted capture
+  (`tools/capture_launch_seq_scroll_check.gd`) that jumps straight to the
+  2 revised beats and grabs a screenshot after each new line reveals --
+  confirmed the shortened opening beat reads correctly across its 3 lines,
+  and confirmed the countdown lead-in now visibly accumulates one number
+  per line (10, then 9, then 8...) instead of all 7 appearing together.
+  Real project save file re-checked: unchanged from the value already on
+  record (User's own play session, not caused by this round).
+- Push/tag: pending — not committed, not pushed; awaiting User's own
+  in-game playthrough.
+
+#### LAUNCH-SEQ-01 Round 2 follow-up 2 — Regrouped the countdown lead-in again
+
+- User in-game feedback: still "刷的太快了" (still flashes by too fast) even
+  after the one-number-per-line version (7 separate lines). Gave the exact
+  replacement grouping this time: header line, then "10，9，8，7，" as one
+  line, then "6，5，4" as one line -- 3 lines total instead of 8.
+- `scripts/training/launch_sequence_scene.gd` `_run_sequence()`: replaced
+  the 7-separate-lines array with `["耳机传来数秒声", "10，9，8，7，", "6，5，4"]`
+  per the User's exact spec. Content-only change again, same
+  `_play_scrolling_text()` mechanism.
+- Verification: parse-check clean. Reused/updated the same targeted
+  capture tool (`tools/capture_launch_seq_scroll_check.gd`, timings
+  adjusted for the now-shorter 3-line beat) in a fresh isolated sandbox --
+  confirmed all 3 lines render with the exact grouping requested. Real
+  project save file re-checked: unchanged.
+- Push/tag: pending — not committed, not pushed; awaiting User's own
+  in-game playthrough.
+
 ### TR-002 Round 3 — Full Reconstruction on the Shared Modular Atlas (lunar_base_modular_atlas)
 
 - User instruction: rebuild the hub's pure visual layer around the newly-delivered
@@ -317,6 +861,255 @@ This file is the current coordination board for active task ownership, file lock
   etc.), door gameplay logic (`DoorStateManager`/`DoorTypeDatabase`/`DoorAssetDatabase`).
 - Push/tag: `no / no` — not committed, not pushed, not tagged this round; awaiting
   User visual review.
+
+### TR-002 Round 4 — Art-Director Review: Rejected, Unified Pixel-Scale Rebuild Briefed
+
+- User review verdict (formal, matching this project's established review-verdict convention):
+  "不建议视觉验收通过" (visual acceptance not recommended). Core diagnosis, in the
+  User's own words: the room reads as three mismatched art styles glued together —
+  a clean small pixel character, an enlarged high-detail semi-realistic metal floor,
+  and a softer higher-resolution console/wall rendering style. Most concrete symptom:
+  the character currently displays at roughly half a floor tile's height, when in a
+  top-down game it should read as ~1.2–1.5 tiles tall — the tiles themselves are too
+  large/detailed, making the character look "shrunk down and pasted onto an industrial
+  concept image." Explicitly declined further micro-tweaking of Round 3's assets;
+  requested a full rebuild at a unified pixel scale instead.
+- Confirmed the diagnosis directly against `docs/screenshots/training_hub_art/01_hub_panorama_no_ui.png`
+  (Round 3's own acceptance screenshot) before writing anything — the mismatch
+  described is clearly visible: both consoles render as soft-shaded, glowing-screen
+  illustrations while the floor is a dense rivet/scratch/weathering metal texture,
+  neither matching the flat, clean-outlined character sprite.
+- Asked the User whether to (a) write a new art-generation brief now, or (b) also
+  make interim code-only scale adjustments with the existing (still mismatched)
+  assets first — chose (a) only; no code changed this round.
+- New brief: `docs/art/TR-002/TR-002_v2_unified_pixel_scale_brief.md`. Core new
+  contract (not present in the Round 1-3 briefs, which never specified a pixel-
+  density target): 64×64px logical tile display size, 80-96px character display
+  height (~1.25-1.5 tiles), 96-128px console width (~1.5-2 tiles), 2-3 discrete
+  shade levels per surface (no gradients), no photographic/soft-focus rendering
+  anywhere. Per-asset breakdown for floor/walls/doors/console/lighting, each keyed
+  to that same density. Doors specified as an explicit 4-layer structure (frame/
+  body/light-strip/direction-placard) instead of one baked door-frame image, so
+  lock/unlock state changes can stay a color swap on the light-strip layer alone
+  — explicitly notes the 4 existing direction-placard icons (`door_sign_*.png`)
+  are flat-icon style already and likely don't need regenerating, only the
+  door frame/body art does. Explicit "Do Not" list mirrors the review almost
+  verbatim (no realistic metal texture, no soft glow, console capped at 2 tiles
+  wide, doors must stay layer-separable). Includes a reminder that TR-001 (suit
+  control room) was never sliced into independent asset files either and likely
+  has the identical density mismatch — flagged for the User's own scheduling
+  decision, not actioned this round.
+- Push/tag: `no / no` — brief only, no code or asset changes; awaiting new art
+  before any integration round.
+
+### TR-002 Round 5 — Emergency Placeholder Restore (Art Removed V1 Before V2 Arrived)
+
+- User report: the art side deleted the entire V1 training-hub asset set
+  (`assets/material/` in full, plus `assets/art/training_hub/props/*` and
+  `assets/art/training_hub/tiles/hub_floor.png`, all with `.import` sidecars)
+  *before* any V2 replacement (briefed in Round 4) had actually landed —
+  `assets/art/training_hub_v2/` only contained a README, no real art. This
+  broke the game entirely: every `preload()` of those paths fails at parse
+  time regardless of whether the constant is ever read, so the scripts that
+  preloaded them failed to load, cascading outward.
+- Confirmed via `docs/art/ASSET_LIBRARY_V2_STANDARD.md` §4 (new doc, authored
+  by the art/design side, not by this session) that the doc's own stated
+  process — replace with V2 first, screenshot-verify, *then* have engineering
+  delete V1 — was not followed here; the deletion happened first.
+- Root-caused all 4 broken `preload()` sites:
+  - `scripts/data/lunar_base_atlas.gd` line 11 (`lunar_base_modular_atlas.png`)
+    — the whole atlas helper script, now unusable since its one texture is
+    gone. Deleted the file entirely after confirming (grep) nothing else in
+    `scripts/` referenced it once the two call sites below were fixed.
+  - `scripts/props/reference_prop.gd` lines 14-15 (`HubDoorHorizontalTexture`/
+    `HubDoorVerticalTexture`) plus its `_hub_console_texture` atlas-region
+    lookup in `_ready()`.
+  - `scripts/training/training_module_scene.gd` lines 90-92 inside
+    `TrainingHubBlockout` (`SignSuitHelmet`/`SignAirFan` + the atlas script
+    itself), which also drove `_build_floor()`/`_build_structure()`/
+    `_build_props()`/`_build_lighting()`/`_build_door_signage()` via
+    `LunarBaseAtlasScript.FRAMES[...]`/`.region(...)`.
+- Fix (placeholder, not new art): rather than re-preloading anything,
+  `TrainingHubBlockout` now simply `extends TrainingRoomBlockout` with an
+  empty body, inheriting the exact same flat-fill/grid/wall/light `_draw()`
+  already used (and known-working) for 宇航服整备室 — zero art dependencies.
+  `reference_prop.gd`'s `hub_door_horizontal`/`hub_door_vertical`/
+  `hub_console` prop_kinds now fall through to the existing generic
+  `_draw_door()`/`_draw_console()` primitives instead of `_draw_textured_prop()`
+  (removed, now unused). Doors/console stay fully interactive (locked-state
+  dimming, prompts, terminal screen-state colors all still work — those come
+  from `TrainingTargetVisual`/`ReferenceProp`'s existing state-driven drawing,
+  not from the removed art). Door-direction signage icons are dropped for now
+  (no placeholder substitute) since they were purely decorative dressing.
+  `TrainingHubBlockout` kept as its own (now trivial) subclass rather than
+  pointing `_hub_area_config()`'s `"blockout"` straight at `TrainingRoomBlockout`,
+  so it stays the one attachment point for the real V2 integration once that
+  art actually arrives.
+- Verification: `--check-only --script` on both edited files (exit 0, no
+  errors) + a full `--headless --editor --quit` project-wide import pass
+  (exit 0, no error/parse/SCRIPT ERROR/Failed lines) + a scene-load capture
+  (`tools/capture_training_hub_art.gd`, reused as-is) run against a disposable
+  isolated sandbox copy (own `config/name`, deleted after use) confirming
+  `TrainingBaseMap.tscn` loads the hub room, renders the placeholder floor/
+  walls/lights, locked-door panels, console screens, and the player sprite
+  with no crash. Real project's `application_profile.json` SHA-256
+  (`89EB60CD...5154E3E`) confirmed identical before and after this round —
+  no gameplay session was run against the real project, only against the
+  sandbox copy.
+- Not done this round: no new placeholder art for door-direction signage; no
+  V2 integration (still blocked on real V2 assets per the Round 4 brief).
+- Push/tag: pending — code fix only, not yet committed/pushed; awaiting User
+  go-ahead.
+
+### TR-002-BLOCKOUT-01 — Blockout Scene Verification (Playable Space Prototype)
+
+- User request (explicit "白盒场景" spec ahead of any real art): confirm
+  訓練中控室's playable-space prototype — 760×520 logical canvas, one central
+  hall, 4 directional entrances (top=配电房, left=宇航服整备室, right=空气系统
+  控制室, bottom=训练温室), center terminal placeholder, player spawn point —
+  and produce an annotated blockout screenshot. Explicitly no art work.
+- Finding: this layout already exists verbatim in `_hub_area_config()`
+  (`scripts/training/training_base_map.gd`) from prior rounds, and after
+  Round 5's emergency placeholder fix `TrainingHubBlockout` now renders it
+  with zero art dependencies — so this round is verification + deliverable
+  only, no code changes.
+- Verified programmatically (not just by inspection) via a new tool,
+  `tools/capture_tr002_blockout_verification.gd`, run against a disposable
+  isolated sandbox copy (own `config/name`, deleted after use):
+  1. Confirmed `training_area.size` is always ≥ 760×520 (the design canvas
+     never gets cropped — there's no scrolling `Camera2D` in this scene at
+     all; the whole room is presented in one fixed, uniformly-scaled panel,
+     same as every other training room) — satisfies "摄像机范围合理" by
+     construction.
+  2. Drove the player toward all 4 doors and the terminal using the game's
+     own input actions (`ui_left/right/up/down`) and its own proximity check
+     (`_is_near`, the same 95px-radius function `_check_door_crossing`/
+     `_try_interact` use) — all 5 targets reached "near" range, all stayed
+     inside the movement-clamp bounds (`Rect2(36,36 .. size-36,size-36)`,
+     confirmed via `has_point` at every frame of the walk).
+  3. Confirmed there is no separate per-wall collision system in this game —
+     movement is clamped to one rectangular bounds Rect2 (`_move_player`'s
+     `movement_bounds`), and doors are proximity/state-gated triggers, not
+     physical colliders — so "卡墙"/"门口碰撞" issues are structurally not
+     possible here; this is the same architecture already used by every
+     other training room, not something specific to this task.
+  4. Confirms item 7 (layout coordinate-stability for future real-Tile/Prop
+     swap): `_hub_area_config()`'s door/terminal/player_start values are
+     plain design-space `Vector2`s consumed through `_room_point()`/
+     `_room_size()` — replacing `TrainingHubBlockout`'s placeholder drawing
+     with real tile/prop art later touches none of these coordinates.
+  5. Found (not fixed, out of scope, cosmetically negligible): `_ready()`
+     (line 163) calls `_load_area(current_area_id, module_data.get("player_start", Vector2(350, 320)))`
+     — `module_data` is still the *previous* (unset/empty) value at that
+     call site, since `_load_area()` itself is what assigns `module_data =
+     areas[area_id]`, one line later. So a fresh game start always spawns at
+     the hardcoded fallback `(350, 320)`, never at whichever area's own
+     configured `player_start` (hub's is `(350, 330)`, only 10px off in this
+     case) — confirmed empirically (script printed `spawn=(350.0, 320.0)`).
+     Every other `_load_area()` call site (door crossings, `_switch_room`)
+     passes an explicit `door_spawn`/design point instead, so this only
+     affects the very first spawn of a session and is invisible in practice
+     (10px, same open floor area, no wall nearby). Flagging for the User's
+     own call on whether it's worth a one-line fix later.
+- Deliverable: `docs/screenshots/training_hub_art/02_tr002_blockout_verification_annotated.png`
+  — labeled 玩家出生点 (green dot) / 终端位置 (cyan box) / 门位置×4 (orange
+  boxes, each with the door's own Chinese label) / 可移动区域·碰撞边界 (white
+  outline, room-wide since there's no separate wall collision).
+- Verification: `--check-only --script` on the new tool script (exit 0) +
+  full run against the isolated sandbox (see above) + real project's
+  `application_profile.json` SHA-256 (`89EB60CD...5154E3E`) confirmed
+  unchanged before/after (no gameplay session touched the real project).
+- Push/tag: pending — new tool script + 1 screenshot only, no gameplay code
+  changed this round; bundling with Round 5's fix for the next commit,
+  awaiting User go-ahead.
+
+### TR-002 Round 6 — Real V2 Art Integration (assets/art/training_hub_v2)
+
+- User: "美术素材做完了，重构训练中控室" + pointed at
+  `assets/art/training_hub_v2/TR-002_V2_ASSET_MANIFEST.md` (art-authored,
+  not by this session). Replaces Round 5's emergency `TrainingRoomBlockout`-
+  inherited placeholder with the real, unified-pixel-scale V2 asset set.
+- Pre-integration audit (before touching any code): confirmed all 24
+  delivered PNGs against the manifest (dimensions, RGBA/alpha, multiples of
+  64) via a Python/PIL scan — all match. Visually reviewed every asset;
+  style genuinely satisfies Round 4's rejection (flat pixel fill, 2-3 shade
+  levels, no soft glow/realistic metal). Found 2 defects, flagged rather
+  than silently worked around or blocked on:
+  1. `doors/door_status_light_{blue,amber,green}_01.png` are **byte-for-byte
+     identical** (confirmed via pixel diff, not just a visual guess) — the
+     intended per-door idle color (蓝=宇航服/空气, 橙=配电房, 绿=训练温室)
+     isn't actually baked into the art. Mitigated in code instead of
+     blocking on redelivery: `reference_prop.gd` loads ONE neutral shape and
+     tints it per door identity (keyed off `prop_label`) with `modulate`,
+     using colors already established elsewhere in this file (amber
+     warning / tech blue / stable green); red overrides all of them when
+     `damaged` (locked), matching every other locked/fault state in this
+     file. If art redelivers genuinely distinct files later, drop the tint.
+  2. `walls/wall_corner_outer_01.png` is an exact duplicate of
+     `wall_corner_outer_rot_0.png`, not listed in the manifest — unused,
+     left in place (not deleted unilaterally — the project's own V1-deletion
+     incident this session is exactly why), flagged for the art side to
+     clean up whenever convenient.
+- `scripts/props/reference_prop.gd`: `hub_door_horizontal`/`hub_door_vertical`
+  now layer frame -> sign -> status-light live (not one baked image), so
+  lock-state color and future sign swaps stay code-driven, per the
+  manifest's own "Godot layering" note. Door identity (which of the 4 signs/
+  colors) is read from `prop_label` (already set verbatim from
+  `_hub_area_config()`'s per-door "label") since `hub_door_horizontal`/
+  `_vertical` are shared prop_kinds across 2 doors each. `hub_console` now
+  draws the real console art with a tinted overlay on just the baked
+  screen's sub-rect (sampled by color, not guessed) so status_text-driven
+  feedback (fault/stabilizing/stable) still works without the art side
+  needing to bake N screen states. Removed the redundant "锁定" text overlay
+  from hub doors after seeing it visually clash with the sign icon in a
+  screenshot — the status light turning red plus the existing global
+  lock-state `modulate` dimming already conveys locked, matching the
+  original brief's own intent ("代码根据锁定状态换色", recolor not caption).
+- `scripts/training/training_module_scene.gd`: `TrainingHubBlockout` rebuilt
+  (floor TileMapLayer at real 64px tiles / perimeter wall runs with the same
+  door gaps as before / 4 rotated outer corners / 2 ceiling-light strips /
+  3 wall-adjacent decorative props) at `ROOM_DESIGN_SIZE = Vector2(760,520)`,
+  matching the outer script's own const exactly. Door frame/sign/light and
+  the console are deliberately NOT drawn here — they live in
+  reference_prop.gd's props (instantiated exactly at each door/terminal's
+  real interactive rect) so art can never drift out of alignment with the
+  real hitboxes.
+- Real bug caught and fixed via screenshot review, not just code review:
+  first pass scaled `art_root` **uniformly** (aspect-preserving, like the
+  deleted pre-Round-5 version did) — at this session's actual
+  `training_area.size` (1528x730, a much wider aspect than the 760:520
+  design canvas), that left a ~460px black gap and visibly disconnected the
+  right wall/door from the rest of the room, because `_room_point()`
+  (driving door/terminal/player positions) uses non-uniform per-axis
+  stretch with no letterboxing. Fixed by scaling `art_root` non-uniformly
+  (`size / ROOM_DESIGN_SIZE` per axis) to exactly match `_room_scale()`, so
+  floor/wall art now lines up with the real door hitboxes with no gap.
+  Considered compensating individual sprites (corners/lights/props) back to
+  undistorted squares, but rejected it — that would un-align them from the
+  (still non-uniformly stretched) wall runs/floor grid at their seams, a
+  worse defect than uniform whole-room stretch.
+- Also fixed via screenshot review: a ceiling-light decal happened to sit
+  directly above 配电房's door frame (both near-centered at the same x) —
+  moved the 2 ceiling lights outside `TOP_BOTTOM_GAP` entirely.
+- Verification: `--check-only --script` on both edited files (exit 0) after
+  a `--headless --editor --quit` import pass (new PNGs need this before
+  `preload()` resolves — exit 0, no errors) + full project-wide import scan
+  (exit 0) + 4 rounds of scene-load capture + close-crop visual review
+  against a disposable isolated sandbox (own `config/name`, deleted after
+  use each time) + a re-run of `tools/capture_tr002_blockout_verification.gd`
+  confirming all 4 doors + terminal are still reachable and movement stays
+  in-bounds (unaffected by the art swap, since `_hub_area_config()` itself
+  wasn't touched). Real project's `application_profile.json` SHA-256
+  (`89EB60CD...5154E3E`) confirmed unchanged before/after.
+- Deliverable: `docs/screenshots/training_hub_art/03_hub_v2_real_art.png`.
+- Not done this round: TR-001 (suit control room) likely has the same
+  pixel-density mismatch, explicitly out of scope (flagged back in Round 4,
+  still the User's own call on scheduling); no fix for the 2 flagged asset
+  defects above (mitigated in code / flagged only, per the project's own
+  "don't delete/rework art unilaterally" discipline).
+- Push/tag: pending — awaiting User's own visual review before any
+  VISUAL_PASS is declared (never self-declared by this session) and before
+  committing/pushing.
 
 ### TR-002 - Training Hub Real Art Integration (训练中控室美术资源接入)
 

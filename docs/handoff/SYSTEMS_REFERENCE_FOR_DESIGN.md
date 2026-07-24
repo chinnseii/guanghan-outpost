@@ -2818,3 +2818,64 @@ supply 走动态）/ `get_active_task_id(category)` / `get_task_state(task_id)` 
   任务/探索目标可加 `exploration` 分类接进来。
 - mission 目前只覆盖第一周弧（Day01/Day02/Week One）；后续阶段/章节再加。
 - `tasks_changed` 信号暂无订阅者；HUD 目前是查询式（在 `_update_hud` 里取）。
+
+## 程序化区块地图原型 WorldStateManager / WorldGenerator / ChunkManager
+
+### 定位
+用户提出的"无限程序化区块地图"验证原型（见 `docs/handoff/CURRENT.md` 的独立
+条目、`docs/design/LUNAR_SURFACE_MAP.md` 之外的另一套机制——后者是人工逐步
+追加区域/POI 的持久大地图，靠氧电预算限制范围；这里是新加的、按种子确定性
+生成的区块系统，两者并存，不是替换关系）。**本节只覆盖验证原型范围**：固定
+种子 + 5×5 区块加载窗口 + 月岩/矿点生成 + 离开重回一致 + 采集/建筑改动持久化。
+走独立 Dev 菜单入口（`scenes/surface/ProceduralChunkPrototypeScene.tscn`），
+完全不改 `lunar_surface_scene.gd` / `near_base_chunk.gd`。
+
+代码：
+- `scripts/world/WorldGenerator.gd`（纯静态工具类，无 autoload，`preload` 引用）——
+  `generate_chunk(world_seed, chunk_x, chunk_y, chunk_px) -> Dictionary`，
+  唯一入口，产出 `{terrain_cells, resource_nodes}`。**只由 `(world_seed, chunk_x,
+  chunk_y)` 决定**，不依赖任何外部状态/调用次数，保证同一存档反复进出同一
+  区块内容完全一致。
+- `scripts/world/ChunkManager.gd`（非 autoload，每个世界容器场景自己持有一个
+  实例）——`update(player_world_pos, host)` 维护以玩家当前区块坐标为中心的
+  5×5 加载窗口（覆盖"3×3 常驻+下一圈预取"），卸载只 `queue_free()` 节点本身，
+  **绝不删除已存档的玩家改动**（那些数据在 `WorldStateManager` 里，不在区块
+  节点上）。
+- `scripts/surface/chunks/procedural_chunk.gd` + `scenes/surface/chunks/ProceduralChunk.tscn`
+  ——通用可复用区块场景（同一份场景在不同坐标反复实例化），`CHUNK_TILES =
+  Vector2i(48, 48)`（`TILE=64` px，即 3072×3072px/块）。`_ready()` 里：调
+  `WorldGenerator.generate_chunk()` 拿到基础生成层（**永不落盘**）、调
+  `WorldStateManager.get_modifications_for_chunk()` 拿改动层叠加/过滤
+  （已采空的矿点不画、已放置的建筑桩额外画出来）。
+- `scripts/managers/WorldStateManager.gd`（新 autoload，第 21 个；`class_name
+  GuanghanWorldStateManager`）——持有 `world_seed` / `player_position` /
+  `discovered_chunks`（当 set 用的 Dictionary）/ `modified_chunks`
+  （`chunk_key("x_y")` → `{depleted_node_ids, structures, removed_structures,
+  events_triggered}`）。`world_seed` 只在存档文件不存在时用一次真随机数生成，
+  此后永远读同一个值——**全系统唯一允许用非确定性随机数的地方**。
+
+### 存档
+`user://saves/world_state.json`，走标准 manager 存档模式（`SAVE_PATH` +
+`serialize()`/`deserialize()`/`load_state()`/`_save_state()`，与
+`BackpackManager.gd` 同款），已接入 `FullSaveOrchestrator.provider_specs()`
+（`order: 95`，backpack=90 与 storage=100 之间）。
+
+### 与其它系统的接口
+- `BackpackManager.add_item("MT-OR-001", yield_amount)`——采集矿点/月岩产出
+  存进背包（`scripts/data/ItemDatabase.gd` 新增的 stackable material 物品）。
+- 玩家位置只在跨区块边界时写入 `WorldStateManager`（`set_player_position()`），
+  不逐帧写，避免每帧同步写文件。
+
+### 已验证（隔离沙盒 + 独立进程重启，见 `docs/handoff/CURRENT.md` 该条目）
+5×5=25 区块窗口正确加载；同一区块卸载重进内容完全一致（含已采空节点保持
+消失）；采集正确入背包；放置的建筑桩、已采空节点在**真正重启进程**后仍存在
+（`FullSaveOrchestrator` 正确恢复）。种子混合函数第一版有真实的碰撞 bug
+（`(seed*const)^coord` 扩散不足），已换成 Murmur3 fmix32 风格的雪崩混合 +
+zigzag 处理负坐标，`-20..20 x -20..20` 扫描验证无碰撞。
+
+### 待办 / 设计可扩展点
+- `NearBaseChunk`（192×192 格，按氧电预算半径写死）和新区块网格（48 格）
+  尺寸不匹配，"近基地要不要塞进区块坐标系"尚未决定，留待下一轮讨论。
+- 迷雾/地图 UI、月球车、昼夜门槛、mid/far POI、NPC、真正的建筑系统均未做
+  （建筑目前只是一个占位 `ColorRect` 桩，只验证持久化，不是完整玩法）。
+- 矿石/月岩目前共用同一个物品 ID（`MT-OR-001`），只是标记颜色/名字不同。

@@ -19,5 +19,13 @@ Thumbs.db
 *.tmp
 *.log
 
+# Python tooling cache (tools/*.py asset-processing scripts)
+__pycache__/
+*.pyc
+
+# Raw asset-delivery drop zone -- staging area only, never the source of
+# truth (processed output lands in assets/); never tracked in git history.
+/user/
+
 # Local-only launch tweaks can stay tracked if useful, but keep backups out.
 *.bak

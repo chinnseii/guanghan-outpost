@@ -38,6 +38,7 @@ const TRAINING_BASE_MAP := "res://scenes/training/TrainingBaseMap.tscn"
 const FINAL_ASSESSMENT := "res://scenes/training/FinalAssessmentScene.tscn"
 const MISSION_NOTICE := "res://scenes/training/MissionAssignmentNoticeScene.tscn"
 const BLACK_SCREEN := "res://scenes/training/AssignmentBlackScreenScene.tscn"
+const LAUNCH_SEQUENCE := "res://scenes/training/LaunchSequenceScene.tscn"
 const ARRIVAL_CINEMATIC := "res://scenes/arrival/ArrivalCinematicScene.tscn"
 const BASE_AIRLOCK := "res://scenes/base/BaseAirlockEntryScene.tscn"
 const OLD_BASE_INTERIOR := "res://scenes/base/OldBaseInteriorScene.tscn"
@@ -476,8 +477,11 @@ static func continue_scene_path() -> String:
 		return base_scene
 	var data := _read_progress_data()
 	if bool(data.get("MissionAssignmentAccepted", false)):
-		if String(data.get("OpeningFlowStage", "")) == "AwaitingArrivalCinematic":
+		var opening_stage := String(data.get("OpeningFlowStage", ""))
+		if opening_stage == "AwaitingArrivalCinematic":
 			return ARRIVAL_CINEMATIC
+		if opening_stage == "AwaitingLaunchSequence":
+			return LAUNCH_SEQUENCE
 		return BLACK_SCREEN
 	if bool(data.get("FinalAssessmentCompleted", false)):
 		return MISSION_NOTICE

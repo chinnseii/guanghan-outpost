@@ -1,0 +1,15 @@
+{
+  "frame_size": {
+    "width": 512,
+    "height": 512
+  },
+  "layout": {
+    "columns": 4,
+    "rows": 2,
+    "order": "row-major"
+  },
+  "frames": 7,
+  "direction": "up/back",
+  "final_frame_source": "assets/characters/suits/walk_cycle_red.png",
+  "note": "Frames 00-05 use helmet pixels cropped from the shipped rear idle; frame 06 is the exact shipped rear idle frame."
+}

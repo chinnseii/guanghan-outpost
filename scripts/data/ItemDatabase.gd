@@ -486,6 +486,28 @@ const ITEMS := {
 		"tags": ["material", "greenhouse"],
 		"quality": 1,
 	},
+	"MT-OR-001": {
+		"display_name": "月岩矿石样本",
+		"category": "material",
+		"subcategory": "ore",
+		"description": "月面开采的原始矿石样本，可用于后续加工或研究。",
+		"weight": 3.0,
+		"stackable": true,
+		"max_stack": 99,
+		"can_eat": false,
+		"can_use": false,
+		"use_model": "none",
+		"consumable": false,
+		"has_durability": false,
+		"max_durability": 0.0,
+		"durability_loss_per_use": 0.0,
+		"broken_when_zero": false,
+		"effects": {},
+		"use_time_minutes": 0,
+		"storage_type": "stack",
+		"tags": ["material", "ore", "surface_resource"],
+		"quality": 1,
+	},
 
 	# -- Training-only materials: exist purely for training rooms' own
 	# InventoryManager containers (e.g. "training_03_parts"), never added to

@@ -1,0 +1,118 @@
+{
+  "sheets": {
+    "assets\\characters\\player_preview\\female\\light\\auburn\\walk_cycle_long.png": {
+      "hair_color": "auburn",
+      "target_hue": 0.027186761229314405,
+      "target_saturation": 0.6956521739130435,
+      "recolored_pixels": 126486
+    },
+    "assets\\characters\\player_preview\\female\\light\\auburn\\walk_cycle_ponytail.png": {
+      "hair_color": "auburn",
+      "target_hue": 0.01243781094527363,
+      "target_saturation": 0.6615384615384615,
+      "recolored_pixels": 84023
+    },
+    "assets\\characters\\player_preview\\female\\light\\auburn\\walk_cycle_short.png": {
+      "hair_color": "auburn",
+      "target_hue": 0.019230769230769235,
+      "target_saturation": 0.616,
+      "recolored_pixels": 63137
+    },
+    "assets\\characters\\player_preview\\female\\light\\black\\walk_cycle_long.png": {
+      "hair_color": "black",
+      "target_hue": 0.20000000000000004,
+      "target_saturation": 0.20370370370370364,
+      "recolored_pixels": 28841
+    },
+    "assets\\characters\\player_preview\\female\\light\\black\\walk_cycle_native.png": {
+      "hair_color": "black",
+      "target_hue": 0.20000000000000004,
+      "target_saturation": 0.2051282051282052,
+      "recolored_pixels": 465233
+    },
+    "assets\\characters\\player_preview\\female\\light\\black\\walk_cycle_ponytail.png": {
+      "hair_color": "black",
+      "target_hue": 0.18888888888888888,
+      "target_saturation": 0.24590163934426235,
+      "recolored_pixels": 82770
+    },
+    "assets\\characters\\player_preview\\female\\light\\black\\walk_cycle_short.png": {
+      "hair_color": "black",
+      "target_hue": 0.18518518518518512,
+      "target_saturation": 0.18518518518518517,
+      "recolored_pixels": 58866
+    },
+    "assets\\characters\\player_preview\\female\\light\\blonde\\walk_cycle_long.png": {
+      "hair_color": "blonde",
+      "target_hue": 0.10843373493975905,
+      "target_saturation": 0.44845360824742264,
+      "recolored_pixels": 120081
+    },
+    "assets\\characters\\player_preview\\female\\light\\blonde\\walk_cycle_ponytail.png": {
+      "hair_color": "blonde",
+      "target_hue": 0.10243055555555554,
+      "target_saturation": 0.46009389671361506,
+      "recolored_pixels": 79441
+    },
+    "assets\\characters\\player_preview\\female\\light\\blonde\\walk_cycle_short.png": {
+      "hair_color": "blonde",
+      "target_hue": 0.10256410256410255,
+      "target_saturation": 0.49746192893401014,
+      "recolored_pixels": 60284
+    },
+    "assets\\characters\\player_preview\\male\\medium\\auburn\\walk_cycle_buzz.png": {
+      "hair_color": "auburn",
+      "target_hue": 0.04852320675105485,
+      "target_saturation": 0.6638655462184874,
+      "recolored_pixels": 45714
+    },
+    "assets\\characters\\player_preview\\male\\medium\\auburn\\walk_cycle_long.png": {
+      "hair_color": "auburn",
+      "target_hue": 0.02647975077881621,
+      "target_saturation": 0.7890625,
+      "recolored_pixels": 56610
+    },
+    "assets\\characters\\player_preview\\male\\medium\\auburn\\walk_cycle_short.png": {
+      "hair_color": "auburn",
+      "target_hue": 0.025089605734767022,
+      "target_saturation": 0.6948051948051948,
+      "recolored_pixels": 40745
+    },
+    "assets\\characters\\player_preview\\male\\medium\\black\\walk_cycle_buzz.png": {
+      "hair_color": "black",
+      "target_hue": 0.15740740740740744,
+      "target_saturation": 0.32727272727272727,
+      "recolored_pixels": 32494
+    },
+    "assets\\characters\\player_preview\\male\\medium\\black\\walk_cycle_long.png": {
+      "hair_color": "black",
+      "target_hue": 0.22222222222222224,
+      "target_saturation": 0.2222222222222222,
+      "recolored_pixels": 47150
+    },
+    "assets\\characters\\player_preview\\male\\medium\\black\\walk_cycle_short.png": {
+      "hair_color": "black",
+      "target_hue": 0.1410256410256411,
+      "target_saturation": 0.15254237288135597,
+      "recolored_pixels": 11360
+    },
+    "assets\\characters\\player_preview\\male\\medium\\blonde\\walk_cycle_buzz.png": {
+      "hair_color": "blonde",
+      "target_hue": 0.10151515151515154,
+      "target_saturation": 0.5957446808510639,
+      "recolored_pixels": 45809
+    },
+    "assets\\characters\\player_preview\\male\\medium\\blonde\\walk_cycle_long.png": {
+      "hair_color": "blonde",
+      "target_hue": 0.12424242424242422,
+      "target_saturation": 0.5868544600938967,
+      "recolored_pixels": 57745
+    },
+    "assets\\characters\\player_preview\\male\\medium\\blonde\\walk_cycle_short.png": {
+      "hair_color": "blonde",
+      "target_hue": 0.11755952380952382,
+      "target_saturation": 0.5913461538461539,
+      "recolored_pixels": 42864
+    }
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "female_longhair_skin_mask.png": {
+    "source": "user\\female_light_black_longhair_walk_4dir\\female_light_black_longhair_walk_4dir_6x4.png",
+    "size": [
+      3072,
+      2048
+    ],
+    "pixels": {
+      "shadow": 5395,
+      "midtone": 12167,
+      "highlight": 25152
+    }
+  },
+  "female_ponytail_skin_mask.png": {
+    "source": "user\\female_light_black_ponytail_walk\\female_light_black_ponytail_walk_4dir_6x4.png",
+    "size": [
+      1536,
+      1024
+    ],
+    "pixels": {
+      "shadow": 1788,
+      "midtone": 3275,
+      "highlight": 6768
+    }
+  },
+  "female_shorthair_skin_mask.png": {
+    "source": "user\\female_light_black_shorthair_walk\\female_light_black_shorthair_walk_4dir_6x4.png",
+    "size": [
+      1536,
+      1024
+    ],
+    "pixels": {
+      "shadow": 1865,
+      "midtone": 3365,
+      "highlight": 5435
+    }
+  },
+  "male_buzzcut_skin_mask.png": {
+    "source": "user\\male_medium_black_buzzcut_walk\\male_medium_black_buzzcut_walk_4dir_6x4.png",
+    "size": [
+      1536,
+      1024
+    ],
+    "pixels": {
+      "shadow": 10324,
+      "midtone": 6660,
+      "highlight": 26900
+    }
+  },
+  "male_shortfringe_skin_mask.png": {
+    "source": "user\\male_medium_black_shortfringe_walk\\male_medium_black_shortfringe_walk_4dir_6x4.png",
+    "size": [
+      1536,
+      1024
+    ],
+    "pixels": {
+      "shadow": 3528,
+      "midtone": 5810,
+      "highlight": 24791
+    }
+  },
+  "male_longhair_skin_mask.png": {
+    "source": "user\\male_medium_black_longhair_walk\\male_medium_black_longhair_walk_4dir_6x4.png",
+    "size": [
+      1536,
+      1024
+    ],
+    "pixels": {
+      "shadow": 2810,
+      "midtone": 4245,
+      "highlight": 25702
+    }
+  }
+}

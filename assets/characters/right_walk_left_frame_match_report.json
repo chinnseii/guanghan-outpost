@@ -1,0 +1,2352 @@
+{
+  "sheets": {
+    "assets\\characters\\player_preview\\female\\light\\auburn\\walk_cycle_long.png": {
+      "per_frame": [
+        {
+          "factor": 0.9575471698113207,
+          "tx": 4.966981132075477,
+          "ty": 10.146226415094361,
+          "left_top": 36,
+          "left_bottom": 239,
+          "left_height": 203,
+          "right_top_before": 27,
+          "right_bottom_before": 239,
+          "right_height_before": 212
+        },
+        {
+          "factor": 0.9811320754716981,
+          "tx": 2.2075471698113205,
+          "ty": 4.509433962264154,
+          "left_top": 31,
+          "left_bottom": 239,
+          "left_height": 208,
+          "right_top_before": 27,
+          "right_bottom_before": 239,
+          "right_height_before": 212
+        },
+        {
+          "factor": 0.9905660377358491,
+          "tx": 1.1037735849056602,
+          "ty": 2.254716981132077,
+          "left_top": 29,
+          "left_bottom": 239,
+          "left_height": 210,
+          "right_top_before": 27,
+          "right_bottom_before": 239,
+          "right_height_before": 212
+        },
+        {
+          "factor": 0.9764150943396226,
+          "tx": 2.7712264150943455,
+          "ty": 5.636792452830207,
+          "left_top": 32,
+          "left_bottom": 239,
+          "left_height": 207,
+          "right_top_before": 27,
+          "right_bottom_before": 239,
+          "right_height_before": 212
+        },
+        {
+          "factor": 0.9622641509433962,
+          "tx": 4.415094339622641,
+          "ty": 9.018867924528308,
+          "left_top": 35,
+          "left_bottom": 239,
+          "left_height": 204,
+          "right_top_before": 27,
+          "right_bottom_before": 239,
+          "right_height_before": 212
+        },
+        {
+          "factor": 0.9716981132075472,
+          "tx": 3.3254716981132066,
+          "ty": 6.764150943396231,
+          "left_top": 33,
+          "left_bottom": 239,
+          "left_height": 206,
+          "right_top_before": 27,
+          "right_bottom_before": 239,
+          "right_height_before": 212
+        }
+      ],
+      "after": [
+        {
+          "left_top": 36,
+          "left_bottom": 239,
+          "left_height": 203,
+          "right_top": 36,
+          "right_bottom": 239,
+          "right_height": 203
+        },
+        {
+          "left_top": 31,
+          "left_bottom": 239,
+          "left_height": 208,
+          "right_top": 31,
+          "right_bottom": 239,
+          "right_height": 208
+        },
+        {
+          "left_top": 29,
+          "left_bottom": 239,
+          "left_height": 210,
+          "right_top": 29,
+          "right_bottom": 239,
+          "right_height": 210
+        },
+        {
+          "left_top": 32,
+          "left_bottom": 239,
+          "left_height": 207,
+          "right_top": 32,
+          "right_bottom": 239,
+          "right_height": 207
+        },
+        {
+          "left_top": 35,
+          "left_bottom": 239,
+          "left_height": 204,
+          "right_top": 35,
+          "right_bottom": 239,
+          "right_height": 204
+        },
+        {
+          "left_top": 33,
+          "left_bottom": 239,
+          "left_height": 206,
+          "right_top": 33,
+          "right_bottom": 239,
+          "right_height": 206
+        }
+      ]
+    },
+    "assets\\characters\\player_preview\\female\\light\\auburn\\walk_cycle_ponytail.png": {
+      "per_frame": [
+        {
+          "factor": 0.91324200913242,
+          "tx": 10.974885844748865,
+          "ty": 20.474885844748883,
+          "left_top": 36,
+          "left_bottom": 236,
+          "left_height": 200,
+          "right_top_before": 17,
+          "right_bottom_before": 236,
+          "right_height_before": 219
+        },
+        {
+          "factor": 0.9144144144144144,
+          "tx": 10.826576576576578,
+          "ty": 20.198198198198213,
+          "left_top": 33,
+          "left_bottom": 236,
+          "left_height": 203,
+          "right_top_before": 14,
+          "right_bottom_before": 236,
+          "right_height_before": 222
+        },
+        {
+          "factor": 0.90625,
+          "tx": 11.859375,
+          "ty": 22.125,
+          "left_top": 33,
+          "left_bottom": 236,
+          "left_height": 203,
+          "right_top_before": 12,
+          "right_bottom_before": 236,
+          "right_height_before": 224
+        },
+        {
+          "factor": 0.8839285714285714,
+          "tx": 14.683035714285719,
+          "ty": 27.39285714285714,
+          "left_top": 38,
+          "left_bottom": 236,
+          "left_height": 198,
+          "right_top_before": 12,
+          "right_bottom_before": 236,
+          "right_height_before": 224
+        },
+        {
+          "factor": 0.9017857142857143,
+          "tx": 12.42410714285714,
+          "ty": 23.178571428571416,
+          "left_top": 34,
+          "left_bottom": 236,
+          "left_height": 202,
+          "right_top_before": 12,
+          "right_bottom_before": 236,
+          "right_height_before": 224
+        },
+        {
+          "factor": 0.9107142857142857,
+          "tx": 11.29464285714286,
+          "ty": 21.071428571428584,
+          "left_top": 32,
+          "left_bottom": 236,
+          "left_height": 204,
+          "right_top_before": 12,
+          "right_bottom_before": 236,
+          "right_height_before": 224
+        }
+      ],
+      "after": [
+        {
+          "left_top": 36,
+          "left_bottom": 236,
+          "left_height": 200,
+          "right_top": 36,
+          "right_bottom": 236,
+          "right_height": 200
+        },
+        {
+          "left_top": 33,
+          "left_bottom": 236,
+          "left_height": 203,
+          "right_top": 33,
+          "right_bottom": 236,
+          "right_height": 203
+        },
+        {
+          "left_top": 33,
+          "left_bottom": 236,
+          "left_height": 203,
+          "right_top": 33,
+          "right_bottom": 236,
+          "right_height": 203
+        },
+        {
+          "left_top": 38,
+          "left_bottom": 236,
+          "left_height": 198,
+          "right_top": 38,
+          "right_bottom": 236,
+          "right_height": 198
+        },
+        {
+          "left_top": 34,
+          "left_bottom": 236,
+          "left_height": 202,
+          "right_top": 34,
+          "right_bottom": 236,
+          "right_height": 202
+        },
+        {
+          "left_top": 32,
+          "left_bottom": 236,
+          "left_height": 204,
+          "right_top": 32,
+          "right_bottom": 236,
+          "right_height": 204
+        }
+      ]
+    },
+    "assets\\characters\\player_preview\\female\\light\\auburn\\walk_cycle_short.png": {
+      "per_frame": [
+        {
+          "factor": 1.0052356020942408,
+          "tx": -0.6544502617800985,
+          "ty": -1.1832460732984202,
+          "left_top": 34,
+          "left_bottom": 226,
+          "left_height": 192,
+          "right_top_before": 35,
+          "right_bottom_before": 226,
+          "right_height_before": 191
+        },
+        {
+          "factor": 1.005181347150259,
+          "tx": -0.6450777202072562,
+          "ty": -1.1709844559585463,
+          "left_top": 32,
+          "left_bottom": 226,
+          "left_height": 194,
+          "right_top_before": 33,
+          "right_bottom_before": 226,
+          "right_height_before": 193
+        },
+        {
+          "factor": 1.0,
+          "tx": 0.0,
+          "ty": 0.0,
+          "left_top": 33,
+          "left_bottom": 226,
+          "left_height": 193,
+          "right_top_before": 33,
+          "right_bottom_before": 226,
+          "right_height_before": 193
+        },
+        {
+          "factor": 0.9792746113989638,
+          "tx": 2.590673575129529,
+          "ty": 4.683937823834185,
+          "left_top": 37,
+          "left_bottom": 226,
+          "left_height": 189,
+          "right_top_before": 33,
+          "right_bottom_before": 226,
+          "right_height_before": 193
+        },
+        {
+          "factor": 0.9948453608247423,
+          "tx": 0.6443298969072142,
+          "ty": 1.1649484536082468,
+          "left_top": 33,
+          "left_bottom": 226,
+          "left_height": 193,
+          "right_top_before": 32,
+          "right_bottom_before": 226,
+          "right_height_before": 194
+        },
+        {
+          "factor": 1.005181347150259,
+          "tx": -0.6450777202072562,
+          "ty": -1.1709844559585463,
+          "left_top": 32,
+          "left_bottom": 226,
+          "left_height": 194,
+          "right_top_before": 33,
+          "right_bottom_before": 226,
+          "right_height_before": 193
+        }
+      ],
+      "after": [
+        {
+          "left_top": 34,
+          "left_bottom": 226,
+          "left_height": 192,
+          "right_top": 34,
+          "right_bottom": 226,
+          "right_height": 192
+        },
+        {
+          "left_top": 32,
+          "left_bottom": 226,
+          "left_height": 194,
+          "right_top": 32,
+          "right_bottom": 226,
+          "right_height": 194
+        },
+        {
+          "left_top": 33,
+          "left_bottom": 226,
+          "left_height": 193,
+          "right_top": 33,
+          "right_bottom": 226,
+          "right_height": 193
+        },
+        {
+          "left_top": 37,
+          "left_bottom": 226,
+          "left_height": 189,
+          "right_top": 37,
+          "right_bottom": 226,
+          "right_height": 189
+        },
+        {
+          "left_top": 33,
+          "left_bottom": 226,
+          "left_height": 193,
+          "right_top": 33,
+          "right_bottom": 226,
+          "right_height": 193
+        },
+        {
+          "left_top": 32,
+          "left_bottom": 226,
+          "left_height": 194,
+          "right_top": 32,
+          "right_bottom": 226,
+          "right_height": 194
+        }
+      ]
+    },
+    "assets\\characters\\player_preview\\female\\light\\black\\walk_cycle_long.png": {
+      "per_frame": [
+        {
+          "factor": 0.954954954954955,
+          "tx": 2.635135135135134,
+          "ty": 5.49549549549549,
+          "left_top": 16,
+          "left_bottom": 122,
+          "left_height": 106,
+          "right_top_before": 11,
+          "right_bottom_before": 122,
+          "right_height_before": 111
+        },
+        {
+          "factor": 0.9819819819819819,
+          "tx": 1.0540540540540562,
+          "ty": 2.198198198198199,
+          "left_top": 13,
+          "left_bottom": 122,
+          "left_height": 109,
+          "right_top_before": 11,
+          "right_bottom_before": 122,
+          "right_height_before": 111
+        },
+        {
+          "factor": 0.990990990990991,
+          "tx": 0.5270270270270281,
+          "ty": 1.0990990990991065,
+          "left_top": 12,
+          "left_bottom": 122,
+          "left_height": 110,
+          "right_top_before": 11,
+          "right_bottom_before": 122,
+          "right_height_before": 111
+        },
+        {
+          "factor": 0.972972972972973,
+          "tx": 1.581081081081078,
+          "ty": 3.297297297297291,
+          "left_top": 14,
+          "left_bottom": 122,
+          "left_height": 108,
+          "right_top_before": 11,
+          "right_bottom_before": 122,
+          "right_height_before": 111
+        },
+        {
+          "factor": 0.963963963963964,
+          "tx": 2.126126126126124,
+          "ty": 4.396396396396398,
+          "left_top": 15,
+          "left_bottom": 122,
+          "left_height": 107,
+          "right_top_before": 11,
+          "right_bottom_before": 122,
+          "right_height_before": 111
+        },
+        {
+          "factor": 0.972972972972973,
+          "tx": 1.581081081081078,
+          "ty": 3.297297297297291,
+          "left_top": 14,
+          "left_bottom": 122,
+          "left_height": 108,
+          "right_top_before": 11,
+          "right_bottom_before": 122,
+          "right_height_before": 111
+        }
+      ],
+      "after": [
+        {
+          "left_top": 16,
+          "left_bottom": 122,
+          "left_height": 106,
+          "right_top": 16,
+          "right_bottom": 122,
+          "right_height": 106
+        },
+        {
+          "left_top": 13,
+          "left_bottom": 122,
+          "left_height": 109,
+          "right_top": 13,
+          "right_bottom": 122,
+          "right_height": 109
+        },
+        {
+          "left_top": 12,
+          "left_bottom": 122,
+          "left_height": 110,
+          "right_top": 12,
+          "right_bottom": 122,
+          "right_height": 110
+        },
+        {
+          "left_top": 14,
+          "left_bottom": 122,
+          "left_height": 108,
+          "right_top": 14,
+          "right_bottom": 122,
+          "right_height": 108
+        },
+        {
+          "left_top": 15,
+          "left_bottom": 122,
+          "left_height": 107,
+          "right_top": 15,
+          "right_bottom": 122,
+          "right_height": 107
+        },
+        {
+          "left_top": 14,
+          "left_bottom": 122,
+          "left_height": 108,
+          "right_top": 14,
+          "right_bottom": 122,
+          "right_height": 108
+        }
+      ]
+    },
+    "assets\\characters\\player_preview\\female\\light\\black\\walk_cycle_native.png": {
+      "per_frame": [
+        {
+          "factor": 0.9508196721311475,
+          "tx": 11.581967213114767,
+          "ty": 23.508196721311492,
+          "left_top": 72,
+          "left_bottom": 478,
+          "left_height": 406,
+          "right_top_before": 51,
+          "right_bottom_before": 478,
+          "right_height_before": 427
+        },
+        {
+          "factor": 0.9765807962529274,
+          "tx": 5.515222482435603,
+          "ty": 11.19437939110071,
+          "left_top": 61,
+          "left_bottom": 478,
+          "left_height": 417,
+          "right_top_before": 51,
+          "right_bottom_before": 478,
+          "right_height_before": 427
+        },
+        {
+          "factor": 0.9859484777517564,
+          "tx": 3.30210772833724,
+          "ty": 6.716627634660426,
+          "left_top": 57,
+          "left_bottom": 478,
+          "left_height": 421,
+          "right_top_before": 51,
+          "right_bottom_before": 478,
+          "right_height_before": 427
+        },
+        {
+          "factor": 0.9718969555035128,
+          "tx": 6.60421545667448,
+          "ty": 13.433255269320853,
+          "left_top": 63,
+          "left_bottom": 478,
+          "left_height": 415,
+          "right_top_before": 51,
+          "right_bottom_before": 478,
+          "right_height_before": 427
+        },
+        {
+          "factor": 0.9601873536299765,
+          "tx": 9.375878220140526,
+          "ty": 19.030444964871208,
+          "left_top": 68,
+          "left_bottom": 478,
+          "left_height": 410,
+          "right_top_before": 51,
+          "right_bottom_before": 478,
+          "right_height_before": 427
+        },
+        {
+          "factor": 0.9695550351288056,
+          "tx": 7.154566744730687,
+          "ty": 14.552693208430924,
+          "left_top": 64,
+          "left_bottom": 478,
+          "left_height": 414,
+          "right_top_before": 51,
+          "right_bottom_before": 478,
+          "right_height_before": 427
+        }
+      ],
+      "after": [
+        {
+          "left_top": 72,
+          "left_bottom": 478,
+          "left_height": 406,
+          "right_top": 72,
+          "right_bottom": 478,
+          "right_height": 406
+        },
+        {
+          "left_top": 61,
+          "left_bottom": 478,
+          "left_height": 417,
+          "right_top": 61,
+          "right_bottom": 478,
+          "right_height": 417
+        },
+        {
+          "left_top": 57,
+          "left_bottom": 478,
+          "left_height": 421,
+          "right_top": 57,
+          "right_bottom": 478,
+          "right_height": 421
+        },
+        {
+          "left_top": 63,
+          "left_bottom": 478,
+          "left_height": 415,
+          "right_top": 63,
+          "right_bottom": 478,
+          "right_height": 415
+        },
+        {
+          "left_top": 68,
+          "left_bottom": 478,
+          "left_height": 410,
+          "right_top": 68,
+          "right_bottom": 478,
+          "right_height": 410
+        },
+        {
+          "left_top": 64,
+          "left_bottom": 478,
+          "left_height": 414,
+          "right_top": 64,
+          "right_bottom": 478,
+          "right_height": 414
+        }
+      ]
+    },
+    "assets\\characters\\player_preview\\female\\light\\black\\walk_cycle_ponytail.png": {
+      "per_frame": [
+        {
+          "factor": 0.9136363636363637,
+          "tx": 10.881818181818176,
+          "ty": 20.381818181818176,
+          "left_top": 35,
+          "left_bottom": 236,
+          "left_height": 201,
+          "right_top_before": 16,
+          "right_bottom_before": 236,
+          "right_height_before": 220
+        },
+        {
+          "factor": 0.9144144144144144,
+          "tx": 10.783783783783786,
+          "ty": 20.198198198198213,
+          "left_top": 33,
+          "left_bottom": 236,
+          "left_height": 203,
+          "right_top_before": 14,
+          "right_bottom_before": 236,
+          "right_height_before": 222
+        },
+        {
+          "factor": 0.9066666666666666,
+          "tx": 11.806666666666672,
+          "ty": 22.02666666666667,
+          "left_top": 32,
+          "left_bottom": 236,
+          "left_height": 204,
+          "right_top_before": 11,
+          "right_bottom_before": 236,
+          "right_height_before": 225
+        },
+        {
+          "factor": 0.8844444444444445,
+          "tx": 14.559999999999995,
+          "ty": 27.27111111111111,
+          "left_top": 37,
+          "left_bottom": 236,
+          "left_height": 199,
+          "right_top_before": 11,
+          "right_bottom_before": 236,
+          "right_height_before": 225
+        },
+        {
+          "factor": 0.8977777777777778,
+          "tx": 12.931111111111111,
+          "ty": 24.124444444444435,
+          "left_top": 34,
+          "left_bottom": 236,
+          "left_height": 202,
+          "right_top_before": 11,
+          "right_bottom_before": 236,
+          "right_height_before": 225
+        },
+        {
+          "factor": 0.9111111111111111,
+          "tx": 11.244444444444447,
+          "ty": 20.97777777777779,
+          "left_top": 31,
+          "left_bottom": 236,
+          "left_height": 205,
+          "right_top_before": 11,
+          "right_bottom_before": 236,
+          "right_height_before": 225
+        }
+      ],
+      "after": [
+        {
+          "left_top": 35,
+          "left_bottom": 236,
+          "left_height": 201,
+          "right_top": 35,
+          "right_bottom": 236,
+          "right_height": 201
+        },
+        {
+          "left_top": 33,
+          "left_bottom": 236,
+          "left_height": 203,
+          "right_top": 33,
+          "right_bottom": 236,
+          "right_height": 203
+        },
+        {
+          "left_top": 32,
+          "left_bottom": 236,
+          "left_height": 204,
+          "right_top": 32,
+          "right_bottom": 236,
+          "right_height": 204
+        },
+        {
+          "left_top": 37,
+          "left_bottom": 236,
+          "left_height": 199,
+          "right_top": 37,
+          "right_bottom": 236,
+          "right_height": 199
+        },
+        {
+          "left_top": 34,
+          "left_bottom": 236,
+          "left_height": 202,
+          "right_top": 34,
+          "right_bottom": 236,
+          "right_height": 202
+        },
+        {
+          "left_top": 31,
+          "left_bottom": 236,
+          "left_height": 205,
+          "right_top": 31,
+          "right_bottom": 236,
+          "right_height": 205
+        }
+      ]
+    },
+    "assets\\characters\\player_preview\\female\\light\\black\\walk_cycle_short.png": {
+      "per_frame": [
+        {
+          "factor": 1.0052083333333333,
+          "tx": -0.6510416666666574,
+          "ty": -1.1770833333333144,
+          "left_top": 33,
+          "left_bottom": 226,
+          "left_height": 193,
+          "right_top_before": 34,
+          "right_bottom_before": 226,
+          "right_height_before": 192
+        },
+        {
+          "factor": 1.0103626943005182,
+          "tx": -1.3005181347150305,
+          "ty": -2.3419689119170926,
+          "left_top": 31,
+          "left_bottom": 226,
+          "left_height": 195,
+          "right_top_before": 33,
+          "right_bottom_before": 226,
+          "right_height_before": 193
+        },
+        {
+          "factor": 1.0,
+          "tx": 0.0,
+          "ty": 0.0,
+          "left_top": 32,
+          "left_bottom": 226,
+          "left_height": 194,
+          "right_top_before": 32,
+          "right_bottom_before": 226,
+          "right_height_before": 194
+        },
+        {
+          "factor": 0.979381443298969,
+          "tx": 2.587628865979386,
+          "ty": 4.659793814432987,
+          "left_top": 36,
+          "left_bottom": 226,
+          "left_height": 190,
+          "right_top_before": 32,
+          "right_bottom_before": 226,
+          "right_height_before": 194
+        },
+        {
+          "factor": 1.0,
+          "tx": 0.0,
+          "ty": 0.0,
+          "left_top": 32,
+          "left_bottom": 226,
+          "left_height": 194,
+          "right_top_before": 32,
+          "right_bottom_before": 226,
+          "right_height_before": 194
+        },
+        {
+          "factor": 1.0051546391752577,
+          "tx": -0.6469072164948431,
+          "ty": -1.1649484536082468,
+          "left_top": 31,
+          "left_bottom": 226,
+          "left_height": 195,
+          "right_top_before": 32,
+          "right_bottom_before": 226,
+          "right_height_before": 194
+        }
+      ],
+      "after": [
+        {
+          "left_top": 33,
+          "left_bottom": 226,
+          "left_height": 193,
+          "right_top": 33,
+          "right_bottom": 226,
+          "right_height": 193
+        },
+        {
+          "left_top": 31,
+          "left_bottom": 226,
+          "left_height": 195,
+          "right_top": 31,
+          "right_bottom": 226,
+          "right_height": 195
+        },
+        {
+          "left_top": 32,
+          "left_bottom": 226,
+          "left_height": 194,
+          "right_top": 32,
+          "right_bottom": 226,
+          "right_height": 194
+        },
+        {
+          "left_top": 36,
+          "left_bottom": 226,
+          "left_height": 190,
+          "right_top": 36,
+          "right_bottom": 226,
+          "right_height": 190
+        },
+        {
+          "left_top": 32,
+          "left_bottom": 226,
+          "left_height": 194,
+          "right_top": 32,
+          "right_bottom": 226,
+          "right_height": 194
+        },
+        {
+          "left_top": 31,
+          "left_bottom": 226,
+          "left_height": 195,
+          "right_top": 31,
+          "right_bottom": 226,
+          "right_height": 195
+        }
+      ]
+    },
+    "assets\\characters\\player_preview\\female\\light\\blonde\\walk_cycle_long.png": {
+      "per_frame": [
+        {
+          "factor": 0.9530516431924883,
+          "tx": 5.492957746478875,
+          "ty": 11.220657276995297,
+          "left_top": 36,
+          "left_bottom": 239,
+          "left_height": 203,
+          "right_top_before": 26,
+          "right_bottom_before": 239,
+          "right_height_before": 213
+        },
+        {
+          "factor": 0.9765258215962441,
+          "tx": 2.7464788732394374,
+          "ty": 5.610328638497663,
+          "left_top": 31,
+          "left_bottom": 239,
+          "left_height": 208,
+          "right_top_before": 26,
+          "right_bottom_before": 239,
+          "right_height_before": 213
+        },
+        {
+          "factor": 0.9812206572769953,
+          "tx": 2.1971830985915553,
+          "ty": 4.4882629107981415,
+          "left_top": 30,
+          "left_bottom": 239,
+          "left_height": 209,
+          "right_top_before": 26,
+          "right_bottom_before": 239,
+          "right_height_before": 213
+        },
+        {
+          "factor": 0.971830985915493,
+          "tx": 3.309859154929573,
+          "ty": 6.732394366197184,
+          "left_top": 32,
+          "left_bottom": 239,
+          "left_height": 207,
+          "right_top_before": 26,
+          "right_bottom_before": 239,
+          "right_height_before": 213
+        },
+        {
+          "factor": 0.9577464788732394,
+          "tx": 4.964788732394372,
+          "ty": 10.098591549295776,
+          "left_top": 35,
+          "left_bottom": 239,
+          "left_height": 204,
+          "right_top_before": 26,
+          "right_bottom_before": 239,
+          "right_height_before": 213
+        },
+        {
+          "factor": 0.9671361502347418,
+          "tx": 3.8450704225352146,
+          "ty": 7.8544600938967335,
+          "left_top": 33,
+          "left_bottom": 239,
+          "left_height": 206,
+          "right_top_before": 26,
+          "right_bottom_before": 239,
+          "right_height_before": 213
+        }
+      ],
+      "after": [
+        {
+          "left_top": 36,
+          "left_bottom": 239,
+          "left_height": 203,
+          "right_top": 36,
+          "right_bottom": 239,
+          "right_height": 203
+        },
+        {
+          "left_top": 31,
+          "left_bottom": 239,
+          "left_height": 208,
+          "right_top": 31,
+          "right_bottom": 239,
+          "right_height": 208
+        },
+        {
+          "left_top": 30,
+          "left_bottom": 239,
+          "left_height": 209,
+          "right_top": 30,
+          "right_bottom": 239,
+          "right_height": 209
+        },
+        {
+          "left_top": 32,
+          "left_bottom": 239,
+          "left_height": 207,
+          "right_top": 32,
+          "right_bottom": 239,
+          "right_height": 207
+        },
+        {
+          "left_top": 35,
+          "left_bottom": 239,
+          "left_height": 204,
+          "right_top": 35,
+          "right_bottom": 239,
+          "right_height": 204
+        },
+        {
+          "left_top": 33,
+          "left_bottom": 239,
+          "left_height": 206,
+          "right_top": 33,
+          "right_bottom": 239,
+          "right_height": 206
+        }
+      ]
+    },
+    "assets\\characters\\player_preview\\female\\light\\blonde\\walk_cycle_ponytail.png": {
+      "per_frame": [
+        {
+          "factor": 0.91324200913242,
+          "tx": 10.931506849315074,
+          "ty": 20.474885844748883,
+          "left_top": 36,
+          "left_bottom": 236,
+          "left_height": 200,
+          "right_top_before": 17,
+          "right_bottom_before": 236,
+          "right_height_before": 219
+        },
+        {
+          "factor": 0.9144144144144144,
+          "tx": 10.783783783783786,
+          "ty": 20.198198198198213,
+          "left_top": 33,
+          "left_bottom": 236,
+          "left_height": 203,
+          "right_top_before": 14,
+          "right_bottom_before": 236,
+          "right_height_before": 222
+        },
+        {
+          "factor": 0.90625,
+          "tx": 11.859375,
+          "ty": 22.125,
+          "left_top": 33,
+          "left_bottom": 236,
+          "left_height": 203,
+          "right_top_before": 12,
+          "right_bottom_before": 236,
+          "right_height_before": 224
+        },
+        {
+          "factor": 0.8883928571428571,
+          "tx": 14.006696428571434,
+          "ty": 26.339285714285722,
+          "left_top": 37,
+          "left_bottom": 236,
+          "left_height": 199,
+          "right_top_before": 12,
+          "right_bottom_before": 236,
+          "right_height_before": 224
+        },
+        {
+          "factor": 0.8973214285714286,
+          "tx": 12.937499999999996,
+          "ty": 24.23214285714286,
+          "left_top": 35,
+          "left_bottom": 236,
+          "left_height": 201,
+          "right_top_before": 12,
+          "right_bottom_before": 236,
+          "right_height_before": 224
+        },
+        {
+          "factor": 0.9107142857142857,
+          "tx": 11.205357142857144,
+          "ty": 21.071428571428584,
+          "left_top": 32,
+          "left_bottom": 236,
+          "left_height": 204,
+          "right_top_before": 12,
+          "right_bottom_before": 236,
+          "right_height_before": 224
+        }
+      ],
+      "after": [
+        {
+          "left_top": 36,
+          "left_bottom": 236,
+          "left_height": 200,
+          "right_top": 36,
+          "right_bottom": 236,
+          "right_height": 200
+        },
+        {
+          "left_top": 33,
+          "left_bottom": 236,
+          "left_height": 203,
+          "right_top": 33,
+          "right_bottom": 236,
+          "right_height": 203
+        },
+        {
+          "left_top": 33,
+          "left_bottom": 236,
+          "left_height": 203,
+          "right_top": 33,
+          "right_bottom": 236,
+          "right_height": 203
+        },
+        {
+          "left_top": 37,
+          "left_bottom": 236,
+          "left_height": 199,
+          "right_top": 37,
+          "right_bottom": 236,
+          "right_height": 199
+        },
+        {
+          "left_top": 35,
+          "left_bottom": 236,
+          "left_height": 201,
+          "right_top": 35,
+          "right_bottom": 236,
+          "right_height": 201
+        },
+        {
+          "left_top": 32,
+          "left_bottom": 236,
+          "left_height": 204,
+          "right_top": 32,
+          "right_bottom": 236,
+          "right_height": 204
+        }
+      ]
+    },
+    "assets\\characters\\player_preview\\female\\light\\blonde\\walk_cycle_short.png": {
+      "per_frame": [
+        {
+          "factor": 1.0105263157894737,
+          "tx": -1.3263157894736883,
+          "ty": -2.378947368421052,
+          "left_top": 34,
+          "left_bottom": 226,
+          "left_height": 192,
+          "right_top_before": 36,
+          "right_bottom_before": 226,
+          "right_height_before": 190
+        },
+        {
+          "factor": 1.0157068062827226,
+          "tx": -1.9712041884816844,
+          "ty": -3.5497382198953176,
+          "left_top": 32,
+          "left_bottom": 226,
+          "left_height": 194,
+          "right_top_before": 35,
+          "right_bottom_before": 226,
+          "right_height_before": 191
+        },
+        {
+          "factor": 1.0,
+          "tx": 0.0,
+          "ty": 0.0,
+          "left_top": 33,
+          "left_bottom": 226,
+          "left_height": 193,
+          "right_top_before": 33,
+          "right_bottom_before": 226,
+          "right_height_before": 193
+        },
+        {
+          "factor": 0.9792746113989638,
+          "tx": 2.6010362694300473,
+          "ty": 4.683937823834185,
+          "left_top": 37,
+          "left_bottom": 226,
+          "left_height": 189,
+          "right_top_before": 33,
+          "right_bottom_before": 226,
+          "right_height_before": 193
+        },
+        {
+          "factor": 1.0,
+          "tx": 0.0,
+          "ty": 0.0,
+          "left_top": 33,
+          "left_bottom": 226,
+          "left_height": 193,
+          "right_top_before": 33,
+          "right_bottom_before": 226,
+          "right_height_before": 193
+        },
+        {
+          "factor": 1.005181347150259,
+          "tx": -0.6528497409326448,
+          "ty": -1.1709844559585463,
+          "left_top": 32,
+          "left_bottom": 226,
+          "left_height": 194,
+          "right_top_before": 33,
+          "right_bottom_before": 226,
+          "right_height_before": 193
+        }
+      ],
+      "after": [
+        {
+          "left_top": 34,
+          "left_bottom": 226,
+          "left_height": 192,
+          "right_top": 34,
+          "right_bottom": 226,
+          "right_height": 192
+        },
+        {
+          "left_top": 32,
+          "left_bottom": 226,
+          "left_height": 194,
+          "right_top": 32,
+          "right_bottom": 226,
+          "right_height": 194
+        },
+        {
+          "left_top": 33,
+          "left_bottom": 226,
+          "left_height": 193,
+          "right_top": 33,
+          "right_bottom": 226,
+          "right_height": 193
+        },
+        {
+          "left_top": 37,
+          "left_bottom": 226,
+          "left_height": 189,
+          "right_top": 37,
+          "right_bottom": 226,
+          "right_height": 189
+        },
+        {
+          "left_top": 33,
+          "left_bottom": 226,
+          "left_height": 193,
+          "right_top": 33,
+          "right_bottom": 226,
+          "right_height": 193
+        },
+        {
+          "left_top": 32,
+          "left_bottom": 226,
+          "left_height": 194,
+          "right_top": 32,
+          "right_bottom": 226,
+          "right_height": 194
+        }
+      ]
+    },
+    "assets\\characters\\player_preview\\male\\medium\\auburn\\walk_cycle_buzz.png": {
+      "per_frame": [
+        {
+          "factor": 1.0207253886010363,
+          "tx": -2.590673575129543,
+          "ty": -4.766839378238359,
+          "left_top": 33,
+          "left_bottom": 230,
+          "left_height": 197,
+          "right_top_before": 37,
+          "right_bottom_before": 230,
+          "right_height_before": 193
+        },
+        {
+          "factor": 1.0050761421319796,
+          "tx": -0.63451776649745,
+          "ty": -1.167512690355295,
+          "left_top": 32,
+          "left_bottom": 230,
+          "left_height": 198,
+          "right_top_before": 33,
+          "right_bottom_before": 230,
+          "right_height_before": 197
+        },
+        {
+          "factor": 1.0050761421319796,
+          "tx": -0.63451776649745,
+          "ty": -1.167512690355295,
+          "left_top": 32,
+          "left_bottom": 230,
+          "left_height": 198,
+          "right_top_before": 33,
+          "right_bottom_before": 230,
+          "right_height_before": 197
+        },
+        {
+          "factor": 0.9948717948717949,
+          "tx": 0.6384615384615362,
+          "ty": 1.1794871794871824,
+          "left_top": 36,
+          "left_bottom": 230,
+          "left_height": 194,
+          "right_top_before": 35,
+          "right_bottom_before": 230,
+          "right_height_before": 195
+        },
+        {
+          "factor": 1.0260416666666667,
+          "tx": -3.2421875000000093,
+          "ty": -5.989583333333343,
+          "left_top": 33,
+          "left_bottom": 230,
+          "left_height": 197,
+          "right_top_before": 38,
+          "right_bottom_before": 230,
+          "right_height_before": 192
+        },
+        {
+          "factor": 1.0153846153846153,
+          "tx": -1.9153846153846086,
+          "ty": -3.538461538461519,
+          "left_top": 32,
+          "left_bottom": 230,
+          "left_height": 198,
+          "right_top_before": 35,
+          "right_bottom_before": 230,
+          "right_height_before": 195
+        }
+      ],
+      "after": [
+        {
+          "left_top": 33,
+          "left_bottom": 230,
+          "left_height": 197,
+          "right_top": 33,
+          "right_bottom": 230,
+          "right_height": 197
+        },
+        {
+          "left_top": 32,
+          "left_bottom": 230,
+          "left_height": 198,
+          "right_top": 32,
+          "right_bottom": 230,
+          "right_height": 198
+        },
+        {
+          "left_top": 32,
+          "left_bottom": 230,
+          "left_height": 198,
+          "right_top": 32,
+          "right_bottom": 230,
+          "right_height": 198
+        },
+        {
+          "left_top": 36,
+          "left_bottom": 230,
+          "left_height": 194,
+          "right_top": 36,
+          "right_bottom": 230,
+          "right_height": 194
+        },
+        {
+          "left_top": 33,
+          "left_bottom": 230,
+          "left_height": 197,
+          "right_top": 33,
+          "right_bottom": 230,
+          "right_height": 197
+        },
+        {
+          "left_top": 32,
+          "left_bottom": 230,
+          "left_height": 198,
+          "right_top": 32,
+          "right_bottom": 230,
+          "right_height": 198
+        }
+      ]
+    },
+    "assets\\characters\\player_preview\\male\\medium\\auburn\\walk_cycle_long.png": {
+      "per_frame": [
+        {
+          "factor": 1.0257731958762886,
+          "tx": -3.182989690721638,
+          "ty": -5.90206185567007,
+          "left_top": 30,
+          "left_bottom": 229,
+          "left_height": 199,
+          "right_top_before": 35,
+          "right_bottom_before": 229,
+          "right_height_before": 194
+        },
+        {
+          "factor": 1.015228426395939,
+          "tx": -1.880710659898469,
+          "ty": -3.4873096446700345,
+          "left_top": 29,
+          "left_bottom": 229,
+          "left_height": 200,
+          "right_top_before": 32,
+          "right_bottom_before": 229,
+          "right_height_before": 197
+        },
+        {
+          "factor": 1.015228426395939,
+          "tx": -1.8730964467004996,
+          "ty": -3.4873096446700345,
+          "left_top": 29,
+          "left_bottom": 229,
+          "left_height": 200,
+          "right_top_before": 32,
+          "right_bottom_before": 229,
+          "right_height_before": 197
+        },
+        {
+          "factor": 0.9948979591836735,
+          "tx": 0.6275510204081571,
+          "ty": 1.1683673469387656,
+          "left_top": 34,
+          "left_bottom": 229,
+          "left_height": 195,
+          "right_top_before": 33,
+          "right_bottom_before": 229,
+          "right_height_before": 196
+        },
+        {
+          "factor": 1.0309278350515463,
+          "tx": -3.8041237113401927,
+          "ty": -7.082474226804095,
+          "left_top": 29,
+          "left_bottom": 229,
+          "left_height": 200,
+          "right_top_before": 35,
+          "right_bottom_before": 229,
+          "right_height_before": 194
+        },
+        {
+          "factor": 1.0153061224489797,
+          "tx": -1.8903061224489885,
+          "ty": -3.505102040816354,
+          "left_top": 30,
+          "left_bottom": 229,
+          "left_height": 199,
+          "right_top_before": 33,
+          "right_bottom_before": 229,
+          "right_height_before": 196
+        }
+      ],
+      "after": [
+        {
+          "left_top": 30,
+          "left_bottom": 229,
+          "left_height": 199,
+          "right_top": 30,
+          "right_bottom": 229,
+          "right_height": 199
+        },
+        {
+          "left_top": 29,
+          "left_bottom": 229,
+          "left_height": 200,
+          "right_top": 29,
+          "right_bottom": 229,
+          "right_height": 200
+        },
+        {
+          "left_top": 29,
+          "left_bottom": 229,
+          "left_height": 200,
+          "right_top": 29,
+          "right_bottom": 229,
+          "right_height": 200
+        },
+        {
+          "left_top": 34,
+          "left_bottom": 229,
+          "left_height": 195,
+          "right_top": 34,
+          "right_bottom": 229,
+          "right_height": 195
+        },
+        {
+          "left_top": 29,
+          "left_bottom": 229,
+          "left_height": 200,
+          "right_top": 29,
+          "right_bottom": 229,
+          "right_height": 200
+        },
+        {
+          "left_top": 30,
+          "left_bottom": 229,
+          "left_height": 199,
+          "right_top": 30,
+          "right_bottom": 229,
+          "right_height": 199
+        }
+      ]
+    },
+    "assets\\characters\\player_preview\\male\\medium\\auburn\\walk_cycle_short.png": {
+      "per_frame": [
+        {
+          "factor": 1.005050505050505,
+          "tx": -0.633838383838374,
+          "ty": -1.1565656565656468,
+          "left_top": 30,
+          "left_bottom": 229,
+          "left_height": 199,
+          "right_top_before": 31,
+          "right_bottom_before": 229,
+          "right_height_before": 198
+        },
+        {
+          "factor": 1.0101010101010102,
+          "tx": -1.2676767676767757,
+          "ty": -2.313131313131322,
+          "left_top": 29,
+          "left_bottom": 229,
+          "left_height": 200,
+          "right_top_before": 31,
+          "right_bottom_before": 229,
+          "right_height_before": 198
+        },
+        {
+          "factor": 1.0,
+          "tx": 0.0,
+          "ty": 0.0,
+          "left_top": 30,
+          "left_bottom": 229,
+          "left_height": 199,
+          "right_top_before": 30,
+          "right_bottom_before": 229,
+          "right_height_before": 199
+        },
+        {
+          "factor": 0.9848484848484849,
+          "tx": 1.9015151515151498,
+          "ty": 3.469696969696969,
+          "left_top": 34,
+          "left_bottom": 229,
+          "left_height": 195,
+          "right_top_before": 31,
+          "right_bottom_before": 229,
+          "right_height_before": 198
+        },
+        {
+          "factor": 1.0101522842639594,
+          "tx": -1.2741116751269073,
+          "ty": -2.3248730964467086,
+          "left_top": 30,
+          "left_bottom": 229,
+          "left_height": 199,
+          "right_top_before": 32,
+          "right_bottom_before": 229,
+          "right_height_before": 197
+        },
+        {
+          "factor": 1.0101010101010102,
+          "tx": -1.2626262626262708,
+          "ty": -2.313131313131322,
+          "left_top": 29,
+          "left_bottom": 229,
+          "left_height": 200,
+          "right_top_before": 31,
+          "right_bottom_before": 229,
+          "right_height_before": 198
+        }
+      ],
+      "after": [
+        {
+          "left_top": 30,
+          "left_bottom": 229,
+          "left_height": 199,
+          "right_top": 30,
+          "right_bottom": 229,
+          "right_height": 199
+        },
+        {
+          "left_top": 29,
+          "left_bottom": 229,
+          "left_height": 200,
+          "right_top": 29,
+          "right_bottom": 229,
+          "right_height": 200
+        },
+        {
+          "left_top": 30,
+          "left_bottom": 229,
+          "left_height": 199,
+          "right_top": 30,
+          "right_bottom": 229,
+          "right_height": 199
+        },
+        {
+          "left_top": 34,
+          "left_bottom": 229,
+          "left_height": 195,
+          "right_top": 34,
+          "right_bottom": 229,
+          "right_height": 195
+        },
+        {
+          "left_top": 30,
+          "left_bottom": 229,
+          "left_height": 199,
+          "right_top": 30,
+          "right_bottom": 229,
+          "right_height": 199
+        },
+        {
+          "left_top": 29,
+          "left_bottom": 229,
+          "left_height": 200,
+          "right_top": 29,
+          "right_bottom": 229,
+          "right_height": 200
+        }
+      ]
+    },
+    "assets\\characters\\player_preview\\male\\medium\\black\\walk_cycle_buzz.png": {
+      "per_frame": [
+        {
+          "factor": 1.0206185567010309,
+          "tx": -2.577319587628857,
+          "ty": -4.742268041237082,
+          "left_top": 32,
+          "left_bottom": 230,
+          "left_height": 198,
+          "right_top_before": 36,
+          "right_bottom_before": 230,
+          "right_height_before": 194
+        },
+        {
+          "factor": 1.0255102040816326,
+          "tx": -3.1887755102040782,
+          "ty": -5.867346938775512,
+          "left_top": 29,
+          "left_bottom": 230,
+          "left_height": 201,
+          "right_top_before": 34,
+          "right_bottom_before": 230,
+          "right_height_before": 196
+        },
+        {
+          "factor": 1.0204081632653061,
+          "tx": -2.540816326530615,
+          "ty": -4.693877551020421,
+          "left_top": 30,
+          "left_bottom": 230,
+          "left_height": 200,
+          "right_top_before": 34,
+          "right_bottom_before": 230,
+          "right_height_before": 196
+        },
+        {
+          "factor": 0.9948979591836735,
+          "tx": 0.6403061224489733,
+          "ty": 1.173469387755091,
+          "left_top": 35,
+          "left_bottom": 230,
+          "left_height": 195,
+          "right_top_before": 34,
+          "right_bottom_before": 230,
+          "right_height_before": 196
+        },
+        {
+          "factor": 1.0257731958762886,
+          "tx": -3.221649484536071,
+          "ty": -5.927835051546367,
+          "left_top": 31,
+          "left_bottom": 230,
+          "left_height": 199,
+          "right_top_before": 36,
+          "right_bottom_before": 230,
+          "right_height_before": 194
+        },
+        {
+          "factor": 1.0153061224489797,
+          "tx": -1.913265306122458,
+          "ty": -3.52040816326533,
+          "left_top": 31,
+          "left_bottom": 230,
+          "left_height": 199,
+          "right_top_before": 34,
+          "right_bottom_before": 230,
+          "right_height_before": 196
+        }
+      ],
+      "after": [
+        {
+          "left_top": 32,
+          "left_bottom": 230,
+          "left_height": 198,
+          "right_top": 32,
+          "right_bottom": 230,
+          "right_height": 198
+        },
+        {
+          "left_top": 29,
+          "left_bottom": 230,
+          "left_height": 201,
+          "right_top": 29,
+          "right_bottom": 230,
+          "right_height": 201
+        },
+        {
+          "left_top": 30,
+          "left_bottom": 230,
+          "left_height": 200,
+          "right_top": 30,
+          "right_bottom": 230,
+          "right_height": 200
+        },
+        {
+          "left_top": 35,
+          "left_bottom": 230,
+          "left_height": 195,
+          "right_top": 35,
+          "right_bottom": 230,
+          "right_height": 195
+        },
+        {
+          "left_top": 31,
+          "left_bottom": 230,
+          "left_height": 199,
+          "right_top": 31,
+          "right_bottom": 230,
+          "right_height": 199
+        },
+        {
+          "left_top": 31,
+          "left_bottom": 230,
+          "left_height": 199,
+          "right_top": 31,
+          "right_bottom": 230,
+          "right_height": 199
+        }
+      ]
+    },
+    "assets\\characters\\player_preview\\male\\medium\\black\\walk_cycle_long.png": {
+      "per_frame": [
+        {
+          "factor": 1.0307692307692307,
+          "tx": -3.769230769230756,
+          "ty": -7.076923076923038,
+          "left_top": 29,
+          "left_bottom": 230,
+          "left_height": 201,
+          "right_top_before": 35,
+          "right_bottom_before": 230,
+          "right_height_before": 195
+        },
+        {
+          "factor": 1.02020202020202,
+          "tx": -2.4848484848484738,
+          "ty": -4.646464646464636,
+          "left_top": 28,
+          "left_bottom": 230,
+          "left_height": 202,
+          "right_top_before": 32,
+          "right_bottom_before": 230,
+          "right_height_before": 198
+        },
+        {
+          "factor": 1.0151515151515151,
+          "tx": -1.863636363636362,
+          "ty": -3.48484848484847,
+          "left_top": 29,
+          "left_bottom": 230,
+          "left_height": 201,
+          "right_top_before": 32,
+          "right_bottom_before": 230,
+          "right_height_before": 198
+        },
+        {
+          "factor": 0.98989898989899,
+          "tx": 1.2474747474747419,
+          "ty": 2.323232323232304,
+          "left_top": 34,
+          "left_bottom": 230,
+          "left_height": 196,
+          "right_top_before": 32,
+          "right_bottom_before": 230,
+          "right_height_before": 198
+        },
+        {
+          "factor": 1.0307692307692307,
+          "tx": -3.769230769230756,
+          "ty": -7.076923076923038,
+          "left_top": 29,
+          "left_bottom": 230,
+          "left_height": 201,
+          "right_top_before": 35,
+          "right_bottom_before": 230,
+          "right_height_before": 195
+        },
+        {
+          "factor": 1.0151515151515151,
+          "tx": -1.863636363636362,
+          "ty": -3.48484848484847,
+          "left_top": 29,
+          "left_bottom": 230,
+          "left_height": 201,
+          "right_top_before": 32,
+          "right_bottom_before": 230,
+          "right_height_before": 198
+        }
+      ],
+      "after": [
+        {
+          "left_top": 29,
+          "left_bottom": 230,
+          "left_height": 201,
+          "right_top": 29,
+          "right_bottom": 230,
+          "right_height": 201
+        },
+        {
+          "left_top": 28,
+          "left_bottom": 230,
+          "left_height": 202,
+          "right_top": 28,
+          "right_bottom": 230,
+          "right_height": 202
+        },
+        {
+          "left_top": 29,
+          "left_bottom": 230,
+          "left_height": 201,
+          "right_top": 29,
+          "right_bottom": 230,
+          "right_height": 201
+        },
+        {
+          "left_top": 34,
+          "left_bottom": 230,
+          "left_height": 196,
+          "right_top": 34,
+          "right_bottom": 230,
+          "right_height": 196
+        },
+        {
+          "left_top": 29,
+          "left_bottom": 230,
+          "left_height": 201,
+          "right_top": 29,
+          "right_bottom": 230,
+          "right_height": 201
+        },
+        {
+          "left_top": 29,
+          "left_bottom": 230,
+          "left_height": 201,
+          "right_top": 29,
+          "right_bottom": 230,
+          "right_height": 201
+        }
+      ]
+    },
+    "assets\\characters\\player_preview\\male\\medium\\black\\walk_cycle_short.png": {
+      "per_frame": [
+        {
+          "factor": 1.015228426395939,
+          "tx": -1.9111675126903471,
+          "ty": -3.5025380710659704,
+          "left_top": 30,
+          "left_bottom": 230,
+          "left_height": 200,
+          "right_top_before": 33,
+          "right_bottom_before": 230,
+          "right_height_before": 197
+        },
+        {
+          "factor": 1.0101010101010102,
+          "tx": -1.2676767676767757,
+          "ty": -2.3232323232323324,
+          "left_top": 30,
+          "left_bottom": 230,
+          "left_height": 200,
+          "right_top_before": 32,
+          "right_bottom_before": 230,
+          "right_height_before": 198
+        },
+        {
+          "factor": 0.995,
+          "tx": 0.6250000000000006,
+          "ty": 1.1500000000000057,
+          "left_top": 31,
+          "left_bottom": 230,
+          "left_height": 199,
+          "right_top_before": 30,
+          "right_bottom_before": 230,
+          "right_height_before": 200
+        },
+        {
+          "factor": 0.9798994974874372,
+          "tx": 2.5326633165829113,
+          "ty": 4.62311557788945,
+          "left_top": 35,
+          "left_bottom": 230,
+          "left_height": 195,
+          "right_top_before": 31,
+          "right_bottom_before": 230,
+          "right_height_before": 199
+        },
+        {
+          "factor": 1.0153061224489797,
+          "tx": -1.913265306122458,
+          "ty": -3.52040816326533,
+          "left_top": 31,
+          "left_bottom": 230,
+          "left_height": 199,
+          "right_top_before": 34,
+          "right_bottom_before": 230,
+          "right_height_before": 196
+        },
+        {
+          "factor": 1.0050251256281406,
+          "tx": -0.6281407035175768,
+          "ty": -1.1557788944723484,
+          "left_top": 30,
+          "left_bottom": 230,
+          "left_height": 200,
+          "right_top_before": 31,
+          "right_bottom_before": 230,
+          "right_height_before": 199
+        }
+      ],
+      "after": [
+        {
+          "left_top": 30,
+          "left_bottom": 230,
+          "left_height": 200,
+          "right_top": 30,
+          "right_bottom": 230,
+          "right_height": 200
+        },
+        {
+          "left_top": 30,
+          "left_bottom": 230,
+          "left_height": 200,
+          "right_top": 30,
+          "right_bottom": 230,
+          "right_height": 200
+        },
+        {
+          "left_top": 31,
+          "left_bottom": 230,
+          "left_height": 199,
+          "right_top": 31,
+          "right_bottom": 230,
+          "right_height": 199
+        },
+        {
+          "left_top": 35,
+          "left_bottom": 230,
+          "left_height": 195,
+          "right_top": 35,
+          "right_bottom": 230,
+          "right_height": 195
+        },
+        {
+          "left_top": 31,
+          "left_bottom": 230,
+          "left_height": 199,
+          "right_top": 31,
+          "right_bottom": 230,
+          "right_height": 199
+        },
+        {
+          "left_top": 30,
+          "left_bottom": 230,
+          "left_height": 200,
+          "right_top": 30,
+          "right_bottom": 230,
+          "right_height": 200
+        }
+      ]
+    },
+    "assets\\characters\\player_preview\\male\\medium\\blonde\\walk_cycle_buzz.png": {
+      "per_frame": [
+        {
+          "factor": 1.0259067357512954,
+          "tx": -3.212435233160633,
+          "ty": -5.958549222797956,
+          "left_top": 32,
+          "left_bottom": 230,
+          "left_height": 198,
+          "right_top_before": 37,
+          "right_bottom_before": 230,
+          "right_height_before": 193
+        },
+        {
+          "factor": 1.015228426395939,
+          "tx": -1.8883248730964386,
+          "ty": -3.5025380710659704,
+          "left_top": 30,
+          "left_bottom": 230,
+          "left_height": 200,
+          "right_top_before": 33,
+          "right_bottom_before": 230,
+          "right_height_before": 197
+        },
+        {
+          "factor": 1.0101522842639594,
+          "tx": -1.2588832487309682,
+          "ty": -2.3350253807106753,
+          "left_top": 31,
+          "left_bottom": 230,
+          "left_height": 199,
+          "right_top_before": 33,
+          "right_bottom_before": 230,
+          "right_height_before": 197
+        },
+        {
+          "factor": 0.9897959183673469,
+          "tx": 1.275510204081634,
+          "ty": 2.3469387755102105,
+          "left_top": 36,
+          "left_bottom": 230,
+          "left_height": 194,
+          "right_top_before": 34,
+          "right_bottom_before": 230,
+          "right_height_before": 196
+        },
+        {
+          "factor": 1.0259067357512954,
+          "tx": -3.225388601036281,
+          "ty": -5.958549222797956,
+          "left_top": 32,
+          "left_bottom": 230,
+          "left_height": 198,
+          "right_top_before": 37,
+          "right_bottom_before": 230,
+          "right_height_before": 193
+        },
+        {
+          "factor": 1.010204081632653,
+          "tx": -1.2704081632652937,
+          "ty": -2.346938775510182,
+          "left_top": 32,
+          "left_bottom": 230,
+          "left_height": 198,
+          "right_top_before": 34,
+          "right_bottom_before": 230,
+          "right_height_before": 196
+        }
+      ],
+      "after": [
+        {
+          "left_top": 32,
+          "left_bottom": 230,
+          "left_height": 198,
+          "right_top": 32,
+          "right_bottom": 230,
+          "right_height": 198
+        },
+        {
+          "left_top": 30,
+          "left_bottom": 230,
+          "left_height": 200,
+          "right_top": 30,
+          "right_bottom": 230,
+          "right_height": 200
+        },
+        {
+          "left_top": 31,
+          "left_bottom": 230,
+          "left_height": 199,
+          "right_top": 31,
+          "right_bottom": 230,
+          "right_height": 199
+        },
+        {
+          "left_top": 36,
+          "left_bottom": 230,
+          "left_height": 194,
+          "right_top": 36,
+          "right_bottom": 230,
+          "right_height": 194
+        },
+        {
+          "left_top": 32,
+          "left_bottom": 230,
+          "left_height": 198,
+          "right_top": 32,
+          "right_bottom": 230,
+          "right_height": 198
+        },
+        {
+          "left_top": 32,
+          "left_bottom": 230,
+          "left_height": 198,
+          "right_top": 32,
+          "right_bottom": 230,
+          "right_height": 198
+        }
+      ]
+    },
+    "assets\\characters\\player_preview\\male\\medium\\blonde\\walk_cycle_long.png": {
+      "per_frame": [
+        {
+          "factor": 1.0310880829015545,
+          "tx": -3.808290155440428,
+          "ty": -7.150259067357524,
+          "left_top": 31,
+          "left_bottom": 230,
+          "left_height": 199,
+          "right_top_before": 37,
+          "right_bottom_before": 230,
+          "right_height_before": 193
+        },
+        {
+          "factor": 1.015228426395939,
+          "tx": -1.86548223350253,
+          "ty": -3.5025380710659704,
+          "left_top": 30,
+          "left_bottom": 230,
+          "left_height": 200,
+          "right_top_before": 33,
+          "right_bottom_before": 230,
+          "right_height_before": 197
+        },
+        {
+          "factor": 1.015228426395939,
+          "tx": -1.86548223350253,
+          "ty": -3.5025380710659704,
+          "left_top": 30,
+          "left_bottom": 230,
+          "left_height": 200,
+          "right_top_before": 33,
+          "right_bottom_before": 230,
+          "right_height_before": 197
+        },
+        {
+          "factor": 0.9948979591836735,
+          "tx": 0.6275510204081571,
+          "ty": 1.173469387755091,
+          "left_top": 35,
+          "left_bottom": 230,
+          "left_height": 195,
+          "right_top_before": 34,
+          "right_bottom_before": 230,
+          "right_height_before": 196
+        },
+        {
+          "factor": 1.0362694300518134,
+          "tx": -4.4430051813471385,
+          "ty": -8.341968911917064,
+          "left_top": 30,
+          "left_bottom": 230,
+          "left_height": 200,
+          "right_top_before": 37,
+          "right_bottom_before": 230,
+          "right_height_before": 193
+        },
+        {
+          "factor": 1.0204081632653061,
+          "tx": -2.520408163265309,
+          "ty": -3.6734693877551194,
+          "left_top": 30,
+          "left_bottom": 230,
+          "left_height": 200,
+          "right_top_before": 33,
+          "right_bottom_before": 229,
+          "right_height_before": 196
+        }
+      ],
+      "after": [
+        {
+          "left_top": 31,
+          "left_bottom": 230,
+          "left_height": 199,
+          "right_top": 31,
+          "right_bottom": 230,
+          "right_height": 199
+        },
+        {
+          "left_top": 30,
+          "left_bottom": 230,
+          "left_height": 200,
+          "right_top": 30,
+          "right_bottom": 230,
+          "right_height": 200
+        },
+        {
+          "left_top": 30,
+          "left_bottom": 230,
+          "left_height": 200,
+          "right_top": 30,
+          "right_bottom": 230,
+          "right_height": 200
+        },
+        {
+          "left_top": 35,
+          "left_bottom": 230,
+          "left_height": 195,
+          "right_top": 35,
+          "right_bottom": 230,
+          "right_height": 195
+        },
+        {
+          "left_top": 30,
+          "left_bottom": 230,
+          "left_height": 200,
+          "right_top": 30,
+          "right_bottom": 230,
+          "right_height": 200
+        },
+        {
+          "left_top": 30,
+          "left_bottom": 230,
+          "left_height": 200,
+          "right_top": 30,
+          "right_bottom": 230,
+          "right_height": 200
+        }
+      ]
+    },
+    "assets\\characters\\player_preview\\male\\medium\\blonde\\walk_cycle_short.png": {
+      "per_frame": [
+        {
+          "factor": 1.0204081632653061,
+          "tx": -2.551020408163268,
+          "ty": -4.693877551020421,
+          "left_top": 30,
+          "left_bottom": 230,
+          "left_height": 200,
+          "right_top_before": 34,
+          "right_bottom_before": 230,
+          "right_height_before": 196
+        },
+        {
+          "factor": 1.0101010101010102,
+          "tx": -1.2626262626262708,
+          "ty": -2.3232323232323324,
+          "left_top": 30,
+          "left_bottom": 230,
+          "left_height": 200,
+          "right_top_before": 32,
+          "right_bottom_before": 230,
+          "right_height_before": 198
+        },
+        {
+          "factor": 1.0,
+          "tx": 0.0,
+          "ty": 0.0,
+          "left_top": 30,
+          "left_bottom": 230,
+          "left_height": 200,
+          "right_top_before": 30,
+          "right_bottom_before": 230,
+          "right_height_before": 200
+        },
+        {
+          "factor": 0.98989898989899,
+          "tx": 1.267676767676762,
+          "ty": 2.323232323232304,
+          "left_top": 34,
+          "left_bottom": 230,
+          "left_height": 196,
+          "right_top_before": 32,
+          "right_bottom_before": 230,
+          "right_height_before": 198
+        },
+        {
+          "factor": 1.0205128205128204,
+          "tx": -2.564102564102555,
+          "ty": -4.717948717948701,
+          "left_top": 31,
+          "left_bottom": 230,
+          "left_height": 199,
+          "right_top_before": 35,
+          "right_bottom_before": 230,
+          "right_height_before": 195
+        },
+        {
+          "factor": 1.0101010101010102,
+          "tx": -1.2676767676767757,
+          "ty": -2.3232323232323324,
+          "left_top": 30,
+          "left_bottom": 230,
+          "left_height": 200,
+          "right_top_before": 32,
+          "right_bottom_before": 230,
+          "right_height_before": 198
+        }
+      ],
+      "after": [
+        {
+          "left_top": 30,
+          "left_bottom": 230,
+          "left_height": 200,
+          "right_top": 30,
+          "right_bottom": 230,
+          "right_height": 200
+        },
+        {
+          "left_top": 30,
+          "left_bottom": 230,
+          "left_height": 200,
+          "right_top": 30,
+          "right_bottom": 230,
+          "right_height": 200
+        },
+        {
+          "left_top": 30,
+          "left_bottom": 230,
+          "left_height": 200,
+          "right_top": 30,
+          "right_bottom": 230,
+          "right_height": 200
+        },
+        {
+          "left_top": 34,
+          "left_bottom": 230,
+          "left_height": 196,
+          "right_top": 34,
+          "right_bottom": 230,
+          "right_height": 196
+        },
+        {
+          "left_top": 31,
+          "left_bottom": 230,
+          "left_height": 199,
+          "right_top": 31,
+          "right_bottom": 230,
+          "right_height": 199
+        },
+        {
+          "left_top": 30,
+          "left_bottom": 230,
+          "left_height": 200,
+          "right_top": 30,
+          "right_bottom": 230,
+          "right_height": 200
+        }
+      ]
+    }
+  },
+  "masks": {
+    "female_longhair_skin_mask.png": {
+      "reference": "assets\\characters\\player_preview\\female\\light\\black\\walk_cycle_long.png",
+      "per_frame_factors": [
+        0.954954954954955,
+        0.9819819819819819,
+        0.990990990990991,
+        0.972972972972973,
+        0.963963963963964,
+        0.972972972972973
+      ]
+    },
+    "female_ponytail_skin_mask.png": {
+      "reference": "assets\\characters\\player_preview\\female\\light\\black\\walk_cycle_ponytail.png",
+      "per_frame_factors": [
+        0.9136363636363637,
+        0.9144144144144144,
+        0.9066666666666666,
+        0.8844444444444445,
+        0.8977777777777778,
+        0.9111111111111111
+      ]
+    },
+    "female_shorthair_skin_mask.png": {
+      "reference": "assets\\characters\\player_preview\\female\\light\\black\\walk_cycle_short.png",
+      "per_frame_factors": [
+        1.0052083333333333,
+        1.0103626943005182,
+        1.0,
+        0.979381443298969,
+        1.0,
+        1.0051546391752577
+      ]
+    },
+    "male_buzzcut_skin_mask.png": {
+      "reference": "assets\\characters\\player_preview\\male\\medium\\black\\walk_cycle_buzz.png",
+      "per_frame_factors": [
+        1.0206185567010309,
+        1.0255102040816326,
+        1.0204081632653061,
+        0.9948979591836735,
+        1.0257731958762886,
+        1.0153061224489797
+      ]
+    },
+    "male_longhair_skin_mask.png": {
+      "reference": "assets\\characters\\player_preview\\male\\medium\\black\\walk_cycle_long.png",
+      "per_frame_factors": [
+        1.0307692307692307,
+        1.02020202020202,
+        1.0151515151515151,
+        0.98989898989899,
+        1.0307692307692307,
+        1.0151515151515151
+      ]
+    },
+    "male_shortfringe_skin_mask.png": {
+      "reference": "assets\\characters\\player_preview\\male\\medium\\black\\walk_cycle_short.png",
+      "per_frame_factors": [
+        1.015228426395939,
+        1.0101010101010102,
+        0.995,
+        0.9798994974874372,
+        1.0153061224489797,
+        1.0050251256281406
+      ]
+    }
+  }
+}

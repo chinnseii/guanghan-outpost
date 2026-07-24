@@ -1,0 +1,25 @@
+{
+  "frame_size": {
+    "width": 512,
+    "height": 512
+  },
+  "layout": {
+    "columns": 4,
+    "rows": 2,
+    "order": "row-major"
+  },
+  "frames": 8,
+  "feet_baseline_y": 480,
+  "phases": [
+    "inner_pressure_layer",
+    "boots_lock",
+    "leg_armor_lock",
+    "lower_torso_seal",
+    "torso_and_arms_seal",
+    "chest_system_lock",
+    "helmet_shell_close",
+    "visor_close_final"
+  ],
+  "final_frame_source": "assets/characters/suits/walk_cycle_blue.png",
+  "note": "Frames 01-07 reveal regions from the shipped final suit art; frame 07 is the exact final idle frame."
+}
