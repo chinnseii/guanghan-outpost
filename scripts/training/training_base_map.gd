@@ -120,6 +120,12 @@ var player: Control
 ## player_visual.gd's setup()/_draw() assume a feet-center Node2D origin, not
 ## a top-left Control rect.
 var player_visual: Node2D
+## TR-002 hub only: the terminal sprite, built as a direct sibling of
+## `player_visual` under training_area (not nested in the floor's own art)
+## so _sync_terminal_occlusion() can reorder the two via Node.move_child()
+## every frame based on which "occlusion_zones" rect the player's feet are
+## in. Null for every other room's blockout.
+var hub_terminal_sprite: Sprite2D = null
 ## Cached from CharacterAppearanceCatalogScript.load_selected_appearance() at
 ## build time -- reused by _show_wear_suit_confirm_dialog()'s confirm
 ## callback so it doesn't need to re-read the save file just to know which
@@ -185,6 +191,7 @@ func _process(delta: float) -> void:
 		_update_room_prompt()
 		return
 	_move_player(delta)
+	_sync_terminal_occlusion()
 	if not completed:
 		_check_wait_step(delta)
 		_check_auto_steps()
@@ -558,72 +565,129 @@ func _hub_area_config() -> Dictionary:
 		# TR-002 scene collision/layering spec round 2 (2026-07-22): "不要
 		# 只用一个大矩形活动范围...沿室内地板内缘建立墙体碰撞...在门洞处切分
 		# 为多个碰撞段". movement_margin now only a tiny outer safety-net
-		# clamp (real containment comes from the segmented wall blockers
-		# below) -- see _move_player()'s own doc comment.
+		# clamp (real containment comes from the wall polygon below) -- see
+		# _move_player()'s own doc comment.
 		"movement_margin": 2.0,
-		# Static blockers: the terminal's solid-footprint (spec item 2: only
-		# the console body -- screen/control-panel/side-light column,
-		# measured from the baked PNG -- NOT its screen glow, floor
-		# shadow/projection, or the corridor; kept clearly smaller than
-		# "terminal"'s own (124,112) approach/interact hitbox below, which is
-		# unrelated and unchanged) plus the room's 4 walls, each split into 2
-		# segments with a gap left exactly at that wall's door opening (spec
-		# item 1: "左右墙、上下墙在门洞处切分为多个碰撞段") -- WALL_THICKNESS
-		# here (56) matches movement_margin's old value/the baked art's real
-		# wall depth. The gap itself is only solid when that door is locked
-		# -- see "door_gap_blockers" below and _effective_blockers().
-		#
-		# 2026-07-24 TR-002-MASTER-ELEMENTS-01 re-measurement: this rect was
-		# (332,181)-(96,69), fitted to the OLD single-baked terminal image.
-		# The new split terminal art (TerminalBack/TerminalFrontOccluder,
-		# origin (316,174)) is a taller/wider console -- its real opaque
-		# footprint measures (326,178)-(107,92) (alpha-thresholded against
-		# the source PNG). Kept the old rect and just re-verified via a
-		# sandbox walk-to-block test first: confirmed the south edge left a
-		# real, new ~20px dead-floor gap between where the player stops and
-		# where the new console visually ends (User screenshot: "走到那个位
-		# 置就不能继续向上了" / "贴图是不是太高了") -- not present with the
-		# old, more compact art. Updated to match the new art's measured
-		# bounds, same as COLLISION-04's wall-depth re-measurement precedent.
+		# 2026-07-24 TR-002-MASTER-ELEMENTS-01: terminal footprint re-authored
+		# using the layer-annotation tool built this session (upload the
+		# actual baked background, hand-trace regions over it, export exact
+		# pixel coordinates) instead of estimating from screenshots --
+		# superseded the previous (326,178)-(107,92) alpha-threshold
+		# measurement. See "collision_polygons" below for the wall mass,
+		# traced the same way.
 		"blockers": [
-			Rect2(Vector2(326, 178), Vector2(107, 92)),
+			Rect2(Vector2(336, 204.5), Vector2(96, 60.5)),
 			# Bottom-left maintenance crate cluster (measured from the baked
 			# PNG) -- explicitly requested earlier ("终端跟墙壁，以及左下角的
 			# 装置") but never actually added; its visible top sticks up
 			# ~35-40px above the wall band, unprotected, letting the player
 			# stand on it (User screenshot).
 			Rect2(Vector2(90, 385), Vector2(80, 50)),
-			# Top wall, gap at door_power (x:326-434)
-			Rect2(Vector2(0, 0), Vector2(326, 96)), Rect2(Vector2(434, 0), Vector2(326, 96)),
-			# Bottom wall, gap at door_greenhouse (x:330-430)
-			Rect2(Vector2(0, 424), Vector2(330, 96)), Rect2(Vector2(430, 424), Vector2(330, 96)),
-			# Left wall, gap at door_suit (y:232-328)
-			Rect2(Vector2(0, 0), Vector2(96, 232)), Rect2(Vector2(0, 328), Vector2(96, 192)),
-			# Right wall, gap at door_air (y:232-328)
-			Rect2(Vector2(664, 0), Vector2(96, 232)), Rect2(Vector2(664, 328), Vector2(96, 192)),
+		],
+		# 2026-07-24 follow-up (room_boundary/solid_blocker split, per art
+		# direction's review of the annotation tool/workflow): supersedes the
+		# whole-room "collision_polygons" wall-mass trace from earlier this
+		# session. That approach hand-traced the WALL as a single polygon
+		# that had to loop out to the image's own border and back to
+		# correctly enclose "wall" rather than "floor" -- a technique that
+		# genuinely means either thing depending on exact point order near
+		# that border-hugging stretch (confirmed: an earlier round trimmed
+		# what looked like a redundant tail off a re-traced version of this
+		# same polygon and silently inverted floor/wall project-wide).
+		# `room_boundary_polygons` instead traces the room's own WALKABLE
+		# FLOOR outline directly -- inside = floor, outside = void, no
+		# border-hugging trick, so the shape means the same thing regardless
+		# of winding direction or fill rule. This exact 29-point loop is the
+		# "real" interior trace of the polygon above, with its border-hugging
+		# tail (5 points that used to jump out to the image's corners and
+		# back) simply omitted -- it was never wall geometry, just a
+		# now-unnecessary way of flipping which side "counts". See
+		# _rect_outside_all_room_boundaries() for how a candidate footprint
+		# is tested against it (full-containment via intersection-area
+		# comparison, not Geometry2D.exclude_polygons() -- that function's
+		# actual output didn't match a plain "subtract B from A" when tried).
+		# Doors are simply part of this floor outline (the trace runs through
+		# each door's real recess) -- "door_gap_blockers" below still
+		# separately seals each notch closed while that door is locked.
+		# 2026-07-24 follow-up: re-traced with the room_boundary/solid_blocker
+		# split tool, this time correctly extending into all 4 door recesses
+		# (an earlier pass of this same polygon stopped short of the doors --
+		# flagged to User, who fixed it in this redraw). Verified against the
+		# real collision test (_rect_outside_all_room_boundaries()'s own
+		# area-comparison method) before landing here: all 4 wall midpoints
+		# blocked, floor center and all 4 EXISTING door target centers open.
+		"room_boundary_polygons": [
+			PackedVector2Array([
+				Vector2(118.5, 99.5), Vector2(350, 101.5), Vector2(369.5, 77.5), Vector2(416, 77),
+				Vector2(430.5, 99), Vector2(646, 95.5), Vector2(652, 226.5), Vector2(665.5, 234.5),
+				Vector2(667.5, 261.5), Vector2(654, 277), Vector2(669.5, 408.5), Vector2(584.5, 408.5),
+				Vector2(586.5, 426.5), Vector2(427.5, 431.5), Vector2(410.5, 446.5), Vector2(355.5, 447.5),
+				Vector2(338.5, 427), Vector2(174.5, 429.5), Vector2(173.5, 406.5), Vector2(142.5, 405.5),
+				Vector2(131.5, 390.5), Vector2(88, 389), Vector2(101.5, 280.5), Vector2(88, 261),
+				Vector2(92.5, 223.5), Vector2(110.5, 215.5),
+			]),
 		],
 		# Dynamic per-door blockers (spec item 3: Trigger vs Blocker) -- each
-		# rect exactly plugs its own wall gap above; _effective_blockers()
-		# only includes it while `areas[door_to].unlocked` is false, so an
-		# unlocked door's gap opens for real walking, not just a touch-line,
-		# while a locked door stays as solid as the rest of the wall.
+		# rect plugs its own notch in the wall polygon above;
+		# _effective_blockers() only includes it while
+		# `areas[door_to].unlocked` is false, so an unlocked door's gap opens
+		# for real walking, not just a touch-line, while a locked door stays
+		# as solid as the rest of the wall.
 		"door_gap_blockers": [
 			{"door_to": "power_distribution_room", "rect": Rect2(Vector2(326, 0), Vector2(108, 96))},
 			{"door_to": "greenhouse_room", "rect": Rect2(Vector2(330, 424), Vector2(100, 96))},
 			{"door_to": "suit_prep_room", "rect": Rect2(Vector2(0, 232), Vector2(96, 96))},
-			{"door_to": "air_system_control_room", "rect": Rect2(Vector2(664, 232), Vector2(96, 96))},
+			# 2026-07-24 follow-up: re-measured after the newest room_boundary
+			# redraw moved this door's recess west (was x 664-760) -- see
+			# door_air's own target position/size comment below for why.
+			{"door_to": "air_system_control_room", "rect": Rect2(Vector2(615, 195), Vector2(75, 105))},
 		],
+		# 2026-07-24 TR-002-MASTER-ELEMENTS-01: dynamic occlusion zones, hand-
+		# traced the same way as the collision above. While the player's feet
+		# are in "building_front", the terminal sprite renders in front of
+		# them (they're north of/behind it); while in "player_front", the
+		# player renders in front of the terminal (the normal, south-approach
+		# case). See _sync_terminal_occlusion(), called from _process(), for
+		# how these get checked every frame and applied via tree reorder --
+		# not z_index (see training_module_scene.gd's
+		# TrainingHubBakedReferenceBlockout comment for why z_index caused a
+		# real bug here once already). Only meaningful for
+		# TrainingHubBakedReferenceBlockout; ignored by every other room.
+		# 2026-07-24 follow-up: re-traced again with the newest tool version;
+		# this pass came back as plain rects for both zones (rather than the
+		# previous pass's building_front polygon) -- _sync_terminal_occlusion()
+		# still accepts either shape via _zone_has_point(), so no code change
+		# needed here, just updated values.
+		"occlusion_zones": {
+			"building_front": Rect2(Vector2(342, 188.5), Vector2(84.5, 16)),
+			"player_front": Rect2(Vector2(337.5, 218.5), Vector2(93, 46.5)),
+		},
 		# Player enters the hub on the lower approach line.  This establishes
 		# the terminal as the visual destination rather than placing the player
 		# off to one side in a fully exposed rectangular room.
 		"player_start": Vector2(359, 356),
 		"hud": "训练中控室：室内枢纽\n连接宇航服整备室 / 配电房 / 空气系统控制室 / 训练温室。",
+		# 2026-07-24 TR-002-MASTER-ELEMENTS-01: door_suit/door_power/door_air/
+		# door_greenhouse "position"/"size" re-traced with the same tool --
+		# each sits precisely in its real doorway opening now, rather than
+		# the previous approximate rects (door_suit's old (30,232)-(56,96),
+		# for example, sat mostly INSIDE the solid wall band, only barely
+		# reaching the walkable floor at its edge -- plausibly the real
+		# cause of the earlier, never-conclusively-resolved COLLISION-06
+		# "door_suit hard to enter" report). door_spawn/prop_scene_path
+		# unchanged.
 		"targets": [
 			{"id": "terminal", "kind": "terminal", "label": "训练状态终端", "position": Vector2(318, 192), "size": Vector2(124, 112), "info": true, "prop_scene_path": "res://scenes/props/training/HubConsole.tscn", "hide_prop_visual": true},
-			{"id": "door_suit", "kind": "door", "label": "宇航服整备室", "position": Vector2(30, 232), "size": Vector2(56, 96), "door_to": "suit_prep_room", "door_spawn": Vector2(560, 300), "prop_scene_path": "res://scenes/props/training/HubDoorVertical.tscn", "hide_prop_visual": true},
-			{"id": "door_power", "kind": "door", "label": "配电房", "position": Vector2(326, 18), "size": Vector2(108, 96), "door_to": "power_distribution_room", "door_spawn": Vector2(350, 340), "prop_scene_path": "res://scenes/props/training/HubDoorHorizontal.tscn", "hide_prop_visual": true},
-			{"id": "door_air", "kind": "door", "label": "空气系统控制室", "position": Vector2(674, 232), "size": Vector2(56, 96), "door_to": "air_system_control_room", "door_spawn": Vector2(120, 300), "prop_scene_path": "res://scenes/props/training/HubDoorVertical.tscn", "hide_prop_visual": true},
-			{"id": "door_greenhouse", "kind": "door", "label": "训练温室", "position": Vector2(330, 446), "size": Vector2(100, 54), "door_to": "greenhouse_room", "door_spawn": Vector2(350, 116), "prop_scene_path": "res://scenes/props/training/HubDoorHorizontal.tscn", "hide_prop_visual": true},
+			{"id": "door_suit", "kind": "door", "label": "宇航服整备室", "position": Vector2(88.5, 205), "size": Vector2(37, 80.5), "door_to": "suit_prep_room", "door_spawn": Vector2(560, 300), "prop_scene_path": "res://scenes/props/training/HubDoorVertical.tscn", "hide_prop_visual": true},
+			{"id": "door_power", "kind": "door", "label": "配电房", "position": Vector2(350, 73), "size": Vector2(75.5, 33), "door_to": "power_distribution_room", "door_spawn": Vector2(350, 340), "prop_scene_path": "res://scenes/props/training/HubDoorHorizontal.tscn", "hide_prop_visual": true},
+			# 2026-07-24 follow-up: re-measured against the newest room_boundary
+			# redraw -- that recess shifted west and narrowed (was
+			# (633.5,205)-(37,82); a grid scan of the old rect against the new
+			# boundary found only a thin sliver open at its western edge, not
+			# the whole rect). Verified all 4 corners + center of this new
+			# rect are open under the current room_boundary_polygons.
+			{"id": "door_air", "kind": "door", "label": "空气系统控制室", "position": Vector2(627, 242), "size": Vector2(10, 26), "door_to": "air_system_control_room", "door_spawn": Vector2(120, 300), "prop_scene_path": "res://scenes/props/training/HubDoorVertical.tscn", "hide_prop_visual": true},
+			{"id": "door_greenhouse", "kind": "door", "label": "训练温室", "position": Vector2(334.5, 411.5), "size": Vector2(92.5, 41), "door_to": "greenhouse_room", "door_spawn": Vector2(350, 116), "prop_scene_path": "res://scenes/props/training/HubDoorHorizontal.tscn", "hide_prop_visual": true},
 		],
 		"steps": [],
 	}
@@ -644,7 +708,19 @@ func _suit_prep_area_config() -> Dictionary:
 			{"id": "suit_check_terminal", "kind": "terminal", "label": "整备状态终端", "position": Vector2(520, 126), "size": Vector2(124, 82), "info": true},
 			{"id": "locker_a", "kind": "locker", "label": "备用氧气柜", "position": Vector2(130, 392), "size": Vector2(118, 62)},
 			{"id": "locker_b", "kind": "locker", "label": "训练工具柜", "position": Vector2(560, 392), "size": Vector2(118, 62)},
-			{"id": "door_hub", "kind": "door", "label": "训练中控室", "position": Vector2(666, 236), "size": Vector2(64, 128), "door_to": "hub", "door_spawn": Vector2(90, 300), "door_blocked_by_state": "SuitReturnPending"},
+			# 2026-07-24 TR-002-MASTER-ELEMENTS-01 follow-up: door_spawn was
+			# (90,300) -- safely open floor under the hub's OLD, cruder
+			# ~96px-flat left-wall approximation, but the new hand-traced
+			# wall polygon follows the room's real (locally deeper) wall
+			# edge at that exact spot, so (90,300) now sits INSIDE the solid
+			# wall mass (confirmed via point-in-polygon check). A spawn point
+			# starting inside a blocker is a real deadlock, not just a
+			# cosmetic issue -- _resolve_blockers() has no recovery from an
+			# already-invalid position (User report: "从宇航服整备室回来之
+			# 后会被卡住"). Moved to (125,250), centered in door_suit's own
+			# re-traced target rect (88.5,205)-(37,80.5) and confirmed clear
+			# of both the wall polygon and the bottom-left crate blocker.
+			{"id": "door_hub", "kind": "door", "label": "训练中控室", "position": Vector2(666, 236), "size": Vector2(64, 128), "door_to": "hub", "door_spawn": Vector2(125, 250), "door_blocked_by_state": "SuitReturnPending"},
 		],
 		"steps": [
 			{"type": "move", "target": "suit_rack", "objective": "移动到宇航服整备架", "line": "已抵达宇航服整备架。"},
@@ -942,17 +1018,61 @@ func _move_player(delta: float) -> void:
 ## diagonally slides along its edge instead of snapping.
 func _resolve_blockers(old_position: Vector2, candidate: Vector2) -> Vector2:
 	var blockers := _effective_blockers()
-	if blockers.is_empty():
+	var room_boundaries: Array = module_data.get("room_boundary_polygons", [])
+	if blockers.is_empty() and room_boundaries.is_empty():
 		return candidate
-	if not _rect_hits_any_blocker(_footprint_rect(candidate), blockers):
+	if not _footprint_hits_anything(candidate, blockers, room_boundaries):
 		return candidate
 	var x_only := Vector2(candidate.x, old_position.y)
-	if not _rect_hits_any_blocker(_footprint_rect(x_only), blockers):
+	if not _footprint_hits_anything(x_only, blockers, room_boundaries):
 		return x_only
 	var y_only := Vector2(old_position.x, candidate.y)
-	if not _rect_hits_any_blocker(_footprint_rect(y_only), blockers):
+	if not _footprint_hits_anything(y_only, blockers, room_boundaries):
 		return y_only
-	return old_position
+	# 2026-07-24 follow-up: User reported real "invisible wall, but a
+	# different angle gets through" gameplay -- reproduced directly (not just
+	# via a test-script artifact) at a shallow-diagonal room_boundary edge
+	# (a door-recess "shoulder"): stepping from (639,265) design toward
+	# (645,271) fails ALL THREE candidates above (full diagonal, x-only,
+	# y-only), even though a SMALLER step in the exact same direction lands
+	# on clearly open floor. The 3 fixed candidates above only check the
+	# full step and its two axis-aligned projections -- against a wall edge
+	# that isn't axis-aligned (every door recess "shoulder" in the current
+	# hand-traced room_boundary is exactly this, and every rect blocker's
+	# corner is effectively the same shape at a diagonal approach), all
+	# three can share the same failure and there's nothing left to fall back
+	# to. A first attempt tried a small fixed list of fractions (0.5, 0.25,
+	# 0.1) of the same delta -- fixed the specific repro above, but a
+	# follow-up report (getting stuck near the terminal, a plain
+	# axis-aligned rect, from a diagonal approach) meant some real cases
+	# needed a finer step than any of those 3 fixed points landed on.
+	# Binary-search the interpolation factor along old_position->candidate
+	# instead of guessing fixed fractions -- old_position (t=0) is always
+	# open (it's where the player already is) and candidate (t=1) is already
+	# confirmed blocked, so this converges on the furthest point along the
+	# player's actual intended direction that's still open, at whatever
+	# precision the wall edge's angle demands, rather than betting on one of
+	# a few fixed guesses.
+	var open_t := 0.0
+	var blocked_t := 1.0
+	for _i in range(8):
+		var mid_t: float = (open_t + blocked_t) * 0.5
+		var mid_pos: Vector2 = old_position.lerp(candidate, mid_t)
+		if _footprint_hits_anything(mid_pos, blockers, room_boundaries):
+			blocked_t = mid_t
+		else:
+			open_t = mid_t
+	if open_t <= 0.0:
+		return old_position
+	return old_position.lerp(candidate, open_t)
+
+func _footprint_hits_anything(top_left: Vector2, blockers: Array, room_boundaries: Array) -> bool:
+	var footprint := _footprint_rect(top_left)
+	if _rect_hits_any_blocker(footprint, blockers):
+		return true
+	if not room_boundaries.is_empty() and _rect_outside_all_room_boundaries(footprint, room_boundaries):
+		return true
+	return false
 
 ## 2026-07-24 TR-002-MASTER-ELEMENTS-01 follow-up: User caught a real,
 ## general problem -- approaching any blocker (wall, terminal, crate) from
@@ -977,6 +1097,17 @@ func _resolve_blockers(old_position: Vector2, candidate: Vector2) -> Vector2:
 ## per-room `movement_margin` clamp (player_controller_2d.gd's
 ## `_clamped_position()`) is untouched, since no room besides the hub uses
 ## the `blockers` mechanism this affects.
+##
+## 2026-07-24 follow-up: briefly raised to 24.0 to shrink how much of the
+## player's sprite reached into TerminalFrontOccluder's strip (design y
+## 245-270) -- that sprite existed specifically to render IN FRONT of the
+## player there. User then explicitly rejected that whole effect ("应该是
+## 可以接近终端，人物遮挡住终端，而不是被终端遮挡") -- they want the player
+## to always occlude the terminal, no exceptions. TerminalFrontOccluder was
+## removed for this reason (see TrainingHubBakedReferenceBlockout's own
+## comment in training_module_scene.gd), which also removes the reason to
+## keep this above 16.0 -- there's no more occluder for a taller sprite to
+## dodge, so back to the tighter approach distance.
 const FOOTPRINT_DESIGN_HEIGHT := 16.0
 
 func _footprint_rect(top_left: Vector2) -> Rect2:
@@ -1023,6 +1154,75 @@ func _rect_hits_any_blocker(rect: Rect2, blockers: Array) -> bool:
 			return true
 	return false
 
+## Converts a room-space rect (player.position/size convention) into a
+## 4-point design-space polygon -- shared by every polygon-based collision
+## check below, so the room-space -> design-space conversion only lives in
+## one place.
+func _design_rect_poly(rect: Rect2) -> PackedVector2Array:
+	var design_top_left := _design_point_from_room(rect.position)
+	var design_bottom_right := _design_point_from_room(rect.end)
+	var design_rect := Rect2(design_top_left, design_bottom_right - design_top_left)
+	return PackedVector2Array([
+		design_rect.position,
+		Vector2(design_rect.end.x, design_rect.position.y),
+		design_rect.end,
+		Vector2(design_rect.position.x, design_rect.end.y),
+	])
+
+## Solid polygon-shaped obstacles (not currently used by any room -- rect
+## blockers cover the hub's terminal/crate -- but kept for a future room that
+## wants a non-axis-aligned solid blocker, e.g. an angled prop). Each
+## `polygons` entry is its own small, simple, standalone shape -- "inside
+## this polygon = blocked" is unambiguous here specifically BECAUSE each one
+## is small and self-contained, unlike the old whole-room wall-mass trace
+## this replaced (see "room_boundary_polygons"/_rect_outside_all_room_boundaries()
+## below for why that whole-room approach was fragile).
+func _rect_hits_any_polygon_blocker(rect: Rect2, polygons: Array) -> bool:
+	var rect_poly := _design_rect_poly(rect)
+	for polygon: PackedVector2Array in polygons:
+		if not Geometry2D.intersect_polygons(rect_poly, polygon).is_empty():
+			return true
+	return false
+
+func _polygon_area(poly: PackedVector2Array) -> float:
+	var area := 0.0
+	var n := poly.size()
+	for i in range(n):
+		var a: Vector2 = poly[i]
+		var b: Vector2 = poly[(i + 1) % n]
+		area += a.x * b.y - b.x * a.y
+	return absf(area) * 0.5
+
+## 2026-07-24 follow-up (room_boundary/solid_blocker split): replaces the
+## previous single "collision_polygons" wall-mass trace. That approach hand-
+## traced the WALL as one polygon that had to loop out to the image's own
+## border and back to correctly enclose "wall" rather than "floor" -- a
+## technique that's genuinely ambiguous (the same shape, traced with a
+## slightly different point order near that border-hugging stretch, can mean
+## the opposite thing under the exact same fill rule), and caused a real
+## floor/wall inversion bug earlier this same round when an apparently-
+## redundant tail got trimmed. `room_boundary_polygons` instead traces the
+## room's own WALKABLE FLOOR outline directly (module_data's
+## "room_boundary_polygons", design space) -- inside = floor, outside = void,
+## no border-hugging trick needed at all, so the shape means the same thing
+## regardless of winding direction or fill rule. Tested via area comparison
+## (not Geometry2D.exclude_polygons() -- its actual output didn't match a
+## plain "subtract B from A", see capture_tr002_exclude_debug.gd): if the
+## footprint's intersection with a boundary polygon covers its full area,
+## it's completely inside that room and not blocked by this check.
+func _rect_outside_all_room_boundaries(rect: Rect2, boundaries: Array) -> bool:
+	var rect_poly := _design_rect_poly(rect)
+	var rect_area := _polygon_area(rect_poly)
+	if rect_area <= 0.0:
+		return false
+	for boundary: PackedVector2Array in boundaries:
+		var covered := 0.0
+		for piece: PackedVector2Array in Geometry2D.intersect_polygons(rect_poly, boundary):
+			covered += _polygon_area(piece)
+		if covered >= rect_area - 0.01:
+			return false
+	return true
+
 ## Keeps the walk-cycle sprite (player_visual) aligned to the invisible
 ## hit-testing `player` Control every frame: player_visual.gd draws upward
 ## from a feet-center origin, so it's positioned at the hitbox's
@@ -1040,6 +1240,49 @@ func _sync_player_visual() -> void:
 		var suit_manager := _suit_manager()
 		var suit_worn := bool(suit_manager.get("is_suit_worn")) if suit_manager != null else false
 		player_visual.call("setup", player_facing, true, 100.0, player_moving, walk_phase, suit_worn)
+
+## 2026-07-24 TR-002-MASTER-ELEMENTS-01: dynamic player/terminal occlusion,
+## hand-traced regions (module_data["occlusion_zones"]) instead of a fixed
+## split line. Checks the player's FEET point (bottom-center of the hitbox,
+## same convention as _is_inside_target_area()'s door-crossing check) against
+## "building_front"/"player_front" -- both in design space, so convert via
+## _room_point() same as every other design-space value here. Reordered via
+## Node.move_child() (tree order), never z_index -- see hub_terminal_sprite's
+## own comment for why z_index specifically caused a real regression here
+## once already (it out-ranked an unrelated UI popup elsewhere in the scene).
+## No-op for every room except the hub (hub_terminal_sprite stays null).
+## "building_front" may be either a Rect2 or a PackedVector2Array (polygon,
+## re-traced 2026-07-24 to follow the terminal's actual angled top face) --
+## _zone_has_point() below handles both.
+func _sync_terminal_occlusion() -> void:
+	if hub_terminal_sprite == null or not is_instance_valid(hub_terminal_sprite):
+		return
+	if player == null or player_visual == null or not is_instance_valid(player_visual):
+		return
+	var zones: Dictionary = module_data.get("occlusion_zones", {})
+	if zones.is_empty():
+		return
+	var feet_room: Vector2 = player.position + Vector2(player.size.x * 0.5, player.size.y)
+	var feet_design: Vector2 = _design_point_from_room(feet_room)
+	var player_in_front := true
+	if _zone_has_point(zones.get("building_front"), feet_design):
+		player_in_front = false
+	var terminal_idx := hub_terminal_sprite.get_index()
+	var player_idx := player_visual.get_index()
+	if player_in_front and terminal_idx > player_idx:
+		hub_terminal_sprite.get_parent().move_child(hub_terminal_sprite, player_idx)
+	elif not player_in_front and terminal_idx < player_idx:
+		hub_terminal_sprite.get_parent().move_child(hub_terminal_sprite, player_idx)
+
+## Accepts a zone authored as either a Rect2 or a PackedVector2Array (polygon)
+## -- occlusion_zones entries can be either depending on how precisely they
+## were traced, see _sync_terminal_occlusion() above.
+func _zone_has_point(zone: Variant, point: Vector2) -> bool:
+	if zone is Rect2:
+		return (zone as Rect2).has_point(point)
+	if zone is PackedVector2Array:
+		return Geometry2D.is_point_in_polygon(point, zone as PackedVector2Array)
+	return false
 
 func _ensure_player_controller(movement_bounds: Rect2) -> void:
 	if player_controller != null:
@@ -2736,27 +2979,21 @@ func _build_training_area() -> void:
 			player_visual.call("set_suit_marking_color", _current_suit_marking_color)
 	_sync_player_visual()
 
-	# TR-002 hub only: TerminalFrontOccluder must render IN FRONT of the
-	# player. An earlier version used z_index for this (on both this sprite
-	# and player_visual) -- but CanvasItem z_index compares globally across
-	# the ENTIRE scene, not just training_area's own children, and this
-	# codebase's modal dialogs (briefing/mission popups) rely on plain tree
-	# order (they default to z_index=0) to stay on top. Any positive
-	# z_index here out-ranked them regardless of tree position (User
-	# screenshot: the terminal rendered on top of the mission briefing
-	# popup at scene entry). Fixed by using pure tree order instead: this
-	# sprite is added as a sibling AFTER player_visual, with no z_index
-	# override at all, so it naturally draws on top of the player only --
-	# it can never out-rank an unrelated popup added elsewhere in the tree.
+	# TR-002 hub only: terminal sprite as a direct sibling of player_visual
+	# (see hub_terminal_sprite's own doc comment) -- starts right after
+	# player_visual in tree order (player in front, the common south-approach
+	# case), _sync_terminal_occlusion() reorders it every frame as needed.
+	hub_terminal_sprite = null
 	if blockout_name == "TrainingHubBakedReferenceBlockout":
-		var terminal_front_occluder := Sprite2D.new()
-		terminal_front_occluder.name = "TerminalFrontOccluder"
-		terminal_front_occluder.texture = preload("res://assets/art/training_hub_3q_reference/tr002_terminal_front_occluder_256x192.png")
-		terminal_front_occluder.centered = false
-		terminal_front_occluder.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		terminal_front_occluder.scale = _room_scale() * TrainingModuleSceneScript.TrainingHubBakedReferenceBlockout.SOURCE_TO_LOGICAL_SCALE
-		terminal_front_occluder.position = _room_point(TrainingModuleSceneScript.TrainingHubBakedReferenceBlockout.TERMINAL_ART_ORIGIN)
-		training_area.add_child(terminal_front_occluder)
+		hub_terminal_sprite = Sprite2D.new()
+		hub_terminal_sprite.name = "HubTerminal"
+		hub_terminal_sprite.texture = TrainingModuleSceneScript.TrainingHubBakedReferenceBlockout.TerminalTexture
+		hub_terminal_sprite.centered = false
+		hub_terminal_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		hub_terminal_sprite.scale = _room_scale() * TrainingModuleSceneScript.TrainingHubBakedReferenceBlockout.SOURCE_TO_LOGICAL_SCALE
+		hub_terminal_sprite.position = _room_point(TrainingModuleSceneScript.TrainingHubBakedReferenceBlockout.TERMINAL_ART_ORIGIN)
+		training_area.add_child(hub_terminal_sprite)
+		_sync_terminal_occlusion()
 
 	prompt_label = Label.new()
 	prompt_label.modulate = Color("#f0c766")

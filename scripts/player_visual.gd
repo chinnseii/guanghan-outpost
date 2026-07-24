@@ -29,11 +29,15 @@ class RingsLayer:
 	var suit_o2 := 100.0
 	var inside := false
 
+	# 2026-07-24 follow-up: shifted up by 16 (matching _draw_astronaut_sprite()'s
+	# own fix, see that function's comment) to stay visually aligned with the
+	# character's head now that the sprite itself moved up to sit flush with
+	# the node's true origin -- was (0,-20)/(0,-17).
 	func _draw() -> void:
 		if suit_o2 <= 25.0:
-			draw_arc(Vector2(0, -20), 17.0, 0.0, TAU, 24, Color("#ff8a6b"), 3)
+			draw_arc(Vector2(0, -36), 17.0, 0.0, TAU, 24, Color("#ff8a6b"), 3)
 		if not inside:
-			draw_arc(Vector2(0, -17), 25.0, -1.25, 1.25, 24, Color("#8fd7ff", 0.42), 3)
+			draw_arc(Vector2(0, -33), 25.0, -1.25, 1.25, 24, Color("#8fd7ff", 0.42), 3)
 
 ## Character appearance system (2026-07-17): the character's look is driven
 ## by 4 attributes (gender/skin_tone/hair_color/hairstyle) resolved through
@@ -232,7 +236,9 @@ func _draw() -> void:
 
 func _draw_astronaut_sprite() -> void:
 	var row := _direction_row()
-	draw_rect(Rect2(Vector2(-16, 15), Vector2(32, 6)), Color(0, 0, 0, 0.18))
+	# 2026-07-24 follow-up: shifted from y=15 to y=-1 (up 16) alongside dest's
+	# own fix below -- see that line's comment for the root cause.
+	draw_rect(Rect2(Vector2(-16, -1), Vector2(32, 6)), Color(0, 0, 0, 0.18))
 	var frame := 0
 	if moving:
 		frame = int(floor(walk_phase / WALK_PHASE_PER_FRAME)) % FRAMES_PER_ROW
@@ -286,7 +292,23 @@ func _draw_astronaut_sprite() -> void:
 	# rects always stay normalized/unflipped now, at every direction.
 	_sprite_layer.scale = Vector2(-1.0, 1.0) if flip_source else Vector2(1.0, 1.0)
 	var source := Rect2(Vector2(frame * active_frame_size.x, source_row * active_frame_size.y), active_frame_size)
-	var dest := Rect2(Vector2(-active_display_size.x * 0.5, -active_display_size.y + 16), active_display_size)
+	# 2026-07-24 follow-up (TR-002 hub investigation): this "+16" made the
+	# drawn sprite's own bottom edge sit 16 local px BELOW this node's origin
+	# -- but the node's origin IS the true hitbox bottom (feet point; see
+	# _sync_player_visual()'s "player.position + Vector2(player.size.x*0.5,
+	# player.size.y)"). Every room's collision has always been correct; the
+	# VISIBLE character just lagged 16 local px (scaled by this room's
+	# uniform_scale, so a few px more once the room's own scale is applied)
+	# behind it when approaching an obstacle from the south, making it look
+	# like the player could never quite reach something the collision data
+	# said was already touching. Flagged repeatedly since COLLISION-05 and
+	# deferred each time as shared/broad-blast-radius code; User asked to fix
+	# it here after hitting it a second time. Removing the offset means the
+	# sprite's bottom edge now sits exactly at the node's origin, matching
+	# the real hitbox -- the shadow rect above and RingsLayer's arcs were
+	# both shifted up by the same 16 to keep their relative position on the
+	# character unchanged, just anchored correctly now.
+	var dest := Rect2(Vector2(-active_display_size.x * 0.5, -active_display_size.y), active_display_size)
 	_sprite_layer.sprite_texture = active_texture
 	_sprite_layer.source_rect = source
 	_sprite_layer.dest_rect = dest
@@ -312,7 +334,10 @@ func play_suit_up_animation(color_id: String) -> void:
 	var sheet_path := "res://assets/characters/suits/suit_helmet_lower_back_%s.png" % color_id if use_back else "res://assets/characters/suits/suit_up_%s.png" % color_id
 	var durations: Array[float] = SUIT_UP_BACK_DURATIONS if use_back else SUIT_UP_FRONT_DURATIONS
 	var texture := AssetCatalog.load_png_texture(sheet_path)
-	var dest := Rect2(Vector2(-display_size.x * 0.5, -display_size.y + 16), display_size)
+	# 2026-07-24 follow-up: matches _draw_astronaut_sprite()'s own dest fix
+	# (see that line's comment) -- keeps the one-shot donning animation's
+	# feet anchored at the same corrected point as the normal walk cycle.
+	var dest := Rect2(Vector2(-display_size.x * 0.5, -display_size.y), display_size)
 	for frame_index in range(durations.size()):
 		var col := frame_index % SUIT_UP_COLS
 		var row := frame_index / SUIT_UP_COLS

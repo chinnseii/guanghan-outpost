@@ -284,50 +284,42 @@ class TrainingHubBakedReferenceBlockout:
 	extends Control
 
 	# 2026-07-24 TR-002_MASTER_ELEMENTS_TRIAL swap: the terminal is baked out
-	# of the room background and reissued as two separate sprites (back half
-	# = screen/body, front half = base lip) so the player can render between
-	# them. Doors/walls stayed baked into this new background (confirmed via
-	# pixel diff against the prior tr002_training_hub_no_actor_1520x1040.png:
-	# floor/wall boundary samples matched within 1-2px at every point
-	# checked, so the existing wall/door collision tuning in
-	# training_base_map.gd's _hub_area_config() still applies unchanged --
-	# only the terminal moved).
+	# of the room background and reissued as a separate sprite. Doors/walls
+	# stayed baked into this new background (confirmed via pixel diff
+	# against the prior tr002_training_hub_no_actor_1520x1040.png: floor/wall
+	# boundary samples matched within 1-2px at every point checked, so the
+	# existing wall/door collision tuning in training_base_map.gd's
+	# _hub_area_config() still applies unchanged -- only the terminal moved).
 	#
-	# TerminalBack is built here (below, in _build_layers()) since tree order
-	# alone already puts it behind the player -- this Control (the room
-	# floor) is added to training_area before player/player_visual, so no
-	# z_index is needed or used.
-	#
-	# TerminalFrontOccluder is deliberately NOT built here. An earlier
-	# version of this class gave it z_index=3 (and player_visual z_index=2)
-	# to force it in front of the player -- but CanvasItem z_index compares
-	# globally across the WHOLE scene, not just within training_area's own
-	# children, and this codebase's modal dialogs (briefing/mission popups
-	# etc.) rely on tree order, not z_index, to stay on top (they default to
-	# z_index=0). Any positive z_index here out-ranked them regardless of
-	# tree position -- confirmed by User screenshot: the terminal rendered
-	# ON TOP of the mission briefing popup right at scene entry. Fixed by
-	# moving TerminalFrontOccluder's construction to
-	# training_base_map.gd's _build_training_area(), where it's added as a
-	# plain sibling AFTER player_visual with no z_index override at all --
-	# tree order then does the job safely, scoped to just this local
-	# ordering, the same way every other node in this file already works.
+	# 2026-07-24 follow-up: the delivered art actually splits the terminal
+	# into TerminalBack (screen/body) + TerminalFrontOccluder (base lip),
+	# meant to render behind/in-front of the player respectively so the
+	# console's front lip covers the player's feet when standing close. User
+	# explicitly rejected a STATIC version of that effect ("应该是可以接近
+	# 终端，人物遮挡住终端，而不是被终端遮挡") -- so this class no longer
+	# builds any terminal sprite at all. The terminal is instead built by
+	# training_base_map.gd's _build_training_area(), as a sibling of
+	# player_visual (not nested under this floor's art_root), because the
+	# user separately asked for a real, POSITION-DEPENDENT version of the
+	# same idea (occlusion that flips based on where the player is standing,
+	# not fixed) -- see _sync_terminal_occlusion() in training_base_map.gd.
+	# That needs the terminal and player_visual to be direct siblings under
+	# training_area so their relative tree order (and therefore draw order)
+	# can be reordered every frame via Node.move_child(), the same
+	# z_index-free approach as before (see TERMINAL_ART_ORIGIN/TerminalTexture
+	# below, still defined here since training_base_map.gd references them
+	# via TrainingModuleSceneScript.TrainingHubBakedReferenceBlockout.*).
 	const BakedReference := preload("res://assets/art/training_hub_3q_reference/tr002_room_backplate_no_terminal_1520x1040.png")
-	const TerminalBackTexture := preload("res://assets/art/training_hub_3q_reference/tr002_terminal_back_256x192.png")
+	const TerminalTexture := preload("res://assets/art/training_hub_3q_reference/tr002_terminal_full_256x192.png")
 	const ROOM_DESIGN_SIZE := Vector2(760, 520)
 	const SOURCE_TO_LOGICAL_SCALE := 0.5
-	# Design-space top-left for both terminal sprites' shared 256x192 (2x)
-	# source canvas. Measured, not eyeballed: composited
-	# tr002_terminal_full_256x192.png over BakedReference at a grid of
-	# candidate offsets and picked the pixel-closest match against
-	# tr002_master_elements_trial_preview_760x520.png (the delivered preview
-	# with the terminal drawn in) -- best fit at (316, 174), independently
-	# confirmed by diffing the preview against BakedReference directly (same
-	# bbox). Both sprites must share this exact position: they're two halves
-	# of the same canvas, split at source y=142 (design y ~245).
-	# Referenced by training_base_map.gd (as
-	# TrainingModuleSceneScript.TrainingHubBakedReferenceBlockout.TERMINAL_ART_ORIGIN)
-	# to position the separately-built TerminalFrontOccluder identically.
+	# Design-space top-left for the terminal sprite's 256x192 (2x) source
+	# canvas. Measured, not eyeballed: composited this same texture over
+	# BakedReference at a grid of candidate offsets and picked the
+	# pixel-closest match against tr002_master_elements_trial_preview_760x520.png
+	# (the delivered preview with the terminal drawn in) -- best fit at
+	# (316, 174), independently confirmed by diffing the preview against
+	# BakedReference directly (same bbox).
 	const TERMINAL_ART_ORIGIN := Vector2(316, 174)
 
 	var _built := false
@@ -369,20 +361,6 @@ class TrainingHubBakedReferenceBlockout:
 		sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		sprite.scale = Vector2.ONE * SOURCE_TO_LOGICAL_SCALE
 		art_root.add_child(sprite)
-
-		# No z_index here -- this whole Control (the room floor) is added to
-		# training_area before player/player_visual, so tree order alone
-		# already puts TerminalBack behind the player. TerminalFrontOccluder
-		# is built separately by training_base_map.gd, after player_visual,
-		# for the same tree-order reason (see this class's own top comment).
-		var terminal_back := Sprite2D.new()
-		terminal_back.name = "TerminalBack"
-		terminal_back.texture = TerminalBackTexture
-		terminal_back.centered = false
-		terminal_back.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		terminal_back.scale = Vector2.ONE * SOURCE_TO_LOGICAL_SCALE
-		terminal_back.position = TERMINAL_ART_ORIGIN
-		art_root.add_child(terminal_back)
 
 class AirlockRoomBlockout:
 	extends Control
